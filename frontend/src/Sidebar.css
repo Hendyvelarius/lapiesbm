@@ -34,6 +34,8 @@
 .sidebar-section-title {
   font-size: 0.8rem;
   font-weight: 600;
+  padding-left: 24px;
+  padding-top: 10px;
   color: #a3adc2;
   letter-spacing: 0.04em;
 }
@@ -71,11 +73,11 @@
   color: #fff;
 }
 .sidebar-icon {
-  font-size: 1.2em;
-  margin-right: 8px;
+  margin-right: 12px;
   color: #a3adc2;
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
 }
 .sidebar-logo-lapi {
   width: 240px;

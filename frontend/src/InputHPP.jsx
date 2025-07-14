@@ -57,33 +57,35 @@ export default function InputHPP() {
         {step === 1 && (
           <form onSubmit={e => { e.preventDefault(); setStep(2); }}>
             <h2>Informasi Produk</h2>
-            <div className="form-row">
-              <label>Nama Produk</label>
-              <input name="namaProduk" value={product.namaProduk} onChange={handleProductChange} required />
-            </div>
-            <div className="form-row">
-              <label>Harga</label>
-              <input name="harga" value={product.harga} onChange={handleProductChange} required type="number" min="0" />
-            </div>
-            <div className="form-row">
-              <label>Jenis Produk</label>
-              <input name="jenisProduk" value={product.jenisProduk} onChange={handleProductChange} required />
-            </div>
-            <div className="form-row">
-              <label>Bentuk</label>
-              <input name="bentuk" value={product.bentuk} onChange={handleProductChange} />
-            </div>
-            <div className="form-row">
-              <label>Kategori</label>
-              <input name="kategori" value={product.kategori} onChange={handleProductChange} />
-            </div>
-            <div className="form-row">
-              <label>Pabrik</label>
-              <input name="pabrik" value={product.pabrik} onChange={handleProductChange} />
-            </div>
-            <div className="form-row">
-              <label>Expiry Date</label>
-              <input name="expiry" value={product.expiry} onChange={handleProductChange} type="date" />
+            <div className="form-content">
+              <div className="form-row">
+                <label>Nama Produk</label>
+                <input name="namaProduk" value={product.namaProduk} onChange={handleProductChange} required />
+              </div>
+              <div className="form-row">
+                <label>Harga</label>
+                <input name="harga" value={product.harga} onChange={handleProductChange} required type="number" min="0" />
+              </div>
+              <div className="form-row">
+                <label>Jenis Produk</label>
+                <input name="jenisProduk" value={product.jenisProduk} onChange={handleProductChange} required />
+              </div>
+              <div className="form-row">
+                <label>Bentuk</label>
+                <input name="bentuk" value={product.bentuk} onChange={handleProductChange} />
+              </div>
+              <div className="form-row">
+                <label>Kategori</label>
+                <input name="kategori" value={product.kategori} onChange={handleProductChange} />
+              </div>
+              <div className="form-row">
+                <label>Pabrik</label>
+                <input name="pabrik" value={product.pabrik} onChange={handleProductChange} />
+              </div>
+              <div className="form-row">
+                <label>Expiry Date</label>
+                <input name="expiry" value={product.expiry} onChange={handleProductChange} type="date" />
+              </div>
             </div>
             <div className="form-actions">
               <button type="button" disabled>Back</button>
@@ -94,24 +96,28 @@ export default function InputHPP() {
         {step === 2 && (
           <form onSubmit={e => { e.preventDefault(); setStep(3); }}>
             <h2>HPP Produk</h2>
-            <div className="form-row">
-              <label>Bahan Baku</label>
-              {hpp.ingredients.map((ing, idx) => (
-                <div className="ingredient-row" key={idx}>
-                  <input placeholder="Nama Bahan" value={ing.name} onChange={e => handleHPPChange(idx, 'name', e.target.value)} />
-                  <input placeholder="Jumlah (gr)" value={ing.qty} onChange={e => handleHPPChange(idx, 'qty', e.target.value)} type="number" min="0" />
-                  <input placeholder="Harga Satuan" value={ing.price} onChange={e => handleHPPChange(idx, 'price', e.target.value)} type="number" min="0" />
+            <div className="form-content single-column">
+              <div className="form-row">
+                <label>Bahan Baku</label>
+                <div>
+                  {hpp.ingredients.map((ing, idx) => (
+                    <div className="ingredient-row" key={idx}>
+                      <input placeholder="Nama Bahan" value={ing.name} onChange={e => handleHPPChange(idx, 'name', e.target.value)} />
+                      <input placeholder="Jumlah (gr)" value={ing.qty} onChange={e => handleHPPChange(idx, 'qty', e.target.value)} type="number" min="0" />
+                      <input placeholder="Harga Satuan" value={ing.price} onChange={e => handleHPPChange(idx, 'price', e.target.value)} type="number" min="0" />
+                    </div>
+                  ))}
+                  <button type="button" className="add-btn" onClick={addIngredient}>+ Tambah Bahan</button>
                 </div>
-              ))}
-              <button type="button" className="add-btn" onClick={addIngredient}>+ Tambah Bahan</button>
-            </div>
-            <div className="form-row">
-              <label>Biaya Tenaga Kerja</label>
-              <input name="labor" value={hpp.labor} onChange={handleHPPField} type="number" min="0" />
-            </div>
-            <div className="form-row">
-              <label>Biaya Overhead</label>
-              <input name="overhead" value={hpp.overhead} onChange={handleHPPField} type="number" min="0" />
+              </div>
+              <div className="form-row">
+                <label>Biaya Tenaga Kerja</label>
+                <input name="labor" value={hpp.labor} onChange={handleHPPField} type="number" min="0" />
+              </div>
+              <div className="form-row">
+                <label>Biaya Overhead</label>
+                <input name="overhead" value={hpp.overhead} onChange={handleHPPField} type="number" min="0" />
+              </div>
             </div>
             <div className="form-actions">
               <button type="button" onClick={() => setStep(1)}>Back</button>
