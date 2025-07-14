@@ -1,4 +1,4 @@
-import './Sidebar.css';
+import '../styles/Sidebar.css';
 import { FileText, BarChart3, Settings, HelpCircle } from 'lucide-react';
 
 export default function Sidebar() {

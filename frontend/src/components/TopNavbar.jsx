@@ -1,4 +1,4 @@
-import './TopNavbar.css';
+import '../styles/TopNavbar.css';
 
 export default function TopNavbar() {
   return (

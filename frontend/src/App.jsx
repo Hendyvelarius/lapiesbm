@@ -1,8 +1,8 @@
 
-import Sidebar from './Sidebar';
-import TopNavbar from './TopNavbar';
-import InputHPP from './InputHPP';
-import './App.css';
+import Sidebar from './components/Sidebar';
+import TopNavbar from './components/TopNavbar';
+import InputHPP from './pages/InputHPP';
+import './styles/App.css';
 
 function App() {
   return (
