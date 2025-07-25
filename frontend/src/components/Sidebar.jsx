@@ -5,7 +5,7 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <img src="/src/assets/LAPILOGO_White.png" alt="LAPI Logo" className="sidebar-logo sidebar-logo-lapi" />
+        <img src="/LAPILOGO_White.png" alt="LAPI Logo" className="sidebar-logo sidebar-logo-lapi" />
         <div className="sidebar-site-title">e-Sistem Biaya Manufaktur</div>
       </div>
       <div className="sidebar-section">

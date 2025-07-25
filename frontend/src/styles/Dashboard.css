@@ -1,0 +1,540 @@
+.dashboard-container {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  padding: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  margin-bottom: 32px;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 24px;
+  width: 100%;
+  max-width: 100%;
+  height: calc(100vh - 260px);
+  box-sizing: border-box;
+  grid-template-areas: 
+    "products categories batch-size formula"
+    "clock actions batch-size formula";
+}
+
+/* Base Card Styles */
+.info-card,
+.warning-card,
+.shortcut-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.info-card:hover,
+.warning-card:hover,
+.shortcut-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Info Cards */
+.info-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.card-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.products-icon {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+}
+
+.categories-icon {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+}
+
+.card-content h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 8px 0;
+  font-family: 'Inter', sans-serif;
+}
+
+.card-number {
+  font-size: 36px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 4px 0;
+  font-family: 'Inter', sans-serif;
+}
+
+.card-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+/* Clock Card */
+.clock-card {
+  background: linear-gradient(135deg, #374151, #1f2937);
+  color: white;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clock-content {
+  width: 100%;
+}
+
+.time-display {
+  font-size: 40px;
+  font-weight: 700;
+  font-family: 'Inter', monospace;
+  margin-bottom: 12px;
+}
+
+.date-display {
+  font-size: 16px;
+  font-weight: 400;
+  opacity: 0.9;
+}
+
+/* Notes Card */
+.notes-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 20px;
+}
+
+.notes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  gap: 12px;
+}
+
+.notes-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  flex: 1;
+}
+
+.notes-card .add-note-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.notes-card .add-note-btn svg {
+  color: white !important;
+  stroke: white !important;
+  fill: none !important;
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.notes-card .add-note-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.notes-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: calc(100% - 60px);
+}
+
+.notes-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.notes-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 2px;
+}
+
+.notes-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+.notes-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.note-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(243, 244, 246, 0.5);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.note-item:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.note-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  flex: 1;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 12px;
+  min-width: 0;
+}
+
+.note-date {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+/* Tall Cards for Warnings */
+.tall-card {
+  /* Height will be controlled by grid */
+}
+
+.tall-card .warning-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.tall-card .warning-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tall-card .warning-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.tall-card .warning-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+}
+
+.tall-card .warning-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* Warning Card Styles */
+.warning-card {
+  /* Height will be controlled by grid */
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.warning-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  flex-shrink: 0;
+}
+
+.card-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+  flex: 1;
+  font-family: 'Inter', sans-serif;
+}
+
+.count-badge {
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.warning-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.warning-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.warning-item:last-child {
+  border-bottom: none;
+}
+
+.product-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  flex: 1;
+}
+
+.product-category {
+  font-size: 12px;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+/* Shortcut Card */
+.shortcut-card {
+  justify-content: space-between;
+  background: rgba(55, 65, 81, 0.95) !important;
+  backdrop-filter: blur(10px);
+}
+
+.shortcut-card h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 20px 0;
+  font-family: 'Inter', sans-serif;
+  text-align: center;
+}
+
+.shortcut-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  justify-content: center;
+}
+
+.shortcut-btn {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Inter', sans-serif;
+  text-align: left;
+  justify-content: center;
+}
+
+.daftar-hpp {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+}
+
+.simulasi-hpp {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+}
+
+.shortcut-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.btn-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .info-card,
+  .warning-card,
+  .shortcut-card {
+    padding: 20px;
+  }
+  
+  .info-card {
+    flex-direction: column;
+    text-align: center;
+    min-height: auto;
+  }
+  
+  .card-icon {
+    width: 56px;
+    height: 56px;
+  }
+  
+  .card-number {
+    font-size: 28px;
+  }
+  
+  .time-display {
+    font-size: 24px;
+  }
+  
+  .shortcut-buttons {
+    gap: 8px;
+  }
+  
+  .shortcut-btn {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+  
+  .btn-icon {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* Enhanced Responsive Design for Grid Layout */
+@media (max-width: 1200px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+    height: calc(100vh - 260px);
+    grid-template-areas: 
+      "products categories batch-size"
+      "clock actions formula";
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr 1fr;
+    height: auto;
+    grid-template-rows: auto auto auto auto;
+    grid-template-areas: 
+      "products categories"
+      "clock actions"
+      "batch-size batch-size"
+      "formula formula";
+    gap: 16px;
+  }
+  
+  .dashboard-container {
+    padding: 16px;
+  }
+  
+  .greeting {
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+  
+  .card-icon {
+    width: 64px;
+    height: 64px;
+  }
+  
+  .time-display {
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    height: auto;
+    grid-template-rows: repeat(6, auto);
+    grid-template-areas: 
+      "products"
+      "categories" 
+      "clock"
+      "actions"
+      "batch-size"
+      "formula";
+    gap: 12px;
+  }
+  
+  .card-icon {
+    width: 56px;
+    height: 56px;
+  }
+  
+  .time-display {
+    font-size: 24px;
+  }
+}

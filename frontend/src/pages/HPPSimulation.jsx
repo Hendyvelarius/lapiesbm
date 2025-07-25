@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { hppService } from '../services/api';
-import '../styles/InputHPP.css';
+import '../styles/HPPSimulation.css';
 
 const initialProduct = {
   namaProduk: '',
@@ -18,7 +18,7 @@ const initialHPP = {
   overhead: '',
 };
 
-export default function InputHPP() {
+export default function HPPSimulation() {
   const [step, setStep] = useState(1);
   const [product, setProduct] = useState(initialProduct);
   const [hpp, setHPP] = useState(initialHPP);
@@ -140,7 +140,7 @@ export default function InputHPP() {
   };
 
   return (
-    <div className="input-hpp-container">
+    <div className="hpp-simulation-container">
       <div className="stepper">
         {steps.map((label, i) => (
           <div key={label} className={`step ${step === i + 1 ? 'active' : ''} ${step > i + 1 ? 'done' : ''}`}>
@@ -150,7 +150,7 @@ export default function InputHPP() {
           </div>
         ))}
       </div>
-      <div className="input-hpp-card">
+      <div className="hpp-simulation-card">
         {error && step !== 3 && (
           <div className="error-message" style={{
             background: '#fee',
