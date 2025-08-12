@@ -1,7 +1,7 @@
-
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router';
 import { useState, useEffect } from 'react';
 import TopNavbar from './components/TopNavbar';
+import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import HPPSimulation from './pages/HPPSimulation';
 import './styles/App.css';
@@ -58,20 +58,15 @@ function AppContent() {
 
   return (
     <div className="app-layout">
-      <TopNavbar notificationCount={getNotificationCount()} />
+      <Sidebar />
+      <TopNavbar 
+        notificationCount={getNotificationCount()} 
+        pageTitle={getPageTitle()} 
+        currentTime={formatTime(currentTime)} 
+        currentDate={formatDate(currentTime)} 
+      />
       <main className="main-content">
-        {/* Welcome Section */}
-        <div className="welcome-section">
-          <div className="welcome-content">
-            <h1 className="welcome-title">{getPageTitle()}</h1>
-          </div>
-          <div className="welcome-datetime">
-            <div className="datetime-display">
-              <div className="time-text">{formatTime(currentTime)}</div>
-              <div className="date-text">{formatDate(currentTime)}</div>
-            </div>
-          </div>
-        </div>
+        {/* Removed welcome section, now handled by TopNavbar */}
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/hpp-simulation" element={<HPPSimulation />} />

@@ -12,8 +12,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  padding: 0;
+  height: 80px;
+  padding: 0 32px;
+  background: transparent;
 }
 
 /* Logo Section - Left Aligned */
@@ -29,11 +30,23 @@
   object-fit: contain;
 }
 
+/* Left Section - Greeting */
+.navbar-left-section {
+  display: flex;
+  align-items: center;
+}
+
+.navbar-greeting {
+  font-size: 2rem;
+  font-weight: 500;
+  color: #23283b;
+}
+
 /* Right side container for menu and buttons */
 .navbar-right-section {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 24px;
   flex-shrink: 0;
 }
 
@@ -152,7 +165,7 @@
 .navbar-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
   flex-shrink: 0;
 }
 
@@ -244,6 +257,63 @@
   box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
   border: 2px solid white;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Page Header Styles */
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.page-header-title {
+  font-size: 2rem;
+  font-weight: 500;
+  color: #23283b;
+}
+
+.page-header-datetime {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.page-header-time {
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: #23283b;
+}
+
+.page-header-date {
+  font-size: 1rem;
+  color: #6b7280;
+}
+
+/* New Navbar Date and Time Styles */
+.navbar-datetime {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: 18px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+}
+
+.navbar-time {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #23283b;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+
+.navbar-date {
+  font-size: 1rem;
+  color: #6b7280;
+  letter-spacing: 0.01em;
+  margin-top: 2px;
+  line-height: 1.1;
 }
 
 /* Responsive Design */

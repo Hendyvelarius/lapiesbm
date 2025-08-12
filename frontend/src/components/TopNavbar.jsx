@@ -1,96 +1,16 @@
-import { useNavigate, useLocation } from 'react-router';
+import { useNavigate } from 'react-router';
 import '../styles/TopNavbar.css';
 
-export default function TopNavbar({ notificationCount = 0 }) {
+export default function TopNavbar({ notificationCount = 0, ...props }) {
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const menuItems = [
-    { 
-      name: 'Master', 
-      active: false,
-      submenu: [
-        'Formula',
-        'Harga Bahan',
-        'Kurs STD',
-        'Yield STD',
-        'Waktu Kerja STD',
-        'Pembebanan',
-        'Batch Size',
-        'STD Parameter',
-        'Product',
-        'Kategori'
-      ]
-    },
-    { 
-      name: 'Transaction', 
-      active: location.pathname === '/hpp-simulation',
-      submenu: [
-        { name: 'HPP Per Product', path: '/' },
-        { name: 'HPP Simulation', path: '/hpp-simulation' }
-      ]
-    },
-    { 
-      name: 'Report', 
-      active: false,
-      submenu: [
-        'HPP Report'
-      ]
-    },
-  ];
-
-  const handleDropdownClick = (subItem) => {
-    if (typeof subItem === 'object' && subItem.path) {
-      navigate(subItem.path);
-    }
-  };
 
   return (
     <header className="top-navbar">
       <div className="navbar-container">
-        {/* Logo Section - Left Aligned */}
-        <div className="navbar-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-          <img 
-            src="/LAPILOGO_Black.png" 
-            alt="LAPI Logo" 
-            className="lapi-logo"
-          />
+        <div className="navbar-left-section">
+          <span className="navbar-greeting">{props.pageTitle}</span>
         </div>
-
-        {/* Right side container for menu and buttons */}
         <div className="navbar-right-section">
-          {/* Menu Items Container */}
-          <div className="navbar-menu-container">
-            <nav className="navbar-menu">
-              {menuItems.map((item, index) => (
-                <div key={index} className="menu-item-wrapper">
-                  <button
-                    className={`menu-item ${item.active ? 'active' : ''}`}
-                  >
-                    {item.name}
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="dropdown-arrow">
-                      <polyline points="6,9 12,15 18,9"></polyline>
-                    </svg>
-                  </button>
-                  
-                  {/* Dropdown Menu */}
-                  <div className="dropdown-menu">
-                    {item.submenu.map((subItem, subIndex) => (
-                      <button 
-                        key={subIndex} 
-                        className="dropdown-item"
-                        onClick={() => handleDropdownClick(subItem)}
-                      >
-                        {typeof subItem === 'object' ? subItem.name : subItem}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </nav>
-          </div>
-
-          {/* Individual Circular Buttons */}
           <div className="navbar-right">
             <button className="settings-btn">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -114,6 +34,10 @@ export default function TopNavbar({ notificationCount = 0 }) {
                   <circle cx="12" cy="7" r="4"/>
                 </svg>
               </div>
+            </div>
+            <div className="navbar-datetime">
+              <span className="navbar-time">{props.currentTime}</span>
+              <span className="navbar-date">{props.currentDate}</span>
             </div>
           </div>
         </div>

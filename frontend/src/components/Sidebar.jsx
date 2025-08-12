@@ -4,8 +4,11 @@ import { FileText, BarChart3, Settings, HelpCircle } from 'lucide-react';
 export default function Sidebar() {
   return (
     <aside className="sidebar">
+      {/* Logo Section */}
+      <div className="sidebar-logo">
+        <img src="/LAPILOGO_White.png" alt="LAPI Logo" className="logo-image" />
+      </div>
       <div className="sidebar-header">
-        <img src="/LAPILOGO_White.png" alt="LAPI Logo" className="sidebar-logo sidebar-logo-lapi" />
         <div className="sidebar-site-title">e-Sistem Biaya Manufaktur</div>
       </div>
       <div className="sidebar-section">
