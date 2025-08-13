@@ -75,7 +75,8 @@ app.get('/', (req, res) => {
       health: '/health',
       api: '/api',
       products: '/api/products',
-      hpp: '/api/hpp'
+      hpp: '/api/hpp',
+      master: '/api/master'
     }
   });
 });
@@ -96,9 +97,9 @@ const PORT = process.env.PORT || 3001;
 
 async function startServer() {
   try {
-    // Test database connection
+    // Test PostgreSQL connection (required for Sequelize)
     await sequelize.authenticate();
-    console.log('✅ Database connection established successfully.');
+    console.log('✅ PostgreSQL Database connection established successfully.');
 
     // Sync database (be careful in production)
     if (process.env.NODE_ENV === 'development') {

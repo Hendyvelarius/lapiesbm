@@ -1,7 +1,10 @@
 import '../styles/Sidebar.css';
-import { FileText, BarChart3, Settings, HelpCircle } from 'lucide-react';
+import { FileText, BarChart3, Settings, HelpCircle, DollarSign } from 'lucide-react';
+import { Link, useLocation } from 'react-router';
 
 export default function Sidebar() {
+  const location = useLocation();
+  
   return (
     <aside className="sidebar">
       {/* Logo Section */}
@@ -14,15 +17,36 @@ export default function Sidebar() {
       <div className="sidebar-section">
         <div className="sidebar-section-title">MENU UTAMA</div>
         <ul className="sidebar-menu">
-          <li className="active"><FileText className="sidebar-icon" size={20} /> Input HPP</li>
-          <li><BarChart3 className="sidebar-icon" size={20} /> Laporan HPP</li>
+          <li className={location.pathname === '/' ? 'active' : ''}>
+            <Link to="/" className="sidebar-link">
+              <BarChart3 className="sidebar-icon" size={20} /> Laporan HPP
+            </Link>
+          </li>
+          <li className={location.pathname === '/hpp-simulation' ? 'active' : ''}>
+            <Link to="/hpp-simulation" className="sidebar-link">
+              <FileText className="sidebar-icon" size={20} /> Simulasi HPP
+            </Link>
+          </li>
+          <li className={location.pathname === '/kurs' ? 'active' : ''}>
+            <Link to="/kurs" className="sidebar-link">
+              <DollarSign className="sidebar-icon" size={20} /> Info Kurs
+            </Link>
+          </li>
         </ul>
       </div>
       <div className="sidebar-section">
         <div className="sidebar-section-title">PENGATURAN</div>
-        <ul className="sidebar-settings">
-          <li><Settings className="sidebar-icon" size={20} /> Settings</li>
-          <li><HelpCircle className="sidebar-icon" size={20} /> Help</li>
+        <ul className="sidebar-menu">
+          <li>
+            <button className="sidebar-link" disabled>
+              <Settings className="sidebar-icon" size={20} /> Settings
+            </button>
+          </li>
+          <li>
+            <button className="sidebar-link" disabled>
+              <HelpCircle className="sidebar-icon" size={20} /> Help
+            </button>
+          </li>
         </ul>
       </div>
       <div className="sidebar-user">
