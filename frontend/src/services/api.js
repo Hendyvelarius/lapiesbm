@@ -1,5 +1,5 @@
 // API base configuration
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 // Generic API request function
 const apiRequest = async (endpoint, options = {}) => {
@@ -139,6 +139,12 @@ export const hppService = {
   },
 };
 
+// Master API (for currencies, etc.)
+export const masterAPI = {
+  // Get currency data
+  getCurrency: () => apiRequest('/master/currency'),
+};
+
 // Health check
 export const healthAPI = {
   check: () => apiRequest('/health', { method: 'GET' }),
@@ -148,5 +154,6 @@ export default {
   products: productsAPI,
   hpp: hppAPI,
   hppService,
+  master: masterAPI,
   health: healthAPI,
 };

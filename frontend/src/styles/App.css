@@ -31,10 +31,11 @@
   margin-left: 260px; /* Sidebar width */
   box-sizing: border-box;
   overflow-x: hidden;
+  position: relative;
 }
 
 .top-navbar {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 260px;
   right: 0;
@@ -123,7 +124,6 @@
 @media (max-width: 480px) {
   .main-content {
     padding: 12px 12px;
-    padding-top: 90px;
     width: calc(100% - 24px);
     margin-left: 0; /* Reset margin for smaller screens */
   }
