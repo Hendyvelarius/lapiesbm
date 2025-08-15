@@ -97,15 +97,12 @@ const PORT = process.env.PORT || 3001;
 
 async function startServer() {
   try {
-    // Test PostgreSQL connection (required for Sequelize)
+    // Test database connection
     await sequelize.authenticate();
-    console.log('✅ PostgreSQL Database connection established successfully.');
+    console.log('✅ Database connection established successfully.');
 
-    // Sync database (be careful in production)
-    if (process.env.NODE_ENV === 'development') {
-      await sequelize.sync({ alter: true });
-      console.log('✅ Database synchronized successfully.');
-    }
+    // Tables are managed via migrations (npx sequelize db:migrate)
+    // No need for sync since migrations handle schema
 
     // Start server
     app.listen(PORT, () => {
