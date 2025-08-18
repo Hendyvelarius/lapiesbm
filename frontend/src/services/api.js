@@ -139,10 +139,36 @@ export const hppService = {
   },
 };
 
-// Master API (for currencies, etc.)
+// Master API (for currencies, materials, etc.)
 export const masterAPI = {
   // Get currency data
   getCurrency: () => apiRequest('/master/currency'),
+  
+  // Get material/bahan data
+  getBahan: () => apiRequest('/master/bahan'),
+  
+  // Get harga bahan data
+  getHargaBahan: () => apiRequest('/master/hargaBahan'),
+  
+  // Get unit data
+  getUnit: () => apiRequest('/master/unit'),
+  
+  // Add new harga bahan
+  addHargaBahan: (data) => apiRequest('/master/hargaBahan', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  
+  // Update harga bahan
+  updateHargaBahan: (id, data) => apiRequest(`/master/hargaBahan/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  
+  // Delete harga bahan
+  deleteHargaBahan: (id) => apiRequest(`/master/hargaBahan/${id}`, {
+    method: 'DELETE',
+  }),
 };
 
 // Health check

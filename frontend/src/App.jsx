@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import HPPSimulation from './pages/HPPSimulation';
 import Currency from './pages/Currency';
+import HargaBahan from './pages/HargaBahan';
 import './styles/App.css';
 
 function AppContent() {
@@ -37,6 +38,8 @@ function AppContent() {
         return 'HPP Simulation';
       case '/kurs':
         return 'Currency Exchange Rates';
+      case '/harga-bahan':
+        return 'Ingredient Pricing Management';
       default:
         return 'Hello, Gunawan';
     }
@@ -74,6 +77,7 @@ function AppContent() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/hpp-simulation" element={<HPPSimulation />} />
           <Route path="/kurs" element={<Currency />} />
+          <Route path="/harga-bahan" element={<HargaBahan />} />
         </Routes>
       </main>
     </div>

@@ -1,4 +1,4 @@
-const { getCurrencyList } = require('../models/sqlModel');
+const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit } = require('../models/sqlModel');
 
 class MasterController {
     static async getCurrency(req, res) {
@@ -10,6 +10,161 @@ class MasterController {
             res.status(500).json({
                 success: false,
                 message: 'Failed to retrieve currency data',
+                error: error.message
+            });
+        }
+    }
+
+    static async getBahan(req, res) {
+        try {
+            const bahanData = await getBahan();
+            res.status(200).json(bahanData);
+        } catch (error) {
+            console.error('Error in bahan endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve bahan data',
+                error: error.message
+            });
+        }
+    }
+
+    static async getUnit(req, res) {
+        try {
+            const unitData = await getUnit();
+            res.status(200).json(unitData);
+        } catch (error) {
+            console.error('Error in unit endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve unit data',
+                error: error.message
+            });
+        }
+    }
+
+    static async getHargaBahan(req, res) {
+        try {
+            const hargaBahanData = await getHargaBahan();
+            res.status(200).json(hargaBahanData);
+        } catch (error) {
+            console.error('Error in hargaBahan endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve harga bahan data',
+                error: error.message
+            });
+        }
+    }
+
+    static async addHargaBahan(req, res) {
+        try {
+            const { itemId, itemType, unit, price, currency, rate, userId } = req.body;
+            
+            // Validate required fields
+            if (!itemId || !itemType || !unit || !price || !currency || !userId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields: itemId, itemType, unit, price, currency, userId'
+                });
+            }
+            
+            const result = await addHargaBahan(itemId, itemType, unit, price, currency, rate || 1, userId);
+            res.status(201).json({
+                success: true,
+                message: 'Harga bahan added successfully',
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in addHargaBahan endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to add harga bahan',
+                error: error.message
+            });
+        }
+    }
+
+    static async updateHargaBahan(req, res) {
+        try {
+            const { id } = req.params;
+            const { itemType, unit, price, currency, rate, userId } = req.body;
+            
+            // Validate required fields
+            if (!id || !itemType || !unit || !price || !currency || !userId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields: id (in URL), itemType, unit, price, currency, userId'
+                });
+            }
+            
+            // Validate ID is a number
+            if (isNaN(parseInt(id))) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid ID format. ID must be a number.'
+                });
+            }
+            
+            const result = await updateHargaBahan(parseInt(id), itemType, unit, price, currency, rate || 1, userId);
+            res.status(200).json({
+                success: true,
+                message: 'Harga bahan updated successfully',
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in updateHargaBahan endpoint:', error);
+            if (error.message === 'No record found with the provided ID') {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Harga bahan not found'
+                });
+            }
+            res.status(500).json({
+                success: false,
+                message: 'Failed to update harga bahan',
+                error: error.message
+            });
+        }
+    }
+
+    static async deleteHargaBahan(req, res) {
+        try {
+            const { id } = req.params;
+            
+            // Validate required fields
+            if (!id) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required parameter: id'
+                });
+            }
+            
+            // Validate ID is a number
+            if (isNaN(parseInt(id))) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid ID format. ID must be a number.'
+                });
+            }
+            
+            const result = await deleteHargaBahan(parseInt(id));
+            res.status(200).json({
+                success: true,
+                message: 'Harga bahan deleted successfully',
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in deleteHargaBahan endpoint:', error);
+            if (error.message === 'No record found with the provided ID') {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Harga bahan not found'
+                });
+            }
+            res.status(500).json({
+                success: false,
+                message: 'Failed to delete harga bahan',
                 error: error.message
             });
         }

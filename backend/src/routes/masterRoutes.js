@@ -4,5 +4,11 @@ const MasterController = require('../controllers/masterController');
 
 // Currency routes
 router.get('/currency', MasterController.getCurrency);
+router.get('/bahan', MasterController.getBahan);
+router.get('/unit', MasterController.getUnit);  
+router.get('/hargaBahan', MasterController.getHargaBahan);
+router.post('/hargaBahan', MasterController.addHargaBahan);
+router.put('/hargaBahan/:id', MasterController.updateHargaBahan);
+router.delete('/hargaBahan/:id', MasterController.deleteHargaBahan);
 
 module.exports = router;
