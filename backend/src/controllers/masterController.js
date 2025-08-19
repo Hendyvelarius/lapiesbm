@@ -1,4 +1,4 @@
-const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter } = require('../models/sqlModel');
+const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual } = require('../models/sqlModel');
 
 class MasterController {
     static async getCurrency(req, res) {
@@ -250,6 +250,204 @@ class MasterController {
             });
         }
     }
+
+    static async getGroup(req, res) {
+        try {
+            const groups = await getGroup();
+            res.status(200).json(groups);
+        } catch (error) {
+            console.error('Error in getGroup endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve groups',
+                error: error.message
+            });
+        }
+    }
+
+    static async addGroup(req, res) {
+        try {
+            const { 
+                productId, 
+                productName, 
+                pnCategory, 
+                pnCategoryName, 
+                manHourPros, 
+                manHourPack, 
+                rendemen, 
+                dept,
+                userId = "system"
+            } = req.body;
+            
+            // Validate required fields
+            if (!productId || !productName || !pnCategory || !pnCategoryName || 
+                !manHourPros || !manHourPack || !rendemen || !dept) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields: productId, productName, pnCategory, pnCategoryName, manHourPros, manHourPack, rendemen, dept'
+                });
+            }
+            
+            // Validate numeric values
+            const numericFields = { pnCategory, manHourPros, manHourPack, rendemen };
+            for (const [fieldName, value] of Object.entries(numericFields)) {
+                if (isNaN(parseFloat(value))) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Invalid numeric value for field: ${fieldName}`
+                    });
+                }
+            }
+            
+            const result = await addGroup(
+                productId,
+                productName,
+                parseInt(pnCategory),
+                pnCategoryName,
+                parseFloat(manHourPros),
+                parseFloat(manHourPack),
+                parseFloat(rendemen),
+                dept,
+                userId
+            );
+            
+            res.status(201).json({
+                success: true,
+                message: 'Group added successfully',
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in addGroup endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to add group',
+                error: error.message
+            });
+        }
+    }
+
+    static async updateGroup(req, res) {
+        try {
+            const { id } = req.params;
+            const { 
+                productId, 
+                productName, 
+                pnCategory, 
+                pnCategoryName, 
+                manHourPros, 
+                manHourPack, 
+                rendemen, 
+                dept,
+                userId = "system"
+            } = req.body;
+            
+            // Validate required fields
+            if (!id || !productId || !productName || !pnCategory || !pnCategoryName || 
+                !manHourPros || !manHourPack || !rendemen || !dept) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields: id (in URL), productId, productName, pnCategory, pnCategoryName, manHourPros, manHourPack, rendemen, dept'
+                });
+            }
+            
+            // Validate ID is a number
+            if (isNaN(parseInt(id))) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid ID format. ID must be a number.'
+                });
+            }
+            
+            // Validate numeric values
+            const numericFields = { pnCategory, manHourPros, manHourPack, rendemen };
+            for (const [fieldName, value] of Object.entries(numericFields)) {
+                if (isNaN(parseFloat(value))) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Invalid numeric value for field: ${fieldName}`
+                    });
+                }
+            }
+            
+            const result = await updateGroup(
+                parseInt(id),
+                productId,
+                productName,
+                parseInt(pnCategory),
+                pnCategoryName,
+                parseFloat(manHourPros),
+                parseFloat(manHourPack),
+                parseFloat(rendemen),
+                dept,
+                userId
+            );
+            
+            res.status(200).json({
+                success: true,
+                message: 'Group updated successfully',
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in updateGroup endpoint:', error);
+            if (error.message === 'No record found with the provided ID') {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Group not found'
+                });
+            }
+            res.status(500).json({
+                success: false,
+                message: 'Failed to update group',
+                error: error.message
+            });
+        }
+    }
+
+    static async deleteGroup(req, res) {
+        try {
+            const { id } = req.params;
+            
+            // Validate required fields
+            if (!id) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required parameter: id'
+                });
+            }
+            
+            // Validate ID is a number
+            if (isNaN(parseInt(id))) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid ID format. ID must be a number.'
+                });
+            }
+            
+            const result = await deleteGroup(parseInt(id));
+            
+            res.status(200).json({
+                success: true,
+                message: 'Group deleted successfully',
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in deleteGroup endpoint:', error);
+            if (error.message === 'No record found with the provided ID') {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Group not found'
+                });
+            }
+            res.status(500).json({
+                success: false,
+                message: 'Failed to delete group',
+                error: error.message
+            });
+        }
+    }
+
+
+
 }
 
 module.exports = MasterController;

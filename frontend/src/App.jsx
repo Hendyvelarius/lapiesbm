@@ -7,6 +7,7 @@ import HPPSimulation from './pages/HPPSimulation';
 import Currency from './pages/Currency';
 import HargaBahan from './pages/HargaBahan';
 import BiayaLain from './pages/BiayaLain';
+import ProductGroup from './pages/ProductGroup';
 import './styles/App.css';
 
 function AppContent() {
@@ -43,6 +44,8 @@ function AppContent() {
         return 'Ingredient Pricing Management';
       case '/biaya-lain':
         return 'Additional Cost Parameters';
+      case '/product-group':
+        return 'Product Group Management';
       default:
         return 'Hello, Gunawan';
     }
@@ -82,6 +85,7 @@ function AppContent() {
           <Route path="/kurs" element={<Currency />} />
           <Route path="/harga-bahan" element={<HargaBahan />} />
           <Route path="/biaya-lain" element={<BiayaLain />} />
+          <Route path="/product-group" element={<ProductGroup />} />
         </Routes>
       </main>
     </div>

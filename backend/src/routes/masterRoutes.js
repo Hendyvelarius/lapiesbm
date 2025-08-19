@@ -12,5 +12,10 @@ router.put('/hargaBahan/:id', MasterController.updateHargaBahan);
 router.delete('/hargaBahan/:id', MasterController.deleteHargaBahan);
 router.get('/parameter', MasterController.getParameter);
 router.put('/parameter', MasterController.updateParameter);
+router.get('/group', MasterController.getGroup);
+router.get('/groupManual', MasterController.getGroupManual);
+router.post('/group', MasterController.addGroup);
+router.put('/group/:id', MasterController.updateGroup);
+router.delete('/group/:id', MasterController.deleteGroup);
 
 module.exports = router;

@@ -178,6 +178,26 @@ export const masterAPI = {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
+  
+  // Get groups
+  getGroup: () => apiRequest('/master/group'),
+  
+  // Add new group
+  addGroup: (data) => apiRequest('/master/group', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  
+  // Update group
+  updateGroup: (id, data) => apiRequest(`/master/group/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  
+  // Delete group
+  deleteGroup: (id) => apiRequest(`/master/group/${id}`, {
+    method: 'DELETE',
+  }),
 };
 
 // Health check

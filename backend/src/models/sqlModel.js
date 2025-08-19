@@ -238,6 +238,151 @@ async function updateParameter(directLabour, foh, depresiasi, mhTimbangBB, mhTim
   }
 }
 
+async function getGroup(req, res) {
+  try {
+    const db = await connect();
+    const query = 'SELECT * FROM vw_COGS_Product_Group';
+    const result = await db.request().query(query);
+    return result.recordset;
+  } catch (error) {
+    console.error('Error executing getGroup query:', error);
+    throw error;
+  }
+}
+
+async function addGroup(productId, productName, pnCategory, pnCategoryName, manHourPros, manHourPack, rendemen, dept, userId) {
+  try {
+    const db = await connect();
+    const currentDate = new Date();
+    const periode = `${currentDate.getFullYear()}${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+    
+    const query = `
+      INSERT INTO M_COGS_PRODUCT_GROUP_MANUAL (
+        Periode,
+        Group_ProductID,
+        Product_Name,
+        Group_PNCategory,
+        Group_PNCategoryName,
+        Group_ManHourPros,
+        Group_ManHourPack,
+        Group_Rendemen,
+        Group_Dept
+      ) VALUES (
+        @periode,
+        @productId,
+        @productName,
+        @pnCategory,
+        @pnCategoryName,
+        @manHourPros,
+        @manHourPack,
+        @rendemen,
+        @dept
+      )
+    `;
+    
+    const result = await db.request()
+      .input('periode', periode)
+      .input('productId', productId)
+      .input('productName', productName)
+      .input('pnCategory', pnCategory)
+      .input('pnCategoryName', pnCategoryName)
+      .input('manHourPros', manHourPros)
+      .input('manHourPack', manHourPack)
+      .input('rendemen', rendemen)
+      .input('dept', dept)
+      .query(query);
+      
+    return {
+      success: true,
+      rowsAffected: result.rowsAffected[0],
+      periode: periode
+    };
+  } catch (error) {
+    console.error('Error executing addGroup query:', error);
+    throw error;
+  }
+}
+
+async function updateGroup(id, productId, productName, pnCategory, pnCategoryName, manHourPros, manHourPack, rendemen, dept, userId) {
+  try {
+    const db = await connect();
+    const currentDate = new Date();
+    const periode = `${currentDate.getFullYear()}${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+    
+    const query = `
+      UPDATE M_COGS_PRODUCT_GROUP_MANUAL 
+      SET 
+        Periode = @periode,
+        Group_ProductID = @productId,
+        Product_Name = @productName,
+        Group_PNCategory = @pnCategory,
+        Group_PNCategoryName = @pnCategoryName,
+        Group_ManHourPros = @manHourPros,
+        Group_ManHourPack = @manHourPack,
+        Group_Rendemen = @rendemen,
+        Group_Dept = @dept
+      WHERE pk_id = @id
+    `;
+    
+    const result = await db.request()
+      .input('id', id)
+      .input('periode', periode)
+      .input('productId', productId)
+      .input('productName', productName)
+      .input('pnCategory', pnCategory)
+      .input('pnCategoryName', pnCategoryName)
+      .input('manHourPros', manHourPros)
+      .input('manHourPack', manHourPack)
+      .input('rendemen', rendemen)
+      .input('dept', dept)
+      .query(query);
+      
+    if (result.rowsAffected[0] === 0) {
+      throw new Error('No record found with the provided ID');
+    }
+      
+    return {
+      success: true,
+      rowsAffected: result.rowsAffected[0],
+      periode: periode
+    };
+  } catch (error) {
+    console.error('Error executing updateGroup query:', error);
+    throw error;
+  }
+}
+
+async function deleteGroup(id) {
+  try {
+    const db = await connect();
+    
+    // First check if the record exists
+    const checkQuery = 'SELECT pk_id, Group_ProductID, Product_Name FROM M_COGS_PRODUCT_GROUP_MANUAL WHERE pk_id = @id';
+    const checkResult = await db.request()
+      .input('id', id)
+      .query(checkQuery);
+    
+    if (checkResult.recordset.length === 0) {
+      throw new Error('No record found with the provided ID');
+    }
+    
+    // Delete the record
+    const deleteQuery = 'DELETE FROM M_COGS_PRODUCT_GROUP_MANUAL WHERE pk_id = @id';
+    const result = await db.request()
+      .input('id', id)
+      .query(deleteQuery);
+      
+    return {
+      success: true,
+      rowsAffected: result.rowsAffected[0],
+      deletedRecord: checkResult.recordset[0]
+    };
+  } catch (error) {
+    console.error('Error executing deleteGroup query:', error);
+    throw error;
+  }
+}
+
 module.exports = { 
   getCurrencyList,
   getBahan,
@@ -247,5 +392,9 @@ module.exports = {
   deleteHargaBahan,
   getUnit,
   getParameter,
-  updateParameter
+  updateParameter,
+  getGroup,
+  addGroup,
+  updateGroup,
+  deleteGroup
 };
