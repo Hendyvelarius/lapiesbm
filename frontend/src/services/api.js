@@ -169,6 +169,15 @@ export const masterAPI = {
   deleteHargaBahan: (id) => apiRequest(`/master/hargaBahan/${id}`, {
     method: 'DELETE',
   }),
+  
+  // Get parameters
+  getParameter: () => apiRequest('/master/parameter'),
+  
+  // Update parameters
+  updateParameter: (data) => apiRequest('/master/parameter', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
 };
 
 // Health check

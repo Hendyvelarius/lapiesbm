@@ -10,5 +10,7 @@ router.get('/hargaBahan', MasterController.getHargaBahan);
 router.post('/hargaBahan', MasterController.addHargaBahan);
 router.put('/hargaBahan/:id', MasterController.updateHargaBahan);
 router.delete('/hargaBahan/:id', MasterController.deleteHargaBahan);
+router.get('/parameter', MasterController.getParameter);
+router.put('/parameter', MasterController.updateParameter);
 
 module.exports = router;

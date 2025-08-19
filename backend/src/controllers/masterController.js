@@ -1,4 +1,4 @@
-const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit } = require('../models/sqlModel');
+const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter } = require('../models/sqlModel');
 
 class MasterController {
     static async getCurrency(req, res) {
@@ -165,6 +165,87 @@ class MasterController {
             res.status(500).json({
                 success: false,
                 message: 'Failed to delete harga bahan',
+                error: error.message
+            });
+        }
+    }
+
+    static async getParameter(req, res) {
+        try {
+            const parameters = await getParameter();
+            res.status(200).json(parameters);
+        } catch (error) {
+            console.error('Error in getParameter endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve parameters',
+                error: error.message
+            });
+        }
+    }
+
+    static async updateParameter(req, res) {
+        try {
+            const { 
+                directLabour, 
+                foh, 
+                depresiasi, 
+                mhTimbangBB, 
+                mhTimbangBK, 
+                mhAnalisa, 
+                biayaAnalisa, 
+                kwhMesin, 
+                rateKwhMesin,
+                userId = "system" // Default user if not provided
+            } = req.body;
+            
+            // Validate required fields
+            if (!directLabour || !foh || !depresiasi || !mhTimbangBB || !mhTimbangBK || 
+                !mhAnalisa || !biayaAnalisa || !kwhMesin || !rateKwhMesin) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields. All parameter values must be provided.'
+                });
+            }
+            
+            // Validate numeric values
+            const numericFields = {
+                directLabour, foh, depresiasi, mhTimbangBB, mhTimbangBK, 
+                mhAnalisa, biayaAnalisa, kwhMesin, rateKwhMesin
+            };
+            
+            for (const [fieldName, value] of Object.entries(numericFields)) {
+                if (isNaN(parseFloat(value))) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Invalid numeric value for field: ${fieldName}`
+                    });
+                }
+            }
+            
+            const result = await updateParameter(
+                parseFloat(directLabour),
+                parseFloat(foh),
+                parseFloat(depresiasi),
+                parseFloat(mhTimbangBB),
+                parseFloat(mhTimbangBK),
+                parseFloat(mhAnalisa),
+                parseFloat(biayaAnalisa),
+                parseFloat(kwhMesin),
+                parseFloat(rateKwhMesin),
+                userId
+            );
+            
+            res.status(200).json({
+                success: true,
+                message: `Parameters updated successfully for year ${result.periode}`,
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in updateParameter endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to update parameters',
                 error: error.message
             });
         }

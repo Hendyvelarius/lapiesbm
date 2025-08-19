@@ -1,5 +1,5 @@
 import '../styles/Sidebar.css';
-import { FileText, BarChart3, Settings, HelpCircle, DollarSign, Package } from 'lucide-react';
+import { FileText, BarChart3, DollarSign, Package, Calculator } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 
 export default function Sidebar() {
@@ -37,20 +37,10 @@ export default function Sidebar() {
               <Package className="sidebar-icon" size={20} /> Harga Bahan
             </Link>
           </li>
-        </ul>
-      </div>
-      <div className="sidebar-section">
-        <div className="sidebar-section-title">PENGATURAN</div>
-        <ul className="sidebar-menu">
-          <li>
-            <button className="sidebar-link" disabled>
-              <Settings className="sidebar-icon" size={20} /> Settings
-            </button>
-          </li>
-          <li>
-            <button className="sidebar-link" disabled>
-              <HelpCircle className="sidebar-icon" size={20} /> Help
-            </button>
+          <li className={location.pathname === '/biaya-lain' ? 'active' : ''}>
+            <Link to="/biaya-lain" className="sidebar-link">
+              <Calculator className="sidebar-icon" size={20} /> Biaya Lain
+            </Link>
           </li>
         </ul>
       </div>

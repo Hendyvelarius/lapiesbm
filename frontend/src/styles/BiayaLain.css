@@ -1,0 +1,317 @@
+/* Biaya Lain Page Styles */
+.biaya-lain-page {
+  padding: 2rem;
+  min-height: 100vh;
+}
+
+.biaya-lain-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.biaya-lain-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+
+.biaya-lain-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2rem 2.5rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+}
+
+.biaya-lain-card-header h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.biaya-lain-card-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.biaya-lain-edit-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.biaya-lain-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.95rem;
+  min-width: 100px;
+  justify-content: center;
+}
+
+.biaya-lain-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.biaya-lain-edit-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.biaya-lain-edit-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.biaya-lain-cancel-btn {
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+}
+
+.biaya-lain-cancel-btn:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.9);
+  transform: translateY(-1px);
+}
+
+.biaya-lain-save-btn {
+  background: rgba(34, 197, 94, 0.9);
+  color: white;
+}
+
+.biaya-lain-save-btn:hover:not(:disabled) {
+  background: rgba(22, 163, 74, 0.9);
+  transform: translateY(-1px);
+}
+
+.biaya-lain-btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: biaya-lain-spin 1s linear infinite;
+}
+
+@keyframes biaya-lain-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.biaya-lain-card-content {
+  padding: 2.5rem;
+}
+
+.biaya-lain-parameters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.biaya-lain-parameter-item {
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+  border-radius: 15px;
+  padding: 1.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  transition: all 0.2s ease;
+}
+
+.biaya-lain-parameter-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.biaya-lain-parameter-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.biaya-lain-label-text {
+  font-weight: 600;
+  color: #334155;
+  font-size: 1rem;
+}
+
+.biaya-lain-label-unit {
+  font-size: 0.85rem;
+  color: #64748b;
+  background: rgba(99, 102, 241, 0.1);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.biaya-lain-parameter-value {
+  display: flex;
+  align-items: center;
+}
+
+.biaya-lain-parameter-display {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  background: white;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  border: 2px solid #e2e8f0;
+  width: 100%;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.biaya-lain-parameter-input {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.biaya-lain-parameter-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.biaya-lain-parameter-input:hover {
+  border-color: #cbd5e1;
+}
+
+.biaya-lain-edit-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border-radius: 15px;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+  font-weight: 500;
+}
+
+.biaya-lain-info-icon {
+  background: #f59e0b;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.biaya-lain-edit-info p {
+  margin: 0;
+}
+
+.biaya-lain-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.biaya-lain-loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #e2e8f0;
+  border-top: 4px solid #6366f1;
+  border-radius: 50%;
+  animation: biaya-lain-spin 1s linear infinite;
+  margin-bottom: 1.5rem;
+}
+
+.biaya-lain-loading-container p {
+  font-size: 1.1rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .biaya-lain-page {
+    padding: 1rem;
+  }
+
+  .biaya-lain-card-header {
+    flex-direction: column;
+    gap: 1.5rem;
+    align-items: stretch;
+    padding: 1.5rem;
+  }
+
+  .biaya-lain-card-header h2 {
+    text-align: center;
+    font-size: 1.5rem;
+  }
+
+  .biaya-lain-card-actions {
+    justify-content: center;
+  }
+
+  .biaya-lain-edit-actions {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .biaya-lain-card-content {
+    padding: 1.5rem;
+  }
+
+  .biaya-lain-parameters-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .biaya-lain-parameter-item {
+    padding: 1.25rem;
+  }
+
+  .biaya-lain-label-text {
+    font-size: 0.9rem;
+  }
+
+  .biaya-lain-label-unit {
+    font-size: 0.8rem;
+  }
+
+  .biaya-lain-parameter-display,
+  .biaya-lain-parameter-input {
+    font-size: 1.1rem;
+    padding: 0.875rem 1rem;
+  }
+
+  .biaya-lain-edit-info {
+    flex-direction: column;
+    text-align: center;
+    padding: 1.25rem;
+  }
+
+  .biaya-lain-action-btn {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.9rem;
+    min-width: 90px;
+  }
+}

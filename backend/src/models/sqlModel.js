@@ -180,6 +180,64 @@ async function deleteHargaBahan(pkId) {
   }
 }
 
+async function getParameter(req, res) {
+  try {
+    const db = await connect();
+    const query = 'SELECT * FROM M_COGS_STD_PARAMETER';
+    const result = await db.request().query(query);
+    return result.recordset;
+  } catch (error) {
+    console.error('Error executing getParameter query:', error);
+    throw error;
+  }
+}
+
+async function updateParameter(directLabour, foh, depresiasi, mhTimbangBB, mhTimbangBK, mhAnalisa, biayaAnalisa, kwhMesin, rateKwhMesin, userId) {
+  try {
+    const db = await connect();
+    const currentYear = new Date().getFullYear().toString();
+    
+    // Update the single parameter record with current year as Periode
+    const updateQuery = `
+      UPDATE M_COGS_STD_PARAMETER 
+      SET 
+        Periode = @periode,
+        Direct_Labor = @directLabour,
+        Factory_Over_Head = @foh,
+        Depresiasi = @depresiasi,
+        MH_Timbang_BB = @mhTimbangBB,
+        MH_Timbang_BK = @mhTimbangBK,
+        MH_Analisa = @mhAnalisa,
+        Biaya_Analisa = @biayaAnalisa,
+        Jam_KWH_Mesin_Utama = @kwhMesin,
+        Rate_KWH_Mesin = @rateKwhMesin
+    `;
+    
+    const result = await db.request()
+      .input('periode', currentYear)
+      .input('directLabour', directLabour)
+      .input('foh', foh)
+      .input('depresiasi', depresiasi)
+      .input('mhTimbangBB', mhTimbangBB)
+      .input('mhTimbangBK', mhTimbangBK)
+      .input('mhAnalisa', mhAnalisa)
+      .input('biayaAnalisa', biayaAnalisa)
+      .input('kwhMesin', kwhMesin)
+      .input('rateKwhMesin', rateKwhMesin)
+      .query(updateQuery);
+      
+    return {
+      success: true,
+      operation: 'update',
+      rowsAffected: result.rowsAffected[0],
+      periode: currentYear
+    };
+  } catch (error) {
+    console.error('Error executing updateParameter query:', error);
+    throw error;
+  }
+}
+
 module.exports = { 
   getCurrencyList,
   getBahan,
@@ -187,5 +245,7 @@ module.exports = {
   addHargaBahan,
   updateHargaBahan,
   deleteHargaBahan,
-  getUnit
+  getUnit,
+  getParameter,
+  updateParameter
 };

@@ -15,8 +15,8 @@ const createRateLimit = (windowMs = 15 * 60 * 1000, max = 100) => {
 };
 
 // Different rate limits for different types of requests
-const authLimiter = createRateLimit(15 * 60 * 1000, 5); // 5 requests per 15 minutes for auth
-const generalLimiter = createRateLimit(15 * 60 * 1000, 100); // 100 requests per 15 minutes for general API
+const authLimiter = createRateLimit(15 * 60 * 1000, 50); // 5 requests per 15 minutes for auth
+const generalLimiter = createRateLimit(15 * 60 * 1000, 1000); // 100 requests per 15 minutes for general API
 
 module.exports = {
   authLimiter,
