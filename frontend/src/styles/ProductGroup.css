@@ -227,12 +227,39 @@
   word-wrap: break-word;
   hyphens: auto;
   line-height: 1.3;
+  position: relative;
+}
+
+/* Sortable headers */
+.groups-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.groups-table th.sortable:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.groups-table th.sortable {
+  position: relative;
+  padding-right: 2rem; /* Make space for the sort icon */
+}
+
+.groups-table th.sortable svg {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.7;
+  width: 14px;
+  height: 14px;
 }
 
 /* Fixed column widths */
-.groups-table th:nth-child(1) { width: 10%; text-align: left; } /* Product ID */
+.groups-table th:nth-child(1) { width: 12%; text-align: left; } /* Product ID (increased for badge) */
 .groups-table th:nth-child(2) { width: 20%; text-align: left; } /* Product Name */
-.groups-table th:nth-child(3) { width: 25%; text-align: left; } /* Category Name */
+.groups-table th:nth-child(3) { width: 23%; text-align: left; } /* Category Name */
 .groups-table th:nth-child(4) { width: 12%; text-align: center; } /* ManHour Process */
 .groups-table th:nth-child(5) { width: 12%; text-align: center; } /* ManHour Packing */
 .groups-table th:nth-child(6) { width: 10%; text-align: center; } /* Rendemen */
@@ -267,9 +294,9 @@
 }
 
 /* Fixed column widths matching headers */
-.groups-table td:nth-child(1) { width: 10%; } /* Product ID */
+.groups-table td:nth-child(1) { width: 12%; } /* Product ID */
 .groups-table td:nth-child(2) { width: 20%; } /* Product Name */
-.groups-table td:nth-child(3) { width: 25%; } /* Category Name */
+.groups-table td:nth-child(3) { width: 23%; } /* Category Name */
 .groups-table td:nth-child(4) { width: 12%; text-align: center; } /* ManHour Process */
 .groups-table td:nth-child(5) { width: 12%; text-align: center; } /* ManHour Packing */
 .groups-table td:nth-child(6) { width: 10%; text-align: center; } /* Rendemen */
@@ -284,6 +311,44 @@
   word-wrap: break-word;
   hyphens: auto;
   line-height: 1.4;
+}
+
+.product-id-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-start;
+}
+
+.id-text {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #1f2937;
+  word-wrap: break-word;
+  line-height: 1.2;
+}
+
+.source-badge {
+  display: inline-block;
+  padding: 0.15rem 0.4rem;
+  border-radius: 12px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+
+.source-badge.lms {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.source-badge.manual {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
 }
 
 .name-cell {
@@ -934,23 +999,42 @@
   }
 
   /* Adjust column widths for mobile */
-  .groups-table th:nth-child(1) { width: 12%; } /* Product ID */
+  .groups-table th:nth-child(1) { width: 14%; } /* Product ID */
   .groups-table th:nth-child(2) { width: 22%; } /* Product Name */
-  .groups-table th:nth-child(3) { width: 28%; } /* Category Name */
+  .groups-table th:nth-child(3) { width: 26%; } /* Category Name */
   .groups-table th:nth-child(4) { width: 10%; } /* ManHour Process */
   .groups-table th:nth-child(5) { width: 10%; } /* ManHour Packing */
   .groups-table th:nth-child(6) { width: 8%; } /* Rendemen */
   .groups-table th:nth-child(7) { width: 6%; } /* Department */
   .groups-table th:nth-child(8) { width: 6%; } /* Actions */
 
-  .groups-table td:nth-child(1) { width: 12%; }
+  .groups-table td:nth-child(1) { width: 14%; }
   .groups-table td:nth-child(2) { width: 22%; }
-  .groups-table td:nth-child(3) { width: 28%; }
+  .groups-table td:nth-child(3) { width: 26%; }
   .groups-table td:nth-child(4) { width: 10%; }
   .groups-table td:nth-child(5) { width: 10%; }
   .groups-table td:nth-child(6) { width: 8%; }
   .groups-table td:nth-child(7) { width: 6%; }
   .groups-table td:nth-child(8) { width: 6%; }
+
+  .source-badge {
+    font-size: 0.6rem;
+    padding: 0.1rem 0.3rem;
+  }
+
+  .product-id-container {
+    gap: 0.2rem;
+  }
+
+  .groups-table th.sortable {
+    padding-right: 1.5rem; /* Adjust for smaller mobile padding */
+  }
+
+  .groups-table th.sortable svg {
+    width: 12px;
+    height: 12px;
+    right: 0.25rem;
+  }
 
   .groups-table th,
   .groups-table td {

@@ -387,6 +387,18 @@ async function deleteGroup(id) {
   }
 }
 
+async function getPembebanan() {
+  try {
+    const db = await connect();
+    const query = 'SELECT * FROM M_COGS_PEMBEBANAN';
+    const result = await db.request().query(query);
+    return result.recordset;
+  } catch (error) {
+    console.error('Error executing getPembebanan query:', error);
+    throw error;
+  }
+}
+
 module.exports = { 
   getCurrencyList,
   getBahan,
@@ -401,5 +413,6 @@ module.exports = {
   getGroupManual,
   addGroup,
   updateGroup,
-  deleteGroup
+  deleteGroup,
+  getPembebanan
 };

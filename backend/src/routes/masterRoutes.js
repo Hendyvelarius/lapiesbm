@@ -17,5 +17,6 @@ router.get('/groupManual', MasterController.getGroupManual);
 router.post('/group', MasterController.addGroup);
 router.put('/group/:id', MasterController.updateGroup);
 router.delete('/group/:id', MasterController.deleteGroup);
+router.get('/pembebanan', MasterController.getPembebanan);
 
 module.exports = router;

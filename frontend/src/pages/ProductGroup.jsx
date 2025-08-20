@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { masterAPI } from '../services/api';
 import '../styles/ProductGroup.css';
-import { Search, Filter, Edit, Trash2, Users, ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
+import { Search, Filter, Edit, Trash2, Users, ChevronLeft, ChevronRight, X, Check, ChevronUp, ChevronDown } from 'lucide-react';
 
 const ProductGroup = () => {
   const [groupData, setGroupData] = useState([]);
@@ -16,6 +16,10 @@ const ProductGroup = () => {
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(50);
+
+  // Sorting states
+  const [sortField, setSortField] = useState('');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   // Inline editing states
   const [editingRowId, setEditingRowId] = useState(null);
@@ -36,7 +40,7 @@ const ProductGroup = () => {
 
   useEffect(() => {
     filterData();
-  }, [groupData, searchTerm, selectedCategory]);
+  }, [groupData, searchTerm, selectedCategory, sortField, sortDirection]);
 
   useEffect(() => {
     paginateData();
@@ -79,7 +83,8 @@ const ProductGroup = () => {
         manHourPros: item.Group_ManHourPros,
         manHourPack: item.Group_ManHourPack,
         rendemen: item.Group_Rendemen,
-        dept: item.Group_Dept
+        dept: item.Group_Dept,
+        sumberData: item.Sumber_Data || 'LMS' // Add source data with fallback
       }));
 
       setGroupData(transformedGroupData);
@@ -98,20 +103,77 @@ const ProductGroup = () => {
     return groupManualData.some(item => item.Group_ProductID === productId);
   };
 
+  // Get source data for display
+  const getSourceData = (item) => {
+    // If item has explicit sumberData, use it
+    if (item.sumberData) {
+      return item.sumberData;
+    }
+    // Otherwise, check if it exists in manual data
+    return isInManual(item.productId) ? 'Manual' : 'LMS';
+  };
+
+  // Sorting functionality
+  const handleSort = (field) => {
+    const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
+    setSortField(field);
+    setSortDirection(newDirection);
+  };
+
+  const sortData = (data) => {
+    if (!sortField) return data;
+    
+    return [...data].sort((a, b) => {
+      let aValue = a[sortField];
+      let bValue = b[sortField];
+      
+      // Handle numeric fields
+      if (['manHourPros', 'manHourPack', 'rendemen', 'pnCategory'].includes(sortField)) {
+        aValue = parseFloat(aValue) || 0;
+        bValue = parseFloat(bValue) || 0;
+      } else {
+        // Handle string fields
+        aValue = String(aValue).toLowerCase();
+        bValue = String(bValue).toLowerCase();
+      }
+      
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
   const filterData = () => {
     let filtered = groupData;
 
     if (searchTerm) {
-      filtered = filtered.filter(item =>
-        String(item.productId).toLowerCase().includes(searchTerm.toLowerCase()) ||
-        String(item.productName).toLowerCase().includes(searchTerm.toLowerCase()) ||
-        String(item.pnCategoryName).toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(item => {
+        // Original search fields
+        const basicSearch = (
+          String(item.productId).toLowerCase().includes(searchLower) ||
+          String(item.productName).toLowerCase().includes(searchLower) ||
+          String(item.pnCategoryName).toLowerCase().includes(searchLower)
+        );
+        
+        // Source data search using helper function
+        const sourceData = getSourceData(item);
+        const sourceSearch = (
+          (searchLower === 'lms' && sourceData === 'LMS') ||
+          (searchLower === 'manual' && sourceData === 'Manual') ||
+          (searchLower === 'mnl' && sourceData === 'Manual')
+        );
+        
+        return basicSearch || sourceSearch;
+      });
     }
 
     if (selectedCategory !== 'All Categories') {
       filtered = filtered.filter(item => item.pnCategoryName === selectedCategory);
     }
+
+    // Apply sorting
+    filtered = sortData(filtered);
 
     setFilteredData(filtered);
     
@@ -334,20 +396,62 @@ const ProductGroup = () => {
           <table className="groups-table">
             <thead>
               <tr>
-                <th>Product ID</th>
-                <th>Product Name</th>
-                <th>Category Name</th>
-                <th>ManHour Process</th>
-                <th>ManHour Packing</th>
-                <th>Rendemen (%)</th>
-                <th>Dept.</th>
+                <th onClick={() => handleSort('productId')} className="sortable">
+                  Product ID
+                  {sortField === 'productId' && (
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                  )}
+                </th>
+                <th onClick={() => handleSort('productName')} className="sortable">
+                  Product Name
+                  {sortField === 'productName' && (
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                  )}
+                </th>
+                <th onClick={() => handleSort('pnCategoryName')} className="sortable">
+                  Category Name
+                  {sortField === 'pnCategoryName' && (
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                  )}
+                </th>
+                <th onClick={() => handleSort('manHourPros')} className="sortable">
+                  ManHour Process
+                  {sortField === 'manHourPros' && (
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                  )}
+                </th>
+                <th onClick={() => handleSort('manHourPack')} className="sortable">
+                  ManHour Packing
+                  {sortField === 'manHourPack' && (
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                  )}
+                </th>
+                <th onClick={() => handleSort('rendemen')} className="sortable">
+                  Rendemen (%)
+                  {sortField === 'rendemen' && (
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                  )}
+                </th>
+                <th onClick={() => handleSort('dept')} className="sortable">
+                  Dept.
+                  {sortField === 'dept' && (
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                  )}
+                </th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {paginatedData.map((item) => (
                 <tr key={item.productId}>
-                  <td className="product-id">{item.productId}</td>
+                  <td className="product-id">
+                    <div className="product-id-container">
+                      <span className="id-text">{item.productId}</span>
+                      <span className={`source-badge ${getSourceData(item) === 'Manual' ? 'manual' : 'lms'}`}>
+                        {getSourceData(item) === 'Manual' ? 'MNL' : 'LMS'}
+                      </span>
+                    </div>
+                  </td>
                   <td className="product-name">
                     <div className="name-cell">
                       <span className="name">{item.productName}</span>

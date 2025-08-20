@@ -1,4 +1,4 @@
-const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual } = require('../models/sqlModel');
+const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, getPembebanan } = require('../models/sqlModel');
 
 class MasterController {
     static async getCurrency(req, res) {
@@ -453,6 +453,19 @@ class MasterController {
             });
         }
     }
-}
 
+    static async getPembebanan(req, res) {
+        try {
+            const result = await getPembebanan();
+            res.status(200).json(result);
+        } catch (error) {
+            console.error('Error in getPembebanan endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve pembebanan data',
+                error: error.message
+            });
+        }
+    }
+}
 module.exports = MasterController;
