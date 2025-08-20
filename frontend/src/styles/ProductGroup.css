@@ -254,11 +254,16 @@
 
 .groups-table td {
   padding: 1rem;
-  vertical-align: middle;
+  vertical-align: middle; /* Ensure all cells are vertically centered */
   font-size: 0.95rem;
   word-wrap: break-word;
   hyphens: auto;
   line-height: 1.4;
+}
+
+/* Specifically ensure actions column maintains vertical centering in multi-line rows */
+.groups-table tr {
+  vertical-align: middle; /* Apply to entire row */
 }
 
 /* Fixed column widths matching headers */
@@ -292,6 +297,8 @@
   hyphens: auto;
   display: block;
   line-height: 1.4;
+  white-space: normal; /* Allow text wrapping */
+  overflow-wrap: break-word; /* Break long words if needed */
 }
 
 .category-badge {
@@ -321,6 +328,22 @@
 .category-badge.category-5 { background: #f3e8ff; color: #7c2d12; }
 .category-badge.category-6 { background: #ecfdf5; color: #065f46; }
 .category-badge.category-7 { background: #fef2f2; color: #991b1b; }
+.category-badge.category-8 { background: #f0f9ff; color: #0c4a6e; }
+.category-badge.category-9 { background: #fdf2f8; color: #831843; }
+.category-badge.category-10 { background: #f0fdf4; color: #14532d; }
+.category-badge.category-11 { background: #fffbeb; color: #9a3412; }
+.category-badge.category-12 { background: #f7fee7; color: #365314; }
+.category-badge.category-13 { background: #fef7ff; color: #6b21a8; }
+.category-badge.category-14 { background: #ecfeff; color: #0f766e; }
+.category-badge.category-15 { background: #fff1f2; color: #9f1239; }
+.category-badge.category-16 { background: #f8fafc; color: #334155; }
+.category-badge.category-17 { background: #fefce8; color: #713f12; }
+.category-badge.category-18 { background: #f1f5f9; color: #475569; }
+.category-badge.category-19 { background: #fdf4ff; color: #86198f; }
+.category-badge.category-20 { background: #f0fdfa; color: #134e4a; }
+
+/* Default category badge for any other categories */
+.category-badge:not([class*="category-"]) { background: #f3f4f6; color: #374151; }
 
 .manhour, .rendemen {
   font-family: 'Courier New', monospace;
@@ -338,14 +361,38 @@
 /* Actions */
 .actions {
   display: flex;
-  gap: 0.5rem;
+  flex-direction: row; /* Ensure buttons stay side by side horizontally */
+  gap: 0.25rem; /* Smaller gap for better fit */
   justify-content: center;
-  align-items: center;
+  align-items: center; /* Vertically center buttons within flex container */
   height: 100%;
   min-height: 2.5rem;
+  width: 100%; /* Ensure full width usage */
+  padding: 0.25rem; /* Smaller padding */
 }
 
-.edit-btn, .delete-btn {
+/* Ensure the td itself is vertically centered and handles varying heights */
+.groups-table td.actions {
+  vertical-align: middle; /* Center the entire actions container within the cell */
+  text-align: center; /* Center horizontally as fallback */
+}
+
+/* Editing mode actions - distribute buttons evenly */
+.actions.editing-mode {
+  justify-content: space-evenly;
+}
+
+/* Display mode with single button - center it */
+.actions.display-mode.single-button {
+  justify-content: center;
+}
+
+/* Display mode with multiple buttons - space evenly for consistency with editing mode */
+.actions.display-mode.multiple-buttons {
+  justify-content: space-evenly;
+}
+
+.edit-btn, .delete-btn, .submit-btn, .cancel-btn {
   padding: 0.5rem;
   border: none;
   border-radius: 8px;
@@ -354,6 +401,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px; /* Fixed width for consistent sizing */
+  height: 32px; /* Fixed height for consistent sizing */
+  flex-shrink: 0; /* Prevent shrinking */
+  box-sizing: border-box; /* Include padding in size calculation */
 }
 
 .edit-btn {
@@ -376,6 +427,59 @@
   background: #dc2626;
   color: white;
   transform: translateY(-1px);
+}
+
+.submit-btn {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #16a34a;
+  color: white;
+  transform: translateY(-1px);
+}
+
+.cancel-btn {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background: #dc2626;
+  color: white;
+  transform: translateY(-1px);
+}
+
+.submit-btn:disabled, .cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Inline editing form elements */
+.edit-input, .edit-select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.edit-input:focus, .edit-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.edit-select {
+  cursor: pointer;
+}
+
+.edit-input[type="number"] {
+  text-align: center;
 }
 
 /* Loading and Error States */

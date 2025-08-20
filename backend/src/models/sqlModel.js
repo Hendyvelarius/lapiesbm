@@ -1,4 +1,5 @@
 const { connect } = require('../../config/sqlserver');
+const sql = require('mssql');
 
 async function getCurrencyList() {
   try {
@@ -250,53 +251,56 @@ async function getGroup(req, res) {
   }
 }
 
+async function getGroupManual(req, res) {
+try {
+    const db = await connect();
+    const query = 'SELECT * FROM M_COGS_PRODUCT_GROUP_MANUAL';
+    const result = await db.request().query(query);
+    return result.recordset;
+} catch (error) {
+    console.error('Error executing getGroupManual query:', error);
+    throw error;
+}
+}
+
 async function addGroup(productId, productName, pnCategory, pnCategoryName, manHourPros, manHourPack, rendemen, dept, userId) {
   try {
     const db = await connect();
-    const currentDate = new Date();
-    const periode = `${currentDate.getFullYear()}${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
     
     const query = `
       INSERT INTO M_COGS_PRODUCT_GROUP_MANUAL (
-        Periode,
         Group_ProductID,
-        Product_Name,
         Group_PNCategory,
         Group_PNCategoryName,
         Group_ManHourPros,
         Group_ManHourPack,
         Group_Rendemen,
-        Group_Dept
+        Group_Dept,
+        user_id
       ) VALUES (
-        @periode,
         @productId,
-        @productName,
         @pnCategory,
         @pnCategoryName,
         @manHourPros,
         @manHourPack,
         @rendemen,
-        @dept
+        @dept,
+        @userId
       )
     `;
     
     const result = await db.request()
-      .input('periode', periode)
-      .input('productId', productId)
-      .input('productName', productName)
-      .input('pnCategory', pnCategory)
-      .input('pnCategoryName', pnCategoryName)
-      .input('manHourPros', manHourPros)
-      .input('manHourPack', manHourPack)
-      .input('rendemen', rendemen)
-      .input('dept', dept)
+      .input('productId', sql.NVarChar, productId)
+      .input('pnCategory', sql.Int, pnCategory)
+      .input('pnCategoryName', sql.NVarChar, pnCategoryName)
+      .input('manHourPros', sql.Decimal(10,2), manHourPros)
+      .input('manHourPack', sql.Decimal(10,2), manHourPack)
+      .input('rendemen', sql.Decimal(10,2), rendemen)
+      .input('dept', sql.NVarChar, dept)
+      .input('userId', sql.NVarChar, userId || null)
       .query(query);
-      
-    return {
-      success: true,
-      rowsAffected: result.rowsAffected[0],
-      periode: periode
-    };
+    
+    return { success: true, message: 'Group added successfully' };
   } catch (error) {
     console.error('Error executing addGroup query:', error);
     throw error;
@@ -356,20 +360,20 @@ async function deleteGroup(id) {
   try {
     const db = await connect();
     
-    // First check if the record exists
-    const checkQuery = 'SELECT pk_id, Group_ProductID, Product_Name FROM M_COGS_PRODUCT_GROUP_MANUAL WHERE pk_id = @id';
+    // First check if the record exists using the correct column name
+    const checkQuery = 'SELECT Group_ProductID FROM M_COGS_PRODUCT_GROUP_MANUAL WHERE Group_ProductID = @id';
     const checkResult = await db.request()
-      .input('id', id)
+      .input('id', sql.NVarChar, id)
       .query(checkQuery);
     
     if (checkResult.recordset.length === 0) {
       throw new Error('No record found with the provided ID');
     }
     
-    // Delete the record
-    const deleteQuery = 'DELETE FROM M_COGS_PRODUCT_GROUP_MANUAL WHERE pk_id = @id';
+    // Delete the record using ProductID as the key
+    const deleteQuery = 'DELETE FROM M_COGS_PRODUCT_GROUP_MANUAL WHERE Group_ProductID = @id';
     const result = await db.request()
-      .input('id', id)
+      .input('id', sql.NVarChar, id)
       .query(deleteQuery);
       
     return {
@@ -394,6 +398,7 @@ module.exports = {
   getParameter,
   updateParameter,
   getGroup,
+  getGroupManual,
   addGroup,
   updateGroup,
   deleteGroup

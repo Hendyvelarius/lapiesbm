@@ -265,6 +265,20 @@ class MasterController {
         }
     }
 
+    static async getGroupManual(req, res) {
+        try {
+            const groupManual = await getGroupManual();
+            res.status(200).json(groupManual);
+        } catch (error) {
+            console.error('Error in getGroupManual endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve manual groups',
+                error: error.message
+            });
+        }
+    }
+
     static async addGroup(req, res) {
         try {
             const { 
@@ -415,15 +429,9 @@ class MasterController {
                 });
             }
             
-            // Validate ID is a number
-            if (isNaN(parseInt(id))) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid ID format. ID must be a number.'
-                });
-            }
+            // No need to validate as number since we're using productId (string) as the identifier
             
-            const result = await deleteGroup(parseInt(id));
+            const result = await deleteGroup(id);
             
             res.status(200).json({
                 success: true,
@@ -445,9 +453,6 @@ class MasterController {
             });
         }
     }
-
-
-
 }
 
 module.exports = MasterController;

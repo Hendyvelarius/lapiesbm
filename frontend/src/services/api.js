@@ -182,6 +182,9 @@ export const masterAPI = {
   // Get groups
   getGroup: () => apiRequest('/master/group'),
   
+  // Get group manual data
+  getGroupManual: () => apiRequest('/master/groupManual'),
+  
   // Add new group
   addGroup: (data) => apiRequest('/master/group', {
     method: 'POST',

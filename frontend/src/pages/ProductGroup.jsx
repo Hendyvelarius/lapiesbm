@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { masterAPI } from '../services/api';
 import '../styles/ProductGroup.css';
-import { Search, Filter, Edit, Trash2, Users, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Search, Filter, Edit, Trash2, Users, ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
 
 const ProductGroup = () => {
   const [groupData, setGroupData] = useState([]);
+  const [groupManualData, setGroupManualData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [paginatedData, setPaginatedData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,26 +17,18 @@ const ProductGroup = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(50);
 
-  // Modal states
-  const [showModal, setShowModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [modalMode, setModalMode] = useState('add'); // 'add' or 'edit'
-  const [editingItem, setEditingItem] = useState(null);
-  const [deletingItem, setDeletingItem] = useState(null);
-  const [modalLoading, setModalLoading] = useState(false);
+  // Inline editing states
+  const [editingRowId, setEditingRowId] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
   const [submitLoading, setSubmitLoading] = useState(false);
   
-  // Form states
-  const [formData, setFormData] = useState({
-    productId: '',
-    productName: '',
-    pnCategory: '',
-    pnCategoryName: '',
-    manHourPros: '',
-    manHourPack: '',
-    rendemen: '',
-    dept: ''
-  });
+  // Delete modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingItem, setDeletingItem] = useState(null);
+
+  // Dropdown options
+  const [categoryOptions, setCategoryOptions] = useState([]);
+  const [deptOptions, setDeptOptions] = useState([]);
 
   useEffect(() => {
     fetchAllData();
@@ -50,20 +43,34 @@ const ProductGroup = () => {
   }, [filteredData, currentPage]);
 
   useEffect(() => {
-    // Reset to page 1 when filters change
-    setCurrentPage(1);
-  }, [searchTerm, selectedCategory]);
+    // Extract unique categories and departments for dropdowns
+    if (groupData.length > 0) {
+      const categories = [...new Set(groupData.map(item => ({
+        id: item.pnCategory,
+        name: item.pnCategoryName
+      })).filter(cat => cat.name).map(cat => JSON.stringify(cat)))].map(cat => JSON.parse(cat));
+      
+      const departments = [...new Set(groupData.map(item => item.dept).filter(dept => dept))];
+      
+      setCategoryOptions(categories);
+      setDeptOptions(departments);
+    }
+  }, [groupData]);
 
   const fetchAllData = async () => {
     try {
       setLoading(true);
       setError('');
 
-      const groupResponse = await masterAPI.getGroup();
+      // Fetch both group and groupManual data
+      const [groupResponse, groupManualResponse] = await Promise.all([
+        masterAPI.getGroup(),
+        masterAPI.getGroupManual()
+      ]);
       
-      // Transform the data to match our component structure
-      const transformedData = groupResponse.map(item => ({
-        pk_id: item.pk_id,
+      // Transform group data
+      const transformedGroupData = groupResponse.map(item => ({
+        pk_id: item.Group_ProductID, // Use ProductID as primary key
         periode: item.Periode,
         productId: item.Group_ProductID,
         productName: item.Product_Name,
@@ -75,34 +82,44 @@ const ProductGroup = () => {
         dept: item.Group_Dept
       }));
 
-      setGroupData(transformedData);
-    } catch (err) {
-      setError('Failed to fetch product group data');
-      console.error('Error fetching product group data:', err);
+      setGroupData(transformedGroupData);
+      setGroupManualData(groupManualResponse);
+      
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      setError('Failed to fetch data. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Check if a product exists in manual data
+  const isInManual = (productId) => {
+    return groupManualData.some(item => item.Group_ProductID === productId);
+  };
+
   const filterData = () => {
     let filtered = groupData;
 
-    // Filter by search term
     if (searchTerm) {
-      filtered = filtered.filter(item => 
-        item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.productId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.pnCategoryName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.dept.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(item =>
+        String(item.productId).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(item.productName).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(item.pnCategoryName).toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Filter by category
     if (selectedCategory !== 'All Categories') {
       filtered = filtered.filter(item => item.pnCategoryName === selectedCategory);
     }
 
     setFilteredData(filtered);
+    
+    // Reset to page 1 if current page would be empty after filtering
+    const maxPage = Math.ceil(filtered.length / itemsPerPage) || 1;
+    if (currentPage > maxPage) {
+      setCurrentPage(1);
+    }
   };
 
   const paginateData = () => {
@@ -116,148 +133,170 @@ const ProductGroup = () => {
     return Math.ceil(filteredData.length / itemsPerPage);
   };
 
+  // Helper function to get category badge class
+  const getCategoryBadgeClass = (pnCategory, pnCategoryName) => {
+    // If we have a valid category number, use it
+    if (pnCategory && !isNaN(parseInt(pnCategory))) {
+      return `category-badge category-${parseInt(pnCategory)}`;
+    }
+    
+    // If no valid category number but we have a name, create a hash-based class
+    if (pnCategoryName) {
+      // Simple hash function to generate consistent category numbers from names
+      let hash = 0;
+      for (let i = 0; i < pnCategoryName.length; i++) {
+        const char = pnCategoryName.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      const categoryNum = (Math.abs(hash) % 20) + 1; // Generate number 1-20
+      return `category-badge category-${categoryNum}`;
+    }
+    
+    // Fallback to default
+    return 'category-badge';
+  };
+
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= getTotalPages()) {
       setCurrentPage(newPage);
     }
   };
 
-  const formatNumber = (value) => {
-    return new Intl.NumberFormat('id-ID').format(value);
-  };
-
-  const getUniqueCategories = () => {
-    const categories = ['All Categories', ...new Set(groupData.map(item => item.pnCategoryName))];
-    return categories;
-  };
-
-  const handleAddGroup = async () => {
-    setModalMode('add');
-    setEditingItem(null);
-    setShowModal(true);
-    setModalLoading(false);
-  };
-
-  const handleModalClose = () => {
-    setShowModal(false);
-    setModalMode('add');
-    setEditingItem(null);
-    setFormData({
-      productId: '',
-      productName: '',
-      pnCategory: '',
-      pnCategoryName: '',
-      manHourPros: '',
-      manHourPack: '',
-      rendemen: '',
-      dept: ''
-    });
-  };
-
-  const handleEditGroup = async (item) => {
-    setModalMode('edit');
-    setEditingItem(item);
-    setShowModal(true);
-    setModalLoading(false);
-    
-    // Pre-fill form with existing data
-    setFormData({
-      productId: item.productId,
-      productName: item.productName,
-      pnCategory: item.pnCategory.toString(),
+  // Inline editing functions
+  const handleEditClick = (item) => {
+    setEditingRowId(item.productId);
+    setEditFormData({
+      pnCategory: item.pnCategory,
       pnCategoryName: item.pnCategoryName,
-      manHourPros: item.manHourPros.toString(),
-      manHourPack: item.manHourPack.toString(),
-      rendemen: item.rendemen.toString(),
-      dept: item.dept
+      manHourPros: item.manHourPros || '',
+      manHourPack: item.manHourPack || '',
+      rendemen: item.rendemen || '',
+      dept: item.dept || ''
     });
   };
 
-  const handleDeleteGroup = (item) => {
-    setDeletingItem(item);
-    setShowDeleteModal(true);
+  const handleCancelEdit = () => {
+    setEditingRowId(null);
+    setEditFormData({});
   };
 
   const handleFormChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setEditFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+
+    // If category is changed, update category name
+    if (field === 'pnCategory') {
+      const selectedCategory = categoryOptions.find(cat => cat.id === parseInt(value));
+      if (selectedCategory) {
+        setEditFormData(prev => ({
+          ...prev,
+          pnCategoryName: selectedCategory.name
+        }));
+      }
+    }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmitEdit = async (item) => {
     try {
       setSubmitLoading(true);
       
       const submitData = {
-        productId: formData.productId,
-        productName: formData.productName,
-        pnCategory: parseInt(formData.pnCategory),
-        pnCategoryName: formData.pnCategoryName,
-        manHourPros: parseFloat(formData.manHourPros),
-        manHourPack: parseFloat(formData.manHourPack),
-        rendemen: parseFloat(formData.rendemen),
-        dept: formData.dept,
-        userId: 'GWN'
+        productId: item.productId,
+        productName: item.productName,
+        pnCategory: editFormData.pnCategory,
+        pnCategoryName: editFormData.pnCategoryName,
+        manHourPros: parseFloat(editFormData.manHourPros) || 0,
+        manHourPack: parseFloat(editFormData.manHourPack) || 0,
+        rendemen: parseFloat(editFormData.rendemen) || 0,
+        dept: editFormData.dept
       };
+
+      const isManualItem = isInManual(item.productId);
       
-      if (modalMode === 'edit') {
-        await masterAPI.updateGroup(editingItem.pk_id, submitData);
+      if (isManualItem) {
+        // Update existing manual entry
+        await masterAPI.updateGroup(item.productId, submitData);
       } else {
+        // Create new manual entry
         await masterAPI.addGroup(submitData);
       }
-      
-      // Refresh the data
+
+      // Refresh data
       await fetchAllData();
       
-      // Close modal
-      handleModalClose();
+      // Reset editing state
+      setEditingRowId(null);
+      setEditFormData({});
       
     } catch (error) {
-      console.error(`Error ${modalMode === 'edit' ? 'updating' : 'adding'} group:`, error);
+      console.error('Error saving group data:', error);
+      setError('Failed to save data. Please try again.');
     } finally {
       setSubmitLoading(false);
     }
   };
 
-  const handleConfirmDelete = async () => {
+  // Delete functionality
+  const handleDeleteClick = (item) => {
+    setDeletingItem(item);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
     try {
       setSubmitLoading(true);
-      await masterAPI.deleteGroup(deletingItem.pk_id);
+      await masterAPI.deleteGroup(deletingItem.productId);
       
-      // Refresh the data
+      // Refresh data
       await fetchAllData();
       
-      // Close delete modal
       setShowDeleteModal(false);
       setDeletingItem(null);
       
     } catch (error) {
       console.error('Error deleting group:', error);
+      setError('Failed to delete item. Please try again.');
     } finally {
       setSubmitLoading(false);
     }
   };
 
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeletingItem(null);
+  };
+
+  // Helper functions
+  const formatNumber = (num) => {
+    if (num === null || num === undefined) return '-';
+    return num.toLocaleString();
+  };
+
+  const getCategories = () => {
+    const categories = [...new Set(groupData.map(item => item.pnCategoryName).filter(Boolean))];
+    return ['All Categories', ...categories];
+  };
+
   if (loading) {
     return (
-      <div className="product-group-container">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading product group data...</p>
-        </div>
+      <div className="loading-spinner">
+        <div className="spinner"></div>
+        <p>Loading product groups...</p>
       </div>
     );
   }
 
-  if (error && groupData.length === 0) {
+  if (error) {
     return (
-      <div className="product-group-container">
-        <div className="error-message">
-          <Users size={48} />
-          <h3>Error Loading Data</h3>
-          <p>{error}</p>
-          <button onClick={fetchAllData} className="retry-btn">
-            Try Again
-          </button>
-        </div>
+      <div className="error-message">
+        <Users size={48} />
+        <p>{error}</p>
+        <button className="retry-btn" onClick={fetchAllData}>
+          Try Again
+        </button>
       </div>
     );
   }
@@ -282,7 +321,7 @@ const ProductGroup = () => {
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
             >
-              {getUniqueCategories().map(category => (
+              {getCategories().map(category => (
                 <option key={category} value={category}>{category}</option>
               ))}
             </select>
@@ -293,56 +332,137 @@ const ProductGroup = () => {
       <div className="table-container">
         <div className="table-scroll-wrapper">
           <table className="groups-table">
-          <thead>
-            <tr>
-              <th>Product ID</th>
-              <th>Product Name</th>
-              <th>Category Name</th>
-              <th>ManHour Process</th>
-              <th>ManHour Packing</th>
-              <th>Rendemen (%)</th>
-              <th>Department</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedData.map((item) => (
-              <tr key={item.pk_id}>
-                <td className="product-id">{item.productId}</td>
-                <td className="product-name">
-                  <div className="name-cell">
-                    <span className="name">{item.productName}</span>
-                  </div>
-                </td>
-                <td>
-                  <span className={`category-badge category-${item.pnCategory}`}>
-                    {item.pnCategoryName}
-                  </span>
-                </td>
-                <td className="manhour">{formatNumber(item.manHourPros)}</td>
-                <td className="manhour">{formatNumber(item.manHourPack)}</td>
-                <td className="rendemen">{item.rendemen}%</td>
-                <td className="dept">{item.dept}</td>
-                <td className="actions">
-                  <button 
-                    className="edit-btn"
-                    onClick={() => handleEditGroup(item)}
-                    title="Edit Group"
-                  >
-                    <Edit size={16} />
-                  </button>
-                  <button 
-                    className="delete-btn"
-                    onClick={() => handleDeleteGroup(item)}
-                    title="Delete Group"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </td>
+            <thead>
+              <tr>
+                <th>Product ID</th>
+                <th>Product Name</th>
+                <th>Category Name</th>
+                <th>ManHour Process</th>
+                <th>ManHour Packing</th>
+                <th>Rendemen (%)</th>
+                <th>Dept.</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paginatedData.map((item) => (
+                <tr key={item.productId}>
+                  <td className="product-id">{item.productId}</td>
+                  <td className="product-name">
+                    <div className="name-cell">
+                      <span className="name">{item.productName}</span>
+                    </div>
+                  </td>
+                  
+                  {editingRowId === item.productId ? (
+                    // Editing mode
+                    <>
+                      <td>
+                        <select 
+                          value={editFormData.pnCategory}
+                          onChange={(e) => handleFormChange('pnCategory', e.target.value)}
+                          className="edit-select"
+                        >
+                          <option value="">Select Category</option>
+                          {categoryOptions.map(cat => (
+                            <option key={cat.id} value={cat.id}>{cat.name}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          value={editFormData.manHourPros}
+                          onChange={(e) => handleFormChange('manHourPros', e.target.value)}
+                          className="edit-input"
+                          placeholder="Process"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          value={editFormData.manHourPack}
+                          onChange={(e) => handleFormChange('manHourPack', e.target.value)}
+                          className="edit-input"
+                          placeholder="Packing"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          value={editFormData.rendemen}
+                          onChange={(e) => handleFormChange('rendemen', e.target.value)}
+                          className="edit-input"
+                          placeholder="Rendemen"
+                        />
+                      </td>
+                      <td>
+                        <select 
+                          value={editFormData.dept}
+                          onChange={(e) => handleFormChange('dept', e.target.value)}
+                          className="edit-select"
+                        >
+                          <option value="">Select Dept</option>
+                          {deptOptions.map(dept => (
+                            <option key={dept} value={dept}>{dept}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="actions editing-mode">
+                        <button 
+                          className="submit-btn"
+                          onClick={() => handleSubmitEdit(item)}
+                          disabled={submitLoading}
+                          title="Save Changes"
+                        >
+                          <Check size={16} />
+                        </button>
+                        <button 
+                          className="cancel-btn"
+                          onClick={handleCancelEdit}
+                          disabled={submitLoading}
+                          title="Cancel Edit"
+                        >
+                          <X size={16} />
+                        </button>
+                      </td>
+                    </>
+                  ) : (
+                    // Display mode
+                    <>
+                      <td>
+                        <span className={getCategoryBadgeClass(item.pnCategory, item.pnCategoryName)}>
+                          {item.pnCategoryName}
+                        </span>
+                      </td>
+                      <td className="manhour">{formatNumber(item.manHourPros)}</td>
+                      <td className="manhour">{formatNumber(item.manHourPack)}</td>
+                      <td className="rendemen">{item.rendemen ? `${item.rendemen}%` : '-'}</td>
+                      <td className="dept">{item.dept || '-'}</td>
+                      <td className={`actions display-mode ${isInManual(item.productId) ? 'multiple-buttons' : 'single-button'}`}>
+                        <button 
+                          className="edit-btn"
+                          onClick={() => handleEditClick(item)}
+                          title="Edit Group"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        {isInManual(item.productId) && (
+                          <button 
+                            className="delete-btn"
+                            onClick={() => handleDeleteClick(item)}
+                            title="Delete Group"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
         {filteredData.length === 0 && !loading && (
@@ -367,13 +487,12 @@ const ProductGroup = () => {
       {filteredData.length > 0 && (
         <div className="pagination-container">
           <div className="pagination-info">
-            Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredData.length)} to{' '}
-            {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} groups
+            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} entries
           </div>
           
           <div className="pagination-controls">
             <button 
-              className="pagination-btn" 
+              className="pagination-btn"
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
             >
@@ -382,22 +501,8 @@ const ProductGroup = () => {
             </button>
             
             <div className="page-numbers">
-              {Array.from({ length: Math.min(5, getTotalPages()) }, (_, index) => {
-                let pageNumber;
-                const totalPages = getTotalPages();
-                
-                if (totalPages <= 5) {
-                  pageNumber = index + 1;
-                } else {
-                  if (currentPage <= 3) {
-                    pageNumber = index + 1;
-                  } else if (currentPage > totalPages - 3) {
-                    pageNumber = totalPages - 4 + index;
-                  } else {
-                    pageNumber = currentPage - 2 + index;
-                  }
-                }
-                
+              {Array.from({ length: Math.min(5, getTotalPages()) }, (_, i) => {
+                const pageNumber = Math.max(1, Math.min(getTotalPages() - 4, currentPage - 2)) + i;
                 return (
                   <button
                     key={pageNumber}
@@ -411,7 +516,7 @@ const ProductGroup = () => {
             </div>
             
             <button 
-              className="pagination-btn" 
+              className="pagination-btn"
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === getTotalPages()}
             >
@@ -426,195 +531,55 @@ const ProductGroup = () => {
         <span>{filteredData.length} of {groupData.length} groups</span>
       </div>
 
-      {/* Add/Edit Group Modal */}
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h2>{modalMode === 'edit' ? 'Edit Product Group' : 'Add New Product Group'}</h2>
-              <button className="modal-close" onClick={handleModalClose}>
-                <X size={24} />
-              </button>
-            </div>
-            
-            <div className="modal-body">
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Product ID</label>
-                  <input
-                    type="text"
-                    value={formData.productId}
-                    onChange={(e) => handleFormChange('productId', e.target.value)}
-                    placeholder="Enter Product ID"
-                    required
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label>Product Name</label>
-                  <input
-                    type="text"
-                    value={formData.productName}
-                    onChange={(e) => handleFormChange('productName', e.target.value)}
-                    placeholder="Enter Product Name"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>PN Category</label>
-                  <input
-                    type="number"
-                    value={formData.pnCategory}
-                    onChange={(e) => handleFormChange('pnCategory', e.target.value)}
-                    placeholder="Enter Category Number"
-                    required
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label>Category Name</label>
-                  <input
-                    type="text"
-                    value={formData.pnCategoryName}
-                    onChange={(e) => handleFormChange('pnCategoryName', e.target.value)}
-                    placeholder="Enter Category Name"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>ManHour Process</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.manHourPros}
-                    onChange={(e) => handleFormChange('manHourPros', e.target.value)}
-                    placeholder="Enter Process Hours"
-                    required
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label>ManHour Packing</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.manHourPack}
-                    onChange={(e) => handleFormChange('manHourPack', e.target.value)}
-                    placeholder="Enter Packing Hours"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Rendemen (%)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.rendemen}
-                    onChange={(e) => handleFormChange('rendemen', e.target.value)}
-                    placeholder="Enter Rendemen Percentage"
-                    required
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label>Department</label>
-                  <input
-                    type="text"
-                    value={formData.dept}
-                    onChange={(e) => handleFormChange('dept', e.target.value)}
-                    placeholder="Enter Department"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="modal-actions">
-                <button 
-                  className="modal-btn secondary" 
-                  onClick={handleModalClose}
-                  disabled={submitLoading}
-                >
-                  Cancel
-                </button>
-                <button 
-                  className="modal-btn primary" 
-                  onClick={handleSubmit}
-                  disabled={!formData.productId || !formData.productName || submitLoading}
-                >
-                  {submitLoading ? (
-                    <>
-                      <div className="btn-spinner"></div>
-                      {modalMode === 'edit' ? 'Updating...' : 'Adding...'}
-                    </>
-                  ) : (
-                    <>
-                      {modalMode === 'edit' ? <Edit size={16} /> : <Plus size={16} />}
-                      {modalMode === 'edit' ? 'Update Group' : 'Add Group'}
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && deletingItem && (
+      {showDeleteModal && (
         <div className="modal-overlay">
           <div className="modal-content delete-modal">
             <div className="modal-header">
-              <h2>Confirm Delete</h2>
-              <button className="modal-close" onClick={() => setShowDeleteModal(false)}>
+              <h2>Delete Product Group</h2>
+              <button className="modal-close" onClick={handleDeleteCancel}>
                 <X size={24} />
               </button>
             </div>
             
             <div className="modal-body">
               <div className="delete-warning">
-                <Trash2 size={48} className="warning-icon" />
-                <h3>Please make sure this is what you want to delete</h3>
+                <div className="warning-icon">
+                  <Trash2 size={48} />
+                </div>
+                <h3>Are you sure you want to delete this group?</h3>
+                
                 <div className="delete-info">
                   <div className="info-row">
                     <strong>Product ID:</strong>
-                    <span>{deletingItem.productId}</span>
+                    <span>{deletingItem?.productId}</span>
                   </div>
                   <div className="info-row">
                     <strong>Product Name:</strong>
-                    <span>{deletingItem.productName}</span>
+                    <span>{deletingItem?.productName}</span>
                   </div>
                   <div className="info-row">
                     <strong>Category:</strong>
-                    <span>{deletingItem.pnCategoryName}</span>
-                  </div>
-                  <div className="info-row">
-                    <strong>Department:</strong>
-                    <span>{deletingItem.dept}</span>
+                    <span>{deletingItem?.pnCategoryName}</span>
                   </div>
                 </div>
-                <p className="warning-text">This action cannot be undone.</p>
+                
+                <p className="warning-text">
+                  This action cannot be undone. The product will revert to default settings.
+                </p>
               </div>
-
+              
               <div className="modal-actions">
                 <button 
                   className="modal-btn secondary" 
-                  onClick={() => setShowDeleteModal(false)}
+                  onClick={handleDeleteCancel}
                   disabled={submitLoading}
                 >
                   Cancel
                 </button>
                 <button 
                   className="modal-btn danger" 
-                  onClick={handleConfirmDelete}
+                  onClick={handleDeleteConfirm}
                   disabled={submitLoading}
                 >
                   {submitLoading ? (
@@ -625,7 +590,7 @@ const ProductGroup = () => {
                   ) : (
                     <>
                       <Trash2 size={16} />
-                      Confirm Delete
+                      Delete Group
                     </>
                   )}
                 </button>
