@@ -8,6 +8,7 @@ import Currency from './pages/Currency';
 import HargaBahan from './pages/HargaBahan';
 import BiayaLain from './pages/BiayaLain';
 import ProductGroup from './pages/ProductGroup';
+import Pembebanan from './pages/Pembebanan';
 import './styles/App.css';
 
 function AppContent() {
@@ -46,6 +47,8 @@ function AppContent() {
         return 'Additional Cost Parameters';
       case '/product-group':
         return 'Product Group Management';
+      case '/pembebanan':
+        return 'Cost Allocation Management';
       default:
         return 'Hello, Gunawan';
     }
@@ -86,6 +89,7 @@ function AppContent() {
           <Route path="/harga-bahan" element={<HargaBahan />} />
           <Route path="/biaya-lain" element={<BiayaLain />} />
           <Route path="/product-group" element={<ProductGroup />} />
+          <Route path="/pembebanan" element={<Pembebanan />} />
         </Routes>
       </main>
     </div>

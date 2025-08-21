@@ -387,6 +387,18 @@ async function deleteGroup(id) {
   }
 }
 
+async function getProductName() {
+  try {
+    const db = await connect();
+    const query = 'SELECT mp.Product_ID , mp.Product_Name FROM m_Product mp WHERE mp.isActive = 1';
+    const result = await db.request().query(query);
+    return result.recordset;
+  } catch (error) {
+    console.error('Error executing getProductName query:', error);
+    throw error;
+  }
+}
+
 async function getPembebanan() {
   try {
     const db = await connect();
@@ -395,6 +407,98 @@ async function getPembebanan() {
     return result.recordset;
   } catch (error) {
     console.error('Error executing getPembebanan query:', error);
+    throw error;
+  }
+}
+
+async function addPembebanan(groupPNCategoryID, groupPNCategoryName, groupProductID, groupProsesRate, groupKemasRate, userId) {
+  try {
+    const db = await connect();
+    const currentYear = new Date().getFullYear().toString();
+    const currentDateTime = new Date().toISOString();
+    
+    const query = `
+      INSERT INTO M_COGS_PEMBEBANAN 
+      (Group_Periode, Group_PNCategoryID, Group_PNCategory_Name, Group_ProductID, Group_Proses_Rate, Group_Kemas_Rate, user_id, delegated_to, process_date, flag_update, from_update)
+      VALUES (@periode, @categoryId, @categoryName, @productId, @prosesRate, @kemasRate, @userId, @delegatedTo, @processDate, @flagUpdate, @fromUpdate)
+    `;
+    
+    const result = await db.request()
+      .input('periode', sql.VarChar, currentYear)
+      .input('categoryId', sql.VarChar, groupPNCategoryID)
+      .input('categoryName', sql.VarChar, groupPNCategoryName)
+      .input('productId', sql.VarChar, groupProductID)
+      .input('prosesRate', sql.Decimal(18,2), groupProsesRate)
+      .input('kemasRate', sql.Decimal(18,2), groupKemasRate)
+      .input('userId', sql.VarChar, userId || 'GWN')
+      .input('delegatedTo', sql.VarChar, userId || 'GWN')
+      .input('processDate', sql.DateTime, currentDateTime)
+      .input('flagUpdate', sql.VarChar, null)
+      .input('fromUpdate', sql.VarChar, null)
+      .query(query);
+      
+    return result;
+  } catch (error) {
+    console.error('Error executing addPembebanan query:', error);
+    throw error;
+  }
+}
+
+async function updatePembebanan(pkId, groupPNCategoryID, groupPNCategoryName, groupProductID, groupProsesRate, groupKemasRate, userId) {
+  try {
+    const db = await connect();
+    const currentYear = new Date().getFullYear().toString();
+    const currentDateTime = new Date().toISOString();
+    
+    const query = `
+      UPDATE M_COGS_PEMBEBANAN 
+      SET Group_Periode = @periode,
+          Group_PNCategoryID = @categoryId,
+          Group_PNCategory_Name = @categoryName,
+          Group_ProductID = @productId,
+          Group_Proses_Rate = @prosesRate,
+          Group_Kemas_Rate = @kemasRate,
+          user_id = @userId,
+          delegated_to = @delegatedTo,
+          process_date = @processDate,
+          flag_update = @flagUpdate,
+          from_update = @fromUpdate
+      WHERE pk_id = @pkId
+    `;
+    
+    const result = await db.request()
+      .input('pkId', sql.Int, pkId)
+      .input('periode', sql.VarChar, currentYear)
+      .input('categoryId', sql.VarChar, groupPNCategoryID)
+      .input('categoryName', sql.VarChar, groupPNCategoryName)
+      .input('productId', sql.VarChar, groupProductID)
+      .input('prosesRate', sql.Decimal(18,2), groupProsesRate)
+      .input('kemasRate', sql.Decimal(18,2), groupKemasRate)
+      .input('userId', sql.VarChar, userId || 'GWN')
+      .input('delegatedTo', sql.VarChar, userId || 'GWN')
+      .input('processDate', sql.DateTime, currentDateTime)
+      .input('flagUpdate', sql.VarChar, null)
+      .input('fromUpdate', sql.VarChar, null)
+      .query(query);
+      
+    return result;
+  } catch (error) {
+    console.error('Error executing updatePembebanan query:', error);
+    throw error;
+  }
+}
+
+async function deletePembebanan(pkId) {
+  try {
+    const db = await connect();
+    const query = 'DELETE FROM M_COGS_PEMBEBANAN WHERE pk_id = @pkId';
+    const result = await db.request()
+      .input('pkId', sql.Int, pkId)
+      .query(query);
+      
+    return result;
+  } catch (error) {
+    console.error('Error executing deletePembebanan query:', error);
     throw error;
   }
 }
@@ -414,5 +518,9 @@ module.exports = {
   addGroup,
   updateGroup,
   deleteGroup,
-  getPembebanan
+  getProductName,
+  getPembebanan,
+  addPembebanan,
+  updatePembebanan,
+  deletePembebanan
 };

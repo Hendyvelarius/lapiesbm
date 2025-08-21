@@ -1,5 +1,5 @@
 import '../styles/Sidebar.css';
-import { FileText, BarChart3, DollarSign, Package, Calculator, Users } from 'lucide-react';
+import { FileText, BarChart3, DollarSign, Package, Calculator, Users, Layers } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 
 export default function Sidebar() {
@@ -45,6 +45,11 @@ export default function Sidebar() {
           <li className={location.pathname === '/product-group' ? 'active' : ''}>
             <Link to="/product-group" className="sidebar-link">
               <Users className="sidebar-icon" size={20} /> Product Group
+            </Link>
+          </li>
+          <li className={location.pathname === '/pembebanan' ? 'active' : ''}>
+            <Link to="/pembebanan" className="sidebar-link">
+              <Layers className="sidebar-icon" size={20} /> Pembebanan
             </Link>
           </li>
         </ul>

@@ -1,4 +1,4 @@
-const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, getPembebanan } = require('../models/sqlModel');
+const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan } = require('../models/sqlModel');
 
 class MasterController {
     static async getCurrency(req, res) {
@@ -454,6 +454,20 @@ class MasterController {
         }
     }
 
+    static async getProductName(req, res) {
+        try {
+            const result = await getProductName();
+            res.status(200).json(result);
+        } catch (error) {
+            console.error('Error in getProductName endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve product name data',
+                error: error.message
+            });
+        }
+    }
+
     static async getPembebanan(req, res) {
         try {
             const result = await getPembebanan();
@@ -467,5 +481,143 @@ class MasterController {
             });
         }
     }
+
+    static async addPembebanan(req, res) {
+        try {
+            const { 
+                groupPNCategoryID, 
+                groupPNCategoryName, 
+                groupProductID, 
+                groupProsesRate, 
+                groupKemasRate 
+            } = req.body;
+
+            // Validate required fields
+            if (!groupPNCategoryID || !groupPNCategoryName || 
+                groupProsesRate === undefined || groupKemasRate === undefined) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields: groupPNCategoryID, groupPNCategoryName, groupProsesRate, groupKemasRate'
+                });
+            }
+
+            const result = await addPembebanan(
+                groupPNCategoryID,
+                groupPNCategoryName, 
+                groupProductID,
+                groupProsesRate,
+                groupKemasRate,
+                'GWN' // Default user for now
+            );
+
+            res.status(201).json({
+                success: true,
+                message: 'Pembebanan created successfully',
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in addPembebanan endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to create pembebanan',
+                error: error.message
+            });
+        }
+    }
+
+    static async updatePembebanan(req, res) {
+        try {
+            const { id } = req.params;
+            const { 
+                groupPNCategoryID, 
+                groupPNCategoryName, 
+                groupProductID, 
+                groupProsesRate, 
+                groupKemasRate 
+            } = req.body;
+
+            // Validate required fields
+            if (!id) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'ID parameter is required'
+                });
+            }
+
+            if (!groupPNCategoryID || !groupPNCategoryName || 
+                groupProsesRate === undefined || groupKemasRate === undefined) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields: groupPNCategoryID, groupPNCategoryName, groupProsesRate, groupKemasRate'
+                });
+            }
+
+            const result = await updatePembebanan(
+                parseInt(id),
+                groupPNCategoryID,
+                groupPNCategoryName, 
+                groupProductID,
+                groupProsesRate,
+                groupKemasRate,
+                'GWN' // Default user for now
+            );
+
+            if (result.rowsAffected[0] === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Pembebanan not found'
+                });
+            }
+
+            res.status(200).json({
+                success: true,
+                message: 'Pembebanan updated successfully',
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in updatePembebanan endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to update pembebanan',
+                error: error.message
+            });
+        }
+    }
+
+    static async deletePembebanan(req, res) {
+        try {
+            const { id } = req.params;
+
+            if (!id) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'ID parameter is required'
+                });
+            }
+
+            const result = await deletePembebanan(parseInt(id));
+
+            if (result.rowsAffected[0] === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Pembebanan not found'
+                });
+            }
+
+            res.status(200).json({
+                success: true,
+                message: 'Pembebanan deleted successfully'
+            });
+        } catch (error) {
+            console.error('Error in deletePembebanan endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to delete pembebanan',
+                error: error.message
+            });
+        }
+    }
+
+
 }
 module.exports = MasterController;

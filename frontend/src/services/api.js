@@ -201,6 +201,29 @@ export const masterAPI = {
   deleteGroup: (id) => apiRequest(`/master/group/${id}`, {
     method: 'DELETE',
   }),
+  
+  // Get product names
+  getProductName: () => apiRequest('/master/productName'),
+  
+  // Get pembebanan data
+  getPembebanan: () => apiRequest('/master/pembebanan'),
+  
+  // Add new pembebanan
+  addPembebanan: (data) => apiRequest('/master/pembebanan', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  
+  // Update pembebanan
+  updatePembebanan: (id, data) => apiRequest(`/master/pembebanan/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  
+  // Delete pembebanan
+  deletePembebanan: (id) => apiRequest(`/master/pembebanan/${id}`, {
+    method: 'DELETE',
+  }),
 };
 
 // Health check

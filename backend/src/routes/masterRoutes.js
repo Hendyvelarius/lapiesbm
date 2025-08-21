@@ -17,6 +17,10 @@ router.get('/groupManual', MasterController.getGroupManual);
 router.post('/group', MasterController.addGroup);
 router.put('/group/:id', MasterController.updateGroup);
 router.delete('/group/:id', MasterController.deleteGroup);
+router.get('/productName', MasterController.getProductName);
 router.get('/pembebanan', MasterController.getPembebanan);
+router.post('/pembebanan', MasterController.addPembebanan);
+router.put('/pembebanan/:id', MasterController.updatePembebanan);
+router.delete('/pembebanan/:id', MasterController.deletePembebanan);
 
 module.exports = router;
