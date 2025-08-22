@@ -492,6 +492,22 @@ class MasterController {
                 groupKemasRate 
             } = req.body;
 
+            // Debug logging
+            console.log('Received addPembebanan request with data:', {
+                groupPNCategoryID,
+                groupPNCategoryName,
+                groupProductID,
+                groupProsesRate,
+                groupKemasRate
+            });
+            console.log('Data types:', {
+                groupPNCategoryID: typeof groupPNCategoryID,
+                groupPNCategoryName: typeof groupPNCategoryName,
+                groupProductID: typeof groupProductID,
+                groupProsesRate: typeof groupProsesRate,
+                groupKemasRate: typeof groupKemasRate
+            });
+
             // Validate required fields
             if (!groupPNCategoryID || !groupPNCategoryName || 
                 groupProsesRate === undefined || groupKemasRate === undefined) {

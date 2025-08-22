@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { masterAPI } from '../services/api';
-import '../styles/Pembebanan.css';
+import '../styles/ProductGroup.css';
 import { Search, Filter, Users, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, Edit, Trash2, X, Check } from 'lucide-react';
 
 const Pembebanan = () => {
@@ -36,9 +36,15 @@ const Pembebanan = () => {
     groupPNCategoryID: '',
     groupPNCategoryName: '',
     groupProductID: null,
+    productName: '',
     groupProsesRate: '',
     groupKemasRate: ''
   });
+  
+  // Dropdown states for Add modal
+  const [availableGroups, setAvailableGroups] = useState([]);
+  const [availableProducts, setAvailableProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
 
   // Fetch all data
   const fetchAllData = async () => {
@@ -218,6 +224,49 @@ const Pembebanan = () => {
   // Get unique groups for filter dropdown
   const uniqueGroups = [...new Set(processedData.map(item => item.groupName))].sort();
 
+  // Process available groups and products for Add modal
+  useEffect(() => {
+    if (groupData.length > 0) {
+      // Get unique groups with their IDs
+      const groupsMap = new Map();
+      groupData.forEach(item => {
+        if (item.Group_PNCategory && item.Group_PNCategoryName) {
+          groupsMap.set(item.Group_PNCategoryName, {
+            id: String(item.Group_PNCategory),
+            name: item.Group_PNCategoryName
+          });
+        }
+      });
+      setAvailableGroups(Array.from(groupsMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
+      
+      // Get all products
+      const allProducts = groupData
+        .filter(item => item.Group_ProductID && item.Product_Name)
+        .map(item => ({
+          id: String(item.Group_ProductID),
+          name: item.Product_Name,
+          groupId: String(item.Group_PNCategory),
+          groupName: item.Group_PNCategoryName
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      
+      // Filter out products that already exist in pembebanan data
+      // Only exclude products that have specific product-based entries (not default rates)
+      const existingProductIds = new Set(
+        processedData
+          .filter(item => !item.isDefaultRate && item.productId) // Only actual product entries
+          .map(item => String(item.productId))
+      );
+      
+      const availableProducts = allProducts.filter(product => 
+        !existingProductIds.has(product.id)
+      );
+      
+      setAvailableProducts(availableProducts);
+      setFilteredProducts(availableProducts);
+    }
+  }, [groupData, processedData]); // Added processedData as dependency to update when pembebanan data changes
+
   // Inline editing functions
   const handleEdit = (item) => {
     setEditingRowId(item.pk_id);
@@ -270,6 +319,8 @@ const Pembebanan = () => {
   // Add modal functions
   const handleAdd = () => {
     setShowAddModal(true);
+    // Reset filtered products to show all when modal opens
+    setFilteredProducts(availableProducts);
   };
 
   const handleCancelAdd = () => {
@@ -278,9 +329,11 @@ const Pembebanan = () => {
       groupPNCategoryID: '',
       groupPNCategoryName: '',
       groupProductID: null,
+      productName: '',
       groupProsesRate: '',
       groupKemasRate: ''
     });
+    setFilteredProducts(availableProducts);
   };
 
   const handleAddFormChange = (field, value) => {
@@ -288,17 +341,108 @@ const Pembebanan = () => {
       ...prev,
       [field]: value
     }));
+
+    // Handle group selection
+    if (field === 'groupPNCategoryName') {
+      const selectedGroup = availableGroups.find(group => group.name === value);
+      if (selectedGroup) {
+        setAddFormData(prev => ({
+          ...prev,
+          groupPNCategoryID: selectedGroup.id,
+          groupPNCategoryName: selectedGroup.name,
+          groupProductID: null,
+          productName: ''
+        }));
+        
+        // Filter products based on selected group AND exclude existing products
+        const filtered = availableProducts.filter(product => product.groupName === value);
+        setFilteredProducts(filtered);
+      } else {
+        // If group is cleared, show all products
+        setFilteredProducts(availableProducts);
+        setAddFormData(prev => ({
+          ...prev,
+          groupPNCategoryID: '',
+          groupProductID: null,
+          productName: ''
+        }));
+      }
+    }
+
+    // Handle product selection
+    if (field === 'groupProductID') {
+      const selectedProduct = filteredProducts.find(product => product.id === String(value));
+      if (selectedProduct) {
+        setAddFormData(prev => ({
+          ...prev,
+          groupProductID: selectedProduct.id,
+          productName: selectedProduct.name,
+          // Auto-select group if not already selected
+          groupPNCategoryID: prev.groupPNCategoryID || selectedProduct.groupId,
+          groupPNCategoryName: prev.groupPNCategoryName || selectedProduct.groupName
+        }));
+      } else if (value === '') {
+        setAddFormData(prev => ({
+          ...prev,
+          groupProductID: null,
+          productName: ''
+        }));
+      }
+    }
   };
 
   const handleSubmitAdd = async () => {
     try {
+      // Validation
+      if (!addFormData.groupPNCategoryName) {
+        alert('Please select a Group Name');
+        return;
+      }
+      
+      if (!addFormData.groupProductID) {
+        alert('Please select a Product');
+        return;
+      }
+      
+      if (!addFormData.groupProsesRate || parseFloat(addFormData.groupProsesRate) < 0) {
+        alert('Please enter a valid Proses Rate (must be 0 or greater)');
+        return;
+      }
+      
+      if (!addFormData.groupKemasRate || parseFloat(addFormData.groupKemasRate) < 0) {
+        alert('Please enter a valid Kemas Rate (must be 0 or greater)');
+        return;
+      }
+
+      // Additional validation to ensure groupPNCategoryID is set
+      if (!addFormData.groupPNCategoryID) {
+        alert('Group Category ID is missing. Please select a product again.');
+        return;
+      }
+      
+      // Check for duplicate entry
+      const isDuplicate = processedData.some(item => 
+        item.groupName === addFormData.groupPNCategoryName && 
+        String(item.productId) === String(addFormData.groupProductID)
+      );
+      
+      if (isDuplicate) {
+        alert(`A cost allocation entry for ${addFormData.groupPNCategoryName} product ${addFormData.groupProductID} already exists. Please edit the existing entry instead.`);
+        return;
+      }
+
+      // Debug logging
+      console.log('Add form data being sent:', addFormData);
+      
       const newEntry = {
-        groupPNCategoryID: addFormData.groupPNCategoryID,
-        groupPNCategoryName: addFormData.groupPNCategoryName,
-        groupProductID: addFormData.groupProductID,
-        groupProsesRate: parseFloat(addFormData.groupProsesRate) || 0,
-        groupKemasRate: parseFloat(addFormData.groupKemasRate) || 0
+        groupPNCategoryID: String(addFormData.groupPNCategoryID),
+        groupPNCategoryName: String(addFormData.groupPNCategoryName),
+        groupProductID: String(addFormData.groupProductID),
+        groupProsesRate: parseFloat(addFormData.groupProsesRate),
+        groupKemasRate: parseFloat(addFormData.groupKemasRate)
       };
+
+      console.log('Processed entry data:', newEntry);
       
       await masterAPI.addPembebanan(newEntry);
       
@@ -364,15 +508,30 @@ const Pembebanan = () => {
   }
 
   return (
-    <div className="pembebanan-page">
-      <div className="page-header">
-        <div className="header-top">
-          <div className="title-section">
-            <Users size={32} />
-            <div>
-              <h1>Cost Allocation Management</h1>
-              <p>Manage product cost allocation rates for processing and packaging</p>
-            </div>
+    <div className="product-group-container pembebanan-page">
+      <div className="controls-section">
+        <div className="search-box">
+          <Search size={20} />
+          <input
+            type="text"
+            placeholder="Search by product name, group..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        
+        <div className="filter-controls">
+          <div className="category-filter">
+            <Filter size={18} />
+            <select
+              value={selectedGroup}
+              onChange={(e) => setSelectedGroup(e.target.value)}
+            >
+              <option value="All Groups">All Groups</option>
+              {uniqueGroups.map(group => (
+                <option key={group} value={group}>{group}</option>
+              ))}
+            </select>
           </div>
           
           <button className="add-btn" onClick={() => setShowAddModal(true)}>
@@ -380,247 +539,217 @@ const Pembebanan = () => {
             Add New
           </button>
         </div>
-        
-        <div className="controls-section">
-          <div className="search-filter-group">
-            <div className="search-box">
-              <Search size={20} />
-              <input
-                type="text"
-                placeholder="Search by product name, group..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            
-            <div className="filter-dropdown">
-              <Filter size={20} />
-              <select
-                value={selectedGroup}
-                onChange={(e) => setSelectedGroup(e.target.value)}
-              >
-                <option value="All Groups">All Groups</option>
-                {uniqueGroups.map(group => (
-                  <option key={group} value={group}>{group}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div className="table-container">
         <div className="table-scroll-wrapper">
-          <table className="pembebanan-table">
+          <table className="groups-table">
             <thead>
               <tr>
                 <th onClick={() => handleSort('productId')} className="sortable">
                   Product ID
                   {sortField === 'productId' && (
-                    sortDirection === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   )}
                 </th>
                 <th onClick={() => handleSort('productName')} className="sortable">
                   Product Name
                   {sortField === 'productName' && (
-                    sortDirection === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   )}
                 </th>
                 <th onClick={() => handleSort('groupName')} className="sortable">
                   Group
                   {sortField === 'groupName' && (
-                    sortDirection === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   )}
                 </th>
                 <th onClick={() => handleSort('rateProses')} className="sortable">
                   Rate Proses
                   {sortField === 'rateProses' && (
-                    sortDirection === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   )}
                 </th>
                 <th onClick={() => handleSort('rateKemas')} className="sortable">
                   Rate Kemas
                   {sortField === 'rateKemas' && (
-                    sortDirection === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   )}
                 </th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {paginatedData.map(item => (
+              {paginatedData.map((item) => (
                 <tr key={item.pk_id} className={item.isDefaultRate ? 'default-rate-row' : ''}>
-                  <td>
-                    {item.productId || '-'}
-                  </td>
-                  <td>
-                    <div className="product-name-cell">
-                      {item.isDefaultRate ? (
-                        <span className="default-rate-name">{item.productName}</span>
-                      ) : (
-                        item.productName
-                      )}
+                  <td className="product-id">
+                    <div className="product-id-container">
+                      <span className="id-text">{item.productId || '-'}</span>
+                      <span className={`source-badge ${item.isDefaultRate ? 'default' : 'product'}`}>
+                        {item.isDefaultRate ? 'DEF' : 'PRD'}
+                      </span>
                     </div>
                   </td>
-                  <td>
-                    <span className={`group-badge ${item.isDefaultRate ? 'default' : 'product'}`}>
-                      {item.groupName}
-                    </span>
+                  <td className="product-name">
+                    <div className="name-cell">
+                      <span className="name">
+                        {item.isDefaultRate ? (
+                          <span className="default-rate-name">{item.productName}</span>
+                        ) : (
+                          item.productName
+                        )}
+                      </span>
+                    </div>
                   </td>
-                  <td>
-                    {editingRowId === item.pk_id ? (
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={editFormData.rateProses}
-                        onChange={(e) => handleEditChange('rateProses', e.target.value)}
-                        className="edit-input"
-                      />
-                    ) : (
-                      parseFloat(item.rateProses).toFixed(2)
-                    )}
-                  </td>
-                  <td>
-                    {editingRowId === item.pk_id ? (
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={editFormData.rateKemas}
-                        onChange={(e) => handleEditChange('rateKemas', e.target.value)}
-                        className="edit-input"
-                      />
-                    ) : (
-                      parseFloat(item.rateKemas).toFixed(2)
-                    )}
-                  </td>
-                  <td>
-                    <div className="table-actions">
-                      {editingRowId === item.pk_id ? (
-                        <>
-                          <button
-                            className="btn-save"
-                            onClick={handleSubmitEdit}
-                            disabled={submitLoading}
-                          >
-                            {submitLoading ? (
-                              <>
-                                <div className="btn-spinner"></div>
-                                Saving...
-                              </>
-                            ) : (
-                              <>
-                                <Check size={16} />
-                                Save
-                              </>
-                            )}
-                          </button>
-                          <button
-                            className="btn-cancel"
-                            onClick={handleCancelEdit}
-                            disabled={submitLoading}
-                          >
-                            <X size={16} />
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <>
+                  
+                  {editingRowId === item.pk_id ? (
+                    // Editing mode
+                    <>
+                      <td>
+                        <span className="category-badge">
+                          {item.groupName}
+                        </span>
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editFormData.rateProses}
+                          onChange={(e) => handleEditChange('rateProses', e.target.value)}
+                          className="edit-input"
+                          placeholder="Proses Rate"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editFormData.rateKemas}
+                          onChange={(e) => handleEditChange('rateKemas', e.target.value)}
+                          className="edit-input"
+                          placeholder="Kemas Rate"
+                        />
+                      </td>
+                      <td className="actions editing-mode">
+                        <button 
+                          className="submit-btn"
+                          onClick={handleSubmitEdit}
+                          disabled={submitLoading}
+                          title="Save Changes"
+                        >
+                          <Check size={16} />
+                        </button>
+                        <button 
+                          className="cancel-btn"
+                          onClick={handleCancelEdit}
+                          disabled={submitLoading}
+                          title="Cancel Edit"
+                        >
+                          <X size={16} />
+                        </button>
+                      </td>
+                    </>
+                  ) : (
+                    // Display mode
+                    <>
+                      <td>
+                        <span className="category-badge">
+                          {item.groupName}
+                        </span>
+                      </td>
+                      <td className="manhour">{parseFloat(item.rateProses).toFixed(2)}</td>
+                      <td className="manhour">{parseFloat(item.rateKemas).toFixed(2)}</td>
+                      <td className={`actions display-mode ${item.isDefaultRate ? 'single-button' : 'multiple-buttons'}`}>
+                        <button 
+                          className="edit-btn"
+                          onClick={() => handleEdit(item)}
+                          title="Edit Rate"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        {!item.isDefaultRate && (
                           <button 
-                            className="btn-edit"
-                            onClick={() => handleEdit(item)}
-                          >
-                            <Edit size={16} />
-                            Edit
-                          </button>
-                          <button 
-                            className="btn-delete"
+                            className="delete-btn"
                             onClick={() => handleDelete(item)}
+                            title="Delete Rate"
                           >
                             <Trash2 size={16} />
-                            Delete
                           </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
+                        )}
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
+        {filteredData.length === 0 && !loading && (
+          <div className="no-data">
+            <Users size={48} />
+            <h3>No Cost Allocation Data Found</h3>
+            <p>
+              {searchTerm
+                ? selectedGroup === 'All Groups'
+                  ? 'No data matches your search.'
+                  : `No ${selectedGroup.toLowerCase()} data matches your search.`
+                : selectedGroup === 'All Groups'
+                  ? 'No cost allocation data available.'
+                  : `No ${selectedGroup.toLowerCase()} data available.`
+              }
+            </p>
+          </div>
+        )}
       </div>
 
-      {filteredData.length === 0 ? (
-        <div className="no-data-message">
-          <Users size={48} />
-          <h3>No Cost Allocation Data Found</h3>
-          <p>
-            {searchTerm || selectedGroup !== 'All Groups' 
-              ? 'No data matches your current filters.' 
-              : 'No cost allocation data available.'}
-          </p>
-        </div>
-      ) : (
-        <div className="table-info">
-          <div className="pagination-container">
-            <div className="pagination-info">
-              <span>
-                Showing {startItem} to {endItem} of {filteredData.length} entries
-                {filteredData.length !== processedData.length && 
-                  ` (filtered from ${processedData.length} total entries)`
-                }
-              </span>
+      {/* Pagination Controls */}
+      {filteredData.length > 0 && (
+        <div className="pagination-container">
+          <div className="pagination-info">
+            Showing {startItem} to {endItem} of {filteredData.length} entries
+          </div>
+          
+          <div className="pagination-controls">
+            <button 
+              className="pagination-btn"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft size={16} />
+              Previous
+            </button>
+            
+            <div className="page-numbers">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const pageNumber = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                return (
+                  <button
+                    key={pageNumber}
+                    className={`page-number ${currentPage === pageNumber ? 'active' : ''}`}
+                    onClick={() => setCurrentPage(pageNumber)}
+                  >
+                    {pageNumber}
+                  </button>
+                );
+              })}
             </div>
             
-            {totalPages > 1 && (
-              <div className="pagination-controls">
-                <button
-                  className="pagination-btn"
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft size={20} />
-                  Previous
-                </button>
-                
-                <div className="page-numbers">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
-                    
-                    return (
-                      <button
-                        key={pageNum}
-                        className={`page-btn ${currentPage === pageNum ? 'active' : ''}`}
-                        onClick={() => setCurrentPage(pageNum)}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                </div>
-                
-                <button
-                  className="pagination-btn"
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                  <ChevronRight size={20} />
-                </button>
-              </div>
-            )}
+            <button 
+              className="pagination-btn"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+              <ChevronRight size={16} />
+            </button>
           </div>
         </div>
       )}
+
+      <div className="table-info">
+        <span>{filteredData.length} of {processedData.length} cost allocation entries</span>
+      </div>
 
       {/* Add New Modal */}
       {showAddModal && (
@@ -634,65 +763,106 @@ const Pembebanan = () => {
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label>Category ID:</label>
-                <input
-                  type="text"
-                  value={addFormData.groupPNCategoryID}
-                  onChange={(e) => handleAddFormChange('groupPNCategoryID', e.target.value)}
-                  placeholder="Enter category ID"
-                />
-              </div>
-              <div className="form-group">
-                <label>Category Name:</label>
-                <input
-                  type="text"
+                <label>Group Name: *</label>
+                <select
                   value={addFormData.groupPNCategoryName}
                   onChange={(e) => handleAddFormChange('groupPNCategoryName', e.target.value)}
-                  placeholder="Enter category name"
-                />
+                  required
+                >
+                  <option value="">Select Group Name</option>
+                  {availableGroups.map(group => (
+                    <option key={group.id} value={group.name}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
               </div>
+              
               <div className="form-group">
-                <label>Product ID (Optional):</label>
-                <input
-                  type="number"
+                <label>Product ID & Name: *</label>
+                <select
                   value={addFormData.groupProductID || ''}
-                  onChange={(e) => handleAddFormChange('groupProductID', e.target.value ? parseInt(e.target.value) : null)}
-                  placeholder="Leave empty for default rate"
-                />
+                  onChange={(e) => handleAddFormChange('groupProductID', e.target.value)}
+                  disabled={!addFormData.groupPNCategoryName}
+                  required
+                >
+                  <option value="">
+                    {!addFormData.groupPNCategoryName 
+                      ? "Select Group Name first" 
+                      : filteredProducts.length === 0 
+                        ? "No available products (all products in this group already have cost allocations)"
+                        : "Select Product (Required)"
+                    }
+                  </option>
+                  {filteredProducts.map(product => (
+                    <option key={product.id} value={product.id}>
+                      {product.id} - {product.name}
+                    </option>
+                  ))}
+                </select>
+                {addFormData.groupProductID && (
+                  <div className="selected-product-info">
+                    <small>Selected: {addFormData.groupProductID} - {addFormData.productName}</small>
+                  </div>
+                )}
+                {addFormData.groupPNCategoryName && filteredProducts.length === 0 && (
+                  <div className="no-products-info">
+                    <small style={{color: '#666', fontStyle: 'italic'}}>
+                      All products in "{addFormData.groupPNCategoryName}" already have cost allocation entries.
+                      Select a different group or edit existing entries.
+                    </small>
+                  </div>
+                )}
               </div>
-              <div className="form-group">
-                <label>Proses Rate:</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={addFormData.groupProsesRate}
-                  onChange={(e) => handleAddFormChange('groupProsesRate', e.target.value)}
-                  placeholder="0.00"
-                />
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Proses Rate: *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={addFormData.groupProsesRate}
+                    onChange={(e) => handleAddFormChange('groupProsesRate', e.target.value)}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Kemas Rate: *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={addFormData.groupKemasRate}
+                    onChange={(e) => handleAddFormChange('groupKemasRate', e.target.value)}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
               </div>
-              <div className="form-group">
-                <label>Kemas Rate:</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={addFormData.groupKemasRate}
-                  onChange={(e) => handleAddFormChange('groupKemasRate', e.target.value)}
-                  placeholder="0.00"
-                />
+              
+              <div className="form-info">
+                <small>
+                  * Required fields<br/>
+                  • Both Group Name and Product must be selected<br/>
+                  • Product rates are specific to the selected product only
+                </small>
               </div>
             </div>
             <div className="modal-actions">
               <button 
                 type="button" 
-                className="btn-cancel" 
+                className="modal-btn secondary" 
                 onClick={handleCancelAdd}
               >
                 Cancel
               </button>
               <button 
                 type="button" 
-                className="btn-save" 
+                className="modal-btn primary" 
                 onClick={handleSubmitAdd}
+                disabled={!addFormData.groupPNCategoryName || !addFormData.groupProductID || !addFormData.groupProsesRate || !addFormData.groupKemasRate}
               >
                 Save
               </button>
@@ -711,45 +881,66 @@ const Pembebanan = () => {
                 <X size={24} />
               </button>
             </div>
+            
             <div className="modal-body">
-              <p>Are you sure you want to delete this cost allocation entry?</p>
-              {deletingItem && (
-                <div className="delete-item-details">
-                  <strong>Product:</strong> {deletingItem.productName}<br />
-                  <strong>Group:</strong> {deletingItem.groupName}<br />
-                  <strong>Proses Rate:</strong> {deletingItem.rateProses}<br />
-                  <strong>Kemas Rate:</strong> {deletingItem.rateKemas}
+              <div className="delete-warning">
+                <div className="warning-icon">
+                  <Trash2 size={48} />
                 </div>
-              )}
-              <p className="warning-text">This action cannot be undone.</p>
-            </div>
-            <div className="modal-actions">
-              <button 
-                type="button" 
-                className="btn-cancel" 
-                onClick={handleDeleteCancel}
-                disabled={submitLoading}
-              >
-                Cancel
-              </button>
-              <button 
-                type="button" 
-                className="btn-delete" 
-                onClick={handleDeleteConfirm}
-                disabled={submitLoading}
-              >
-                {submitLoading ? (
-                  <>
-                    <div className="btn-spinner"></div>
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 size={16} />
-                    Delete Rate
-                  </>
+                <h3>Are you sure you want to delete this cost allocation?</h3>
+                
+                {deletingItem && (
+                  <div className="delete-info">
+                    <div className="info-row">
+                      <strong>Product:</strong>
+                      <span>{deletingItem.productName}</span>
+                    </div>
+                    <div className="info-row">
+                      <strong>Group:</strong>
+                      <span>{deletingItem.groupName}</span>
+                    </div>
+                    <div className="info-row">
+                      <strong>Proses Rate:</strong>
+                      <span>{deletingItem.rateProses}</span>
+                    </div>
+                    <div className="info-row">
+                      <strong>Kemas Rate:</strong>
+                      <span>{deletingItem.rateKemas}</span>
+                    </div>
+                  </div>
                 )}
-              </button>
+                
+                <p className="warning-text">
+                  This action cannot be undone.
+                </p>
+              </div>
+              
+              <div className="modal-actions">
+                <button 
+                  className="modal-btn secondary" 
+                  onClick={handleDeleteCancel}
+                  disabled={submitLoading}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="modal-btn danger" 
+                  onClick={handleDeleteConfirm}
+                  disabled={submitLoading}
+                >
+                  {submitLoading ? (
+                    <>
+                      <div className="btn-spinner"></div>
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={16} />
+                      Delete Cost Allocation
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

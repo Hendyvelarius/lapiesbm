@@ -249,7 +249,7 @@ const ProductGroup = () => {
       [field]: value
     }));
 
-    // If category is changed, update category name
+    // If group is changed, update group name
     if (field === 'pnCategory') {
       const selectedCategory = categoryOptions.find(cat => cat.id === parseInt(value));
       if (selectedCategory) {
@@ -409,7 +409,7 @@ const ProductGroup = () => {
                   )}
                 </th>
                 <th onClick={() => handleSort('pnCategoryName')} className="sortable">
-                  Category Name
+                  Group Name
                   {sortField === 'pnCategoryName' && (
                     sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   )}

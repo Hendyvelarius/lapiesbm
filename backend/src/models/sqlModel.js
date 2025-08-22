@@ -417,6 +417,31 @@ async function addPembebanan(groupPNCategoryID, groupPNCategoryName, groupProduc
     const currentYear = new Date().getFullYear().toString();
     const currentDateTime = new Date().toISOString();
     
+    // Debug logging
+    console.log('addPembebanan SQL function called with parameters:', {
+      groupPNCategoryID,
+      groupPNCategoryName,
+      groupProductID,
+      groupProsesRate,
+      groupKemasRate,
+      userId
+    });
+    
+    // Ensure all string parameters are actually strings
+    const categoryId = String(groupPNCategoryID || '');
+    const categoryName = String(groupPNCategoryName || '');
+    const productId = groupProductID ? String(groupProductID) : null;
+    const userIdStr = String(userId || 'GWN');
+    
+    console.log('Converted parameters for SQL:', {
+      categoryId,
+      categoryName,
+      productId,
+      userIdStr,
+      prosesRate: groupProsesRate,
+      kemasRate: groupKemasRate
+    });
+    
     const query = `
       INSERT INTO M_COGS_PEMBEBANAN 
       (Group_Periode, Group_PNCategoryID, Group_PNCategory_Name, Group_ProductID, Group_Proses_Rate, Group_Kemas_Rate, user_id, delegated_to, process_date, flag_update, from_update)
@@ -425,13 +450,13 @@ async function addPembebanan(groupPNCategoryID, groupPNCategoryName, groupProduc
     
     const result = await db.request()
       .input('periode', sql.VarChar, currentYear)
-      .input('categoryId', sql.VarChar, groupPNCategoryID)
-      .input('categoryName', sql.VarChar, groupPNCategoryName)
-      .input('productId', sql.VarChar, groupProductID)
+      .input('categoryId', sql.VarChar, categoryId)
+      .input('categoryName', sql.VarChar, categoryName)
+      .input('productId', sql.VarChar, productId)
       .input('prosesRate', sql.Decimal(18,2), groupProsesRate)
       .input('kemasRate', sql.Decimal(18,2), groupKemasRate)
-      .input('userId', sql.VarChar, userId || 'GWN')
-      .input('delegatedTo', sql.VarChar, userId || 'GWN')
+      .input('userId', sql.VarChar, userIdStr)
+      .input('delegatedTo', sql.VarChar, userIdStr)
       .input('processDate', sql.DateTime, currentDateTime)
       .input('flagUpdate', sql.VarChar, null)
       .input('fromUpdate', sql.VarChar, null)
@@ -449,6 +474,32 @@ async function updatePembebanan(pkId, groupPNCategoryID, groupPNCategoryName, gr
     const db = await connect();
     const currentYear = new Date().getFullYear().toString();
     const currentDateTime = new Date().toISOString();
+    
+    // Debug logging
+    console.log('updatePembebanan SQL function called with parameters:', {
+      pkId,
+      groupPNCategoryID,
+      groupPNCategoryName,
+      groupProductID,
+      groupProsesRate,
+      groupKemasRate,
+      userId
+    });
+    
+    // Ensure all string parameters are actually strings
+    const categoryId = String(groupPNCategoryID || '');
+    const categoryName = String(groupPNCategoryName || '');
+    const productId = groupProductID ? String(groupProductID) : null;
+    const userIdStr = String(userId || 'GWN');
+    
+    console.log('Converted parameters for SQL update:', {
+      categoryId,
+      categoryName,
+      productId,
+      userIdStr,
+      prosesRate: groupProsesRate,
+      kemasRate: groupKemasRate
+    });
     
     const query = `
       UPDATE M_COGS_PEMBEBANAN 
@@ -469,13 +520,13 @@ async function updatePembebanan(pkId, groupPNCategoryID, groupPNCategoryName, gr
     const result = await db.request()
       .input('pkId', sql.Int, pkId)
       .input('periode', sql.VarChar, currentYear)
-      .input('categoryId', sql.VarChar, groupPNCategoryID)
-      .input('categoryName', sql.VarChar, groupPNCategoryName)
-      .input('productId', sql.VarChar, groupProductID)
+      .input('categoryId', sql.VarChar, categoryId)
+      .input('categoryName', sql.VarChar, categoryName)
+      .input('productId', sql.VarChar, productId)
       .input('prosesRate', sql.Decimal(18,2), groupProsesRate)
       .input('kemasRate', sql.Decimal(18,2), groupKemasRate)
-      .input('userId', sql.VarChar, userId || 'GWN')
-      .input('delegatedTo', sql.VarChar, userId || 'GWN')
+      .input('userId', sql.VarChar, userIdStr)
+      .input('delegatedTo', sql.VarChar, userIdStr)
       .input('processDate', sql.DateTime, currentDateTime)
       .input('flagUpdate', sql.VarChar, null)
       .input('fromUpdate', sql.VarChar, null)
