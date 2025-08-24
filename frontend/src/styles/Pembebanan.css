@@ -373,7 +373,9 @@
 
 /* Actions */
 .pembebanan-table .actions {
-  display: flex !important;
+  /**
+    display: flex !important;
+  */
   flex-direction: row;
   gap: 0.5rem;
   justify-content: center !important;

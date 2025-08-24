@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { masterAPI } from '../services/api';
-import '../styles/ProductGroup.css';
+import '../styles/Pembebanan.css';
 import { Search, Filter, Users, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, Edit, Trash2, X, Check } from 'lucide-react';
 
 const Pembebanan = () => {
