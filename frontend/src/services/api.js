@@ -55,6 +55,32 @@ export const productsAPI = {
   delete: (id) => apiRequest(`/products/${id}`, {
     method: 'DELETE',
   }),
+
+  // Get formula data (available formulas)
+  getFormula: () => apiRequest('/products/formula'),
+  
+  // Get formula by ID
+  getFormulaById: (id) => apiRequest(`/products/formula/${id}`),
+  
+  // Get chosen formula data (current product-formula assignments)
+  getChosenFormula: () => apiRequest('/products/chosenformula'),
+  
+  // Add chosen formula
+  addChosenFormula: (data) => apiRequest('/products/chosenformula', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  
+  // Update chosen formula
+  updateChosenFormula: (productId, data) => apiRequest(`/products/chosenformula/${productId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  
+  // Delete chosen formula
+  deleteChosenFormula: (productId) => apiRequest(`/products/chosenformula/${productId}`, {
+    method: 'DELETE',
+  }),
 };
 
 // HPP API

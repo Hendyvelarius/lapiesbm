@@ -1,5 +1,6 @@
 const { Product, HPP, HPPIngredient } = require('../../models');
 const { Op } = require('sequelize');
+const { getChosenFormula, getFormula, findFormula, addChosenFormula, updateChosenFormula, deleteChosenFormula } = require('../models/productModel');
 
 class ProductController {
   // Get all products
@@ -194,6 +195,147 @@ class ProductController {
       res.status(500).json({
         success: false,
         message: 'Error deleting product',
+        error: error.message
+      });
+    }
+  }
+
+  static async getFormula(req, res) {
+    try {
+      const formulas = await getFormula();
+      res.status(200).json(formulas);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving formulas',
+        error: error.message
+      });
+    }
+  }
+
+  static async findFormula(req, res) {
+    try {
+      const { id } = req.params;
+      const formula = await findFormula(id);
+      if (!formula) {
+        return res.status(404).json('Formula not found');
+      }
+      res.status(200).json(formula);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving formula',
+        error: error.message
+      });
+    }
+  }
+
+  static async getChosenFormula(req, res) {
+    try {
+      const formulas = await getChosenFormula();
+      res.status(200).json(formulas);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving chosen formulas',
+        error: error.message
+      });
+    }
+  }
+
+  static async addChosenFormula(req, res) {
+    try {
+      const { productId, pi, ps, kp, ks, stdOutput } = req.body;
+      
+      // Validate required field
+      if (!productId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Product ID is required'
+        });
+      }
+
+      const result = await addChosenFormula(
+        productId,
+        pi,
+        ps,
+        kp,
+        ks,
+        stdOutput,
+        'SYSTEM' // Default user
+      );
+
+      res.status(201).json({
+        success: true,
+        message: 'Chosen formula created successfully',
+        data: result
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error creating chosen formula',
+        error: error.message
+      });
+    }
+  }
+
+  static async updateChosenFormula(req, res) {
+    try {
+      const { productId } = req.params;
+      const { pi, ps, kp, ks, stdOutput } = req.body;
+
+      const result = await updateChosenFormula(
+        productId,
+        pi,
+        ps,
+        kp,
+        ks,
+        stdOutput,
+        'SYSTEM' // Default user
+      );
+
+      if (result.rowsAffected[0] === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Chosen formula not found'
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Chosen formula updated successfully',
+        data: result
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error updating chosen formula',
+        error: error.message
+      });
+    }
+  }
+
+  static async deleteChosenFormula(req, res) {
+    try {
+      const { productId } = req.params;
+
+      const result = await deleteChosenFormula(productId);
+
+      if (result.rowsAffected[0] === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Chosen formula not found'
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Chosen formula deleted successfully'
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error deleting chosen formula',
         error: error.message
       });
     }

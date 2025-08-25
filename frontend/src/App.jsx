@@ -9,6 +9,7 @@ import HargaBahan from './pages/HargaBahan';
 import BiayaLain from './pages/BiayaLain';
 import ProductGroup from './pages/ProductGroup';
 import Pembebanan from './pages/Pembebanan';
+import ProductFormula from './pages/ProductFormula';
 import './styles/App.css';
 
 function AppContent() {
@@ -49,6 +50,8 @@ function AppContent() {
         return 'Product Group Management';
       case '/pembebanan':
         return 'Cost Allocation Management';
+      case '/productformula':
+        return 'Product Formula Management';
       default:
         return 'Hello, Gunawan';
     }
@@ -90,6 +93,7 @@ function AppContent() {
           <Route path="/biaya-lain" element={<BiayaLain />} />
           <Route path="/product-group" element={<ProductGroup />} />
           <Route path="/pembebanan" element={<Pembebanan />} />
+          <Route path="/productformula" element={<ProductFormula />} />
         </Routes>
       </main>
     </div>
