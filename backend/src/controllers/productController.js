@@ -1,6 +1,6 @@
 const { Product, HPP, HPPIngredient } = require('../../models');
 const { Op } = require('sequelize');
-const { getChosenFormula, getFormula, findFormula, addChosenFormula, updateChosenFormula, deleteChosenFormula } = require('../models/productModel');
+const { getChosenFormula, getFormula, findFormula, addChosenFormula, updateChosenFormula, deleteChosenFormula, findRecipe } = require('../models/productModel');
 
 class ProductController {
   // Get all products
@@ -336,6 +336,23 @@ class ProductController {
       res.status(500).json({
         success: false,
         message: 'Error deleting chosen formula',
+        error: error.message
+      });
+    }
+  }
+  
+  static async findRecipe(req, res) {
+    try {
+      const { productId } = req.params;
+      const recipe = await findRecipe(productId);
+      if (!recipe) {
+        return res.status(404).json('Recipe not found');
+      }
+      res.status(200).json(recipe);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving recipe',
         error: error.message
       });
     }

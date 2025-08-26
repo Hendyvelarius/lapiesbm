@@ -554,6 +554,18 @@ async function deletePembebanan(pkId) {
   }
 }
 
+async function getMaterial() {
+  try {
+    const db = await connect();
+    const query ='SELECT h.ITEM_ID, h.ITEM_TYPE,m.Item_Name FROM M_COGS_STD_HRG_BAHAN h INNER JOIN m_item_Manufacturing m ON h.ITEM_ID = m.Item_ID';
+    const result = await db.request().query(query);
+    return result.recordset;
+  } catch (error) {
+    console.error('Error executing getMaterial query:', error);
+    throw error;
+  }
+}
+
 module.exports = { 
   getCurrencyList,
   getBahan,
@@ -573,5 +585,6 @@ module.exports = {
   getPembebanan,
   addPembebanan,
   updatePembebanan,
-  deletePembebanan
+  deletePembebanan,
+  getMaterial
 };

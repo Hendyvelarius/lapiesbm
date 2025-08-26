@@ -22,5 +22,6 @@ router.get('/pembebanan', MasterController.getPembebanan);
 router.post('/pembebanan', MasterController.addPembebanan);
 router.put('/pembebanan/:id', MasterController.updatePembebanan);
 router.delete('/pembebanan/:id', MasterController.deletePembebanan);
+router.get('/material', MasterController.getMaterial);
 
 module.exports = router;

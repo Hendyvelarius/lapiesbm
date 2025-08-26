@@ -50,37 +50,335 @@
   background-color: #2563eb;
 }
 
-.page-content {
+.btn-secondary {
+  background-color: #6b7280;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-secondary:hover {
+  background-color: #4b5563;
+}
+
+/* Product Selection Section */
+.product-selection-section {
+  padding: 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.product-selection-section h3 {
+  margin: 0 0 16px 0;
+  color: #374151;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.product-search {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 10;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.search-result-header {
+  padding: 8px 16px;
+  background-color: #f3f4f6;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.search-result-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.15s;
+}
+
+.search-result-item:hover {
+  background-color: #f9fafb;
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.search-result-item.no-results {
+  color: #6b7280;
+  cursor: default;
+}
+
+.search-result-item.no-results:hover {
+  background-color: transparent;
+}
+
+.search-result-item.more-results {
+  color: #6b7280;
+  font-style: italic;
+  cursor: default;
+}
+
+.search-result-item.more-results:hover {
+  background-color: transparent;
+}
+
+.selected-product {
+  padding: 12px 16px;
+  background-color: #dbeafe;
+  border: 1px solid #93c5fd;
+  border-radius: 8px;
+  color: #1e40af;
+  font-size: 0.875rem;
+}
+
+/* Formula Section */
+.formula-section {
   padding: 24px;
 }
 
-.coming-soon {
+.formula-section h3 {
+  margin: 0 0 20px 0;
+  color: #374151;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.no-formulas {
   text-align: center;
-  padding: 60px 20px;
+  padding: 40px 20px;
   color: #6b7280;
 }
 
-.coming-soon h3 {
-  font-size: 2rem;
-  margin-bottom: 1rem;
-  color: #374151;
-}
-
-.coming-soon p {
+.no-formulas p {
   font-size: 1.1rem;
-  margin-bottom: 1.5rem;
-  line-height: 1.6;
+  margin-bottom: 20px;
 }
 
-.coming-soon ul {
-  text-align: left;
-  max-width: 400px;
-  margin: 0 auto;
-  line-height: 1.8;
+/* Formula Accordion */
+.formula-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
-.coming-soon li {
-  margin-bottom: 0.5rem;
+.formula-type-group {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.formula-type-header {
+  background-color: #f3f4f6;
+  padding: 16px 20px;
+  margin: 0;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.formula-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.formula-table-header {
+  display: grid;
+  grid-template-columns: 1fr 100px 120px 160px;
+  background-color: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.header-cell {
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+  border-right: 1px solid #e5e7eb;
+}
+
+.header-cell:last-child {
+  border-right: none;
+}
+
+.formula-row-group {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.formula-row-group:last-child {
+  border-bottom: none;
+}
+
+.formula-row {
+  display: grid;
+  grid-template-columns: 1fr 100px 120px 160px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.formula-row:hover {
+  background-color: #f9fafb;
+}
+
+.formula-row.expanded {
+  background-color: #f3f4f6;
+}
+
+.cell {
+  padding: 12px 16px;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.cell:last-child {
+  border-right: none;
+}
+
+.cell-subid {
+  font-weight: 500;
+}
+
+.expand-icon {
+  margin-right: 8px;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.cell-actions {
+  gap: 8px;
+}
+
+.btn-edit {
+  background-color: #10b981;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-edit:hover {
+  background-color: #059669;
+}
+
+.btn-delete {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-delete:hover {
+  background-color: #dc2626;
+}
+
+.default-badge {
+  background-color: #10b981;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Ingredients Section */
+.ingredients-section {
+  background-color: #f8fafc;
+  border-top: 1px solid #e5e7eb;
+}
+
+.ingredients-header {
+  display: grid;
+  grid-template-columns: 60px 120px 2fr 100px 80px;
+  background-color: #e2e8f0;
+  padding: 8px 0;
+}
+
+.ingredient-cell {
+  padding: 8px 16px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #475569;
+  border-right: 1px solid #cbd5e1;
+}
+
+.ingredient-cell:last-child {
+  border-right: none;
+}
+
+.ingredient-row {
+  display: grid;
+  grid-template-columns: 60px 120px 2fr 100px 80px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.ingredient-row:last-child {
+  border-bottom: none;
+}
+
+.ingredient-row .ingredient-cell {
+  font-weight: normal;
+  color: #374151;
+  background-color: #f8fafc;
+}
+
+.ingredient-row:nth-child(even) .ingredient-cell {
+  background-color: #f1f5f9;
+}
+
+.ing-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ing-qty {
+  text-align: right;
 }
 
 .loading {
@@ -100,4 +398,22 @@
   border-radius: 8px;
   margin-bottom: 20px;
   font-size: 0.875rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.retry-btn {
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.retry-btn:hover {
+  background-color: #b91c1c;
 }

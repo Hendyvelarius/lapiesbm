@@ -81,6 +81,9 @@ export const productsAPI = {
   deleteChosenFormula: (productId) => apiRequest(`/products/chosenformula/${productId}`, {
     method: 'DELETE',
   }),
+  
+  // Get recipe by product ID
+  getRecipe: (productId) => apiRequest(`/products/recipe/${productId}`),
 };
 
 // HPP API
@@ -250,6 +253,9 @@ export const masterAPI = {
   deletePembebanan: (id) => apiRequest(`/master/pembebanan/${id}`, {
     method: 'DELETE',
   }),
+  
+  // Get material data
+  getMaterial: () => apiRequest('/master/material'),
 };
 
 // Health check

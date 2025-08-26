@@ -1,4 +1,4 @@
-const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan } = require('../models/sqlModel');
+const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, getMaterial } = require('../models/sqlModel');
 
 class MasterController {
     static async getCurrency(req, res) {
@@ -634,6 +634,18 @@ class MasterController {
         }
     }
 
-
+    static async getMaterial(req, res) {
+        try {
+            const result = await getMaterial();
+            res.status(200).json(result);
+        } catch (error) {
+            console.error('Error in getMaterial endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve material',
+                error: error.message
+            });
+        }
+    }
 }
 module.exports = MasterController;

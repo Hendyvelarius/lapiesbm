@@ -8,12 +8,14 @@ router.get('/', ProductController.getAllProducts);
 // GET /api/products/formula - Get all existing formulas for all products
 router.get('/formula', ProductController.getFormula);
 router.get('/formula/:id', ProductController.findFormula);
-router.get('/chosenformula', ProductController.getChosenFormula);
 
 // Chosen formula CRUD operations
+router.get('/chosenformula', ProductController.getChosenFormula);
 router.post('/chosenformula', ProductController.addChosenFormula);
 router.put('/chosenformula/:productId', ProductController.updateChosenFormula);
 router.delete('/chosenformula/:productId', ProductController.deleteChosenFormula);
+
+router.get('/recipe/:productId', ProductController.findRecipe);
 
 // POST /api/products - Create new product
 router.post('/', ProductController.createProduct);

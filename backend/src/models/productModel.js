@@ -127,11 +127,28 @@ async function deleteChosenFormula(productId) {
     }
 }
 
+async function findRecipe(productId) {
+    try {
+        const pool = await connect();
+        const query = `
+            SELECT * FROM vw_COGS_FORMULA_List_detail WHERE Product_ID = @productId
+        `;
+        const result = await pool.request()
+            .input('productId', sql.VarChar, productId)
+            .query(query);
+        return result.recordset;
+    } catch (error) {
+        console.error('Error retrieving recipe:', error);
+        throw error;
+    }
+}
+
 module.exports = {
     getFormula,
     getChosenFormula,
     findFormula,
     addChosenFormula,
     updateChosenFormula,
-    deleteChosenFormula
+    deleteChosenFormula,
+    findRecipe
 };
