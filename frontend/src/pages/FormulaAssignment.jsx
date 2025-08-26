@@ -575,7 +575,7 @@ const FormulaAssignment = () => {
                               {/* Don't show "No Formula" option if there are formulas available */}
                               {formulas.map((formula, idx) => (
                                 <option key={`${type}-${formula.PPI_SubID || 'empty'}-${idx}`} value={formula.PPI_SubID || ''}>
-                                  {formula.PPI_SubID || ' '} {formula.Default === 'Aktif' ? '(Default) ' : ''}(Output: {formula.BatchSize})
+                                  {formula.PPI_SubID || ' '} {formula.Default === 'Aktif' ? '(DEF) ' : ''}(Output: {formula.BatchSize})
                                 </option>
                               ))}
                             </select>
@@ -674,7 +674,7 @@ const FormulaAssignment = () => {
                           {/* Don't show "No Formula" option if there are formulas available */}
                           {formulas.map((formula, idx) => (
                             <option key={`edit-${type}-${formula.PPI_SubID || 'empty'}-${idx}`} value={formula.PPI_SubID || ''}>
-                              {formula.PPI_SubID || ' '} {formula.Default === 'Aktif' ? '(Default) ' : ''}(Output: {formula.BatchSize})
+                              {formula.PPI_SubID || ' '} {formula.Default === 'Aktif' ? '(DEF) ' : ''}(Output: {formula.BatchSize})
                             </option>
                           ))}
                         </select>
