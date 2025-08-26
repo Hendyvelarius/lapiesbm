@@ -118,6 +118,23 @@ const FormulaAssignment = () => {
       };
       
       setProductFormulas(grouped);
+      
+      // Auto-select first formula for each type when there are formulas available (only for new assignments)
+      if (!editingFormula) {
+        setFormData(prev => {
+          const updated = { ...prev };
+          
+          // For each formula type, if formulas exist and current value is null, select first formula
+          Object.entries(grouped).forEach(([type, typeFormulas]) => {
+            const fieldName = type.toLowerCase();
+            if (typeFormulas.length > 0 && (prev[fieldName] === null || prev[fieldName] === undefined)) {
+              updated[fieldName] = typeFormulas[0].PPI_SubID || '';
+            }
+          });
+          
+          return updated;
+        });
+      }
     } catch (err) {
       console.error('Error loading product formulas:', err);
       setError(`Failed to load formulas for this product: ${err.message}`);
@@ -223,7 +240,7 @@ const FormulaAssignment = () => {
         }));
       } else if (currentStdOutput !== formulaBatchSize) {
         // Show warning if batch sizes differ
-        const formulaDisplayName = formulaId || 'ORI';
+        const formulaDisplayName = formulaId || ' ';
         const confirmed = window.confirm(
           `The selected formula "${formulaDisplayName}" has a batch size of ${formulaBatchSize}, ` +
           `which differs from the current standard output (${currentStdOutput}).\n\n` +
@@ -328,7 +345,7 @@ const FormulaAssignment = () => {
     if (formulaId === null || formulaId === undefined) {
       return '-';  // Truly empty/null
     } else if (formulaId === '') {
-      return 'ORI'; // Assigned but unnamed formula
+      return ' '; // Assigned but unnamed formula (single space instead of ORI)
     } else {
       return formulaId; // Normal named formula
     }
@@ -555,10 +572,10 @@ const FormulaAssignment = () => {
                               onChange={(e) => handleFormulaSelect(type, e.target.value === 'NO_FORMULA' ? null : e.target.value)}
                               className="formula-select"
                             >
-                              <option value="NO_FORMULA">No Formula</option>
+                              {/* Don't show "No Formula" option if there are formulas available */}
                               {formulas.map((formula, idx) => (
                                 <option key={`${type}-${formula.PPI_SubID || 'empty'}-${idx}`} value={formula.PPI_SubID || ''}>
-                                  {formula.PPI_SubID || 'ORI'} {formula.Default === 'Aktif' ? '(Default) ' : ''}(Output: {formula.BatchSize})
+                                  {formula.PPI_SubID || ' '} {formula.Default === 'Aktif' ? '(Default) ' : ''}(Output: {formula.BatchSize})
                                 </option>
                               ))}
                             </select>
@@ -654,10 +671,10 @@ const FormulaAssignment = () => {
                           onChange={(e) => handleFormulaSelect(type, e.target.value === 'NO_FORMULA' ? null : e.target.value)}
                           className="formula-select"
                         >
-                          <option value="NO_FORMULA">No Formula</option>
+                          {/* Don't show "No Formula" option if there are formulas available */}
                           {formulas.map((formula, idx) => (
                             <option key={`edit-${type}-${formula.PPI_SubID || 'empty'}-${idx}`} value={formula.PPI_SubID || ''}>
-                              {formula.PPI_SubID || 'ORI'} {formula.Default === 'Aktif' ? '(Default) ' : ''}(Output: {formula.BatchSize})
+                              {formula.PPI_SubID || ' '} {formula.Default === 'Aktif' ? '(Default) ' : ''}(Output: {formula.BatchSize})
                             </option>
                           ))}
                         </select>
