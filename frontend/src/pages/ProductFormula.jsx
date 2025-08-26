@@ -587,7 +587,7 @@ const ProductFormula = () => {
                               <option value="NO_FORMULA">No Formula</option>
                               {formulas.map((formula, idx) => (
                                 <option key={`${type}-${formula.PPI_SubID || 'empty'}-${idx}`} value={formula.PPI_SubID || ''}>
-                                  {formula.PPI_SubID || 'ORI'} (Batch: {formula.BatchSize})
+                                  {formula.PPI_SubID || 'ORI'} {formula.Default === 'Aktif' ? '(Default) ' : ''}(Output: {formula.BatchSize})
                                 </option>
                               ))}
                             </select>
@@ -686,7 +686,7 @@ const ProductFormula = () => {
                           <option value="NO_FORMULA">No Formula</option>
                           {formulas.map((formula, idx) => (
                             <option key={`edit-${type}-${formula.PPI_SubID || 'empty'}-${idx}`} value={formula.PPI_SubID || ''}>
-                              {formula.PPI_SubID || 'ORI'} (Batch: {formula.BatchSize})
+                              {formula.PPI_SubID || 'ORI'} {formula.Default === 'Aktif' ? '(Default) ' : ''}(Output: {formula.BatchSize})
                             </option>
                           ))}
                         </select>
