@@ -256,6 +256,32 @@ export const masterAPI = {
   
   // Get material data
   getMaterial: () => apiRequest('/master/material'),
+  
+  // === FORMULA MANUAL CUD OPERATIONS ===
+  
+  // Add new formula ingredient
+  addFormulaManual: (data) => apiRequest('/master/formula', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  
+  // Update formula ingredient
+  updateFormulaManual: (data) => apiRequest('/master/formula', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  
+  // Delete formula ingredient
+  deleteFormulaManual: (data) => apiRequest('/master/formula', {
+    method: 'DELETE',
+    body: JSON.stringify(data),
+  }),
+  
+  // Delete entire formula (all ingredients for a specific formula)
+  deleteEntireFormulaManual: (data) => apiRequest('/master/formula/entire', {
+    method: 'DELETE',
+    body: JSON.stringify(data),
+  }),
 };
 
 // Health check

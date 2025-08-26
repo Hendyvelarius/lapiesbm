@@ -1,4 +1,4 @@
-const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, getMaterial } = require('../models/sqlModel');
+const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, getMaterial, addFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
 
 class MasterController {
     static async getCurrency(req, res) {
@@ -643,6 +643,217 @@ class MasterController {
             res.status(500).json({
                 success: false,
                 message: 'Failed to retrieve material',
+                error: error.message
+            });
+        }
+    }
+
+    // === FORMULA MANUAL CUD ENDPOINTS ===
+
+    static async addFormulaManual(req, res) {
+        try {
+            const { 
+                ppiType, 
+                ppiSubId, 
+                ppiProductId, 
+                ppiBatchSize, 
+                ppiSeqId, 
+                ppiItemId, 
+                ppiQty, 
+                ppiUnitId,
+                userId = "GWN"
+            } = req.body;
+            
+            // Validate required fields
+            if (!ppiType || !ppiSubId || !ppiProductId || !ppiBatchSize || 
+                !ppiSeqId || !ppiItemId || !ppiQty || !ppiUnitId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields: ppiType, ppiSubId, ppiProductId, ppiBatchSize, ppiSeqId, ppiItemId, ppiQty, ppiUnitId'
+                });
+            }
+            
+            // Validate numeric values
+            const numericFields = { ppiBatchSize, ppiSeqId, ppiQty };
+            for (const [fieldName, value] of Object.entries(numericFields)) {
+                if (isNaN(parseFloat(value))) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Invalid numeric value for field: ${fieldName}`
+                    });
+                }
+            }
+            
+            const result = await addFormulaManual(
+                ppiType,
+                ppiSubId,
+                ppiProductId,
+                parseFloat(ppiBatchSize),
+                parseInt(ppiSeqId),
+                ppiItemId,
+                ppiQty, // Keep as string to preserve decimal precision
+                ppiUnitId,
+                userId
+            );
+            
+            res.status(201).json({
+                success: true,
+                message: 'Formula ingredient added successfully',
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in addFormulaManual endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to add formula ingredient',
+                error: error.message
+            });
+        }
+    }
+
+    static async updateFormulaManual(req, res) {
+        try {
+            const { 
+                ppiType, 
+                ppiSubId, 
+                ppiProductId, 
+                originalSeqId, 
+                ppiSeqId, 
+                ppiItemId, 
+                ppiQty, 
+                ppiUnitId,
+                userId = "GWN"
+            } = req.body;
+            
+            // Validate required fields
+            if (!ppiType || !ppiSubId || !ppiProductId || !originalSeqId ||
+                !ppiSeqId || !ppiItemId || !ppiQty || !ppiUnitId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields: ppiType, ppiSubId, ppiProductId, originalSeqId, ppiSeqId, ppiItemId, ppiQty, ppiUnitId'
+                });
+            }
+            
+            // Validate numeric values
+            const numericFields = { originalSeqId, ppiSeqId, ppiQty };
+            for (const [fieldName, value] of Object.entries(numericFields)) {
+                if (isNaN(parseFloat(value))) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Invalid numeric value for field: ${fieldName}`
+                    });
+                }
+            }
+            
+            const result = await updateFormulaManual(
+                ppiType,
+                ppiSubId,
+                ppiProductId,
+                parseInt(originalSeqId),
+                parseInt(ppiSeqId),
+                ppiItemId,
+                ppiQty, // Keep as string to preserve decimal precision
+                ppiUnitId,
+                userId
+            );
+            
+            res.status(200).json({
+                success: true,
+                message: 'Formula ingredient updated successfully',
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in updateFormulaManual endpoint:', error);
+            if (error.message === 'No record found with the provided identifiers') {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Formula ingredient not found'
+                });
+            }
+            res.status(500).json({
+                success: false,
+                message: 'Failed to update formula ingredient',
+                error: error.message
+            });
+        }
+    }
+
+    static async deleteFormulaManual(req, res) {
+        try {
+            const { ppiType, ppiSubId, ppiProductId, ppiSeqId } = req.body;
+            
+            // Validate required fields
+            if (!ppiType || !ppiSubId || !ppiProductId || !ppiSeqId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields: ppiType, ppiSubId, ppiProductId, ppiSeqId'
+                });
+            }
+            
+            // Validate numeric value
+            if (isNaN(parseInt(ppiSeqId))) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid numeric value for field: ppiSeqId'
+                });
+            }
+            
+            const result = await deleteFormulaManual(
+                ppiType,
+                ppiSubId,
+                ppiProductId,
+                parseInt(ppiSeqId)
+            );
+            
+            res.status(200).json({
+                success: true,
+                message: 'Formula ingredient deleted successfully',
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in deleteFormulaManual endpoint:', error);
+            if (error.message === 'No record found with the provided identifiers') {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Formula ingredient not found'
+                });
+            }
+            res.status(500).json({
+                success: false,
+                message: 'Failed to delete formula ingredient',
+                error: error.message
+            });
+        }
+    }
+
+    static async deleteEntireFormulaManual(req, res) {
+        try {
+            const { ppiType, ppiSubId, ppiProductId } = req.body;
+            
+            // Validate required fields
+            if (!ppiType || !ppiSubId || !ppiProductId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields: ppiType, ppiSubId, ppiProductId'
+                });
+            }
+            
+            const result = await deleteEntireFormulaManual(
+                ppiType,
+                ppiSubId,
+                ppiProductId
+            );
+            
+            res.status(200).json({
+                success: true,
+                message: `Entire formula deleted successfully. ${result.rowsAffected} ingredients removed.`,
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in deleteEntireFormulaManual endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to delete entire formula',
                 error: error.message
             });
         }

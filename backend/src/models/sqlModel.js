@@ -557,11 +557,185 @@ async function deletePembebanan(pkId) {
 async function getMaterial() {
   try {
     const db = await connect();
-    const query ='SELECT h.ITEM_ID, h.ITEM_TYPE,m.Item_Name FROM M_COGS_STD_HRG_BAHAN h INNER JOIN m_item_Manufacturing m ON h.ITEM_ID = m.Item_ID';
+    const query = 'SELECT h.ITEM_ID, h.ITEM_TYPE, m.Item_Name, m.Item_Unit FROM M_COGS_STD_HRG_BAHAN h INNER JOIN m_item_Manufacturing m ON h.ITEM_ID = m.Item_ID WHERE h.ITEM_ID NOT LIKE \'(NONE)\'';
     const result = await db.request().query(query);
     return result.recordset;
   } catch (error) {
     console.error('Error executing getMaterial query:', error);
+    throw error;
+  }
+}
+
+// === FORMULA MANUAL CUD OPERATIONS ===
+
+async function addFormulaManual(ppiType, ppiSubId, ppiProductId, ppiBatchSize, ppiSeqId, ppiItemId, ppiQty, ppiUnitId, userId) {
+  try {
+    const db = await connect();
+    const currentDateTime = new Date().toISOString();
+    
+    const query = `
+      INSERT INTO M_COGS_FORMULA_MANUAL (
+        PPI_Type,
+        PPI_SubID,
+        PPI_ProductID,
+        PPI_BatchSize,
+        PPI_SeqID,
+        PPI_ItemID,
+        PPI_QTY,
+        PPI_UnitID,
+        user_id,
+        delegated_to,
+        process_date,
+        flag_update,
+        from_update
+      ) VALUES (
+        @ppiType,
+        @ppiSubId,
+        @ppiProductId,
+        @ppiBatchSize,
+        @ppiSeqId,
+        @ppiItemId,
+        @ppiQty,
+        @ppiUnitId,
+        @userId,
+        @userId,
+        @processDate,
+        NULL,
+        NULL
+      )
+    `;
+    
+    const result = await db.request()
+      .input('ppiType', ppiType)
+      .input('ppiSubId', ppiSubId)
+      .input('ppiProductId', ppiProductId)
+      .input('ppiBatchSize', ppiBatchSize)
+      .input('ppiSeqId', ppiSeqId)
+      .input('ppiItemId', ppiItemId)
+      .input('ppiQty', ppiQty)
+      .input('ppiUnitId', ppiUnitId)
+      .input('userId', userId)
+      .input('processDate', currentDateTime)
+      .query(query);
+      
+    return {
+      success: true,
+      rowsAffected: result.rowsAffected[0],
+      insertedAt: currentDateTime
+    };
+  } catch (error) {
+    console.error('Error executing addFormulaManual query:', error);
+    throw error;
+  }
+}
+
+async function updateFormulaManual(ppiType, ppiSubId, ppiProductId, originalSeqId, ppiSeqId, ppiItemId, ppiQty, ppiUnitId, userId) {
+  try {
+    const db = await connect();
+    const currentDateTime = new Date().toISOString();
+    
+    const query = `
+      UPDATE M_COGS_FORMULA_MANUAL 
+      SET 
+        PPI_SeqID = @ppiSeqId,
+        PPI_ItemID = @ppiItemId,
+        PPI_QTY = @ppiQty,
+        PPI_UnitID = @ppiUnitId,
+        user_id = @userId,
+        delegated_to = @userId,
+        process_date = @processDate,
+        flag_update = 1,
+        from_update = 'MANUAL'
+      WHERE PPI_Type = @ppiType 
+        AND PPI_SubID = @ppiSubId 
+        AND PPI_ProductID = @ppiProductId 
+        AND PPI_SeqID = @originalSeqId
+    `;
+    
+    const result = await db.request()
+      .input('ppiType', ppiType)
+      .input('ppiSubId', ppiSubId)
+      .input('ppiProductId', ppiProductId)
+      .input('originalSeqId', originalSeqId)
+      .input('ppiSeqId', ppiSeqId)
+      .input('ppiItemId', ppiItemId)
+      .input('ppiQty', ppiQty)
+      .input('ppiUnitId', ppiUnitId)
+      .input('userId', userId)
+      .input('processDate', currentDateTime)
+      .query(query);
+    
+    if (result.rowsAffected[0] === 0) {
+      throw new Error('No record found with the provided identifiers');
+    }
+      
+    return {
+      success: true,
+      rowsAffected: result.rowsAffected[0],
+      updatedAt: currentDateTime
+    };
+  } catch (error) {
+    console.error('Error executing updateFormulaManual query:', error);
+    throw error;
+  }
+}
+
+async function deleteFormulaManual(ppiType, ppiSubId, ppiProductId, ppiSeqId) {
+  try {
+    const db = await connect();
+    
+    const query = `
+      DELETE FROM M_COGS_FORMULA_MANUAL 
+      WHERE PPI_Type = @ppiType 
+        AND PPI_SubID = @ppiSubId 
+        AND PPI_ProductID = @ppiProductId 
+        AND PPI_SeqID = @ppiSeqId
+    `;
+    
+    const result = await db.request()
+      .input('ppiType', ppiType)
+      .input('ppiSubId', ppiSubId)
+      .input('ppiProductId', ppiProductId)
+      .input('ppiSeqId', ppiSeqId)
+      .query(query);
+    
+    if (result.rowsAffected[0] === 0) {
+      throw new Error('No record found with the provided identifiers');
+    }
+      
+    return {
+      success: true,
+      rowsAffected: result.rowsAffected[0]
+    };
+  } catch (error) {
+    console.error('Error executing deleteFormulaManual query:', error);
+    throw error;
+  }
+}
+
+async function deleteEntireFormulaManual(ppiType, ppiSubId, ppiProductId) {
+  try {
+    const db = await connect();
+    
+    const query = `
+      DELETE FROM M_COGS_FORMULA_MANUAL 
+      WHERE PPI_Type = @ppiType 
+        AND PPI_SubID = @ppiSubId 
+        AND PPI_ProductID = @ppiProductId
+    `;
+    
+    const result = await db.request()
+      .input('ppiType', ppiType)
+      .input('ppiSubId', ppiSubId)
+      .input('ppiProductId', ppiProductId)
+      .query(query);
+      
+    return {
+      success: true,
+      rowsAffected: result.rowsAffected[0]
+    };
+  } catch (error) {
+    console.error('Error executing deleteEntireFormulaManual query:', error);
     throw error;
   }
 }
@@ -586,5 +760,9 @@ module.exports = {
   addPembebanan,
   updatePembebanan,
   deletePembebanan,
-  getMaterial
+  getMaterial,
+  addFormulaManual,
+  updateFormulaManual,
+  deleteFormulaManual,
+  deleteEntireFormulaManual
 };
