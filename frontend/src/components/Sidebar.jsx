@@ -1,5 +1,5 @@
 import '../styles/Sidebar.css';
-import { FileText, BarChart3, DollarSign, Package, Calculator, Users, Layers, FlaskConical } from 'lucide-react';
+import { FileText, BarChart3, DollarSign, Package, Calculator, Users, Layers, FlaskConical, Settings } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 
 export default function Sidebar() {
@@ -50,6 +50,11 @@ export default function Sidebar() {
           <li className={location.pathname === '/pembebanan' ? 'active' : ''}>
             <Link to="/pembebanan" className="sidebar-link">
               <Layers className="sidebar-icon" size={20} /> Pembebanan
+            </Link>
+          </li>
+          <li className={location.pathname === '/formula-assignment' ? 'active' : ''}>
+            <Link to="/formula-assignment" className="sidebar-link">
+              <Settings className="sidebar-icon" size={20} /> Formula Assignment
             </Link>
           </li>
           <li className={location.pathname === '/productformula' ? 'active' : ''}>
