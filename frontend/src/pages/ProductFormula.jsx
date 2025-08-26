@@ -123,6 +123,29 @@ const ProductFormula = () => {
     return grouped;
   };
 
+  // Define the desired order of formula types
+  const getTypeOrder = (typeName) => {
+    const typeOrder = {
+      '1. PENGOLAHAN INTI': 1,
+      '1. PENGOLAHAN SALUT': 2,
+      '2. KEMAS PRIMER': 3,
+      '2. KEMAS SEKUNDER': 4
+    };
+    return typeOrder[typeName] || 999; // Put unknown types at the end
+  };
+
+  // Get sorted type entries for rendering
+  const getSortedTypeEntries = (groupedRecipes) => {
+    return Object.entries(groupedRecipes).sort(([typeA, subIdsA], [typeB, subIdsB]) => {
+      const firstFormulaA = Object.values(subIdsA)[0];
+      const firstFormulaB = Object.values(subIdsB)[0];
+      const typeNameA = firstFormulaA?.typeName || typeA;
+      const typeNameB = firstFormulaB?.typeName || typeB;
+      
+      return getTypeOrder(typeNameA) - getTypeOrder(typeNameB);
+    });
+  };
+
   const getItemName = (itemId) => {
     const material = materialData.find(m => m.ITEM_ID === itemId);
     return material ? material.Item_Name : itemId;
@@ -196,7 +219,7 @@ const ProductFormula = () => {
 
         {/* Product Selection */}
         <div className="product-selection-section">
-          <h3>1. Select Product</h3>
+          <h3>Select Product</h3>
           <div className="product-search">
             <input
               type="text"
@@ -253,7 +276,7 @@ const ProductFormula = () => {
         {/* Formula Table */}
         {selectedProduct && (
           <div className="formula-section">
-            <h3>2. Product Formulas</h3>
+            <h3>Product Formulas</h3>
             {loading ? (
               <div className="loading">Loading formulas...</div>
             ) : Object.keys(groupedRecipes).length === 0 ? (
@@ -263,7 +286,7 @@ const ProductFormula = () => {
               </div>
             ) : (
               <div className="formula-accordion">
-                {Object.entries(groupedRecipes).map(([type, subIds]) => {
+                {getSortedTypeEntries(groupedRecipes).map(([type, subIds]) => {
                   // Get type name from the first formula in this type group
                   const firstFormula = Object.values(subIds)[0];
                   const typeName = firstFormula?.typeName || type;
