@@ -100,6 +100,7 @@ const ProductFormula = () => {
           typeName: recipe.TypeName,
           batchSize: recipe.BatchSize, // Note: This might not be in the new structure
           default: recipe.Default,
+          defaultCOGS: recipe.DefaultCOGS,
           ingredients: []
         };
       }
@@ -144,6 +145,22 @@ const ProductFormula = () => {
       
       return getTypeOrder(typeNameA) - getTypeOrder(typeNameB);
     });
+  };
+
+  // Helper function to render default badges
+  const renderDefaultBadge = (formulaData) => {
+    const isDefault = formulaData.default === 'Aktif';
+    const isDefaultCOGS = formulaData.defaultCOGS === 'Aktif';
+    
+    if (isDefault && isDefaultCOGS) {
+      return <span className="default-badge lms-cogs-badge">LMS/COGS</span>;
+    } else if (isDefault) {
+      return <span className="default-badge lms-badge">LMS</span>;
+    } else if (isDefaultCOGS) {
+      return <span className="default-badge cogs-badge">COGS</span>;
+    } else {
+      return 'No';
+    }
   };
 
   const getItemName = (itemId) => {
@@ -321,11 +338,7 @@ const ProductFormula = () => {
                                 </div>
                                 <div className="cell cell-type">{type}</div>
                                 <div className="cell cell-output">
-                                  {formulaData.default === 'Aktif' ? (
-                                    <span className="default-badge">Default</span>
-                                  ) : (
-                                    'No'
-                                  )}
+                                  {renderDefaultBadge(formulaData)}
                                 </div>
                                 <div className="cell cell-actions">
                                   <button 

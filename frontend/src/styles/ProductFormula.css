@@ -330,6 +330,34 @@
   font-weight: 500;
 }
 
+/* Specific badge types */
+.lms-badge {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.cogs-badge {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.lms-cogs-badge {
+  background: linear-gradient(45deg, #3b82f6 0%, #3b82f6 50%, #f59e0b 50%, #f59e0b 100%);
+  color: white;
+  position: relative;
+}
+
+.lms-cogs-badge::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1px;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.3);
+  transform: translateX(-50%);
+}
+
 /* Ingredients Section */
 .ingredients-section {
   background-color: #f8fafc;
