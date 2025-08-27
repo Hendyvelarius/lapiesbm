@@ -629,6 +629,77 @@ async function addFormulaManual(ppiType, ppiSubId, ppiProductId, ppiBatchSize, p
   }
 }
 
+async function addBatchFormulaManual(ppiType, ppiSubId, ppiProductId, ppiBatchSize, ingredients, userId) {
+  try {
+    const db = await connect();
+    const currentDateTime = new Date().toISOString();
+    
+    // Build the VALUES clause for multiple ingredients
+    const valuesClauses = ingredients.map((_, index) => `(
+      @ppiType,
+      @ppiSubId,
+      @ppiProductId,
+      @ppiBatchSize,
+      @ppiSeqId${index},
+      @ppiItemId${index},
+      @ppiQty${index},
+      @ppiUnitId${index},
+      @userId,
+      @userId,
+      @processDate,
+      NULL,
+      NULL
+    )`).join(',');
+    
+    const query = `
+      INSERT INTO M_COGS_FORMULA_MANUAL (
+        PPI_Type,
+        PPI_SubID,
+        PPI_ProductID,
+        PPI_BatchSize,
+        PPI_SeqID,
+        PPI_ItemID,
+        PPI_QTY,
+        PPI_UnitID,
+        user_id,
+        delegated_to,
+        process_date,
+        flag_update,
+        from_update
+      ) VALUES ${valuesClauses}
+    `;
+    
+    const request = db.request()
+      .input('ppiType', ppiType)
+      .input('ppiSubId', ppiSubId)
+      .input('ppiProductId', ppiProductId)
+      .input('ppiBatchSize', ppiBatchSize)
+      .input('userId', userId)
+      .input('processDate', currentDateTime);
+    
+    // Add parameters for each ingredient
+    ingredients.forEach((ingredient, index) => {
+      request
+        .input(`ppiSeqId${index}`, ingredient.seqId)
+        .input(`ppiItemId${index}`, ingredient.itemId)
+        .input(`ppiQty${index}`, ingredient.qty)
+        .input(`ppiUnitId${index}`, ingredient.unitId);
+    });
+    
+    const result = await request.query(query);
+      
+    return {
+      success: true,
+      rowsAffected: result.rowsAffected[0],
+      ingredientsAdded: ingredients.length,
+      insertedAt: currentDateTime
+    };
+  } catch (error) {
+    console.error('Error executing addBatchFormulaManual query:', error);
+    throw error;
+  }
+}
+
 async function updateFormulaManual(ppiType, ppiSubId, ppiProductId, originalSeqId, ppiSeqId, ppiItemId, ppiQty, ppiUnitId, userId) {
   try {
     const db = await connect();
@@ -762,6 +833,7 @@ module.exports = {
   deletePembebanan,
   getMaterial,
   addFormulaManual,
+  addBatchFormulaManual,
   updateFormulaManual,
   deleteFormulaManual,
   deleteEntireFormulaManual

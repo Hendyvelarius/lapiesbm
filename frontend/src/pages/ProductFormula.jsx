@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import AWN from 'awesome-notifications';
+import 'awesome-notifications/dist/style.css';
 import '../styles/ProductFormula.css';
+
+// Initialize awesome-notifications
+const notifier = new AWN({
+  position: 'top-right',
+  durations: {
+    global: 5000
+  }
+});
 
 const ProductFormula = () => {
   // State management
@@ -17,8 +27,24 @@ const ProductFormula = () => {
   // Recipe data states
   const [recipeData, setRecipeData] = useState([]);
   const [materialData, setMaterialData] = useState([]);
+  const [unitsData, setUnitsData] = useState([]);
   const [groupedRecipes, setGroupedRecipes] = useState({});
   const [expandedSubIds, setExpandedSubIds] = useState(new Set());
+
+  // Add Formula Modal states
+  const [showAddFormulaModal, setShowAddFormulaModal] = useState(false);
+  const [addFormulaStep, setAddFormulaStep] = useState(1); // 1: Type, 2: Name, 3: Ingredients
+  const [newFormulaData, setNewFormulaData] = useState({
+    type: '',
+    subId: '',
+    batchSize: 0,
+    ingredients: []
+  });
+  const [existingFormulas, setExistingFormulas] = useState([]);
+  
+  // Material search states for ingredient form
+  const [materialSearchTerms, setMaterialSearchTerms] = useState({});
+  const [materialDropdownVisible, setMaterialDropdownVisible] = useState({});
 
   // Load initial data
   useEffect(() => {
@@ -45,14 +71,16 @@ const ProductFormula = () => {
       setLoading(true);
       setError('');
 
-      // Load product list and material data
-      const [productsRes, materialsRes] = await Promise.all([
+      // Load product list, material data, and units data
+      const [productsRes, materialsRes, unitsRes] = await Promise.all([
         api.master.getProductName(),
-        api.master.getMaterial()
+        api.master.getMaterial(),
+        api.master.getUnit()
       ]);
 
       setProductList(productsRes || []);
       setMaterialData(materialsRes || []);
+      setUnitsData(unitsRes || []);
     } catch (err) {
       console.error('Error loading initial data:', err);
       setError('Failed to load data. Please try again.');
@@ -163,6 +191,258 @@ const ProductFormula = () => {
     }
   };
 
+  // Add Formula Modal Handlers
+  const handleAddFormula = () => {
+    if (!selectedProduct) {
+      notifier.warning('Please select a product first');
+      return;
+    }
+    
+    // Get existing formulas for this product to prevent duplicates
+    const productFormulas = recipeData.map(recipe => ({
+      type: recipe.TypeCode,
+      subId: recipe.PPI_SubID
+    }));
+    setExistingFormulas(productFormulas);
+    
+    // Reset form data
+    setNewFormulaData({
+      type: '',
+      subId: '',
+      batchSize: 0,
+      ingredients: []
+    });
+    setAddFormulaStep(1);
+    setShowAddFormulaModal(true);
+  };
+
+  const handleCloseAddFormulaModal = () => {
+    setShowAddFormulaModal(false);
+    setAddFormulaStep(1);
+    setNewFormulaData({
+      type: '',
+      subId: '',
+      batchSize: 0,
+      ingredients: []
+    });
+    setExistingFormulas([]);
+    // Clear material search states
+    setMaterialSearchTerms({});
+    setMaterialDropdownVisible({});
+  };
+
+  const handleFormulaTypeSelect = (type) => {
+    setNewFormulaData(prev => ({ ...prev, type }));
+    setAddFormulaStep(2);
+  };
+
+  const handleFormulaNameSubmit = (e) => {
+    e.preventDefault();
+    const subId = e.target.subId.value.trim();
+    const batchSize = parseFloat(e.target.batchSize.value);
+    
+    if (!subId) {
+      notifier.warning('Please enter a formula name');
+      return;
+    }
+    
+    if (isNaN(batchSize) || batchSize <= 0) {
+      notifier.warning('Please enter a valid batch size');
+      return;
+    }
+    
+    // Check if formula name already exists for this type
+    const exists = existingFormulas.some(formula => 
+      formula.type === newFormulaData.type && formula.subId === `M_${subId}`
+    );
+    
+    if (exists) {
+      notifier.warning(`Formula "${subId}" already exists for ${newFormulaData.type} type. Please choose a different name.`);
+      return;
+    }
+    
+    setNewFormulaData(prev => ({ 
+      ...prev, 
+      subId: `M_${subId}`,
+      batchSize,
+      ingredients: [{ seqId: 1, itemId: '', qty: '', unitId: '' }] // Start with one ingredient
+    }));
+    
+    // Initialize search states for the first ingredient
+    setMaterialSearchTerms({ 0: '' });
+    setMaterialDropdownVisible({ 0: false });
+    
+    setAddFormulaStep(3);
+  };
+
+  const handleAddIngredient = () => {
+    const newSeqId = newFormulaData.ingredients.length + 1;
+    const newIndex = newFormulaData.ingredients.length;
+    setNewFormulaData(prev => ({
+      ...prev,
+      ingredients: [...prev.ingredients, { seqId: newSeqId, itemId: '', qty: '', unitId: '' }]
+    }));
+    
+    // Initialize search state for new ingredient
+    setMaterialSearchTerms(prev => ({
+      ...prev,
+      [newIndex]: ''
+    }));
+    setMaterialDropdownVisible(prev => ({
+      ...prev,
+      [newIndex]: false
+    }));
+  };
+
+  const handleRemoveIngredient = (index) => {
+    if (newFormulaData.ingredients.length <= 1) {
+      notifier.warning('At least one ingredient is required');
+      return;
+    }
+    
+    setNewFormulaData(prev => ({
+      ...prev,
+      ingredients: prev.ingredients.filter((_, i) => i !== index).map((ingredient, i) => ({
+        ...ingredient,
+        seqId: i + 1
+      }))
+    }));
+    
+    // Clean up search states for removed ingredient and reindex
+    const newSearchTerms = {};
+    const newDropdownVisible = {};
+    
+    Object.keys(materialSearchTerms).forEach(key => {
+      const idx = parseInt(key);
+      if (idx < index) {
+        newSearchTerms[idx] = materialSearchTerms[key];
+        newDropdownVisible[idx] = materialDropdownVisible[key];
+      } else if (idx > index) {
+        newSearchTerms[idx - 1] = materialSearchTerms[key];
+        newDropdownVisible[idx - 1] = materialDropdownVisible[key];
+      }
+    });
+    
+    setMaterialSearchTerms(newSearchTerms);
+    setMaterialDropdownVisible(newDropdownVisible);
+  };
+
+  const handleIngredientChange = (index, field, value) => {
+    setNewFormulaData(prev => ({
+      ...prev,
+      ingredients: prev.ingredients.map((ingredient, i) => 
+        i === index ? { ...ingredient, [field]: value } : ingredient
+      )
+    }));
+  };
+
+  // Material search helper functions
+  const handleMaterialSearch = (index, searchTerm) => {
+    setMaterialSearchTerms(prev => ({
+      ...prev,
+      [index]: searchTerm
+    }));
+  };
+
+  const handleMaterialSelect = (index, selectedMaterial) => {
+    handleIngredientChange(index, 'itemId', selectedMaterial.ITEM_ID);
+    // Auto-populate unit from standard unit
+    if (selectedMaterial.Item_Unit) {
+      handleIngredientChange(index, 'unitId', selectedMaterial.Item_Unit);
+    }
+    // Clear search term and hide dropdown
+    setMaterialSearchTerms(prev => ({
+      ...prev,
+      [index]: `${selectedMaterial.ITEM_ID} - ${selectedMaterial.Item_Name}`
+    }));
+    setMaterialDropdownVisible(prev => ({
+      ...prev,
+      [index]: false
+    }));
+  };
+
+  const getFilteredBahanData = (index) => {
+    const searchTerm = materialSearchTerms[index] || '';
+    if (!searchTerm.trim()) return materialData;
+    
+    return materialData.filter(material => 
+      material.Item_Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      material.ITEM_ID?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
+  const handleMaterialInputFocus = (index) => {
+    setMaterialDropdownVisible(prev => ({
+      ...prev,
+      [index]: true
+    }));
+  };
+
+  const handleMaterialInputBlur = (index) => {
+    // Delay hiding dropdown to allow for clicks
+    setTimeout(() => {
+      setMaterialDropdownVisible(prev => ({
+        ...prev,
+        [index]: false
+      }));
+    }, 200);
+  };
+
+  const clearMaterialSelection = (index) => {
+    handleIngredientChange(index, 'itemId', '');
+    handleIngredientChange(index, 'unitId', '');
+    setMaterialSearchTerms(prev => ({
+      ...prev,
+      [index]: ''
+    }));
+  };
+
+  const handleSubmitFormula = async () => {
+    // Validate ingredients
+    const invalidIngredients = newFormulaData.ingredients.filter(ingredient => 
+      !ingredient.itemId || !ingredient.qty || !ingredient.unitId
+    );
+    
+    if (invalidIngredients.length > 0) {
+      notifier.warning('Please fill in all ingredient details');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      await api.master.addBatchFormulaManual({
+        ppiType: newFormulaData.type,
+        ppiSubId: newFormulaData.subId,
+        ppiProductId: selectedProduct.Product_ID,
+        ppiBatchSize: newFormulaData.batchSize,
+        ingredients: newFormulaData.ingredients
+      });
+      
+      notifier.success('Formula added successfully!');
+      handleCloseAddFormulaModal();
+      
+      // Reload recipe data
+      await loadRecipeData(selectedProduct.Product_ID);
+      
+    } catch (err) {
+      console.error('Error adding formula:', err);
+      notifier.alert('Failed to add formula. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getTypeDisplayName = (typeCode) => {
+    const typeNames = {
+      'PI': '1. PENGOLAHAN INTI',
+      'PS': '1. PENGOLAHAN SALUT', 
+      'KP': '2. KEMAS PRIMER',
+      'KS': '2. KEMAS SEKUNDER'
+    };
+    return typeNames[typeCode] || typeCode;
+  };
+
   const getItemName = (itemId) => {
     const material = materialData.find(m => m.ITEM_ID === itemId);
     return material ? material.Item_Name : itemId;
@@ -228,7 +508,11 @@ const ProductFormula = () => {
                 Clear Selection
               </button>
             )}
-            <button className="btn-primary">
+            <button 
+              onClick={handleAddFormula}
+              className="btn-primary"
+              disabled={!selectedProduct}
+            >
               Add New Formula
             </button>
           </div>
@@ -397,6 +681,248 @@ const ProductFormula = () => {
           </div>
         )}
       </div>
+
+      {/* Add Formula Modal */}
+      {showAddFormulaModal && (
+        <div className="modal-overlay" onClick={handleCloseAddFormulaModal}>
+          <div className="modal-content large-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Add New Formula</h3>
+              <button onClick={handleCloseAddFormulaModal} className="close-btn">×</button>
+            </div>
+            
+            <div className="modal-body">
+              {/* Step 1: Product Info & Type Selection */}
+              {addFormulaStep === 1 && (
+                <div className="formula-step">
+                  <div className="step-header">
+                    <h4>Step 1: Select Formula Type</h4>
+                    <div className="product-info">
+                      <strong>Product:</strong> {selectedProduct?.Product_ID} - {selectedProduct?.Product_Name}
+                    </div>
+                  </div>
+                  
+                  <div className="type-selection">
+                    <p>Choose the type for this formula:</p>
+                    <div className="type-buttons">
+                      {['PI', 'PS', 'KP', 'KS'].map(type => (
+                        <button
+                          key={type}
+                          onClick={() => handleFormulaTypeSelect(type)}
+                          className="type-btn"
+                        >
+                          <div className="type-code">{type}</div>
+                          <div className="type-name">{getTypeDisplayName(type)}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Formula Name & Batch Size */}
+              {addFormulaStep === 2 && (
+                <div className="formula-step">
+                  <div className="step-header">
+                    <h4>Step 2: Formula Details</h4>
+                    <div className="product-info">
+                      <strong>Product:</strong> {selectedProduct?.Product_ID} - {selectedProduct?.Product_Name}
+                      <br />
+                      <strong>Type:</strong> {getTypeDisplayName(newFormulaData.type)}
+                    </div>
+                  </div>
+                  
+                  <form onSubmit={handleFormulaNameSubmit} className="formula-details-form">
+                    <div className="form-group">
+                      <label>Formula Name:</label>
+                      <div className="name-input-group">
+                        <span className="prefix">M_</span>
+                        <input
+                          type="text"
+                          name="subId"
+                          placeholder="Enter formula name (e.g., C, GLC, GLD)"
+                          className="name-input"
+                          maxLength="10"
+                          required
+                        />
+                      </div>
+                      <small>Formula will be named: M_{'{formula_name}'}</small>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label>Batch Size:</label>
+                      <input
+                        type="number"
+                        name="batchSize"
+                        placeholder="Enter batch size"
+                        className="input-field"
+                        min="1"
+                        step="0.01"
+                        required
+                      />
+                    </div>
+                    
+                    <div className="step-actions">
+                      <button type="button" onClick={() => setAddFormulaStep(1)} className="btn-secondary">
+                        Back
+                      </button>
+                      <button type="submit" className="btn-primary">
+                        Continue to Ingredients
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Step 3: Ingredients */}
+              {addFormulaStep === 3 && (
+                <div className="formula-step">
+                  <div className="step-header">
+                    <h4>Step 3: Add Ingredients</h4>
+                    <div className="product-info">
+                      <strong>Product:</strong> {selectedProduct?.Product_ID} - {selectedProduct?.Product_Name}
+                      <br />
+                      <strong>Formula:</strong> {getTypeDisplayName(newFormulaData.type)} - {newFormulaData.subId}
+                      <br />
+                      <strong>Batch Size:</strong> {newFormulaData.batchSize}
+                    </div>
+                  </div>
+                  
+                  <div className="ingredients-form">
+                    <div className="ingredients-header">
+                      <h5>Ingredients ({newFormulaData.ingredients.length})</h5>
+                      <button type="button" onClick={handleAddIngredient} className="btn-add-ingredient">
+                        + Add Ingredient
+                      </button>
+                    </div>
+                    
+                    <div className="ingredients-list">
+                      {newFormulaData.ingredients.map((ingredient, index) => (
+                        <div key={index} className="ingredient-form-row">
+                          <div className="ingredient-seq">#{ingredient.seqId}</div>
+                          
+                          <div className="ingredient-select">
+                            <label>Material:</label>
+                            <div className="material-search-container">
+                              <input
+                                type="text"
+                                value={materialSearchTerms[index] || ''}
+                                onChange={(e) => handleMaterialSearch(index, e.target.value)}
+                                onFocus={() => handleMaterialInputFocus(index)}
+                                onBlur={() => handleMaterialInputBlur(index)}
+                                placeholder="Type to search materials..."
+                                className="material-search-input"
+                                required
+                              />
+                              
+                              {ingredient.itemId && (
+                                <button
+                                  type="button"
+                                  onClick={() => clearMaterialSelection(index)}
+                                  className="clear-material-btn"
+                                  title="Clear selection"
+                                >
+                                  ×
+                                </button>
+                              )}
+                              
+                              {materialDropdownVisible[index] && (
+                                <div className="material-search-results">
+                                  {getFilteredBahanData(index).length === 0 ? (
+                                    <div className="material-result-item no-results">
+                                      <span>No materials found</span>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      {getFilteredBahanData(index).slice(0, 15).map(material => (
+                                        <div 
+                                          key={material.ITEM_ID}
+                                          className="material-result-item"
+                                          onClick={() => handleMaterialSelect(index, material)}
+                                        >
+                                          <strong>{material.ITEM_ID}</strong> - {material.Item_Name}
+                                          {material.Item_Unit && (
+                                            <span className="material-unit-hint">
+                                              (Unit: {material.Item_Unit})
+                                            </span>
+                                          )}
+                                        </div>
+                                      ))}
+                                      {getFilteredBahanData(index).length > 15 && (
+                                        <div className="material-result-item more-results">
+                                          <small>... and {getFilteredBahanData(index).length - 15} more. Keep typing to narrow down.</small>
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="ingredient-qty">
+                            <label>Quantity:</label>
+                            <input
+                              type="text"
+                              value={ingredient.qty}
+                              onChange={(e) => handleIngredientChange(index, 'qty', e.target.value)}
+                              placeholder="0.00"
+                              className="qty-input"
+                              required
+                            />
+                          </div>
+                          
+                          <div className="ingredient-unit">
+                            <label>Unit:</label>
+                            <select
+                              value={ingredient.unitId}
+                              onChange={(e) => handleIngredientChange(index, 'unitId', e.target.value)}
+                              className="unit-select"
+                              required
+                            >
+                              <option value="">Select</option>
+                              {unitsData.map(unit => (
+                                <option key={unit.unit_id} value={unit.unit_id}>
+                                  {unit.unit_id}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          
+                          <div className="ingredient-actions">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveIngredient(index)}
+                              className="btn-remove-ingredient"
+                              disabled={newFormulaData.ingredients.length <= 1}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="step-actions">
+                      <button type="button" onClick={() => setAddFormulaStep(2)} className="btn-secondary">
+                        Back
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={handleSubmitFormula}
+                        className="btn-primary"
+                        disabled={loading}
+                      >
+                        {loading ? 'Creating Formula...' : 'Create Formula'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

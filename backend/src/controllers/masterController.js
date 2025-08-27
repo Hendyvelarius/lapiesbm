@@ -1,4 +1,4 @@
-const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, getMaterial, addFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
+const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, getMaterial, addFormulaManual, addBatchFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
 
 class MasterController {
     static async getCurrency(req, res) {
@@ -706,6 +706,83 @@ class MasterController {
             res.status(500).json({
                 success: false,
                 message: 'Failed to add formula ingredient',
+                error: error.message
+            });
+        }
+    }
+
+    static async addBatchFormulaManual(req, res) {
+        try {
+            const { 
+                ppiType, 
+                ppiSubId, 
+                ppiProductId, 
+                ppiBatchSize, 
+                ingredients,
+                userId = "GWN"
+            } = req.body;
+            
+            // Validate required fields
+            if (!ppiType || !ppiSubId || !ppiProductId || !ppiBatchSize || !ingredients) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields: ppiType, ppiSubId, ppiProductId, ppiBatchSize, ingredients'
+                });
+            }
+            
+            // Validate ingredients array
+            if (!Array.isArray(ingredients) || ingredients.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Ingredients must be a non-empty array'
+                });
+            }
+            
+            // Validate each ingredient
+            for (let i = 0; i < ingredients.length; i++) {
+                const ingredient = ingredients[i];
+                if (!ingredient.seqId || !ingredient.itemId || !ingredient.qty || !ingredient.unitId) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Invalid ingredient at index ${i}: missing seqId, itemId, qty, or unitId`
+                    });
+                }
+                
+                if (isNaN(parseInt(ingredient.seqId)) || isNaN(parseFloat(ingredient.qty))) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Invalid ingredient at index ${i}: seqId and qty must be numeric`
+                    });
+                }
+            }
+            
+            // Validate numeric values
+            if (isNaN(parseFloat(ppiBatchSize))) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid numeric value for field: ppiBatchSize'
+                });
+            }
+            
+            const result = await addBatchFormulaManual(
+                ppiType,
+                ppiSubId,
+                ppiProductId,
+                parseFloat(ppiBatchSize),
+                ingredients,
+                userId
+            );
+            
+            res.status(201).json({
+                success: true,
+                message: `Complete formula added successfully with ${result.ingredientsAdded} ingredients`,
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in addBatchFormulaManual endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to add complete formula',
                 error: error.message
             });
         }

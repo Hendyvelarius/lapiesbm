@@ -265,6 +265,12 @@ export const masterAPI = {
     body: JSON.stringify(data),
   }),
   
+  // Add complete formula with multiple ingredients
+  addBatchFormulaManual: (data) => apiRequest('/master/formula/batch', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  
   // Update formula ingredient
   updateFormulaManual: (data) => apiRequest('/master/formula', {
     method: 'PUT',

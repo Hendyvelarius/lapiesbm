@@ -26,6 +26,7 @@ router.get('/material', MasterController.getMaterial);
 
 // Formula manual routes
 router.post('/formula', MasterController.addFormulaManual);
+router.post('/formula/batch', MasterController.addBatchFormulaManual);
 router.put('/formula', MasterController.updateFormulaManual);
 router.delete('/formula', MasterController.deleteFormulaManual);
 router.delete('/formula/entire', MasterController.deleteEntireFormulaManual);
