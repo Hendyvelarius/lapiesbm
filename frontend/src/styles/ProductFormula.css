@@ -223,7 +223,7 @@
 
 .formula-table-header {
   display: grid;
-  grid-template-columns: 2fr 100px 120px 160px;
+  grid-template-columns: 2fr 100px 120px 200px;
   background-color: #f9fafb;
   border-bottom: 2px solid #e5e7eb;
 }
@@ -250,7 +250,7 @@
 
 .formula-row {
   display: grid;
-  grid-template-columns: 2fr 100px 120px 160px;
+  grid-template-columns: 2fr 100px 120px 200px;
   cursor: pointer;
   transition: background-color 0.15s;
 }
@@ -286,7 +286,8 @@
 }
 
 .cell-actions {
-  gap: 8px;
+  gap: 6px; /* Reduce gap slightly to fit more buttons */
+  min-width: 180px; /* Increase minimum width for actions column */
 }
 
 .btn-edit {
@@ -319,6 +320,22 @@
 
 .btn-delete:hover {
   background-color: #dc2626;
+}
+
+.btn-clone {
+  background-color: #8b5cf6;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-clone:hover {
+  background-color: #7c3aed;
 }
 
 .default-badge {

@@ -267,29 +267,140 @@ const ProductFormula = () => {
   const handleDeleteFormula = async (formulaData) => {
     if (!selectedProduct) return;
     
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete the formula "${formulaData.subId}" (${getTypeDisplayName(formulaData.type)})?`
+    // Use awesome-notifications for a modern confirmation dialog
+    notifier.confirm(
+      `Are you sure you want to delete the formula "${formulaData.subId}" (${getTypeDisplayName(formulaData.type)})?`,
+      async () => {
+        // This runs if user clicks OK/Yes
+        try {
+          setLoading(true);
+          
+          await api.master.deleteEntireFormulaManual({
+            ppiType: formulaData.type,
+            ppiSubId: formulaData.subId,
+            ppiProductId: selectedProduct.Product_ID
+          });
+          
+          notifier.success('Formula deleted successfully!');
+          
+          // Reload recipe data
+          await loadRecipeData(selectedProduct.Product_ID);
+          
+        } catch (err) {
+          console.error('Error deleting formula:', err);
+          notifier.alert('Failed to delete formula. Please try again.');
+        } finally {
+          setLoading(false);
+        }
+      },
+      () => {
+        // This runs if user clicks Cancel/No - do nothing
+        console.log('Delete cancelled');
+      },
+      {
+        title: 'Delete Formula',
+        okButtonText: 'Delete',
+        cancelButtonText: 'Cancel'
+      }
     );
-    
-    if (!confirmDelete) return;
+  };
+
+  const handleCloneFormula = async (formulaData) => {
+    if (!selectedProduct) return;
     
     try {
       setLoading(true);
       
-      await api.master.deleteEntireFormulaManual({
-        ppiType: formulaData.type,
-        ppiSubId: formulaData.subId,
-        ppiProductId: selectedProduct.Product_ID
-      });
+      // Debug log to see the structure
+      console.log('Clone formula data:', formulaData);
+      console.log('Selected product:', selectedProduct);
       
-      notifier.success('Formula deleted successfully!');
+      // Generate new formula name based on naming rules
+      const generateCloneName = (originalSubId) => {
+        let baseName;
+        
+        if (originalSubId.startsWith('M_')) {
+          // If already has M_ prefix, extract the name part
+          baseName = originalSubId.substring(2);
+        } else {
+          // If no M_ prefix, add M_ and use original name
+          baseName = originalSubId;
+        }
+        
+        // Check for existing formulas with similar names
+        let counter = originalSubId.startsWith('M_') ? 1 : 0;
+        let newName = originalSubId.startsWith('M_') ? `M_${baseName}${counter || ''}` : `M_${baseName}`;
+        
+        // Keep incrementing until we find a unique name
+        while (existingFormulas.some(formula => 
+          formula.type === formulaData.type && formula.subId === newName
+        )) {
+          counter++;
+          newName = `M_${baseName}${counter}`;
+        }
+        
+        return newName;
+      };
+      
+      const newSubId = generateCloneName(formulaData.subId);
+      
+      // Prepare the ingredients for cloning
+      const ingredients = formulaData.ingredients.map(ingredient => ({
+        seqId: ingredient.seqId,
+        itemId: ingredient.itemId,
+        qty: ingredient.quantity, // Note: using 'quantity' from display data
+        unitId: ingredient.unit
+      }));
+      
+      const cloneData = {
+        ppiType: formulaData.type,
+        ppiSubId: newSubId,
+        ppiProductId: selectedProduct.Product_ID,
+        ppiBatchSize: formulaData.batchSize || 1, // Use 1 as default if batchSize is null/undefined
+        ingredients: ingredients
+      };
+      
+      // Debug log to see what we're sending
+      console.log('Clone data being sent:', cloneData);
+      
+      // Validate required fields before sending
+      if (!cloneData.ppiType) {
+        throw new Error('Missing ppiType (formula type)');
+      }
+      if (!cloneData.ppiSubId) {
+        throw new Error('Missing ppiSubId (formula name)');
+      }
+      if (!cloneData.ppiProductId) {
+        throw new Error('Missing ppiProductId');
+      }
+      if (!cloneData.ppiBatchSize || cloneData.ppiBatchSize <= 0) {
+        throw new Error('Missing or invalid ppiBatchSize');
+      }
+      if (!cloneData.ingredients || cloneData.ingredients.length === 0) {
+        throw new Error('Missing or empty ingredients array');
+      }
+      
+      // Validate each ingredient
+      const invalidIngredients = cloneData.ingredients.filter(ingredient => 
+        !ingredient.itemId || !ingredient.qty || !ingredient.unitId
+      );
+      if (invalidIngredients.length > 0) {
+        throw new Error(`Invalid ingredients found: ${invalidIngredients.length} items missing required fields`);
+      }
+      
+      // Create the cloned formula
+      await api.master.addBatchFormulaManual(cloneData);
+      
+      notifier.success(`Formula cloned successfully as "${newSubId}"!`);
       
       // Reload recipe data
       await loadRecipeData(selectedProduct.Product_ID);
       
     } catch (err) {
-      console.error('Error deleting formula:', err);
-      notifier.alert('Failed to delete formula. Please try again.');
+      console.error('Error cloning formula:', err);
+      console.error('Formula data was:', formulaData);
+      console.error('Selected product was:', selectedProduct);
+      notifier.alert('Failed to clone formula. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -771,24 +882,43 @@ const ProductFormula = () => {
                                   {renderDefaultBadge(formulaData)}
                                 </div>
                                 <div className="cell cell-actions">
+                                  {/* Clone button - available for all formulas */}
                                   <button 
-                                    className="btn-edit"
+                                    className="btn-clone"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleEditFormula(formulaData);
+                                      handleCloneFormula(formulaData);
                                     }}
+                                    title="Clone this formula"
                                   >
-                                    Edit
+                                    Clone
                                   </button>
-                                  <button 
-                                    className="btn-delete"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteFormula(formulaData);
-                                    }}
-                                  >
-                                    Delete
-                                  </button>
+                                  
+                                  {/* Edit and Delete buttons - only for M_ prefixed formulas */}
+                                  {formulaData.subId.startsWith('M_') && (
+                                    <>
+                                      <button 
+                                        className="btn-edit"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleEditFormula(formulaData);
+                                        }}
+                                        title="Edit this formula"
+                                      >
+                                        Edit
+                                      </button>
+                                      <button 
+                                        className="btn-delete"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteFormula(formulaData);
+                                        }}
+                                        title="Delete this formula"
+                                      >
+                                        Delete
+                                      </button>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                               
