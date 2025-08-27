@@ -131,15 +131,7 @@ async function findRecipe(productId) {
     try {
         const pool = await connect();
         const query = `
-            SELECT 
-                v.*,
-                m.PPI_BatchSize as BatchSize
-            FROM vw_COGS_FORMULA_List_detail v
-            LEFT JOIN M_COGS_FORMULA_MANUAL m ON v.PPI_SubID = m.PPI_SubID 
-                AND v.Product_ID = m.PPI_ProductID 
-                AND v.TypeCode = m.PPI_Type
-                AND v.PPI_SeqID = m.PPI_SeqID
-            WHERE v.Product_ID = @productId
+            SELECT * FROM vw_COGS_FORMULA_List_detail WHERE Product_ID = @productId
         `;
         const result = await pool.request()
             .input('productId', sql.VarChar, productId)

@@ -856,6 +856,7 @@ const ProductFormula = () => {
                         <div className="formula-table-header">
                           <div className="header-cell header-subid">Sub ID</div>
                           <div className="header-cell header-type">Type</div>
+                          <div className="header-cell header-batch-size">Batch Size</div>
                           <div className="header-cell header-output">Default</div>
                           <div className="header-cell header-actions">Actions</div>
                         </div>
@@ -878,6 +879,9 @@ const ProductFormula = () => {
                                   {subId}
                                 </div>
                                 <div className="cell cell-type">{type}</div>
+                                <div className="cell cell-batch-size">
+                                  {formulaData.batchSize ? formulaData.batchSize.toLocaleString() : '-'}
+                                </div>
                                 <div className="cell cell-output">
                                   {renderDefaultBadge(formulaData)}
                                 </div>
@@ -925,7 +929,7 @@ const ProductFormula = () => {
                               {/* Expanded Ingredients */}
                               {isExpanded && (
                                 <div className="ingredients-section">
-                                  <div className="ingredients-header">
+                                  <div className="ingredients-table-header">
                                     <div className="ingredient-cell ing-seq">Seq</div>
                                     <div className="ingredient-cell ing-id">ID</div>
                                     <div className="ingredient-cell ing-name">Item Name</div>
