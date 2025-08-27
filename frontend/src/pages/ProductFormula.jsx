@@ -34,6 +34,8 @@ const ProductFormula = () => {
   // Add Formula Modal states
   const [showAddFormulaModal, setShowAddFormulaModal] = useState(false);
   const [addFormulaStep, setAddFormulaStep] = useState(1); // 1: Type, 2: Name, 3: Ingredients
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingFormula, setEditingFormula] = useState(null);
   const [newFormulaData, setNewFormulaData] = useState({
     type: '',
     subId: '',
@@ -126,7 +128,7 @@ const ProductFormula = () => {
           subId: subIdKey,
           type: typeKey,
           typeName: recipe.TypeName,
-          batchSize: recipe.BatchSize, // Note: This might not be in the new structure
+          batchSize: recipe.BatchSize, // Now properly joined from M_COGS_FORMULA_MANUAL
           default: recipe.Default,
           defaultCOGS: recipe.DefaultCOGS,
           ingredients: []
@@ -206,6 +208,8 @@ const ProductFormula = () => {
     setExistingFormulas(productFormulas);
     
     // Reset form data
+    setIsEditMode(false);
+    setEditingFormula(null);
     setNewFormulaData({
       type: '',
       subId: '',
@@ -216,9 +220,86 @@ const ProductFormula = () => {
     setShowAddFormulaModal(true);
   };
 
+  const handleEditFormula = (formulaData) => {
+    if (!selectedProduct) {
+      notifier.warning('Please select a product first');
+      return;
+    }
+    
+    // Get existing formulas excluding the one being edited
+    const productFormulas = recipeData
+      .filter(recipe => !(recipe.TypeCode === formulaData.type && recipe.PPI_SubID === formulaData.subId))
+      .map(recipe => ({
+        type: recipe.TypeCode,
+        subId: recipe.PPI_SubID
+      }));
+    setExistingFormulas(productFormulas);
+    
+    // Set edit mode and populate form with existing data
+    setIsEditMode(true);
+    setEditingFormula(formulaData);
+    setNewFormulaData({
+      type: formulaData.type,
+      subId: formulaData.subId,
+      batchSize: formulaData.batchSize || 1, // Default to 1 if no batch size
+      ingredients: formulaData.ingredients.map((ingredient, index) => ({
+        seqId: ingredient.seqId,
+        itemId: ingredient.itemId,
+        qty: ingredient.quantity.toString(),
+        unitId: ingredient.unit
+      }))
+    });
+    
+    // Initialize search states for existing ingredients
+    const searchTerms = {};
+    const dropdownVisible = {};
+    formulaData.ingredients.forEach((ingredient, index) => {
+      searchTerms[index] = `${ingredient.itemId} - ${ingredient.itemName}`;
+      dropdownVisible[index] = false;
+    });
+    setMaterialSearchTerms(searchTerms);
+    setMaterialDropdownVisible(dropdownVisible);
+    
+    setAddFormulaStep(2); // Start at step 2 (details) for edit mode
+    setShowAddFormulaModal(true);
+  };
+
+  const handleDeleteFormula = async (formulaData) => {
+    if (!selectedProduct) return;
+    
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete the formula "${formulaData.subId}" (${getTypeDisplayName(formulaData.type)})?`
+    );
+    
+    if (!confirmDelete) return;
+    
+    try {
+      setLoading(true);
+      
+      await api.master.deleteEntireFormulaManual({
+        ppiType: formulaData.type,
+        ppiSubId: formulaData.subId,
+        ppiProductId: selectedProduct.Product_ID
+      });
+      
+      notifier.success('Formula deleted successfully!');
+      
+      // Reload recipe data
+      await loadRecipeData(selectedProduct.Product_ID);
+      
+    } catch (err) {
+      console.error('Error deleting formula:', err);
+      notifier.alert('Failed to delete formula. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCloseAddFormulaModal = () => {
     setShowAddFormulaModal(false);
     setAddFormulaStep(1);
+    setIsEditMode(false);
+    setEditingFormula(null);
     setNewFormulaData({
       type: '',
       subId: '',
@@ -251,9 +332,10 @@ const ProductFormula = () => {
       return;
     }
     
-    // Check if formula name already exists for this type
+    // Check if formula name already exists for this type (skip check in edit mode if name unchanged)
+    const finalSubId = `M_${subId}`;
     const exists = existingFormulas.some(formula => 
-      formula.type === newFormulaData.type && formula.subId === `M_${subId}`
+      formula.type === newFormulaData.type && formula.subId === finalSubId
     );
     
     if (exists) {
@@ -263,14 +345,16 @@ const ProductFormula = () => {
     
     setNewFormulaData(prev => ({ 
       ...prev, 
-      subId: `M_${subId}`,
+      subId: finalSubId,
       batchSize,
-      ingredients: [{ seqId: 1, itemId: '', qty: '', unitId: '' }] // Start with one ingredient
+      ingredients: isEditMode ? prev.ingredients : [{ seqId: 1, itemId: '', qty: '', unitId: '' }] // Keep existing ingredients in edit mode
     }));
     
-    // Initialize search states for the first ingredient
-    setMaterialSearchTerms({ 0: '' });
-    setMaterialDropdownVisible({ 0: false });
+    // Initialize search states for new formula only
+    if (!isEditMode) {
+      setMaterialSearchTerms({ 0: '' });
+      setMaterialDropdownVisible({ 0: false });
+    }
     
     setAddFormulaStep(3);
   };
@@ -363,9 +447,25 @@ const ProductFormula = () => {
 
   const getFilteredBahanData = (index) => {
     const searchTerm = materialSearchTerms[index] || '';
-    if (!searchTerm.trim()) return materialData;
     
-    return materialData.filter(material => 
+    // Filter by ITEM_TYPE based on formula type
+    let filteredByType = materialData;
+    if (newFormulaData.type) {
+      const formulaType = getTypeDisplayName(newFormulaData.type);
+      
+      if (formulaType === '1. PENGOLAHAN INTI' || formulaType === '1. PENGOLAHAN SALUT') {
+        // For PENGOLAHAN types, only show BB materials
+        filteredByType = materialData.filter(material => material.ITEM_TYPE === 'BB');
+      } else if (formulaType === '2. KEMAS PRIMER' || formulaType === '2. KEMAS SEKUNDER') {
+        // For KEMAS types, only show BK materials
+        filteredByType = materialData.filter(material => material.ITEM_TYPE === 'BK');
+      }
+    }
+    
+    // Filter by search term
+    if (!searchTerm.trim()) return filteredByType;
+    
+    return filteredByType.filter(material => 
       material.Item_Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       material.ITEM_ID?.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -408,26 +508,72 @@ const ProductFormula = () => {
       return;
     }
     
+    // Validate required data
+    if (!newFormulaData.type) {
+      notifier.warning('Formula type is missing');
+      return;
+    }
+    
+    if (!newFormulaData.subId) {
+      notifier.warning('Formula name is missing');
+      return;
+    }
+    
+    if (!newFormulaData.batchSize || newFormulaData.batchSize <= 0) {
+      notifier.warning('Batch size must be greater than 0');
+      return;
+    }
+    
+    if (!selectedProduct?.Product_ID) {
+      notifier.warning('Product ID is missing');
+      return;
+    }
+    
     try {
       setLoading(true);
       
-      await api.master.addBatchFormulaManual({
+      const submitData = {
         ppiType: newFormulaData.type,
         ppiSubId: newFormulaData.subId,
         ppiProductId: selectedProduct.Product_ID,
         ppiBatchSize: newFormulaData.batchSize,
         ingredients: newFormulaData.ingredients
-      });
+      };
       
-      notifier.success('Formula added successfully!');
+      if (isEditMode) {
+        // For edit mode: First delete the existing formula, then create new one
+        await api.master.deleteEntireFormulaManual({
+          ppiType: editingFormula.type,
+          ppiSubId: editingFormula.subId,
+          ppiProductId: selectedProduct.Product_ID
+        });
+        
+        // Then create the updated formula
+        await api.master.addBatchFormulaManual(submitData);
+        
+        notifier.success('Formula updated successfully!');
+      } else {
+        // For create mode: Just create the new formula
+        await api.master.addBatchFormulaManual(submitData);
+        
+        notifier.success('Formula added successfully!');
+      }
+      
       handleCloseAddFormulaModal();
       
       // Reload recipe data
       await loadRecipeData(selectedProduct.Product_ID);
       
     } catch (err) {
-      console.error('Error adding formula:', err);
-      notifier.alert('Failed to add formula. Please try again.');
+      console.error('Error saving formula:', err);
+      console.error('Submit data was:', {
+        ppiType: newFormulaData.type,
+        ppiSubId: newFormulaData.subId,
+        ppiProductId: selectedProduct.Product_ID,
+        ppiBatchSize: newFormulaData.batchSize,
+        ingredients: newFormulaData.ingredients
+      });
+      notifier.alert(`Failed to ${isEditMode ? 'update' : 'add'} formula. Please try again.`);
     } finally {
       setLoading(false);
     }
@@ -629,7 +775,7 @@ const ProductFormula = () => {
                                     className="btn-edit"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      // TODO: Handle edit
+                                      handleEditFormula(formulaData);
                                     }}
                                   >
                                     Edit
@@ -638,7 +784,7 @@ const ProductFormula = () => {
                                     className="btn-delete"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      // TODO: Handle delete
+                                      handleDeleteFormula(formulaData);
                                     }}
                                   >
                                     Delete
@@ -687,13 +833,13 @@ const ProductFormula = () => {
         <div className="modal-overlay" onClick={handleCloseAddFormulaModal}>
           <div className="modal-content large-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Add New Formula</h3>
+              <h3>{isEditMode ? 'Edit Formula' : 'Add New Formula'}</h3>
               <button onClick={handleCloseAddFormulaModal} className="close-btn">×</button>
             </div>
             
             <div className="modal-body">
-              {/* Step 1: Product Info & Type Selection */}
-              {addFormulaStep === 1 && (
+              {/* Step 1: Product Info & Type Selection - Skip in edit mode */}
+              {addFormulaStep === 1 && !isEditMode && (
                 <div className="formula-step">
                   <div className="step-header">
                     <h4>Step 1: Select Formula Type</h4>
@@ -720,8 +866,64 @@ const ProductFormula = () => {
                 </div>
               )}
 
-              {/* Step 2: Formula Name & Batch Size */}
-              {addFormulaStep === 2 && (
+              {/* Step 2: Formula Name & Batch Size - Edit mode */}
+              {addFormulaStep === 2 && isEditMode && (
+                <div className="formula-step">
+                  <div className="step-header">
+                    <h4>Edit Formula Details</h4>
+                    <div className="product-info">
+                      <strong>Product:</strong> {selectedProduct?.Product_ID} - {selectedProduct?.Product_Name}
+                      <br />
+                      <strong>Type:</strong> {getTypeDisplayName(newFormulaData.type)}
+                    </div>
+                  </div>
+                  
+                  <form onSubmit={handleFormulaNameSubmit} className="formula-details-form">
+                    <div className="form-group">
+                      <label>Formula Name:</label>
+                      <div className="name-input-group">
+                        <span className="prefix">M_</span>
+                        <input
+                          type="text"
+                          name="subId"
+                          placeholder="Enter formula name (e.g., C, GLC, GLD)"
+                          className="name-input"
+                          maxLength="10"
+                          defaultValue={isEditMode ? newFormulaData.subId.replace('M_', '') : ''}
+                          required
+                        />
+                      </div>
+                      <small>Formula will be named: M_{'{formula_name}'}</small>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label>Batch Size:</label>
+                      <input
+                        type="number"
+                        name="batchSize"
+                        placeholder="Enter batch size"
+                        className="input-field"
+                        min="1"
+                        step="0.01"
+                        defaultValue={isEditMode ? newFormulaData.batchSize : ''}
+                        required
+                      />
+                    </div>
+                    
+                    <div className="step-actions">
+                      <button type="button" onClick={handleCloseAddFormulaModal} className="btn-secondary">
+                        Cancel
+                      </button>
+                      <button type="submit" className="btn-primary">
+                        Continue to Ingredients
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Step 2: Formula Name & Batch Size - Create mode */}
+              {addFormulaStep === 2 && !isEditMode && (
                 <div className="formula-step">
                   <div className="step-header">
                     <h4>Step 2: Formula Details</h4>
@@ -743,6 +945,7 @@ const ProductFormula = () => {
                           placeholder="Enter formula name (e.g., C, GLC, GLD)"
                           className="name-input"
                           maxLength="10"
+                          defaultValue={isEditMode ? newFormulaData.subId.replace('M_', '') : ''}
                           required
                         />
                       </div>
@@ -758,6 +961,7 @@ const ProductFormula = () => {
                         className="input-field"
                         min="1"
                         step="0.01"
+                        defaultValue={isEditMode ? newFormulaData.batchSize : ''}
                         required
                       />
                     </div>
@@ -904,16 +1108,26 @@ const ProductFormula = () => {
                     </div>
                     
                     <div className="step-actions">
-                      <button type="button" onClick={() => setAddFormulaStep(2)} className="btn-secondary">
-                        Back
-                      </button>
+                      {!isEditMode && (
+                        <button type="button" onClick={() => setAddFormulaStep(2)} className="btn-secondary">
+                          Back
+                        </button>
+                      )}
+                      {isEditMode && (
+                        <button type="button" onClick={() => setAddFormulaStep(2)} className="btn-secondary">
+                          Edit Details
+                        </button>
+                      )}
                       <button 
                         type="button" 
                         onClick={handleSubmitFormula}
                         className="btn-primary"
                         disabled={loading}
                       >
-                        {loading ? 'Creating Formula...' : 'Create Formula'}
+                        {loading ? 
+                          (isEditMode ? 'Updating Formula...' : 'Creating Formula...') : 
+                          (isEditMode ? 'Update Formula' : 'Create Formula')
+                        }
                       </button>
                     </div>
                   </div>
