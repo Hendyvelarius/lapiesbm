@@ -11,6 +11,7 @@ import ProductGroup from './pages/ProductGroup';
 import Pembebanan from './pages/Pembebanan';
 import FormulaAssignment from './pages/FormulaAssignment';
 import ProductFormula from './pages/ProductFormula';
+import GenerateHPP from './pages/GenerateHPP';
 import './styles/App.css';
 
 function AppContent() {
@@ -55,6 +56,10 @@ function AppContent() {
         return 'Formula Assignment Management';
       case '/productformula':
         return 'Product Formula Management';
+      case '/product-formula':
+        return 'Product Formula Management';
+      case '/generate-hpp':
+        return 'Generate HPP';
       default:
         return 'Hello, Gunawan';
     }
@@ -88,17 +93,18 @@ function AppContent() {
       />
       <main className="main-content">
         {/* Removed welcome section, now handled by TopNavbar */}
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/hpp-simulation" element={<HPPSimulation />} />
-          <Route path="/kurs" element={<Currency />} />
-          <Route path="/harga-bahan" element={<HargaBahan />} />
-          <Route path="/biaya-lain" element={<BiayaLain />} />
-          <Route path="/product-group" element={<ProductGroup />} />
-          <Route path="/pembebanan" element={<Pembebanan />} />
-          <Route path="/formula-assignment" element={<FormulaAssignment />} />
-          <Route path="/productformula" element={<ProductFormula />} />
-        </Routes>
+                  <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/hpp-simulation" element={<HPPSimulation />} />
+            <Route path="/currency" element={<Currency />} />
+            <Route path="/harga-bahan" element={<HargaBahan />} />
+            <Route path="/biaya-lain" element={<BiayaLain />} />
+            <Route path="/product-group" element={<ProductGroup />} />
+            <Route path="/pembebanan" element={<Pembebanan />} />
+            <Route path="/formula-assignment" element={<FormulaAssignment />} />
+            <Route path="/product-formula" element={<ProductFormula />} />
+            <Route path="/generate-hpp" element={<GenerateHPP />} />
+          </Routes>
       </main>
     </div>
   );
