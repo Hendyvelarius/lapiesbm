@@ -1,13 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import AWN from 'awesome-notifications';
+import 'awesome-notifications/dist/style.css';
 import '../styles/FormulaAssignment.css';
+
+// Initialize awesome-notifications
+const notifier = new AWN({
+  position: 'top-right',
+  durations: {
+    global: 5000
+  }
+});
 
 const FormulaAssignment = () => {
   // State management
   const [chosenFormulas, setChosenFormulas] = useState([]);
   const [productList, setProductList] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   
   // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
@@ -78,7 +87,6 @@ const FormulaAssignment = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      setError('');
 
       // Load chosen formulas and product list
       const [chosenRes, productsRes] = await Promise.all([
@@ -91,7 +99,7 @@ const FormulaAssignment = () => {
 
     } catch (err) {
       console.error('Error loading data:', err);
-      setError('Failed to load data. Please try again.');
+      notifier.alert('Failed to load data. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -119,25 +127,11 @@ const FormulaAssignment = () => {
       
       setProductFormulas(grouped);
       
-      // Auto-select first formula for each type when there are formulas available (only for new assignments)
-      if (!editingFormula) {
-        setFormData(prev => {
-          const updated = { ...prev };
-          
-          // For each formula type, if formulas exist and current value is null, select first formula
-          Object.entries(grouped).forEach(([type, typeFormulas]) => {
-            const fieldName = type.toLowerCase();
-            if (typeFormulas.length > 0 && (prev[fieldName] === null || prev[fieldName] === undefined)) {
-              updated[fieldName] = typeFormulas[0].PPI_SubID || '';
-            }
-          });
-          
-          return updated;
-        });
-      }
+      // Note: Auto-selection removed to prevent form state inconsistencies
+      // Users should manually select formulas to ensure intentional assignments
     } catch (err) {
       console.error('Error loading product formulas:', err);
-      setError(`Failed to load formulas for this product: ${err.message}`);
+      notifier.alert(`Failed to load formulas for this product: ${err.message}`);
       // Reset to empty state on error
       setProductFormulas({ PI: [], PS: [], KP: [], KS: [] });
     } finally {
@@ -214,8 +208,22 @@ const FormulaAssignment = () => {
 
   // Handle manual formula selection
   const handleFormulaSelect = (type, formulaId) => {
-    // Handle "No Formula" selection (when user selects "No Formula" option)
-    if (formulaId === undefined || formulaId === null || formulaId === 'NO_FORMULA') {
+    // Check if user is trying to select "No Formula" when formulas are available
+    if ((formulaId === undefined || formulaId === null || formulaId === 'NO_FORMULA')) {
+      const availableFormulas = productFormulas[type] || [];
+      const currentValue = formData[type.toLowerCase()];
+      
+      // Block "No Formula" selection if:
+      // 1. There are available formulas for this type
+      // 2. Currently has a formula assigned (not null/undefined)
+      if (availableFormulas.length > 0 && currentValue !== null && currentValue !== undefined) {
+        notifier.warning(`Cannot set ${type} to "No Formula" when formulas are available and currently assigned. Please select a specific formula instead.`, {
+          durations: { warning: 6000 }
+        });
+        return; // Block the change
+      }
+      
+      // Allow setting to null if conditions are met
       setFormData(prev => ({
         ...prev,
         [type.toLowerCase()]: null
@@ -239,20 +247,29 @@ const FormulaAssignment = () => {
           stdOutput: formulaBatchSize
         }));
       } else if (currentStdOutput !== formulaBatchSize) {
-        // Show warning if batch sizes differ
-        const formulaDisplayName = formulaId || ' ';
-        const confirmed = window.confirm(
-          `The selected formula "${formulaDisplayName}" has a batch size of ${formulaBatchSize}, ` +
-          `which differs from the current standard output (${currentStdOutput}).\n\n` +
-          `Do you want to update the standard output to match the formula's batch size?\n\n` +
-          `Click OK to update, or Cancel to keep the current value.`
-        );
+        // Show professional confirmation dialog using Awesome Notifications
+        const formulaDisplayName = formulaId || '(unnamed)';
         
-        setFormData(prev => ({
-          ...prev,
-          [type.toLowerCase()]: formulaId,
-          stdOutput: confirmed ? formulaBatchSize : currentStdOutput
-        }));
+        notifier.confirm(
+          `Your chosen formula "${formulaDisplayName}" has a different output than the product's standard output.\n\nFormula Output: ${formulaBatchSize}\nCurrent Standard Output: ${currentStdOutput}\n\nClick OK to change the standard output to match the formula, or Cancel to keep the current output.`,
+          () => {
+            // User clicked OK - update both formula and std output
+            setFormData(prev => ({
+              ...prev,
+              [type.toLowerCase()]: formulaId,
+              stdOutput: formulaBatchSize
+            }));
+            notifier.success(`Standard output updated from ${currentStdOutput} to ${formulaBatchSize}`);
+          },
+          () => {
+            // User clicked Cancel - update formula but keep current std output
+            setFormData(prev => ({
+              ...prev,
+              [type.toLowerCase()]: formulaId
+            }));
+            notifier.info(`Formula updated, standard output kept at ${currentStdOutput}`);
+          }
+        );
       } else {
         // Batch sizes match, just update the formula
         setFormData(prev => ({
@@ -274,7 +291,7 @@ const FormulaAssignment = () => {
     e.preventDefault();
     
     if (!formData.productId) {
-      alert('Please select a product');
+      notifier.warning('Please select a product before submitting the form');
       return;
     }
 
@@ -282,7 +299,7 @@ const FormulaAssignment = () => {
     if (!editingFormula) {
       const existingAssignment = chosenFormulas.find(formula => formula.Product_ID === formData.productId);
       if (existingAssignment) {
-        alert(`Product ${formData.productId} already has a formula assignment. Please edit the existing assignment or select a different product.`);
+        notifier.warning(`Product ${formData.productId} already has a formula assignment. Please edit the existing assignment or select a different product.`);
         return;
       }
     }
@@ -299,9 +316,11 @@ const FormulaAssignment = () => {
           ks: formData.ks,
           stdOutput: formData.stdOutput
         });
+        notifier.success(`Formula assignment updated successfully for product ${formData.productId}`);
       } else {
         // Add new
         await api.products.addChosenFormula(formData);
+        notifier.success(`Formula assignment added successfully for product ${formData.productId}`);
       }
 
       // Reload data and close modal
@@ -310,7 +329,7 @@ const FormulaAssignment = () => {
       handleCloseAddModal();
     } catch (err) {
       console.error('Error saving formula:', err);
-      alert('Failed to save formula. Please try again.');
+      notifier.alert('Failed to save formula assignment. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -318,20 +337,35 @@ const FormulaAssignment = () => {
 
   // Handle delete
   const handleDelete = async (productId) => {
-    if (!window.confirm('Are you sure you want to delete this formula assignment?')) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-      await api.products.deleteChosenFormula(productId);
-      await loadData();
-    } catch (err) {
-      console.error('Error deleting formula:', err);
-      alert('Failed to delete formula. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    const productName = getProductName(productId);
+    
+    notifier.confirm(
+      'Delete Formula Assignment',
+      `Are you sure you want to delete the formula assignment for product ${productId} (${productName})?`,
+      async () => {
+        try {
+          setLoading(true);
+          await api.products.deleteChosenFormula(productId);
+          await loadData();
+          notifier.success(`Formula assignment deleted successfully for product ${productId}`);
+        } catch (err) {
+          console.error('Error deleting formula:', err);
+          notifier.alert('Failed to delete formula assignment. Please try again.');
+        } finally {
+          setLoading(false);
+        }
+      },
+      () => {
+        // User cancelled, do nothing
+        notifier.info('Deletion cancelled');
+      },
+      {
+        labels: {
+          confirm: 'Delete',
+          cancel: 'Cancel'
+        }
+      }
+    );
   };
 
   // Helper function to get product name
@@ -341,7 +375,7 @@ const FormulaAssignment = () => {
   };
 
   // Helper function to get formula details - distinguish between null and unnamed
-  const getFormulaDetails = (formulaId, type) => {
+  const getFormulaDetails = (formulaId) => {
     if (formulaId === null || formulaId === undefined) {
       return '-';  // Truly empty/null
     } else if (formulaId === '') {
@@ -372,13 +406,6 @@ const FormulaAssignment = () => {
 
   return (
     <div className="formula-assignment-container">
-      {error && (
-        <div className="error-message">
-          {error}
-          <button onClick={loadData} className="retry-btn">Retry</button>
-        </div>
-      )}
-
       <div className="content-section">
         <div className="section-header">
           <div className="section-title">
@@ -434,10 +461,10 @@ const FormulaAssignment = () => {
                   <tr key={`${formula.Product_ID}-${index}`}>
                     <td>{formula.Product_ID}</td>
                     <td>{getProductName(formula.Product_ID)}</td>
-                    <td>{getFormulaDetails(formula.PI, 'PI')}</td>
-                    <td>{getFormulaDetails(formula.PS, 'PS')}</td>
-                    <td>{getFormulaDetails(formula.KP, 'KP')}</td>
-                    <td>{getFormulaDetails(formula.KS, 'KS')}</td>
+                    <td>{getFormulaDetails(formula.PI)}</td>
+                    <td>{getFormulaDetails(formula.PS)}</td>
+                    <td>{getFormulaDetails(formula.KP)}</td>
+                    <td>{getFormulaDetails(formula.KS)}</td>
                     <td>{formula.Std_Output || 0}</td>
                     <td>
                       <div className="action-buttons">
@@ -568,11 +595,24 @@ const FormulaAssignment = () => {
                           <h5>{type} Formulas</h5>
                           {formulas.length > 0 ? (
                             <select
-                              value={formData[type.toLowerCase()] === null ? 'NO_FORMULA' : formData[type.toLowerCase()]}
+                              value={(() => {
+                                const currentValue = formData[type.toLowerCase()];
+                                // If current value is null or undefined, show NO_FORMULA
+                                if (currentValue === null || currentValue === undefined) {
+                                  return 'NO_FORMULA';
+                                }
+                                // Check if current value exists in available formulas
+                                const existsInFormulas = formulas.some(f => (f.PPI_SubID || '') === currentValue);
+                                if (existsInFormulas) {
+                                  return currentValue;
+                                }
+                                // If current value doesn't exist in formulas, show NO_FORMULA
+                                return 'NO_FORMULA';
+                              })()}
                               onChange={(e) => handleFormulaSelect(type, e.target.value === 'NO_FORMULA' ? null : e.target.value)}
                               className="formula-select"
                             >
-                              {/* Don't show "No Formula" option if there are formulas available */}
+                              <option value="NO_FORMULA">-- No Formula --</option>
                               {formulas.map((formula, idx) => (
                                 <option key={`${type}-${formula.PPI_SubID || 'empty'}-${idx}`} value={formula.PPI_SubID || ''}>
                                   {formula.PPI_SubID || ' '} {formula.Default === 'Aktif' ? '(DEF) ' : ''}(Output: {formula.BatchSize})
@@ -667,11 +707,24 @@ const FormulaAssignment = () => {
                       <h5>{type} Formulas</h5>
                       {formulas.length > 0 ? (
                         <select
-                          value={formData[type.toLowerCase()] === null ? 'NO_FORMULA' : formData[type.toLowerCase()]}
+                          value={(() => {
+                            const currentValue = formData[type.toLowerCase()];
+                            // If current value is null or undefined, show NO_FORMULA
+                            if (currentValue === null || currentValue === undefined) {
+                              return 'NO_FORMULA';
+                            }
+                            // Check if current value exists in available formulas
+                            const existsInFormulas = formulas.some(f => (f.PPI_SubID || '') === currentValue);
+                            if (existsInFormulas) {
+                              return currentValue;
+                            }
+                            // If current value doesn't exist in formulas, show NO_FORMULA
+                            return 'NO_FORMULA';
+                          })()}
                           onChange={(e) => handleFormulaSelect(type, e.target.value === 'NO_FORMULA' ? null : e.target.value)}
                           className="formula-select"
                         >
-                          {/* Don't show "No Formula" option if there are formulas available */}
+                          <option value="NO_FORMULA">-- No Formula --</option>
                           {formulas.map((formula, idx) => (
                             <option key={`edit-${type}-${formula.PPI_SubID || 'empty'}-${idx}`} value={formula.PPI_SubID || ''}>
                               {formula.PPI_SubID || ' '} {formula.Default === 'Aktif' ? '(DEF) ' : ''}(Output: {formula.BatchSize})

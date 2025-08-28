@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import '../styles/GenerateHPP.css';
 import { CheckCircle, Calculator, Database, AlertTriangle, Clock, ChevronRight } from 'lucide-react';
+import ValidationModal from '../components/ValidationModal';
 
 export default function GenerateHPP() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -10,6 +11,7 @@ export default function GenerateHPP() {
     posting: 'pending'
   });
   const [loading, setLoading] = useState(false);
+  const [showValidationModal, setShowValidationModal] = useState(false);
 
   const steps = [
     {
@@ -62,42 +64,45 @@ export default function GenerateHPP() {
   const handleStepAction = async (stepNumber) => {
     if (stepNumber > currentStep) return; // Can't skip steps
     
-    setLoading(true);
-    
-    try {
-      if (stepNumber === 1) {
-        // Validation Check
-        setStepStatus(prev => ({ ...prev, validation: 'running' }));
-        // TODO: Implement validation logic
-        setTimeout(() => {
-          setStepStatus(prev => ({ ...prev, validation: 'completed' }));
-          setCurrentStep(2);
-          setLoading(false);
-        }, 2000);
-      } else if (stepNumber === 2) {
-        // Calculation
-        setStepStatus(prev => ({ ...prev, calculation: 'running' }));
-        // TODO: Implement calculation logic
-        setTimeout(() => {
-          setStepStatus(prev => ({ ...prev, calculation: 'completed' }));
-          setCurrentStep(3);
-          setLoading(false);
-        }, 3000);
-      } else if (stepNumber === 3) {
-        // Post to Database
-        setStepStatus(prev => ({ ...prev, posting: 'running' }));
-        // TODO: Implement posting logic
-        setTimeout(() => {
-          setStepStatus(prev => ({ ...prev, posting: 'completed' }));
-          setLoading(false);
-        }, 2000);
-      }
-    } catch (error) {
-      console.error(`Error in step ${stepNumber}:`, error);
-      const statusKey = stepNumber === 1 ? 'validation' : stepNumber === 2 ? 'calculation' : 'posting';
-      setStepStatus(prev => ({ ...prev, [statusKey]: 'failed' }));
-      setLoading(false);
+    if (stepNumber === 1) {
+      // Open validation modal for step 1
+      setShowValidationModal(true);
+    } else if (stepNumber === 2) {
+      // Calculation
+      setLoading(true);
+      setStepStatus(prev => ({ ...prev, calculation: 'running' }));
+      // TODO: Implement calculation logic
+      setTimeout(() => {
+        setStepStatus(prev => ({ ...prev, calculation: 'completed' }));
+        setCurrentStep(3);
+        setLoading(false);
+      }, 3000);
+    } else if (stepNumber === 3) {
+      // Post to Database
+      setLoading(true);
+      setStepStatus(prev => ({ ...prev, posting: 'running' }));
+      // TODO: Implement posting logic
+      setTimeout(() => {
+        setStepStatus(prev => ({ ...prev, posting: 'completed' }));
+        setLoading(false);
+      }, 2000);
     }
+  };
+
+  const handleValidationComplete = (success) => {
+    if (success) {
+      setStepStatus(prev => ({ ...prev, validation: 'completed' }));
+      setCurrentStep(2);
+      setShowValidationModal(false); // Close modal on success
+    } else {
+      setStepStatus(prev => ({ ...prev, validation: 'failed' }));
+      // Keep modal open on failure - don't close it
+      // Don't advance to next step
+    }
+  };
+
+  const handleValidationClose = () => {
+    setShowValidationModal(false);
   };
 
   const resetProcess = () => {
@@ -107,6 +112,7 @@ export default function GenerateHPP() {
       calculation: 'pending',
       posting: 'pending'
     });
+    setShowValidationModal(false); // Close modal if it's open
   };
 
   return (
@@ -126,7 +132,6 @@ export default function GenerateHPP() {
         <div className="steps-container">
           {steps.map((step, index) => {
             const Icon = step.icon;
-            const isActive = step.number <= currentStep;
             const statusClass = getStepStatusClass(step.number, step.status);
             
             return (
@@ -146,7 +151,8 @@ export default function GenerateHPP() {
                   <button
                     className={`btn-step ${statusClass}`}
                     onClick={() => handleStepAction(step.number)}
-                    disabled={step.number > currentStep || loading || step.status === 'completed'}
+                    disabled={step.number > currentStep || loading || step.status === 'completed' || 
+                             (step.number > 1 && stepStatus.validation === 'failed')}
                   >
                     <Icon size={18} />
                     {step.status === 'running' ? 'Processing...' : 
@@ -180,6 +186,13 @@ export default function GenerateHPP() {
           </div>
         </div>
       </div>
+      
+      {/* Validation Modal */}
+      <ValidationModal 
+        isOpen={showValidationModal}
+        onClose={handleValidationClose}
+        onValidationComplete={handleValidationComplete}
+      />
     </div>
   );
 }

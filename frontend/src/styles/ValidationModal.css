@@ -1,0 +1,386 @@
+/* Validation Modal Styles */
+.validation-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.validation-modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.validation-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border-radius: 12px 12px 0 0;
+}
+
+.validation-modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  flex: 1;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.modal-close-btn:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.validation-modal-content {
+  padding: 24px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.validation-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #dbeafe;
+  border-left: 4px solid #3b82f6;
+  border-radius: 6px;
+  margin-bottom: 24px;
+}
+
+.validation-info p {
+  margin: 0;
+  color: #1e40af;
+  font-size: 0.875rem;
+}
+
+.validation-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.validation-step {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.validation-step.current {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.validation-step.completed {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+.validation-step.failed {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.step-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 60px;
+}
+
+.step-number {
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.step-icon {
+  border-radius: 50%;
+}
+
+.step-icon.pending {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #d1d5db;
+  background: white;
+}
+
+.step-icon.running {
+  color: #3b82f6;
+  animation: spin 1s linear infinite;
+}
+
+.step-icon.completed {
+  color: #10b981;
+}
+
+.step-icon.failed {
+  color: #ef4444;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.step-info {
+  flex: 1;
+}
+
+.step-title {
+  margin: 0 0 4px 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.step-description {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.dots {
+  animation: dots 1.5s infinite;
+  color: #3b82f6;
+}
+
+@keyframes dots {
+  0%, 20% { content: ''; }
+  40% { content: '.'; }
+  60% { content: '..'; }
+  80%, 100% { content: '...'; }
+}
+
+.step-details {
+  border-top: 1px solid #f3f4f6;
+  padding: 16px;
+  margin-top: 0;
+}
+
+.step-result {
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.step-result.completed {
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+}
+
+.step-result.failed {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+}
+
+.step-result strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #1f2937;
+}
+
+.step-result p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.step-errors {
+  margin-top: 16px;
+}
+
+.step-errors h5 {
+  margin: 0 0 8px 0;
+  color: #dc2626;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.step-errors ul {
+  margin: 0 0 16px 0;
+  padding-left: 20px;
+}
+
+.step-errors li {
+  margin-bottom: 4px;
+  font-size: 0.875rem;
+  color: #7f1d1d;
+  line-height: 1.4;
+}
+
+.error-help {
+  background: #fef7ff;
+  border: 1px solid #f3e8ff;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.error-help p {
+  margin: 0 0 8px 0;
+  font-size: 0.875rem;
+  color: #581c87;
+  font-weight: 500;
+}
+
+.error-help ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.error-help li {
+  font-size: 0.875rem;
+  color: #7c3aed;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.error-help strong {
+  color: #581c87;
+}
+
+.validation-modal-footer {
+  padding: 20px 24px;
+  border-top: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border-radius: 0 0 12px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.validation-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.validation-success {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #065f46;
+  font-weight: 500;
+}
+
+.success-icon {
+  color: #10b981;
+}
+
+.validation-success p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/* Button Styles */
+.btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.btn-secondary {
+  background: white;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .validation-modal {
+    width: 95%;
+    margin: 20px;
+  }
+  
+  .validation-modal-header,
+  .validation-modal-content,
+  .validation-modal-footer {
+    padding: 16px;
+  }
+  
+  .step-header {
+    padding: 12px;
+  }
+  
+  .step-details {
+    padding: 12px;
+  }
+}

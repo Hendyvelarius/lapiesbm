@@ -159,7 +159,12 @@
   text-align: center;
   color: #6c757d;
   font-style: italic;
-  padding: 40px;
+  padding: 40px !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: initial !important;
+  width: auto !important;
+  min-width: auto !important;
 }
 
 /* Action Buttons */

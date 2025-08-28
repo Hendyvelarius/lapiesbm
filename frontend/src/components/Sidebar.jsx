@@ -60,8 +60,8 @@ export default function Sidebar() {
                 <Settings className="sidebar-icon" size={20} /> Formula Assignment
               </Link>
             </li>
-            <li className={location.pathname === '/productformula' ? 'active' : ''}>
-              <Link to="/productformula" className="sidebar-link">
+            <li className={location.pathname === '/product-formula' ? 'active' : ''}>
+              <Link to="/product-formula" className="sidebar-link">
                 <FlaskConical className="sidebar-icon" size={20} /> Product Formula
               </Link>
             </li>
