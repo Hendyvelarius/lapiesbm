@@ -30,8 +30,8 @@ export default function Sidebar() {
                 <FileText className="sidebar-icon" size={20} /> Simulasi HPP
               </Link>
             </li>
-            <li className={location.pathname === '/kurs' ? 'active' : ''}>
-              <Link to="/kurs" className="sidebar-link">
+            <li className={location.pathname === '/currency' ? 'active' : ''}>
+              <Link to="/currency" className="sidebar-link">
                 <DollarSign className="sidebar-icon" size={20} /> Info Kurs
               </Link>
             </li>

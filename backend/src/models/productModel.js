@@ -143,6 +143,29 @@ async function findRecipe(productId) {
     }
 }
 
+async function getAllFormulaDetails() {
+    try {
+        const pool = await connect();
+        const result = await pool.request().query('SELECT * FROM vw_COGS_FORMULA_List_detail');
+        return result.recordset;
+    } catch (error) {
+        console.error('Error fetching all formula details:', error);
+        throw error;
+    }
+}
+
+async function getActiveFormulaDetails() {
+    try {
+        const pool = await connect();
+        const result = await pool.request()
+            .query("SELECT * FROM vw_COGS_FORMULA_List_detail WHERE DefaultCOGS = 'Aktif'");
+        return result.recordset;
+    } catch (error) {
+        console.error('Error fetching active formula details:', error);
+        throw error;
+    }
+}
+
 module.exports = {
     getFormula,
     getChosenFormula,
@@ -150,5 +173,7 @@ module.exports = {
     addChosenFormula,
     updateChosenFormula,
     deleteChosenFormula,
-    findRecipe
+    findRecipe,
+    getAllFormulaDetails,
+    getActiveFormulaDetails
 };

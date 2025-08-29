@@ -44,6 +44,8 @@ export default function GenerateHPP() {
     switch (status) {
       case 'completed':
         return <CheckCircle className="status-icon completed" size={20} />;
+      case 'warning':
+        return <AlertTriangle className="status-icon warning" size={20} />;
       case 'running':
         return <Clock className="status-icon running" size={20} />;
       case 'failed':
@@ -55,6 +57,7 @@ export default function GenerateHPP() {
 
   const getStepStatusClass = (step, status) => {
     if (status === 'completed') return 'completed';
+    if (status === 'warning') return 'warning';
     if (status === 'running') return 'running';
     if (status === 'failed') return 'failed';
     if (step <= currentStep) return 'active';
@@ -89,11 +92,15 @@ export default function GenerateHPP() {
     }
   };
 
-  const handleValidationComplete = (success) => {
-    if (success) {
+  const handleValidationComplete = (result) => {
+    if (result === 'success') {
       setStepStatus(prev => ({ ...prev, validation: 'completed' }));
       setCurrentStep(2);
       setShowValidationModal(false); // Close modal on success
+    } else if (result === 'warning') {
+      setStepStatus(prev => ({ ...prev, validation: 'warning' }));
+      setCurrentStep(2);
+      // Don't close modal on warning - let user see the warnings and decide
     } else {
       setStepStatus(prev => ({ ...prev, validation: 'failed' }));
       // Keep modal open on failure - don't close it

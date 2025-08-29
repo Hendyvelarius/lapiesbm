@@ -61,11 +61,19 @@ class MasterController {
         try {
             const { itemId, itemType, unit, price, currency, rate, userId } = req.body;
             
-            // Validate required fields
-            if (!itemId || !itemType || !unit || !price || !currency || !userId) {
+            // Validate required fields (note: price can be 0, so check for null/undefined specifically)
+            if (!itemId || !itemType || !unit || price === null || price === undefined || !currency || !userId) {
                 return res.status(400).json({
                     success: false,
                     message: 'Missing required fields: itemId, itemType, unit, price, currency, userId'
+                });
+            }
+            
+            // Validate price is a valid number
+            if (isNaN(parseFloat(price))) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Price must be a valid number'
                 });
             }
             
@@ -90,11 +98,19 @@ class MasterController {
             const { id } = req.params;
             const { itemType, unit, price, currency, rate, userId } = req.body;
             
-            // Validate required fields
-            if (!id || !itemType || !unit || !price || !currency || !userId) {
+            // Validate required fields (note: price can be 0, so check for null/undefined specifically)
+            if (!id || !itemType || !unit || price === null || price === undefined || !currency || !userId) {
                 return res.status(400).json({
                     success: false,
                     message: 'Missing required fields: id (in URL), itemType, unit, price, currency, userId'
+                });
+            }
+            
+            // Validate price is a valid number
+            if (isNaN(parseFloat(price))) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Price must be a valid number'
                 });
             }
             

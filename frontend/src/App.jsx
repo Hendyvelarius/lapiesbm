@@ -42,7 +42,7 @@ function AppContent() {
         return 'Hello, Gunawan';
       case '/hpp-simulation':
         return 'HPP Simulation';
-      case '/kurs':
+      case '/currency':
         return 'Currency Exchange Rates';
       case '/harga-bahan':
         return 'Ingredient Pricing Management';
@@ -54,8 +54,6 @@ function AppContent() {
         return 'Cost Allocation Management';
       case '/formula-assignment':
         return 'Formula Assignment Management';
-      case '/productformula':
-        return 'Product Formula Management';
       case '/product-formula':
         return 'Product Formula Management';
       case '/generate-hpp':

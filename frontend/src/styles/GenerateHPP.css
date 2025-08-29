@@ -86,6 +86,12 @@
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
 }
 
+.step-card.warning {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.1);
+}
+
 .step-card.failed {
   border-color: #ef4444;
   background: #fef2f2;
@@ -140,6 +146,11 @@
   color: white;
 }
 
+.step-card.warning .step-number {
+  background: #f59e0b;
+  color: white;
+}
+
 .step-card.failed .step-number {
   background: #ef4444;
   color: white;
@@ -151,6 +162,10 @@
 
 .status-icon.completed {
   color: #10b981;
+}
+
+.status-icon.warning {
+  color: #f59e0b;
 }
 
 .status-icon.running {
@@ -230,6 +245,12 @@
 
 .btn-step.completed {
   background-color: #10b981;
+  color: white;
+  cursor: default;
+}
+
+.btn-step.warning {
+  background-color: #f59e0b;
   color: white;
   cursor: default;
 }

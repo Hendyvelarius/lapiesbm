@@ -52,6 +52,77 @@ Currently, the API does not require authentication, but middleware is prepared f
 #### Delete Product
 - **DELETE** `/api/products/:id`
 
+### Formula API
+
+#### Get All Formulas
+- **GET** `/api/products/formula`
+- **Description:** Get all existing formulas for all products from vw_COGS_FORMULA_List
+
+#### Get Formula by Product ID
+- **GET** `/api/products/formula/:id`
+- **Description:** Get formulas for a specific product
+
+#### Get All Formula Details
+- **GET** `/api/products/formula-details`
+- **Description:** Get comprehensive formula details including ingredients, batch sizes, and pricing from vw_COGS_FORMULA_List_detail
+- **Response Example:**
+```json
+[
+  {
+    "Product_ID": "L5",
+    "Product_Name": "MELOXICAM-7.5 TABLET (GENERIK)",
+    "PPI_SubID": "A",
+    "TypeName": "2. KEMAS PRIMER",
+    "TypeCode": "KP",
+    "Source": "ePengembanganFormula",
+    "BatchSize": 2000,
+    "Default": "Aktif",
+    "PPI_SeqID": 1,
+    "PPI_ItemID": "A 201",
+    "PPI_UnitID": "roll",
+    "PPI_QTY": "1",
+    "UnitPrice": 3650000,
+    "PurchaseQTYUnit": 1,
+    "PurchaseUnit": "roll",
+    "DefaultCOGS": "Aktif"
+  }
+]
+```
+
+#### Get Active Formula Details
+- **GET** `/api/products/formula-details/active`
+- **Description:** Get formula details only for active formulas (DefaultCOGS = 'Aktif')
+- **Response:** Same format as above, but filtered for active formulas only
+
+#### Get Chosen Formulas
+- **GET** `/api/products/chosenformula`
+- **Description:** Get all chosen/assigned formulas from M_COGS_PRODUCT_FORMULA_FIX
+
+#### Create Chosen Formula
+- **POST** `/api/products/chosenformula`
+- **Body:**
+```json
+{
+  "productId": "L5",
+  "pi": "A",
+  "ps": "B",
+  "kp": "C",
+  "ks": "D",
+  "stdOutput": 2000
+}
+```
+
+#### Update Chosen Formula
+- **PUT** `/api/products/chosenformula/:productId`
+- **Body:** Same as create chosen formula
+
+#### Delete Chosen Formula
+- **DELETE** `/api/products/chosenformula/:productId`
+
+#### Get Recipe Details
+- **GET** `/api/products/recipe/:productId`
+- **Description:** Get detailed recipe/formula information for a specific product
+
 ### HPP (Cost of Goods Sold) API
 
 #### Get All HPP Records

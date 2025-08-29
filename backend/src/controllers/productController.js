@@ -1,6 +1,6 @@
 const { Product, HPP, HPPIngredient } = require('../../models');
 const { Op } = require('sequelize');
-const { getChosenFormula, getFormula, findFormula, addChosenFormula, updateChosenFormula, deleteChosenFormula, findRecipe } = require('../models/productModel');
+const { getChosenFormula, getFormula, findFormula, addChosenFormula, updateChosenFormula, deleteChosenFormula, findRecipe, getAllFormulaDetails, getActiveFormulaDetails } = require('../models/productModel');
 
 class ProductController {
   // Get all products
@@ -353,6 +353,32 @@ class ProductController {
       res.status(500).json({
         success: false,
         message: 'Error retrieving recipe',
+        error: error.message
+      });
+    }
+  }
+
+  static async getAllFormulaDetails(req, res) {
+    try {
+      const formulaDetails = await getAllFormulaDetails();
+      res.status(200).json(formulaDetails);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving all formula details',
+        error: error.message
+      });
+    }
+  }
+
+  static async getActiveFormulaDetails(req, res) {
+    try {
+      const activeFormulaDetails = await getActiveFormulaDetails();
+      res.status(200).json(activeFormulaDetails);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving active formula details',
         error: error.message
       });
     }

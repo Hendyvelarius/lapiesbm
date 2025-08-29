@@ -1,7 +1,17 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { masterAPI } from '../services/api';
+import AWN from 'awesome-notifications';
+import 'awesome-notifications/dist/style.css';
 import '../styles/HargaBahan.css';
 import { Plus, Search, Filter, Edit, Trash2, Package, ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
+
+// Initialize awesome-notifications
+const notifier = new AWN({
+  position: 'top-right',
+  durations: {
+    global: 5000
+  }
+});
 
 const HargaBahan = () => {
   const [materialData, setMaterialData] = useState([]);
@@ -150,6 +160,7 @@ const HargaBahan = () => {
     } catch (err) {
       setError('Failed to fetch material data');
       console.error('Error fetching material data:', err);
+      notifier.alert('Failed to load material data. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -495,8 +506,10 @@ const HargaBahan = () => {
       
       if (modalMode === 'edit') {
         await masterAPI.updateHargaBahan(editingItem.pk_id, submitData);
+        notifier.success('Material price updated successfully!');
       } else {
         await masterAPI.addHargaBahan(submitData);
+        notifier.success('Material price added successfully!');
       }
       
       // Refresh the data
@@ -507,7 +520,18 @@ const HargaBahan = () => {
       
     } catch (error) {
       console.error(`Error ${modalMode === 'edit' ? 'updating' : 'adding'} material:`, error);
-      // You might want to show an error message to the user here
+      
+      // Extract error message from API response if available
+      let errorMessage = `Failed to ${modalMode === 'edit' ? 'update' : 'add'} material price`;
+      if (error.message && error.message.includes('Missing required fields')) {
+        errorMessage = 'Please fill in all required fields';
+      } else if (error.message && error.message.includes('Price must be a valid number')) {
+        errorMessage = 'Please enter a valid price';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      notifier.alert(errorMessage);
     } finally {
       setSubmitLoading(false);
     }
@@ -518,6 +542,8 @@ const HargaBahan = () => {
       setSubmitLoading(true);
       await masterAPI.deleteHargaBahan(deletingItem.pk_id);
       
+      notifier.success('Material price deleted successfully!');
+      
       // Refresh the data
       await fetchAllData();
       
@@ -527,7 +553,14 @@ const HargaBahan = () => {
       
     } catch (error) {
       console.error('Error deleting material:', error);
-      // You might want to show an error message to the user here
+      
+      // Extract error message from API response if available
+      let errorMessage = 'Failed to delete material price';
+      if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      notifier.alert(errorMessage);
     } finally {
       setSubmitLoading(false);
     }

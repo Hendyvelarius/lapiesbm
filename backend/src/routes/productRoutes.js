@@ -9,6 +9,12 @@ router.get('/', ProductController.getAllProducts);
 router.get('/formula', ProductController.getFormula);
 router.get('/formula/:id', ProductController.findFormula);
 
+// GET /api/products/formula-details - Get all formula details from vw_COGS_FORMULA_List_detail
+router.get('/formula-details', ProductController.getAllFormulaDetails);
+
+// GET /api/products/formula-details/active - Get active formula details (DefaultCOGS = 'Aktif')
+router.get('/formula-details/active', ProductController.getActiveFormulaDetails);
+
 // Chosen formula CRUD operations
 router.get('/chosenformula', ProductController.getChosenFormula);
 router.post('/chosenformula', ProductController.addChosenFormula);

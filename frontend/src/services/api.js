@@ -62,6 +62,12 @@ export const productsAPI = {
   // Get formula by ID
   getFormulaById: (id) => apiRequest(`/products/formula/${id}`),
   
+  // Get all formula details (comprehensive formula information)
+  getAllFormulaDetails: () => apiRequest('/products/formula-details'),
+  
+  // Get active formula details only (DefaultCOGS = 'Aktif')
+  getActiveFormulaDetails: () => apiRequest('/products/formula-details/active'),
+  
   // Get chosen formula data (current product-formula assignments)
   getChosenFormula: () => apiRequest('/products/chosenformula'),
   

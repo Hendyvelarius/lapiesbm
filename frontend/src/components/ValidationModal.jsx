@@ -9,8 +9,8 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
     {
       id: 1,
       title: 'Checking product formula assignments',
-      description: 'Verifying HPP products have proper formula assignments',
-      status: 'pending', // pending, running, completed, failed
+      description: 'Verifying HPP products have proper formula assignments and batch sizes',
+      status: 'pending', // pending, running, completed, failed, warning
       details: null,
       errors: []
     },
@@ -50,6 +50,7 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
   
   const [isRunning, setIsRunning] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [hasWarning, setHasWarning] = useState(false);
   const [validationData, setValidationData] = useState({
     chosenFormulas: [],
     availableFormulas: [],
@@ -68,6 +69,7 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
     setCurrentStep(0);
     setIsRunning(false);
     setHasError(false);
+    setHasWarning(false);
     setValidationSteps(prev => prev.map(step => ({
       ...step,
       status: 'pending',
@@ -98,15 +100,19 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
   const startValidation = async () => {
     setIsRunning(true);
     setHasError(false);
+    setHasWarning(false);
     let validationFailed = false;
+    let hasWarnings = false;
 
     // Step 1 & 2: Formula Assignment and Data Integrity Validation
-    const formulaValidationSuccess = await validateFormulaAssignments();
-    if (!formulaValidationSuccess) {
+    const formulaValidationResult = await validateFormulaAssignments();
+    if (formulaValidationResult === 'failed') {
       validationFailed = true;
+    } else if (formulaValidationResult === 'warning') {
+      hasWarnings = true;
     }
 
-    // Only continue if formula validation passed
+    // Only continue if formula validation didn't fail (warnings are okay)
     if (!validationFailed) {
       // Step 3: Material Price Validation (mockup for now)
       const materialValidationSuccess = await validateMaterialPrices();
@@ -132,20 +138,22 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
     }
 
     setIsRunning(false);
+    setHasWarning(hasWarnings);
 
-    // If all validations passed, notify parent
+    // If all validations passed or only have warnings, notify parent
     if (!validationFailed) {
+      const validationStatus = hasWarnings ? 'warning' : 'success';
       setTimeout(() => {
-        onValidationComplete(true);
+        onValidationComplete(validationStatus);
       }, 1000);
     } else {
       // If there were errors, notify parent but keep modal open
-      onValidationComplete(false);
+      onValidationComplete('failed');
     }
   };
 
   const validateFormulaAssignments = async () => {
-    // Step 1: Check formula assignments
+    // Step 1: Check formula assignments and batch sizes
     setCurrentStep(1);
     updateStepStatus(1, 'running');
     
@@ -184,6 +192,11 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
       const chosen = chosenFormulaMap[productId];
       const available = availableFormulaMap[productId] || {};
       const productIssues = [];
+
+      // First check if the chosen formula has a valid Std_Output (batch size)
+      if (!chosen.Std_Output || chosen.Std_Output === 0) {
+        productIssues.push(`Product batch size is null or 0 (${chosen.Std_Output || 'null'})`);
+      }
 
       // Check each formula type
       ['PI', 'PS', 'KP', 'KS'].forEach(type => {
@@ -229,11 +242,11 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
         errors
       });
       setHasError(true);
-      return false; // Return failure
+      return 'failed'; // Return failure
     }
 
     updateStepStatus(1, 'completed', {
-      summary: `All ${checkedProducts} products have correct formula assignments`,
+      summary: `All ${checkedProducts} products have correct formula assignments and batch sizes`,
       details: `Checked ${checkedProducts} products, all formula assignments are valid`
     });
 
@@ -243,7 +256,8 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
     updateStepStatus(2, 'running');
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    const batchSizeErrors = [];
+    const criticalErrors = [];
+    const warnings = [];
     
     chosenFormulas.forEach(chosen => {
       ['PI', 'PS', 'KP', 'KS'].forEach(type => {
@@ -257,9 +271,16 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
           const availableFormulas = availableFormulaMap[chosen.Product_ID]?.[type] || [];
           const assignedFormula = availableFormulas.find(f => f.PPI_SubID === assignedValue);
           
-          if (assignedFormula && (!assignedFormula.BatchSize || assignedFormula.BatchSize === 0)) {
+          if (!assignedFormula) {
+            // Critical error: assigned formula doesn't exist
             const displayValue = assignedValue === "" ? "(unnamed)" : `"${assignedValue}"`;
-            batchSizeErrors.push(
+            criticalErrors.push(
+              `${chosen.Product_ID} (${getProductName(chosen.Product_ID)}): ${type} formula ${displayValue} does not exist`
+            );
+          } else if (!assignedFormula.BatchSize || assignedFormula.BatchSize === 0) {
+            // Warning: formula exists but has invalid batch size
+            const displayValue = assignedValue === "" ? "(unnamed)" : `"${assignedValue}"`;
+            warnings.push(
               `${chosen.Product_ID} (${getProductName(chosen.Product_ID)}): ${type} formula ${displayValue} has invalid batch size (${assignedFormula.BatchSize || 'null'})`
             );
           }
@@ -267,13 +288,24 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
       });
     });
 
-    if (batchSizeErrors.length > 0) {
+    // Handle critical errors first
+    if (criticalErrors.length > 0) {
       updateStepStatus(2, 'failed', {
-        summary: `${batchSizeErrors.length} formula(s) have invalid batch sizes`,
-        errors: batchSizeErrors
+        summary: `${criticalErrors.length} formula(s) have critical issues`,
+        errors: criticalErrors
       });
       setHasError(true);
-      return false; // Return failure
+      return 'failed';
+    }
+
+    // If only warnings, show warning state
+    if (warnings.length > 0) {
+      updateStepStatus(2, 'warning', {
+        summary: `${warnings.length} formula(s) have batch size warnings`,
+        errors: warnings,
+        warningMessage: 'These formulas have invalid batch sizes but validation can proceed. Consider fixing these issues for better accuracy.'
+      });
+      return 'warning';
     }
 
     updateStepStatus(2, 'completed', {
@@ -281,7 +313,7 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
       details: `Validated batch sizes for all formula assignments`
     });
     
-    return true; // Return success
+    return 'success';
   };
 
   // Mockup validations for remaining steps
@@ -341,6 +373,8 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
     switch (step.status) {
       case 'completed':
         return <CheckCircle className="step-icon completed" size={20} />;
+      case 'warning':
+        return <AlertTriangle className="step-icon warning" size={20} />;
       case 'running':
         return <Loader className="step-icon running" size={20} />;
       case 'failed':
@@ -424,7 +458,7 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
         </div>
 
         <div className="validation-modal-footer">
-          {!isRunning && !hasError && !allCompleted && (
+          {!isRunning && !hasError && !allCompleted && !hasWarning && (
             <button 
               className="btn btn-primary"
               onClick={startValidation}
@@ -445,14 +479,31 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
             </div>
           )}
 
-          {allCompleted && !hasError && (
+          {hasWarning && allCompleted && (
+            <div className="validation-warning-actions">
+              <div className="warning-message">
+                <AlertTriangle className="warning-icon" size={20} />
+                <p>Validation completed with warnings. You can proceed but consider fixing the issues for better accuracy.</p>
+              </div>
+              <div className="validation-actions">
+                <button className="btn btn-secondary" onClick={onClose}>
+                  Close & Fix Warnings
+                </button>
+                <button className="btn btn-warning" onClick={() => { onValidationComplete('warning'); onClose(); }}>
+                  Proceed Anyway
+                </button>
+              </div>
+            </div>
+          )}
+
+          {allCompleted && !hasError && !hasWarning && (
             <div className="validation-success">
               <CheckCircle className="success-icon" size={24} />
               <p>All validations passed! HPP calculation can proceed safely.</p>
             </div>
           )}
 
-          {!hasError && !allCompleted && (
+          {!hasError && !allCompleted && !hasWarning && (
             <button className="btn btn-secondary" onClick={onClose}>
               Cancel
             </button>
