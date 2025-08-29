@@ -316,18 +316,90 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
     return 'success';
   };
 
-  // Mockup validations for remaining steps
+  // Material price validation - check if all formula materials have proper pricing
   const validateMaterialPrices = async () => {
     setCurrentStep(3);
     updateStepStatus(3, 'running');
     await new Promise(resolve => setTimeout(resolve, 1500));
     
-    updateStepStatus(3, 'completed', {
-      summary: 'All formula ingredients have current prices',
-      details: 'Checked 145 ingredients, all have valid price data'
-    });
-    
-    return true; // Return success
+    try {
+      // Get active formula details containing all materials used in active formulas
+      const activeFormulaDetails = await api.products.getActiveFormulaDetails();
+      
+      const missingPriceMaterials = [];
+      const checkedMaterials = new Set(); // To avoid duplicate checks
+      
+      // Check each material in active formulas
+      activeFormulaDetails.forEach(formula => {
+        const materialKey = `${formula.PPI_ItemID}`;
+        
+        // Skip if already checked this material
+        if (checkedMaterials.has(materialKey)) {
+          return;
+        }
+        checkedMaterials.add(materialKey);
+        
+        const { UnitPrice, PurchaseQTYUnit, PurchaseUnit } = formula;
+        
+        // Validation logic:
+        // 1. UnitPrice = 0 is valid (free materials)
+        // 2. UnitPrice = null AND PurchaseQTYUnit = null AND PurchaseUnit = "" is valid (free materials in Harga Bahan)
+        // 3. All null (UnitPrice = null, PurchaseQTYUnit = null, PurchaseUnit = null) = INVALID (not in Harga Bahan)
+        
+        const isAllNull = UnitPrice === null && PurchaseQTYUnit === null && PurchaseUnit === null;
+        const isFreeInHargaBahan = UnitPrice === null && PurchaseQTYUnit === null && PurchaseUnit === "";
+        const hasValidPrice = UnitPrice !== null && UnitPrice !== undefined;
+        
+        if (isAllNull) {
+          // Material not added to Harga Bahan yet
+          missingPriceMaterials.push({
+            itemId: formula.PPI_ItemID,
+            productName: formula.Product_Name,
+            productId: formula.Product_ID,
+            formulaType: formula.TypeCode,
+            issue: 'Material not found in Harga Bahan database'
+          });
+        } else if (!isFreeInHargaBahan && !hasValidPrice) {
+          // Material exists but has invalid pricing setup
+          missingPriceMaterials.push({
+            itemId: formula.PPI_ItemID,
+            productName: formula.Product_Name,
+            productId: formula.Product_ID,
+            formulaType: formula.TypeCode,
+            issue: 'Material has invalid price configuration'
+          });
+        }
+      });
+      
+      if (missingPriceMaterials.length > 0) {
+        const errors = missingPriceMaterials.map(material => 
+          `${material.itemId} (used in ${material.productId} - ${material.productName} ${material.formulaType} formula): ${material.issue}`
+        );
+        
+        updateStepStatus(3, 'failed', {
+          summary: `${missingPriceMaterials.length} material(s) need price configuration`,
+          errors,
+          helpMessage: 'Please add these materials to Harga Bahan page or configure their pricing properly.'
+        });
+        
+        return false;
+      }
+      
+      updateStepStatus(3, 'completed', {
+        summary: `All ${checkedMaterials.size} formula materials have valid pricing`,
+        details: `Checked materials from ${activeFormulaDetails.length} active formula entries`
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error validating material prices:', error);
+      updateStepStatus(3, 'failed', {
+        summary: 'Failed to validate material prices',
+        errors: [`Error loading material data: ${error.message}`]
+      });
+      
+      return false;
+    }
   };
 
   const validateCostParameters = async () => {
