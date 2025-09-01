@@ -203,35 +203,38 @@ class MasterController {
     static async updateParameter(req, res) {
         try {
             const { 
-                directLabour, 
-                foh, 
-                depresiasi, 
-                mhTimbangBB, 
-                mhTimbangBK, 
-                mhAnalisa, 
-                biayaAnalisa, 
-                kwhMesin, 
+                directLaborPN1, 
+                directLaborPN2, 
+                fohPN1, 
+                fohPN2, 
+                depresiasiPN1, 
+                depresiasiPN2, 
                 rateKwhMesin,
                 userId = "system" // Default user if not provided
             } = req.body;
             
-            // Validate required fields
-            if (!directLabour || !foh || !depresiasi || !mhTimbangBB || !mhTimbangBK || 
-                !mhAnalisa || !biayaAnalisa || !kwhMesin || !rateKwhMesin) {
+            // Validate required fields - all 7 new parameters must be provided
+            if (directLaborPN1 === undefined || fohPN1 === undefined || depresiasiPN1 === undefined || 
+                rateKwhMesin === undefined) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Missing required fields. All parameter values must be provided.'
+                    message: 'Missing required fields. At minimum directLaborPN1, fohPN1, depresiasiPN1, and rateKwhMesin must be provided.'
                 });
             }
             
-            // Validate numeric values
+            // Validate numeric values for required fields
             const numericFields = {
-                directLabour, foh, depresiasi, mhTimbangBB, mhTimbangBK, 
-                mhAnalisa, biayaAnalisa, kwhMesin, rateKwhMesin
+                directLaborPN1, 
+                directLaborPN2, 
+                fohPN1, 
+                fohPN2, 
+                depresiasiPN1, 
+                depresiasiPN2, 
+                rateKwhMesin
             };
             
             for (const [fieldName, value] of Object.entries(numericFields)) {
-                if (isNaN(parseFloat(value))) {
+                if (value !== null && value !== undefined && isNaN(parseFloat(value))) {
                     return res.status(400).json({
                         success: false,
                         message: `Invalid numeric value for field: ${fieldName}`
@@ -240,15 +243,13 @@ class MasterController {
             }
             
             const result = await updateParameter(
-                parseFloat(directLabour),
-                parseFloat(foh),
-                parseFloat(depresiasi),
-                parseFloat(mhTimbangBB),
-                parseFloat(mhTimbangBK),
-                parseFloat(mhAnalisa),
-                parseFloat(biayaAnalisa),
-                parseFloat(kwhMesin),
-                parseFloat(rateKwhMesin),
+                parseFloat(directLaborPN1) || 0,
+                directLaborPN2 !== null && directLaborPN2 !== undefined ? parseFloat(directLaborPN2) : null,
+                parseFloat(fohPN1) || 0,
+                fohPN2 !== null && fohPN2 !== undefined ? parseFloat(fohPN2) : null,
+                parseFloat(depresiasiPN1) || 0,
+                depresiasiPN2 !== null && depresiasiPN2 !== undefined ? parseFloat(depresiasiPN2) : null,
+                parseFloat(rateKwhMesin) || 0,
                 userId
             );
             

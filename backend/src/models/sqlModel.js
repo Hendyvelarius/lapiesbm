@@ -199,37 +199,33 @@ async function getParameter(req, res) {
   }
 }
 
-async function updateParameter(directLabour, foh, depresiasi, mhTimbangBB, mhTimbangBK, mhAnalisa, biayaAnalisa, kwhMesin, rateKwhMesin, userId) {
+async function updateParameter(directLaborPN1, directLaborPN2, fohPN1, fohPN2, depresiasiPN1, depresiasiPN2, rateKwhMesin, userId) {
   try {
     const db = await connect();
     const currentYear = new Date().getFullYear().toString();
     
-    // Update the single parameter record with current year as Periode
+    // Update the parameter record with new structure - only updating the 7 parameters that will remain
     const updateQuery = `
       UPDATE M_COGS_STD_PARAMETER 
       SET 
         Periode = @periode,
-        Direct_Labor = @directLabour,
-        Factory_Over_Head = @foh,
-        Depresiasi = @depresiasi,
-        MH_Timbang_BB = @mhTimbangBB,
-        MH_Timbang_BK = @mhTimbangBK,
-        MH_Analisa = @mhAnalisa,
-        Biaya_Analisa = @biayaAnalisa,
-        Jam_KWH_Mesin_Utama = @kwhMesin,
+        Direct_Labor_PN1 = @directLaborPN1,
+        Direct_Labor_PN2 = @directLaborPN2,
+        Factory_Over_Head_PN1 = @fohPN1,
+        Factory_Over_Head_PN2 = @fohPN2,
+        Depresiasi_PN1 = @depresiasiPN1,
+        Depresiasi_PN2 = @depresiasiPN2,
         Rate_KWH_Mesin = @rateKwhMesin
     `;
     
     const result = await db.request()
       .input('periode', currentYear)
-      .input('directLabour', directLabour)
-      .input('foh', foh)
-      .input('depresiasi', depresiasi)
-      .input('mhTimbangBB', mhTimbangBB)
-      .input('mhTimbangBK', mhTimbangBK)
-      .input('mhAnalisa', mhAnalisa)
-      .input('biayaAnalisa', biayaAnalisa)
-      .input('kwhMesin', kwhMesin)
+      .input('directLaborPN1', directLaborPN1)
+      .input('directLaborPN2', directLaborPN2)
+      .input('fohPN1', fohPN1)
+      .input('fohPN2', fohPN2)
+      .input('depresiasiPN1', depresiasiPN1)
+      .input('depresiasiPN2', depresiasiPN2)
       .input('rateKwhMesin', rateKwhMesin)
       .query(updateQuery);
       
