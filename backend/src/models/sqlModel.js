@@ -29,7 +29,10 @@ async function getBahan() {
     const result = await db.request().query(`SELECT Item_ID, Item_Name, Item_LastPurchaseUnit, Item_LastPriceCurrency, Item_LastPrice FROM m_Item_Manufacturing WHERE isActive = '1'
       union all select Item_Code, Item_Name,  ud.Code, cur.Curr_Code, Item_LastPrice
       from lapi_gi..v_Item join lapi_gi..m_Unit_Detail ud on ud.PK_ID = Item_LastPriceUnit_Detail_ID
-      join lapi_gi..m_currency cur on cur.PK_ID = Item_LastPriceCurrency_ID where len(item_code)=2`);
+      join lapi_gi..m_currency cur on cur.PK_ID = Item_LastPriceCurrency_ID where len(item_code)=2
+      union all select Product_ID, Product_Name, Product_Unit,'IDR',0  
+      from m_product where Product_ID in (select PPI_ItemID from vw_COGS_FORMULA_List_detail)
+      and Product_ID not in (select Item_Code from lapi_gi..v_Item where LEN(Item_Code)=2)`);
     return result.recordset;
   } catch (error) {
     console.error('Error executing getBahan query:', error);

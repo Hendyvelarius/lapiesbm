@@ -508,7 +508,8 @@ const FormulaAssignment = () => {
               <button onClick={handleCloseAddModal} className="close-btn">×</button>
             </div>
             
-            <form onSubmit={handleSubmit} className="formula-form">
+            <div className="modal-body-scrollable">
+              <form onSubmit={handleSubmit} className="formula-form">
               {/* Product Selection */}
               <div className="form-section">
                 <h4>1. Select Product</h4>
@@ -687,6 +688,7 @@ const FormulaAssignment = () => {
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}
@@ -700,7 +702,8 @@ const FormulaAssignment = () => {
               <button onClick={() => setShowEditModal(false)} className="close-btn">×</button>
             </div>
             
-            <form onSubmit={handleSubmit} className="formula-form">
+            <div className="modal-body-scrollable">
+              <form onSubmit={handleSubmit} className="formula-form">
               <div className="form-section">
                 <div className="selected-product">
                   <strong>Product:</strong> {formData.productId} - {formData.productName}
@@ -775,6 +778,7 @@ const FormulaAssignment = () => {
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}

@@ -407,12 +407,100 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
     updateStepStatus(4, 'running');
     await new Promise(resolve => setTimeout(resolve, 1200));
     
-    updateStepStatus(4, 'completed', {
-      summary: 'All cost parameters are properly configured',
-      details: 'Labor costs, overhead costs, and other parameters are set'
-    });
-    
-    return true; // Return success
+    try {
+      // Get pembebanan and parameter data
+      const [pembebanannData, parameterData] = await Promise.all([
+        api.master.getPembebanan(),
+        api.master.getParameter()
+      ]);
+      
+      const errors = [];
+      let defaultCosts = [];
+      let customCosts = [];
+      
+      // Validate Parameter data (should have all non-null values except Periode)
+      if (!parameterData || parameterData.length === 0) {
+        errors.push('Parameter data not found - required for cost calculations');
+      } else {
+        const currentYearParam = parameterData.find(p => p.Periode === '2025');
+        if (!currentYearParam) {
+          errors.push('Parameter data for current year (2025) not found');
+        } else {
+          const requiredParams = [
+            'Direct_Labor', 'Factory_Over_Head', 'Depresiasi', 'MH_Timbang_BB',
+            'MH_Timbang_BK', 'MH_Analisa', 'Biaya_Analisa', 'Jam_KWH_Mesin_Utama', 'Rate_KWH_Mesin'
+          ];
+          
+          requiredParams.forEach(param => {
+            const value = currentYearParam[param];
+            if (value === null || value === undefined || typeof value !== 'number') {
+              errors.push(`Parameter "${param}" is not properly set (current value: ${value})`);
+            }
+          });
+        }
+      }
+      
+      // Validate Pembebanan data
+      if (!pembebanannData || pembebanannData.length === 0) {
+        errors.push('Pembebanan data not found - required for machine cost calculations');
+      } else {
+        // Separate default costs (Group_ProductID = null) from custom costs
+        defaultCosts = pembebanannData.filter(cost => cost.Group_ProductID === null);
+        customCosts = pembebanannData.filter(cost => cost.Group_ProductID !== null);
+        
+        // Validate default costs (one for each PNCategoryID)
+        const categoryIds = [...new Set(pembebanannData.map(p => p.Group_PNCategoryID))];
+        categoryIds.forEach(categoryId => {
+          const defaultCost = defaultCosts.find(d => d.Group_PNCategoryID === categoryId);
+          if (!defaultCost) {
+            errors.push(`Default cost not set for category ${categoryId}`);
+          } else {
+            if (defaultCost.Group_Proses_Rate === null || defaultCost.Group_Proses_Rate === undefined) {
+              errors.push(`Default Group_Proses_Rate not set for category ${categoryId} (${defaultCost.Group_PNCategory_Name})`);
+            }
+            if (defaultCost.Group_Kemas_Rate === null || defaultCost.Group_Kemas_Rate === undefined) {
+              errors.push(`Default Group_Kemas_Rate not set for category ${categoryId} (${defaultCost.Group_PNCategory_Name})`);
+            }
+          }
+        });
+        
+        // Validate custom costs (products with specific cost assignments)
+        customCosts.forEach(customCost => {
+          if (customCost.Group_Proses_Rate === null || customCost.Group_Proses_Rate === undefined) {
+            errors.push(`Custom Group_Proses_Rate not set for product ${customCost.Group_ProductID} in category ${customCost.Group_PNCategoryID}`);
+          }
+          if (customCost.Group_Kemas_Rate === null || customCost.Group_Kemas_Rate === undefined) {
+            errors.push(`Custom Group_Kemas_Rate not set for product ${customCost.Group_ProductID} in category ${customCost.Group_PNCategoryID}`);
+          }
+          // Note: Toll_Fee is optional, so we don't validate it
+        });
+      }
+      
+      if (errors.length > 0) {
+        updateStepStatus(4, 'failed', {
+          summary: `${errors.length} cost parameter issue(s) found`,
+          errors,
+          helpMessage: 'Please configure cost parameters in Pembebanan and Parameter pages.'
+        });
+        
+        return false;
+      }
+      
+      updateStepStatus(4, 'completed', {
+        summary: 'All cost parameters are properly configured',
+        details: `Validated ${defaultCosts.length} default cost categories and ${customCosts.length} custom product costs`
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error validating cost parameters:', error);
+      updateStepStatus(4, 'failed', {
+        summary: 'Failed to validate cost parameters',
+        errors: [`Error loading cost data: ${error.message}`]
+      });
+      
+      return false;
+    }
   };
 
   const validateCurrencyRates = async () => {
@@ -420,12 +508,78 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
     updateStepStatus(5, 'running');
     await new Promise(resolve => setTimeout(resolve, 800));
     
-    updateStepStatus(5, 'completed', {
-      summary: 'Current exchange rates are available',
-      details: 'USD, EUR, JPY rates updated today'
-    });
-    
-    return true; // Return success
+    try {
+      // Get currency data
+      const currencyData = await api.master.getCurrency();
+      
+      if (!currencyData || currencyData.length === 0) {
+        updateStepStatus(5, 'failed', {
+          summary: 'Currency data not found',
+          errors: ['No currency exchange rates available'],
+          helpMessage: 'Please configure currency rates in the Currency page.'
+        });
+        
+        return false;
+      }
+      
+      const errors = [];
+      const currentYear = '2025';
+      
+      // Get all currencies for current year
+      const currentYearCurrencies = currencyData.filter(c => c.Periode === currentYear);
+      
+      if (currentYearCurrencies.length === 0) {
+        errors.push(`No currency rates found for current year (${currentYear})`);
+      } else {
+        // Check if IDR exists for current year (required base currency)
+        const idrCurrency = currentYearCurrencies.find(c => c.Curr_Code === 'IDR');
+        if (!idrCurrency) {
+          errors.push(`IDR base currency not found for year ${currentYear}`);
+        }
+        
+        // Validate all other currencies for current year
+        currentYearCurrencies.forEach(currency => {
+          const { Curr_Code, Curr_Description, Kurs } = currency;
+          
+          if (!Curr_Code || Curr_Code.trim() === '') {
+            errors.push(`Currency code is missing or empty (ID: ${currency.pk_id || 'unknown'})`);
+          }
+          
+          if (!Curr_Description || Curr_Description.trim() === '') {
+            errors.push(`Currency description is missing for ${Curr_Code || 'unknown currency'}`);
+          }
+          
+          if (Kurs === null || Kurs === undefined || typeof Kurs !== 'number') {
+            errors.push(`Exchange rate (Kurs) is not properly set for ${Curr_Code || 'unknown currency'} (current value: ${Kurs})`);
+          }
+        });
+      }
+      
+      if (errors.length > 0) {
+        updateStepStatus(5, 'failed', {
+          summary: `${errors.length} currency configuration issue(s) found`,
+          errors,
+          helpMessage: 'Please configure all currency rates properly in the Currency page.'
+        });
+        
+        return false;
+      }
+      
+      updateStepStatus(5, 'completed', {
+        summary: `All currency rates properly configured for ${currentYear}`,
+        details: `Validated ${currentYearCurrencies.length} currencies including base IDR currency`
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error validating currency rates:', error);
+      updateStepStatus(5, 'failed', {
+        summary: 'Failed to validate currency rates',
+        errors: [`Error loading currency data: ${error.message}`]
+      });
+      
+      return false;
+    }
   };
 
   const updateStepStatus = (stepId, status, details = null) => {
