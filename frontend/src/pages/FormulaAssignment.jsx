@@ -1,18 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../services/api';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import '../styles/FormulaAssignment.css';
 
-// Initialize awesome-notifications
-const notifier = new AWN({
-  position: 'top-right',
-  durations: {
-    global: 5000
-  }
-});
-
 const FormulaAssignment = () => {
+  // Initialize awesome-notifications inside component to avoid conflicts
+  const notifier = useMemo(() => new AWN({
+    position: 'top-right',
+    durations: {
+      global: 5000
+    }
+  }), []);
   // State management
   const [chosenFormulas, setChosenFormulas] = useState([]);
   const [productList, setProductList] = useState([]);
@@ -21,7 +20,9 @@ const FormulaAssignment = () => {
   // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingFormula, setEditingFormula] = useState(null);
+  const [deletingProduct, setDeletingProduct] = useState(null);
   
   // Form states
   const [formData, setFormData] = useState({
@@ -48,11 +49,6 @@ const FormulaAssignment = () => {
   
   // Table search state
   const [tableSearchTerm, setTableSearchTerm] = useState('');
-
-  // Load initial data
-  useEffect(() => {
-    loadData();
-  }, []);
 
   // Filter products based on search term
   useEffect(() => {
@@ -84,7 +80,7 @@ const FormulaAssignment = () => {
     }
   }, [searchTerm, productList, chosenFormulas, showProductDropdown]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -103,7 +99,12 @@ const FormulaAssignment = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [notifier]);
+
+  // Load initial data
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const loadProductFormulas = async (productId) => {
     try {
@@ -335,37 +336,35 @@ const FormulaAssignment = () => {
     }
   };
 
-  // Handle delete
-  const handleDelete = async (productId) => {
-    const productName = getProductName(productId);
+  // Handle delete - show custom confirmation modal
+  const handleDelete = (productId) => {
+    setDeletingProduct(productId);
+    setShowDeleteModal(true);
+  };
+
+  // Confirm delete action
+  const confirmDelete = async () => {
+    if (!deletingProduct) return;
     
-    notifier.confirm(
-      'Delete Formula Assignment',
-      `Are you sure you want to delete the formula assignment for product ${productId} (${productName})?`,
-      async () => {
-        try {
-          setLoading(true);
-          await api.products.deleteChosenFormula(productId);
-          await loadData();
-          notifier.success(`Formula assignment deleted successfully for product ${productId}`);
-        } catch (err) {
-          console.error('Error deleting formula:', err);
-          notifier.alert('Failed to delete formula assignment. Please try again.');
-        } finally {
-          setLoading(false);
-        }
-      },
-      () => {
-        // User cancelled, do nothing
-        notifier.info('Deletion cancelled');
-      },
-      {
-        labels: {
-          confirm: 'Delete',
-          cancel: 'Cancel'
-        }
-      }
-    );
+    try {
+      setLoading(true);
+      await api.products.deleteChosenFormula(deletingProduct);
+      await loadData();
+      notifier.success(`Formula assignment deleted successfully for product ${deletingProduct}`);
+    } catch (err) {
+      console.error('Error deleting formula:', err);
+      notifier.alert('Failed to delete formula assignment. Please try again.');
+    } finally {
+      setLoading(false);
+      setShowDeleteModal(false);
+      setDeletingProduct(null);
+    }
+  };
+
+  // Cancel delete action
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setDeletingProduct(null);
   };
 
   // Helper function to get product name
@@ -469,14 +468,24 @@ const FormulaAssignment = () => {
                     <td>
                       <div className="action-buttons">
                         <button 
-                          onClick={() => handleEdit(formula)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleEdit(formula);
+                          }}
                           className="btn-edit"
+                          type="button"
                         >
                           Edit
                         </button>
                         <button 
-                          onClick={() => handleDelete(formula.Product_ID)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleDelete(formula.Product_ID);
+                          }}
                           className="btn-delete"
+                          type="button"
                         >
                           Delete
                         </button>
@@ -766,6 +775,46 @@ const FormulaAssignment = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={cancelDelete}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Confirm Deletion</h3>
+              <button onClick={cancelDelete} className="close-btn">×</button>
+            </div>
+            <div className="modal-body">
+              <div className="delete-confirmation">
+                <div className="warning-icon">⚠️</div>
+                <p>Are you sure you want to delete the formula assignment for:</p>
+                <div className="product-info">
+                  <strong>Product ID:</strong> {deletingProduct}<br />
+                  <strong>Product Name:</strong> {getProductName(deletingProduct)}
+                </div>
+                <p className="warning-text">This action cannot be undone.</p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                onClick={cancelDelete}
+                className="btn-secondary"
+                type="button"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDelete}
+                className="btn-danger"
+                type="button"
+                disabled={loading}
+              >
+                {loading ? 'Deleting...' : 'Delete Assignment'}
+              </button>
+            </div>
           </div>
         </div>
       )}
