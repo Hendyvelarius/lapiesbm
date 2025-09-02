@@ -540,7 +540,10 @@ class MasterController {
                 groupPNCategoryName, 
                 groupProductID, 
                 groupProsesRate, 
-                groupKemasRate 
+                groupKemasRate,
+                groupGenerikRate,
+                groupAnalisaRate,
+                tollFee
             } = req.body;
 
             // Debug logging
@@ -549,14 +552,20 @@ class MasterController {
                 groupPNCategoryName,
                 groupProductID,
                 groupProsesRate,
-                groupKemasRate
+                groupKemasRate,
+                groupGenerikRate,
+                groupAnalisaRate,
+                tollFee
             });
             console.log('Data types:', {
                 groupPNCategoryID: typeof groupPNCategoryID,
                 groupPNCategoryName: typeof groupPNCategoryName,
                 groupProductID: typeof groupProductID,
                 groupProsesRate: typeof groupProsesRate,
-                groupKemasRate: typeof groupKemasRate
+                groupKemasRate: typeof groupKemasRate,
+                groupGenerikRate: typeof groupGenerikRate,
+                groupAnalisaRate: typeof groupAnalisaRate,
+                tollFee: typeof tollFee
             });
 
             // Validate required fields
@@ -574,6 +583,9 @@ class MasterController {
                 groupProductID,
                 groupProsesRate,
                 groupKemasRate,
+                groupGenerikRate || null,
+                groupAnalisaRate || null,
+                tollFee || null,
                 'GWN' // Default user for now
             );
 
@@ -600,7 +612,10 @@ class MasterController {
                 groupPNCategoryName, 
                 groupProductID, 
                 groupProsesRate, 
-                groupKemasRate 
+                groupKemasRate,
+                groupGenerikRate,
+                groupAnalisaRate,
+                tollFee
             } = req.body;
 
             // Validate required fields
@@ -626,6 +641,9 @@ class MasterController {
                 groupProductID,
                 groupProsesRate,
                 groupKemasRate,
+                groupGenerikRate || null,
+                groupAnalisaRate || null,
+                tollFee || null,
                 'GWN' // Default user for now
             );
 

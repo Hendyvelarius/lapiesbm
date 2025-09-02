@@ -38,7 +38,10 @@ const Pembebanan = () => {
     groupProductID: null,
     productName: '',
     groupProsesRate: '',
-    groupKemasRate: ''
+    groupKemasRate: '',
+    groupGenerikRate: '',
+    groupAnalisaRate: '',
+    tollFee: ''
   });
   
   // Dropdown states for Add modal
@@ -103,6 +106,9 @@ const Pembebanan = () => {
           groupName: pembebanan.Group_PNCategory_Name,
           rateProses: pembebanan.Group_Proses_Rate,
           rateKemas: pembebanan.Group_Kemas_Rate,
+          rateGenerik: pembebanan.Group_Generik_Rate,
+          rateAnalisa: pembebanan.Group_Analisa_Rate,
+          tollFee: pembebanan.Toll_Fee,
           userId: pembebanan.user_id,
           processDate: pembebanan.process_date,
           sortPriority: 0 // Higher priority for sorting (default rates at top)
@@ -124,6 +130,9 @@ const Pembebanan = () => {
             groupName: productDetails.Group_PNCategoryName,
             rateProses: pembebanan.Group_Proses_Rate,
             rateKemas: pembebanan.Group_Kemas_Rate,
+            rateGenerik: pembebanan.Group_Generik_Rate,
+            rateAnalisa: pembebanan.Group_Analisa_Rate,
+            tollFee: pembebanan.Toll_Fee,
             userId: pembebanan.user_id,
             processDate: pembebanan.process_date,
             sortPriority: 1 // Lower priority for sorting (actual products after defaults)
@@ -140,6 +149,9 @@ const Pembebanan = () => {
             groupName: 'Unknown Group',
             rateProses: pembebanan.Group_Proses_Rate,
             rateKemas: pembebanan.Group_Kemas_Rate,
+            rateGenerik: pembebanan.Group_Generik_Rate,
+            rateAnalisa: pembebanan.Group_Analisa_Rate,
+            tollFee: pembebanan.Toll_Fee,
             userId: pembebanan.user_id,
             processDate: pembebanan.process_date,
             sortPriority: 1
@@ -189,7 +201,7 @@ const Pembebanan = () => {
       let bValue = b[field];
 
       // Handle numeric fields
-      if (field === 'rateProses' || field === 'rateKemas') {
+      if (field === 'rateProses' || field === 'rateKemas' || field === 'rateGenerik' || field === 'rateAnalisa' || field === 'tollFee') {
         aValue = parseFloat(aValue) || 0;
         bValue = parseFloat(bValue) || 0;
       }
@@ -272,7 +284,10 @@ const Pembebanan = () => {
     setEditingRowId(item.pk_id);
     setEditFormData({
       rateProses: item.rateProses,
-      rateKemas: item.rateKemas
+      rateKemas: item.rateKemas,
+      rateGenerik: item.rateGenerik || '',
+      rateAnalisa: item.rateAnalisa || '',
+      tollFee: item.tollFee || ''
     });
   };
 
@@ -297,7 +312,10 @@ const Pembebanan = () => {
         groupPNCategoryName: processedData.find(p => p.pk_id === editingRowId)?.groupName,
         groupProductID: processedData.find(p => p.pk_id === editingRowId)?.productId,
         groupProsesRate: parseFloat(editFormData.rateProses) || 0,
-        groupKemasRate: parseFloat(editFormData.rateKemas) || 0
+        groupKemasRate: parseFloat(editFormData.rateKemas) || 0,
+        groupGenerikRate: parseFloat(editFormData.rateGenerik) || null,
+        groupAnalisaRate: parseFloat(editFormData.rateAnalisa) || null,
+        tollFee: parseFloat(editFormData.tollFee) || null
       };
       
       await masterAPI.updatePembebanan(editingRowId, updateData);
@@ -331,7 +349,10 @@ const Pembebanan = () => {
       groupProductID: null,
       productName: '',
       groupProsesRate: '',
-      groupKemasRate: ''
+      groupKemasRate: '',
+      groupGenerikRate: '',
+      groupAnalisaRate: '',
+      tollFee: ''
     });
     setFilteredProducts(availableProducts);
   };
@@ -439,7 +460,10 @@ const Pembebanan = () => {
         groupPNCategoryName: String(addFormData.groupPNCategoryName),
         groupProductID: String(addFormData.groupProductID),
         groupProsesRate: parseFloat(addFormData.groupProsesRate),
-        groupKemasRate: parseFloat(addFormData.groupKemasRate)
+        groupKemasRate: parseFloat(addFormData.groupKemasRate),
+        groupGenerikRate: addFormData.groupGenerikRate ? parseFloat(addFormData.groupGenerikRate) : null,
+        groupAnalisaRate: addFormData.groupAnalisaRate ? parseFloat(addFormData.groupAnalisaRate) : null,
+        tollFee: addFormData.tollFee ? parseFloat(addFormData.tollFee) : null
       };
 
       console.log('Processed entry data:', newEntry);
@@ -576,6 +600,24 @@ const Pembebanan = () => {
                     sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   )}
                 </th>
+                <th onClick={() => handleSort('rateGenerik')} className="sortable">
+                  Rate Generik
+                  {sortField === 'rateGenerik' && (
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                  )}
+                </th>
+                <th onClick={() => handleSort('rateAnalisa')} className="sortable">
+                  Rate Analisa
+                  {sortField === 'rateAnalisa' && (
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                  )}
+                </th>
+                <th onClick={() => handleSort('tollFee')} className="sortable">
+                  Toll Fee
+                  {sortField === 'tollFee' && (
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                  )}
+                </th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -630,6 +672,36 @@ const Pembebanan = () => {
                           placeholder="Kemas Rate"
                         />
                       </td>
+                      <td>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editFormData.rateGenerik}
+                          onChange={(e) => handleEditChange('rateGenerik', e.target.value)}
+                          className="edit-input"
+                          placeholder="Generik Rate"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editFormData.rateAnalisa}
+                          onChange={(e) => handleEditChange('rateAnalisa', e.target.value)}
+                          className="edit-input"
+                          placeholder="Analisa Rate"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editFormData.tollFee}
+                          onChange={(e) => handleEditChange('tollFee', e.target.value)}
+                          className="edit-input"
+                          placeholder="Toll Fee"
+                        />
+                      </td>
                       <td className="actions editing-mode">
                         <button 
                           className="submit-btn"
@@ -659,6 +731,9 @@ const Pembebanan = () => {
                       </td>
                       <td className="manhour">{parseFloat(item.rateProses).toFixed(2)}</td>
                       <td className="manhour">{parseFloat(item.rateKemas).toFixed(2)}</td>
+                      <td className="manhour">{item.rateGenerik ? parseFloat(item.rateGenerik).toFixed(2) : '-'}</td>
+                      <td className="manhour">{item.rateAnalisa ? parseFloat(item.rateAnalisa).toFixed(2) : '-'}</td>
+                      <td className="manhour">{item.tollFee ? parseFloat(item.tollFee).toFixed(2) : '-'}</td>
                       <td className={`actions display-mode ${item.isDefaultRate ? 'single-button' : 'multiple-buttons'}`}>
                         <button 
                           className="edit-btn"
@@ -842,6 +917,43 @@ const Pembebanan = () => {
                 </div>
               </div>
               
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Generik Rate:</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={addFormData.groupGenerikRate}
+                    onChange={(e) => handleAddFormChange('groupGenerikRate', e.target.value)}
+                    placeholder="0.00 (Optional)"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Analisa Rate:</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={addFormData.groupAnalisaRate}
+                    onChange={(e) => handleAddFormChange('groupAnalisaRate', e.target.value)}
+                    placeholder="0.00 (Optional)"
+                  />
+                </div>
+              </div>
+              
+              <div className="form-group">
+                <label>Toll Fee:</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={addFormData.tollFee}
+                  onChange={(e) => handleAddFormChange('tollFee', e.target.value)}
+                  placeholder="0.00 (Optional)"
+                />
+              </div>
+              
               <div className="form-info">
                 <small>
                   * Required fields<br/>
@@ -907,6 +1019,24 @@ const Pembebanan = () => {
                       <strong>Kemas Rate:</strong>
                       <span>{deletingItem.rateKemas}</span>
                     </div>
+                    {deletingItem.rateGenerik && (
+                      <div className="info-row">
+                        <strong>Generik Rate:</strong>
+                        <span>{deletingItem.rateGenerik}</span>
+                      </div>
+                    )}
+                    {deletingItem.rateAnalisa && (
+                      <div className="info-row">
+                        <strong>Analisa Rate:</strong>
+                        <span>{deletingItem.rateAnalisa}</span>
+                      </div>
+                    )}
+                    {deletingItem.tollFee && (
+                      <div className="info-row">
+                        <strong>Toll Fee:</strong>
+                        <span>{deletingItem.tollFee}</span>
+                      </div>
+                    )}
                   </div>
                 )}
                 
