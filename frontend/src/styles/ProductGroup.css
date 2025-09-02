@@ -265,10 +265,10 @@
 }
 
 .groups-table th {
-  padding: 1.25rem 1rem;
-  text-align: left;
+  padding: 0.75rem 0.3rem;
+  text-align: center;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-bottom: none;
@@ -292,12 +292,12 @@
 
 .groups-table th.sortable {
   position: relative;
-  padding-right: 2rem; /* Make space for the sort icon */
+  padding-right: 1.5rem; /* Make space for the sort icon */
 }
 
 .groups-table th.sortable svg {
   position: absolute;
-  right: 0.5rem;
+  right: 0.3rem;
   top: 50%;
   transform: translateY(-50%);
   opacity: 0.7;
@@ -306,9 +306,9 @@
 }
 
 /* Fixed column widths */
-.groups-table th:nth-child(1) { width: 10%; text-align: left; } /* Product ID */
-.groups-table th:nth-child(2) { width: 18%; text-align: left; } /* Product Name */
-.groups-table th:nth-child(3) { width: 15%; text-align: left; } /* Category Name */
+.groups-table th:nth-child(1) { width: 10%; text-align: center; } /* Product ID */
+.groups-table th:nth-child(2) { width: 18%; text-align: center; } /* Product Name */
+.groups-table th:nth-child(3) { width: 15%; text-align: center; } /* Category Name */
 .groups-table th:nth-child(4) { width: 8%; text-align: center; } /* ManHour Process */
 .groups-table th:nth-child(5) { width: 8%; text-align: center; } /* ManHour Packing */
 .groups-table th:nth-child(6) { width: 8%; text-align: center; } /* Rendemen */
@@ -348,9 +348,9 @@
 }
 
 .groups-table td {
-  padding: 1rem;
+  padding: 0.5rem 0.3rem;
   vertical-align: middle;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   word-wrap: break-word;
   hyphens: auto;
   line-height: 1.4;
@@ -372,7 +372,7 @@
 .groups-table td.actions {
   text-align: center;
   vertical-align: middle;
-  padding: 1rem;
+  padding: 0.5rem 0.3rem;
 }
 
 /* Fixed column widths matching headers */

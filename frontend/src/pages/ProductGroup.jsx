@@ -409,7 +409,7 @@ const ProductGroup = () => {
             <thead>
               <tr>
                 <th onClick={() => handleSort('productId')} className="sortable">
-                  Product ID
+                  ID
                   {sortField === 'productId' && (
                     sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   )}
@@ -427,19 +427,19 @@ const ProductGroup = () => {
                   )}
                 </th>
                 <th onClick={() => handleSort('manHourPros')} className="sortable">
-                  ManHour Process
+                  MH Process
                   {sortField === 'manHourPros' && (
                     sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   )}
                 </th>
                 <th onClick={() => handleSort('manHourPack')} className="sortable">
-                  ManHour Packing
+                  MH Packing
                   {sortField === 'manHourPack' && (
                     sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   )}
                 </th>
                 <th onClick={() => handleSort('rendemen')} className="sortable">
-                  Rendemen (%)
+                  Yield (%)
                   {sortField === 'rendemen' && (
                     sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   )}
