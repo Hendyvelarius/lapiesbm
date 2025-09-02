@@ -307,6 +307,10 @@ class MasterController {
                 manHourPack, 
                 rendemen, 
                 dept,
+                mhtBB = 0,
+                mhtBK = 0,
+                mhAnalisa = 0,
+                kwhMesin = 0,
                 userId = "system"
             } = req.body;
             
@@ -320,7 +324,16 @@ class MasterController {
             }
             
             // Validate numeric values
-            const numericFields = { pnCategory, manHourPros, manHourPack, rendemen };
+            const numericFields = { 
+                pnCategory, 
+                manHourPros, 
+                manHourPack, 
+                rendemen,
+                mhtBB,
+                mhtBK,
+                mhAnalisa,
+                kwhMesin
+            };
             for (const [fieldName, value] of Object.entries(numericFields)) {
                 if (isNaN(parseFloat(value))) {
                     return res.status(400).json({
@@ -339,6 +352,10 @@ class MasterController {
                 parseFloat(manHourPack),
                 parseFloat(rendemen),
                 dept,
+                parseFloat(mhtBB),
+                parseFloat(mhtBK),
+                parseFloat(mhAnalisa),
+                parseFloat(kwhMesin),
                 userId
             );
             
@@ -369,6 +386,10 @@ class MasterController {
                 manHourPack, 
                 rendemen, 
                 dept,
+                mhtBB = 0,
+                mhtBK = 0,
+                mhAnalisa = 0,
+                kwhMesin = 0,
                 userId = "system"
             } = req.body;
             
@@ -390,7 +411,16 @@ class MasterController {
             }
             
             // Validate numeric values
-            const numericFields = { pnCategory, manHourPros, manHourPack, rendemen };
+            const numericFields = { 
+                pnCategory, 
+                manHourPros, 
+                manHourPack, 
+                rendemen,
+                mhtBB,
+                mhtBK,
+                mhAnalisa,
+                kwhMesin
+            };
             for (const [fieldName, value] of Object.entries(numericFields)) {
                 if (isNaN(parseFloat(value))) {
                     return res.status(400).json({
@@ -410,6 +440,10 @@ class MasterController {
                 parseFloat(manHourPack),
                 parseFloat(rendemen),
                 dept,
+                parseFloat(mhtBB),
+                parseFloat(mhtBK),
+                parseFloat(mhAnalisa),
+                parseFloat(kwhMesin),
                 userId
             );
             

@@ -84,6 +84,10 @@ const ProductGroup = () => {
         manHourPack: item.Group_ManHourPack,
         rendemen: item.Group_Rendemen,
         dept: item.Group_Dept,
+        mhtBB: item.Group_MHT_BB || 0,
+        mhtBK: item.Group_MHT_BK || 0,
+        mhAnalisa: item.Group_MH_Analisa || 0,
+        kwhMesin: item.Group_KWH_Mesin || 0,
         sumberData: item.Sumber_Data || 'LMS' // Add source data with fallback
       }));
 
@@ -128,7 +132,7 @@ const ProductGroup = () => {
       let bValue = b[sortField];
       
       // Handle numeric fields
-      if (['manHourPros', 'manHourPack', 'rendemen', 'pnCategory'].includes(sortField)) {
+      if (['manHourPros', 'manHourPack', 'rendemen', 'pnCategory', 'mhtBB', 'mhtBK', 'mhAnalisa', 'kwhMesin'].includes(sortField)) {
         aValue = parseFloat(aValue) || 0;
         bValue = parseFloat(bValue) || 0;
       } else {
@@ -234,7 +238,11 @@ const ProductGroup = () => {
       manHourPros: item.manHourPros || '',
       manHourPack: item.manHourPack || '',
       rendemen: item.rendemen || '',
-      dept: item.dept || ''
+      dept: item.dept || '',
+      mhtBB: item.mhtBB || '',
+      mhtBK: item.mhtBK || '',
+      mhAnalisa: item.mhAnalisa || '',
+      kwhMesin: item.kwhMesin || ''
     });
   };
 
@@ -273,7 +281,11 @@ const ProductGroup = () => {
         manHourPros: parseFloat(editFormData.manHourPros) || 0,
         manHourPack: parseFloat(editFormData.manHourPack) || 0,
         rendemen: parseFloat(editFormData.rendemen) || 0,
-        dept: editFormData.dept
+        dept: editFormData.dept,
+        mhtBB: parseFloat(editFormData.mhtBB) || 0,
+        mhtBK: parseFloat(editFormData.mhtBK) || 0,
+        mhAnalisa: parseFloat(editFormData.mhAnalisa) || 0,
+        kwhMesin: parseFloat(editFormData.kwhMesin) || 0
       };
 
       const isManualItem = isInManual(item.productId);
@@ -438,6 +450,30 @@ const ProductGroup = () => {
                     sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   )}
                 </th>
+                <th onClick={() => handleSort('mhtBB')} className="sortable">
+                  MHT BB
+                  {sortField === 'mhtBB' && (
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                  )}
+                </th>
+                <th onClick={() => handleSort('mhtBK')} className="sortable">
+                  MHT BK
+                  {sortField === 'mhtBK' && (
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                  )}
+                </th>
+                <th onClick={() => handleSort('mhAnalisa')} className="sortable">
+                  MH Analisa
+                  {sortField === 'mhAnalisa' && (
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                  )}
+                </th>
+                <th onClick={() => handleSort('kwhMesin')} className="sortable">
+                  KWH Mesin
+                  {sortField === 'kwhMesin' && (
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                  )}
+                </th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -512,6 +548,42 @@ const ProductGroup = () => {
                           ))}
                         </select>
                       </td>
+                      <td>
+                        <input
+                          type="number"
+                          value={editFormData.mhtBB}
+                          onChange={(e) => handleFormChange('mhtBB', e.target.value)}
+                          className="edit-input"
+                          placeholder="MHT BB"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          value={editFormData.mhtBK}
+                          onChange={(e) => handleFormChange('mhtBK', e.target.value)}
+                          className="edit-input"
+                          placeholder="MHT BK"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          value={editFormData.mhAnalisa}
+                          onChange={(e) => handleFormChange('mhAnalisa', e.target.value)}
+                          className="edit-input"
+                          placeholder="MH Analisa"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          value={editFormData.kwhMesin}
+                          onChange={(e) => handleFormChange('kwhMesin', e.target.value)}
+                          className="edit-input"
+                          placeholder="KWH Mesin"
+                        />
+                      </td>
                       <td className="actions editing-mode">
                         <button 
                           className="submit-btn"
@@ -543,6 +615,10 @@ const ProductGroup = () => {
                       <td className="manhour">{formatNumber(item.manHourPack)}</td>
                       <td className="rendemen">{item.rendemen ? `${item.rendemen}%` : '-'}</td>
                       <td className="dept">{item.dept || '-'}</td>
+                      <td className="mht-bb">{formatNumber(item.mhtBB)}</td>
+                      <td className="mht-bk">{formatNumber(item.mhtBK)}</td>
+                      <td className="mh-analisa">{formatNumber(item.mhAnalisa)}</td>
+                      <td className="kwh-mesin">{formatNumber(item.kwhMesin)}</td>
                       <td className={`actions display-mode ${isInManual(item.productId) ? 'multiple-buttons' : 'single-button'}`}>
                         <button 
                           className="edit-btn"

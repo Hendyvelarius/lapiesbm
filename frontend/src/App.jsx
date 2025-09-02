@@ -47,7 +47,7 @@ function AppContent() {
       case '/harga-bahan':
         return 'Ingredient Pricing Management';
       case '/biaya-lain':
-        return 'Additional Cost Parameters';
+        return 'General Cost Parameters';
       case '/product-group':
         return 'Product Group Management';
       case '/pembebanan':
@@ -90,7 +90,6 @@ function AppContent() {
         currentDate={formatDate(currentTime)} 
       />
       <main className="main-content">
-        {/* Removed welcome section, now handled by TopNavbar */}
                   <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/hpp-simulation" element={<HPPSimulation />} />

@@ -18,31 +18,31 @@ export default function Sidebar() {
         </div>
         {/* Scrollable Menu Section */}
         <div className="sidebar-menu-scroll">
-          <div className="sidebar-section-title">MENU UTAMA</div>
+          <div className="sidebar-section-title">MAIN MENU</div>
           <ul className="sidebar-menu">
             <li className={location.pathname === '/' ? 'active' : ''}>
               <Link to="/" className="sidebar-link">
-                <BarChart3 className="sidebar-icon" size={20} /> Laporan HPP
+                <BarChart3 className="sidebar-icon" size={20} /> HPP Report
               </Link>
             </li>
             <li className={location.pathname === '/hpp-simulation' ? 'active' : ''}>
               <Link to="/hpp-simulation" className="sidebar-link">
-                <FileText className="sidebar-icon" size={20} /> Simulasi HPP
+                <FileText className="sidebar-icon" size={20} /> HPP Simulation
               </Link>
             </li>
             <li className={location.pathname === '/currency' ? 'active' : ''}>
               <Link to="/currency" className="sidebar-link">
-                <DollarSign className="sidebar-icon" size={20} /> Info Kurs
+                <DollarSign className="sidebar-icon" size={20} /> Exchange Rates
               </Link>
             </li>
             <li className={location.pathname === '/harga-bahan' ? 'active' : ''}>
               <Link to="/harga-bahan" className="sidebar-link">
-                <Package className="sidebar-icon" size={20} /> Harga Bahan
+                <Package className="sidebar-icon" size={20} /> Material Prices
               </Link>
             </li>
             <li className={location.pathname === '/biaya-lain' ? 'active' : ''}>
               <Link to="/biaya-lain" className="sidebar-link">
-                <Calculator className="sidebar-icon" size={20} /> Biaya Lain
+                <Calculator className="sidebar-icon" size={20} /> General Costs
               </Link>
             </li>
             <li className={location.pathname === '/product-group' ? 'active' : ''}>
@@ -52,7 +52,7 @@ export default function Sidebar() {
             </li>
             <li className={location.pathname === '/pembebanan' ? 'active' : ''}>
               <Link to="/pembebanan" className="sidebar-link">
-                <Layers className="sidebar-icon" size={20} /> Pembebanan
+                <Layers className="sidebar-icon" size={20} /> Cost Allocation
               </Link>
             </li>
             <li className={location.pathname === '/formula-assignment' ? 'active' : ''}>

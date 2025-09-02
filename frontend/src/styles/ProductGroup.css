@@ -306,14 +306,18 @@
 }
 
 /* Fixed column widths */
-.groups-table th:nth-child(1) { width: 12%; text-align: left; } /* Product ID (increased for badge) */
-.groups-table th:nth-child(2) { width: 20%; text-align: left; } /* Product Name */
-.groups-table th:nth-child(3) { width: 23%; text-align: left; } /* Category Name */
-.groups-table th:nth-child(4) { width: 12%; text-align: center; } /* ManHour Process */
-.groups-table th:nth-child(5) { width: 12%; text-align: center; } /* ManHour Packing */
-.groups-table th:nth-child(6) { width: 10%; text-align: center; } /* Rendemen */
-.groups-table th:nth-child(7) { width: 8%; text-align: center; } /* Department */
-.groups-table th:nth-child(8) { width: 8%; text-align: center; } /* Actions */
+.groups-table th:nth-child(1) { width: 10%; text-align: left; } /* Product ID */
+.groups-table th:nth-child(2) { width: 18%; text-align: left; } /* Product Name */
+.groups-table th:nth-child(3) { width: 15%; text-align: left; } /* Category Name */
+.groups-table th:nth-child(4) { width: 8%; text-align: center; } /* ManHour Process */
+.groups-table th:nth-child(5) { width: 8%; text-align: center; } /* ManHour Packing */
+.groups-table th:nth-child(6) { width: 8%; text-align: center; } /* Rendemen */
+.groups-table th:nth-child(7) { width: 6%; text-align: center; } /* Department */
+.groups-table th:nth-child(8) { width: 7%; text-align: center; } /* MHT BB */
+.groups-table th:nth-child(9) { width: 7%; text-align: center; } /* MHT BK */
+.groups-table th:nth-child(10) { width: 7%; text-align: center; } /* MH Analisa */
+.groups-table th:nth-child(11) { width: 7%; text-align: center; } /* KWH Mesin */
+.groups-table th:nth-child(12) { width: 8%; text-align: center; } /* Actions */
 
 /* Pembebanan-specific column widths */
 .pembebanan-page .groups-table th:nth-child(1) { width: 15%; text-align: left; } /* Product ID */
@@ -372,14 +376,18 @@
 }
 
 /* Fixed column widths matching headers */
-.groups-table td:nth-child(1) { width: 12%; } /* Product ID */
-.groups-table td:nth-child(2) { width: 20%; } /* Product Name */
-.groups-table td:nth-child(3) { width: 23%; } /* Category Name */
-.groups-table td:nth-child(4) { width: 12%; text-align: center; } /* ManHour Process */
-.groups-table td:nth-child(5) { width: 12%; text-align: center; } /* ManHour Packing */
-.groups-table td:nth-child(6) { width: 10%; text-align: center; } /* Rendemen */
-.groups-table td:nth-child(7) { width: 8%; text-align: center; } /* Department */
-.groups-table td:nth-child(8) { width: 8%; text-align: center; } /* Actions */
+.groups-table td:nth-child(1) { width: 10%; } /* Product ID */
+.groups-table td:nth-child(2) { width: 18%; } /* Product Name */
+.groups-table td:nth-child(3) { width: 15%; } /* Category Name */
+.groups-table td:nth-child(4) { width: 8%; text-align: center; } /* ManHour Process */
+.groups-table td:nth-child(5) { width: 8%; text-align: center; } /* ManHour Packing */
+.groups-table td:nth-child(6) { width: 8%; text-align: center; } /* Rendemen */
+.groups-table td:nth-child(7) { width: 6%; text-align: center; } /* Department */
+.groups-table td:nth-child(8) { width: 7%; text-align: center; } /* MHT BB */
+.groups-table td:nth-child(9) { width: 7%; text-align: center; } /* MHT BK */
+.groups-table td:nth-child(10) { width: 7%; text-align: center; } /* MH Analisa */
+.groups-table td:nth-child(11) { width: 7%; text-align: center; } /* KWH Mesin */
+.groups-table td:nth-child(12) { width: 8%; text-align: center; } /* Actions */
 
 /* Table Cell Styles */
 .product-id {
@@ -488,7 +496,7 @@
 /* Default category badge for any other categories */
 .category-badge:not([class*="category-"]) { background: #f3f4f6; color: #374151; }
 
-.manhour, .rendemen {
+.manhour, .rendemen, .mht-bb, .mht-bk, .mh-analisa, .kwh-mesin {
   font-family: 'Courier New', monospace;
   font-weight: 500;
   line-height: 1.4;

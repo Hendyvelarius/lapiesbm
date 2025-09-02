@@ -208,7 +208,7 @@ export default function BiayaLain() {
       <div className="biaya-lain-container">
         <div className="biaya-lain-card">
           <div className="biaya-lain-card-header">
-            <h2>Parameter Biaya Lain</h2>
+            <h2>Parameter Biaya Umum</h2>
             <div className="biaya-lain-card-actions">
               {!isEditing ? (
                 <button 

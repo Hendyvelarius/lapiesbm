@@ -265,7 +265,7 @@ try {
 }
 }
 
-async function addGroup(productId, productName, pnCategory, pnCategoryName, manHourPros, manHourPack, rendemen, dept, userId) {
+async function addGroup(productId, productName, pnCategory, pnCategoryName, manHourPros, manHourPack, rendemen, dept, mhtBB = 0, mhtBK = 0, mhAnalisa = 0, kwhMesin = 0, userId) {
   try {
     const db = await connect();
     
@@ -278,6 +278,10 @@ async function addGroup(productId, productName, pnCategory, pnCategoryName, manH
         Group_ManHourPack,
         Group_Rendemen,
         Group_Dept,
+        Group_MHT_BB,
+        Group_MHT_BK,
+        Group_MH_Analisa,
+        Group_KWH_Mesin,
         user_id
       ) VALUES (
         @productId,
@@ -287,6 +291,10 @@ async function addGroup(productId, productName, pnCategory, pnCategoryName, manH
         @manHourPack,
         @rendemen,
         @dept,
+        @mhtBB,
+        @mhtBK,
+        @mhAnalisa,
+        @kwhMesin,
         @userId
       )
     `;
@@ -299,6 +307,10 @@ async function addGroup(productId, productName, pnCategory, pnCategoryName, manH
       .input('manHourPack', sql.Decimal(10,2), manHourPack)
       .input('rendemen', sql.Decimal(10,2), rendemen)
       .input('dept', sql.NVarChar, dept)
+      .input('mhtBB', sql.Decimal(10,2), mhtBB)
+      .input('mhtBK', sql.Decimal(10,2), mhtBK)
+      .input('mhAnalisa', sql.Decimal(10,2), mhAnalisa)
+      .input('kwhMesin', sql.Decimal(10,2), kwhMesin)
       .input('userId', sql.NVarChar, userId || null)
       .query(query);
     
@@ -309,7 +321,7 @@ async function addGroup(productId, productName, pnCategory, pnCategoryName, manH
   }
 }
 
-async function updateGroup(id, productId, productName, pnCategory, pnCategoryName, manHourPros, manHourPack, rendemen, dept, userId) {
+async function updateGroup(id, productId, productName, pnCategory, pnCategoryName, manHourPros, manHourPack, rendemen, dept, mhtBB = 0, mhtBK = 0, mhAnalisa = 0, kwhMesin = 0, userId) {
   try {
     const db = await connect();
     const currentDate = new Date();
@@ -326,7 +338,11 @@ async function updateGroup(id, productId, productName, pnCategory, pnCategoryNam
         Group_ManHourPros = @manHourPros,
         Group_ManHourPack = @manHourPack,
         Group_Rendemen = @rendemen,
-        Group_Dept = @dept
+        Group_Dept = @dept,
+        Group_MHT_BB = @mhtBB,
+        Group_MHT_BK = @mhtBK,
+        Group_MH_Analisa = @mhAnalisa,
+        Group_KWH_Mesin = @kwhMesin
       WHERE pk_id = @id
     `;
     
@@ -341,6 +357,10 @@ async function updateGroup(id, productId, productName, pnCategory, pnCategoryNam
       .input('manHourPack', manHourPack)
       .input('rendemen', rendemen)
       .input('dept', dept)
+      .input('mhtBB', mhtBB)
+      .input('mhtBK', mhtBK)
+      .input('mhAnalisa', mhAnalisa)
+      .input('kwhMesin', kwhMesin)
       .query(query);
       
     if (result.rowsAffected[0] === 0) {
