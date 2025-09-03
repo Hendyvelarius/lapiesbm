@@ -760,7 +760,7 @@
 
 .ingredient-form-row {
   display: grid;
-  grid-template-columns: 40px 1fr 120px 80px 40px;
+  grid-template-columns: 40px 2fr 120px 100px 150px 40px;
   gap: 12px;
   align-items: end;
   padding: 15px;
@@ -918,6 +918,88 @@
   margin-top: 2px;
 }
 
+/* Enhanced Material Selection */
+.material-info {
+  width: 100%;
+}
+
+.material-main {
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.material-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.7rem;
+  gap: 12px;
+}
+
+.material-price-hint {
+  font-weight: 500;
+}
+
+.material-price-hint.price-normal {
+  color: #059669;
+}
+
+.material-price-hint.price-zero {
+  color: #6b7280;
+}
+
+.material-price-hint.price-null {
+  color: #f59e0b;
+}
+
+/* Ingredient Form Styling */
+.ingredient-total-price {
+  display: flex;
+  flex-direction: column;
+}
+
+.ingredient-total-price label {
+  font-size: 0.75rem;
+  color: #374151;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.total-price-display {
+  padding: 8px 12px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-align: right;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.total-price-display.price-normal {
+  color: #059669;
+  background-color: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.total-price-display.price-zero {
+  color: #6b7280;
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.total-price-display.price-null {
+  color: #f59e0b;
+  background-color: #fffbeb;
+  border-color: #fed7aa;
+  font-size: 0.7rem;
+}
+
 .ingredient-actions {
   display: flex;
   align-items: center;
@@ -996,7 +1078,7 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .ingredient-form-row {
-    grid-template-columns: 30px 1fr 80px 60px 30px;
+    grid-template-columns: 30px 1fr 80px 60px 100px 30px;
     gap: 8px;
     padding: 12px;
   }
@@ -1007,8 +1089,14 @@
   
   .ingredient-select label,
   .ingredient-qty label,
-  .ingredient-unit label {
+  .ingredient-unit label,
+  .ingredient-total-price label {
     font-size: 0.75rem;
+  }
+  
+  .total-price-display {
+    font-size: 0.7rem;
+    min-height: 32px;
   }
   
   .material-search-input,

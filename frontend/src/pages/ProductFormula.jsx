@@ -250,12 +250,17 @@ const ProductFormula = () => {
       type: formulaData.type,
       subId: formulaData.subId,
       batchSize: formulaData.batchSize || 1, // Default to 1 if no batch size
-      ingredients: formulaData.ingredients.map((ingredient, index) => ({
-        seqId: ingredient.seqId,
-        itemId: ingredient.itemId,
-        qty: ingredient.quantity.toString(),
-        unitId: ingredient.unit
-      }))
+      ingredients: formulaData.ingredients.map((ingredient, index) => {
+        // Find material data to get unit price
+        const materialInfo = materialData.find(m => m.ITEM_ID === ingredient.itemId);
+        return {
+          seqId: ingredient.seqId,
+          itemId: ingredient.itemId,
+          qty: ingredient.quantity.toString(),
+          unitId: ingredient.unit,
+          unitPrice: materialInfo?.Unit_Price || 0
+        };
+      })
     });
     
     // Initialize search states for existing ingredients
@@ -466,7 +471,7 @@ const ProductFormula = () => {
       ...prev, 
       subId: finalSubId,
       batchSize,
-      ingredients: isEditMode ? prev.ingredients : [{ seqId: 1, itemId: '', qty: '', unitId: '' }] // Keep existing ingredients in edit mode
+      ingredients: isEditMode ? prev.ingredients : [{ seqId: 1, itemId: '', qty: '', unitId: '', unitPrice: 0 }] // Keep existing ingredients in edit mode
     }));
     
     // Initialize search states for new formula only
@@ -483,7 +488,7 @@ const ProductFormula = () => {
     const newIndex = newFormulaData.ingredients.length;
     setNewFormulaData(prev => ({
       ...prev,
-      ingredients: [...prev.ingredients, { seqId: newSeqId, itemId: '', qty: '', unitId: '' }]
+      ingredients: [...prev.ingredients, { seqId: newSeqId, itemId: '', qty: '', unitId: '', unitPrice: 0 }]
     }));
     
     // Initialize search state for new ingredient
@@ -553,6 +558,8 @@ const ProductFormula = () => {
     if (selectedMaterial.Item_Unit) {
       handleIngredientChange(index, 'unitId', selectedMaterial.Item_Unit);
     }
+    // Store unit price for calculations
+    handleIngredientChange(index, 'unitPrice', selectedMaterial.Unit_Price || 0);
     // Clear search term and hide dropdown
     setMaterialSearchTerms(prev => ({
       ...prev,
@@ -610,6 +617,7 @@ const ProductFormula = () => {
   const clearMaterialSelection = (index) => {
     handleIngredientChange(index, 'itemId', '');
     handleIngredientChange(index, 'unitId', '');
+    handleIngredientChange(index, 'unitPrice', 0);
     setMaterialSearchTerms(prev => ({
       ...prev,
       [index]: ''
@@ -717,6 +725,13 @@ const ProductFormula = () => {
   const formatCurrency = (amount) => {
     if (!amount || isNaN(amount)) return '0';
     return parseFloat(amount).toLocaleString('id-ID');
+  };
+
+  // Helper function to calculate total price for an ingredient
+  const calculateIngredientTotalPrice = (ingredient) => {
+    const quantity = parseFloat(ingredient.qty) || 0;
+    const unitPrice = parseFloat(ingredient.unitPrice) || 0;
+    return quantity * unitPrice;
   };
 
   const handleProductSelect = async (product) => {
@@ -1200,12 +1215,21 @@ const ProductFormula = () => {
                                           className="material-result-item"
                                           onClick={() => handleMaterialSelect(index, material)}
                                         >
-                                          <strong>{material.ITEM_ID}</strong> - {material.Item_Name}
-                                          {material.Item_Unit && (
-                                            <span className="material-unit-hint">
-                                              (Unit: {material.Item_Unit})
-                                            </span>
-                                          )}
+                                          <div className="material-info">
+                                            <div className="material-main">
+                                              <strong>{material.ITEM_ID}</strong> - {material.Item_Name}
+                                            </div>
+                                            <div className="material-details">
+                                              {material.Item_Unit && (
+                                                <span className="material-unit-hint">
+                                                  Unit: {material.Item_Unit}
+                                                </span>
+                                              )}
+                                              <span className={`material-price-hint ${material.Unit_Price === null ? 'price-null' : material.Unit_Price === 0 ? 'price-zero' : 'price-normal'}`}>
+                                                Price: {material.Unit_Price === null ? 'Not Set' : formatCurrency(material.Unit_Price)}/{material.Item_Unit || 'unit'}
+                                              </span>
+                                            </div>
+                                          </div>
                                         </div>
                                       ))}
                                       {getFilteredBahanData(index).length > 15 && (
@@ -1247,6 +1271,13 @@ const ProductFormula = () => {
                                 </option>
                               ))}
                             </select>
+                          </div>
+                          
+                          <div className="ingredient-total-price">
+                            <label>Total Price:</label>
+                            <div className={`total-price-display ${ingredient.unitPrice === null ? 'price-null' : ingredient.unitPrice === 0 ? 'price-zero' : 'price-normal'}`}>
+                              {ingredient.unitPrice === null ? 'No Price Set' : formatCurrency(calculateIngredientTotalPrice(ingredient))}
+                            </div>
                           </div>
                           
                           <div className="ingredient-actions">
