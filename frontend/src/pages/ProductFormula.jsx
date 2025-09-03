@@ -131,17 +131,25 @@ const ProductFormula = () => {
           batchSize: recipe.BatchSize, // Now properly joined from M_COGS_FORMULA_MANUAL
           default: recipe.Default,
           defaultCOGS: recipe.DefaultCOGS,
-          ingredients: []
+          ingredients: [],
+          totalCost: 0
         };
       }
+      
+      // Parse UnitPrice as number, default to 0 if not available
+      const unitPrice = parseFloat(recipe.UnitPrice) || 0;
       
       grouped[typeKey][subIdKey].ingredients.push({
         seqId: recipe.PPI_SeqID,
         itemId: recipe.PPI_ItemID,
         quantity: recipe.PPI_QTY,
         unit: recipe.PPI_UnitID,
-        itemName: getItemName(recipe.PPI_ItemID)
+        itemName: getItemName(recipe.PPI_ItemID),
+        unitPrice: unitPrice
       });
+      
+      // Add to total cost for this formula
+      grouped[typeKey][subIdKey].totalCost += unitPrice;
     });
     
     // Sort ingredients by sequence ID within each formula
@@ -705,6 +713,12 @@ const ProductFormula = () => {
     return material ? material.Item_Name : itemId;
   };
 
+  // Helper function to format currency
+  const formatCurrency = (amount) => {
+    if (!amount || isNaN(amount)) return '0';
+    return parseFloat(amount).toLocaleString('id-ID');
+  };
+
   const handleProductSelect = async (product) => {
     setSelectedProduct(product);
     setSearchTerm('');
@@ -857,6 +871,7 @@ const ProductFormula = () => {
                           <div className="header-cell header-subid">Sub ID</div>
                           <div className="header-cell header-type">Type</div>
                           <div className="header-cell header-batch-size">Batch Size</div>
+                          <div className="header-cell header-total-cost">Total Cost</div>
                           <div className="header-cell header-output">Default</div>
                           <div className="header-cell header-actions">Actions</div>
                         </div>
@@ -881,6 +896,9 @@ const ProductFormula = () => {
                                 <div className="cell cell-type">{type}</div>
                                 <div className="cell cell-batch-size">
                                   {formulaData.batchSize ? formulaData.batchSize.toLocaleString() : '-'}
+                                </div>
+                                <div className="cell cell-total-cost">
+                                  {formatCurrency(formulaData.totalCost)}
                                 </div>
                                 <div className="cell cell-output">
                                   {renderDefaultBadge(formulaData)}
@@ -935,6 +953,7 @@ const ProductFormula = () => {
                                     <div className="ingredient-cell ing-name">Item Name</div>
                                     <div className="ingredient-cell ing-qty">Quantity</div>
                                     <div className="ingredient-cell ing-unit">Unit</div>
+                                    <div className="ingredient-cell ing-unit-price">Unit Price</div>
                                   </div>
                                   {formulaData.ingredients.map((ingredient, idx) => (
                                     <div key={idx} className="ingredient-row">
@@ -945,6 +964,9 @@ const ProductFormula = () => {
                                       </div>
                                       <div className="ingredient-cell ing-qty">{ingredient.quantity}</div>
                                       <div className="ingredient-cell ing-unit">{ingredient.unit}</div>
+                                      <div className="ingredient-cell ing-unit-price" title={formatCurrency(ingredient.unitPrice)}>
+                                        {formatCurrency(ingredient.unitPrice)}
+                                      </div>
                                     </div>
                                   ))}
                                 </div>

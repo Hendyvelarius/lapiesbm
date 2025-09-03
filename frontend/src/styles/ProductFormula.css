@@ -4,6 +4,12 @@
   min-height: 100vh;
 }
 
+.product-formula-container *,
+.product-formula-container *::before,
+.product-formula-container *::after {
+  box-sizing: border-box;
+}
+
 .content-section {
   background: white;
   border-radius: 12px;
@@ -223,7 +229,7 @@
 
 .formula-table-header {
   display: grid;
-  grid-template-columns: 2fr 100px 120px 120px 200px;
+  grid-template-columns: 2fr 100px 120px 140px 120px 200px;
   background-color: #f9fafb;
   border-bottom: 2px solid #e5e7eb;
 }
@@ -250,7 +256,7 @@
 
 .formula-row {
   display: grid;
-  grid-template-columns: 2fr 100px 120px 120px 200px;
+  grid-template-columns: 2fr 100px 120px 140px 120px 200px;
   cursor: pointer;
   transition: background-color 0.15s;
 }
@@ -285,6 +291,15 @@
   color: #374151;
   text-align: right;
   padding-right: 12px;
+}
+
+.cell-total-cost {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #059669;
+  text-align: right;
+  padding-right: 12px;
+  font-size: 0.8rem;
 }
 
 .expand-icon {
@@ -387,12 +402,15 @@
 .ingredients-section {
   background-color: #f8fafc;
   border-top: 1px solid #e5e7eb;
+  margin: 0;
+  padding: 0;
 }
 
 .ingredients-table-header {
   display: grid;
-  grid-template-columns: 60px 120px 2fr 100px 80px;
+  grid-template-columns: 60px 120px 2fr 100px 80px 140px;
   background-color: #e2e8f0;
+  margin: 0;
 }
 
 .ingredients-table-header .ingredient-cell {
@@ -420,22 +438,19 @@
 
 .ingredient-row {
   display: grid;
-  grid-template-columns: 60px 120px 2fr 100px 80px;
+  grid-template-columns: 60px 120px 2fr 100px 80px 140px;
   border-bottom: 1px solid #e2e8f0;
-}
-
-.ingredient-row .ingredient-cell {
-  font-weight: 400;
-}
-
-.ingredient-row:last-child {
-  border-bottom: none;
+  margin: 0;
 }
 
 .ingredient-row .ingredient-cell {
   font-weight: normal;
   color: #374151;
   background-color: #f8fafc;
+}
+
+.ingredient-row:last-child {
+  border-bottom: none;
 }
 
 .ingredient-row:nth-child(even) .ingredient-cell {
@@ -448,8 +463,18 @@
   white-space: nowrap;
 }
 
+.ing-unit-price {
+  font-family: 'Courier New', monospace;
+  font-weight: 500;
+  color: #059669;
+  text-align: right;
+  padding-right: 12px;
+  font-size: 0.7rem;
+}
+
 .ing-qty {
   text-align: right;
+  padding-right: 12px;
 }
 
 .loading {
