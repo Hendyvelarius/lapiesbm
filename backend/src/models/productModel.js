@@ -199,10 +199,10 @@ async function autoAssignFormulas() {
                 return pool.request()
                     .input('periode', sql.VarChar, currentYear)
                     .input('productId', sql.VarChar, assignment.Product_ID)
-                    .input('pi', sql.VarChar, assignment.PI || null)
-                    .input('ps', sql.VarChar, assignment.PS || null)
-                    .input('kp', sql.VarChar, assignment.KP || null)
-                    .input('ks', sql.VarChar, assignment.KS || null)
+                    .input('pi', sql.VarChar, assignment.PI === null ? null : (assignment.PI || ''))
+                    .input('ps', sql.VarChar, assignment.PS === null ? null : (assignment.PS || ''))
+                    .input('kp', sql.VarChar, assignment.KP === null ? null : (assignment.KP || ''))
+                    .input('ks', sql.VarChar, assignment.KS === null ? null : (assignment.KS || ''))
                     .input('stdOutput', sql.Decimal(18,2), assignment.Std_Output || 0)
                     .input('userId', sql.VarChar, 'AUTO_ASSIGN')
                     .input('delegatedTo', sql.VarChar, 'AUTO_ASSIGN')
@@ -280,11 +280,12 @@ function findMostCompleteCombinations(combinations) {
 // Helper function to calculate completeness (PI, KP, KS are required)
 function calculateCompleteness(combination) {
     let score = 0;
-    if (combination.PI && combination.PI !== null) score += 1;
-    if (combination.KP && combination.KP !== null) score += 1;
-    if (combination.KS && combination.KS !== null) score += 1;
+    // A formula is valid if it's not null - empty string ("") is a valid formula
+    if (combination.PI !== null) score += 1;
+    if (combination.KP !== null) score += 1;
+    if (combination.KS !== null) score += 1;
     // PS is optional, but we can count it as bonus
-    if (combination.PS && combination.PS !== null) score += 0.5;
+    if (combination.PS !== null) score += 0.5;
     return score;
 }
 
