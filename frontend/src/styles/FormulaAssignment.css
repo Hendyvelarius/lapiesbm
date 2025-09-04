@@ -212,6 +212,26 @@
   background-color: #4b5563;
 }
 
+.auto-assign-btn {
+  background-color: #f59e0b;
+  color: white;
+  position: relative;
+}
+
+.auto-assign-btn:hover {
+  background-color: #d97706;
+}
+
+.auto-assign-btn:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.auto-assign-btn::before {
+  content: '⚡';
+  margin-right: 6px;
+}
+
 .btn-edit {
   background-color: #10b981;
   color: white;

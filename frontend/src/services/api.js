@@ -90,6 +90,14 @@ export const productsAPI = {
   
   // Get recipe by product ID
   getRecipe: (productId) => apiRequest(`/products/recipe/${productId}`),
+  
+  // Get formula product cost for auto assignment
+  getFormulaProductCost: () => apiRequest('/products/formula-cost'),
+  
+  // Auto assign formulas based on cost analysis
+  autoAssignFormulas: () => apiRequest('/products/auto-assign-formulas', {
+    method: 'POST',
+  }),
 };
 
 // HPP API

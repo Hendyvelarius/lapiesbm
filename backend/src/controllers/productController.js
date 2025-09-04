@@ -1,6 +1,6 @@
 const { Product, HPP, HPPIngredient } = require('../../models');
 const { Op } = require('sequelize');
-const { getChosenFormula, getFormula, findFormula, addChosenFormula, updateChosenFormula, deleteChosenFormula, findRecipe, getAllFormulaDetails, getActiveFormulaDetails } = require('../models/productModel');
+const { getChosenFormula, getFormula, findFormula, addChosenFormula, updateChosenFormula, deleteChosenFormula, findRecipe, getAllFormulaDetails, getActiveFormulaDetails, getFormulaProductCost } = require('../models/productModel');
 
 class ProductController {
   // Get all products
@@ -379,6 +379,37 @@ class ProductController {
       res.status(500).json({
         success: false,
         message: 'Error retrieving active formula details',
+        error: error.message
+      });
+    }
+  }
+
+  static async getFormulaProductCost(req, res) {
+    try {
+      const formulaProductCost = await getFormulaProductCost();
+      res.status(200).json(formulaProductCost);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving formula product cost',
+        error: error.message
+      });
+    }
+  }
+
+  static async autoAssignFormulas(req, res) {
+    try {
+      const { autoAssignFormulas } = require('../models/productModel');
+      const result = await autoAssignFormulas();
+      res.status(200).json({
+        success: true,
+        message: 'Auto assignment completed successfully',
+        data: result
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error during auto assignment',
         error: error.message
       });
     }

@@ -367,6 +367,38 @@ const FormulaAssignment = () => {
     setDeletingProduct(null);
   };
 
+  // Handle auto assignment
+  const handleAutoAssign = () => {
+    notifier.confirm(
+      'This will replace ALL existing formula assignments with automatically calculated optimal assignments based on cost analysis. Are you sure you want to proceed?',
+      async () => {
+        try {
+          setLoading(true);
+          notifier.info('Processing auto assignment... This will take some time. Please wait and do not close the browser.');
+          
+          const result = await api.products.autoAssignFormulas();
+          await loadData(); // Reload the data to show new assignments
+          
+          notifier.success(`Auto assignment completed successfully! ${result.data.processed} products were assigned formulas.`);
+        } catch (err) {
+          console.error('Error during auto assignment:', err);
+          notifier.alert('Failed to perform auto assignment. Please try again.');
+        } finally {
+          setLoading(false);
+        }
+      },
+      () => {
+        // User cancelled
+        console.log('Auto assignment cancelled by user');
+      },
+      {
+        title: 'Auto Assign Formulas',
+        okButtonText: 'Proceed',
+        cancelButtonText: 'Cancel'
+      }
+    );
+  };
+
   // Helper function to get product name
   const getProductName = (productId) => {
     const product = productList.find(p => p.Product_ID === productId);
@@ -425,6 +457,14 @@ const FormulaAssignment = () => {
                 className="table-search-input"
               />
             </div>
+            <button 
+              onClick={handleAutoAssign} 
+              className="btn-secondary auto-assign-btn"
+              disabled={loading}
+              title="Automatically assign optimal formulas based on cost analysis"
+            >
+              Auto Assignment
+            </button>
             <button onClick={handleAdd} className="btn-primary">
               Add New Assignment
             </button>

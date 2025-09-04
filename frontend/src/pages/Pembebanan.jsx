@@ -607,7 +607,7 @@ const Pembebanan = () => {
                   )}
                 </th>
                 <th onClick={() => handleSort('rateAnalisa')} className="sortable">
-                  Rate Analisa
+                  Rate Reagen
                   {sortField === 'rateAnalisa' && (
                     sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   )}

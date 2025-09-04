@@ -166,6 +166,137 @@ async function getActiveFormulaDetails() {
     }
 }
 
+async function getFormulaProductCost() {
+    try {
+        const pool = await connect();
+        const result = await pool.request().execute('sp_COGS_get_formula_product_cost');
+        return result.recordset;
+    } catch (error) {
+        console.error('Error executing sp_COGS_get_formula_product_cost:', error);
+        throw error;
+    }
+}
+
+async function autoAssignFormulas() {
+    try {
+        const pool = await connect();
+        
+        // Step 1: Get formula cost data
+        const costData = await getFormulaProductCost();
+        
+        // Step 2: Process the data to select the best assignments
+        const processedAssignments = processFormulaAssignments(costData);
+        
+        // Step 3: Clear existing assignments for the current period
+        const currentYear = new Date().getFullYear().toString();
+        await pool.request()
+            .input('periode', sql.VarChar, currentYear)
+            .query('DELETE FROM M_COGS_PRODUCT_FORMULA_FIX WHERE Periode = @periode');
+        
+        // Step 4: Bulk insert new assignments
+        if (processedAssignments.length > 0) {
+            const insertPromises = processedAssignments.map(assignment => {
+                return pool.request()
+                    .input('periode', sql.VarChar, currentYear)
+                    .input('productId', sql.VarChar, assignment.Product_ID)
+                    .input('pi', sql.VarChar, assignment.PI || null)
+                    .input('ps', sql.VarChar, assignment.PS || null)
+                    .input('kp', sql.VarChar, assignment.KP || null)
+                    .input('ks', sql.VarChar, assignment.KS || null)
+                    .input('stdOutput', sql.Decimal(18,2), assignment.Std_Output || 0)
+                    .input('userId', sql.VarChar, 'AUTO_ASSIGN')
+                    .input('delegatedTo', sql.VarChar, 'AUTO_ASSIGN')
+                    .input('processDate', sql.DateTime, new Date())
+                    .query(`
+                        INSERT INTO M_COGS_PRODUCT_FORMULA_FIX 
+                        (Periode, Product_ID, PI, PS, KP, KS, Std_Output, user_id, delegated_to, process_date)
+                        VALUES (@periode, @productId, @pi, @ps, @kp, @ks, @stdOutput, @userId, @delegatedTo, @processDate)
+                    `);
+            });
+            
+            await Promise.all(insertPromises);
+        }
+        
+        return {
+            processed: processedAssignments.length,
+            assignments: processedAssignments
+        };
+        
+    } catch (error) {
+        console.error('Error in auto assign formulas:', error);
+        throw error;
+    }
+}
+
+// Helper function to process formula assignments
+function processFormulaAssignments(costData) {
+    // Group by Product_ID
+    const productGroups = {};
+    
+    costData.forEach(item => {
+        if (!productGroups[item.Product_ID]) {
+            productGroups[item.Product_ID] = [];
+        }
+        productGroups[item.Product_ID].push(item);
+    });
+    
+    const finalAssignments = [];
+    
+    // Process each product group
+    for (const [productId, combinations] of Object.entries(productGroups)) {
+        // Filter to find the most complete combinations
+        const completeCombinations = findMostCompleteCombinations(combinations);
+        
+        if (completeCombinations.length > 0) {
+            // If multiple complete combinations exist, choose the one with highest total value
+            const bestCombination = completeCombinations.reduce((best, current) => {
+                const bestTotal = calculateTotalValue(best);
+                const currentTotal = calculateTotalValue(current);
+                return currentTotal > bestTotal ? current : best;
+            });
+            
+            finalAssignments.push(bestCombination);
+        }
+    }
+    
+    return finalAssignments;
+}
+
+// Helper function to find most complete combinations
+function findMostCompleteCombinations(combinations) {
+    // Calculate completeness score for each combination
+    const scored = combinations.map(combo => ({
+        ...combo,
+        completeness: calculateCompleteness(combo)
+    }));
+    
+    // Find the maximum completeness score
+    const maxCompleteness = Math.max(...scored.map(s => s.completeness));
+    
+    // Return all combinations with the maximum completeness
+    return scored.filter(s => s.completeness === maxCompleteness);
+}
+
+// Helper function to calculate completeness (PI, KP, KS are required)
+function calculateCompleteness(combination) {
+    let score = 0;
+    if (combination.PI && combination.PI !== null) score += 1;
+    if (combination.KP && combination.KP !== null) score += 1;
+    if (combination.KS && combination.KS !== null) score += 1;
+    // PS is optional, but we can count it as bonus
+    if (combination.PS && combination.PS !== null) score += 0.5;
+    return score;
+}
+
+// Helper function to calculate total value
+function calculateTotalValue(combination) {
+    const pi = parseFloat(combination.PI_Val) || 0;
+    const ps = parseFloat(combination.PS_Val) || 0;
+    const kp = parseFloat(combination.KP_Val) || 0;
+    const ks = parseFloat(combination.KS_Val) || 0;
+    return pi + ps + kp + ks;
+}
+
 module.exports = {
     getFormula,
     getChosenFormula,
@@ -175,5 +306,7 @@ module.exports = {
     deleteChosenFormula,
     findRecipe,
     getAllFormulaDetails,
-    getActiveFormulaDetails
+    getActiveFormulaDetails,
+    getFormulaProductCost,
+    autoAssignFormulas
 };

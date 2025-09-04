@@ -15,6 +15,12 @@ router.get('/formula-details', ProductController.getAllFormulaDetails);
 // GET /api/products/formula-details/active - Get active formula details (DefaultCOGS = 'Aktif')
 router.get('/formula-details/active', ProductController.getActiveFormulaDetails);
 
+// GET /api/products/formula-cost - Get formula product cost for auto assignment
+router.get('/formula-cost', ProductController.getFormulaProductCost);
+
+// POST /api/products/auto-assign-formulas - Auto assign formulas based on cost analysis
+router.post('/auto-assign-formulas', ProductController.autoAssignFormulas);
+
 // Chosen formula CRUD operations
 router.get('/chosenformula', ProductController.getChosenFormula);
 router.post('/chosenformula', ProductController.addChosenFormula);
