@@ -245,7 +245,7 @@ class ProductController {
 
   static async addChosenFormula(req, res) {
     try {
-      const { productId, pi, ps, kp, ks, stdOutput } = req.body;
+      const { productId, pi, ps, kp, ks, stdOutput, isManual } = req.body;
       
       // Validate required field
       if (!productId) {
@@ -262,7 +262,8 @@ class ProductController {
         kp,
         ks,
         stdOutput,
-        'SYSTEM' // Default user
+        'SYSTEM', // Default user
+        isManual
       );
 
       res.status(201).json({
@@ -282,7 +283,7 @@ class ProductController {
   static async updateChosenFormula(req, res) {
     try {
       const { productId } = req.params;
-      const { pi, ps, kp, ks, stdOutput } = req.body;
+      const { pi, ps, kp, ks, stdOutput, isManual } = req.body;
 
       const result = await updateChosenFormula(
         productId,
@@ -291,7 +292,8 @@ class ProductController {
         kp,
         ks,
         stdOutput,
-        'SYSTEM' // Default user
+        'SYSTEM', // Default user
+        isManual
       );
 
       if (result.rowsAffected[0] === 0) {

@@ -32,7 +32,8 @@ const FormulaAssignment = () => {
     ps: '',
     kp: '',
     ks: '',
-    stdOutput: 0
+    stdOutput: 0,
+    isManual: false  // Important checkbox state
   });
   
   // Formula selection states
@@ -120,14 +121,12 @@ const FormulaAssignment = () => {
   // Recalculate price when formulaPrices or editingFormula changes
   useEffect(() => {
     if (editingFormula && Object.keys(formulaPrices).length > 0) {
-      console.log('Recalculating price due to formulaPrices update');
       const totalPrice = calculateTotalProductPrice(formulaPrices, {
         pi: editingFormula.PI || '',
         ps: editingFormula.PS || '',
         kp: editingFormula.KP || '',
         ks: editingFormula.KS || ''
       });
-      console.log('Recalculated price:', totalPrice);
       setTotalProductPrice(totalPrice);
     }
   }, [formulaPrices, editingFormula]);
@@ -141,9 +140,6 @@ const FormulaAssignment = () => {
         api.products.getFormulaById(productId),
         api.products.getRecipe(productId)
       ]);
-      
-      console.log('Loaded formulas:', formulas);
-      console.log('Loaded recipe:', recipe);
       
       // Check if we got any formulas
       if (!formulas || formulas.length === 0) {
@@ -167,7 +163,6 @@ const FormulaAssignment = () => {
       // Store recipe data and calculate formula prices
       setRecipeData(recipe || []);
       const prices = calculateFormulaPrices(recipe || []);
-      console.log('Calculated formula prices:', prices);
       setFormulaPrices(prices);
       
       // Note: Auto-selection removed to prevent form state inconsistencies
@@ -189,9 +184,7 @@ const FormulaAssignment = () => {
   const loadRecommendations = async (productId) => {
     try {
       setLoadingRecommendations(true);
-      console.log('Loading recommendations for product:', productId);
       const result = await api.products.getFormulaRecommendations(productId);
-      console.log('Recommendations result:', result);
       
       if (result.success && result.data) {
         setRecommendations(result.data);
@@ -219,7 +212,8 @@ const FormulaAssignment = () => {
         ps: formula.PS === null || formula.PS === undefined ? null : formula.PS,
         kp: formula.KP === null || formula.KP === undefined ? null : formula.KP,
         ks: formula.KS === null || formula.KS === undefined ? null : formula.KS,
-        stdOutput: formula.Std_Output || 0
+        stdOutput: formula.Std_Output || 0,
+        isManual: formula.isManual === 1 || formula.isManual === '1' || formula.isManual === true
       });
       
       // Reset recommendation selection
@@ -258,7 +252,8 @@ const FormulaAssignment = () => {
       ps: null,
       kp: null,
       ks: null,
-      stdOutput: 0
+      stdOutput: 0,
+      isManual: true  // New assignments are manual by default
     });
     setSelectedProduct(null);
     setProductFormulas({ PI: [], PS: [], KP: [], KS: [] });
@@ -299,8 +294,6 @@ const FormulaAssignment = () => {
     const recommendation = recommendations[parseInt(recommendationIndex)];
     if (!recommendation) return;
     
-    console.log('Applying recommendation:', recommendation);
-    
     // Update form data with recommendation
     setFormData(prev => ({
       ...prev,
@@ -308,7 +301,8 @@ const FormulaAssignment = () => {
       ps: recommendation.formulas.PS !== null && recommendation.formulas.PS !== undefined ? recommendation.formulas.PS : null,
       kp: recommendation.formulas.KP !== null && recommendation.formulas.KP !== undefined ? recommendation.formulas.KP : null,
       ks: recommendation.formulas.KS !== null && recommendation.formulas.KS !== undefined ? recommendation.formulas.KS : null,
-      stdOutput: recommendation.stdOutput
+      stdOutput: recommendation.stdOutput,
+      isManual: true  // Auto-check Important when user selects a recommendation
     }));
     
     // Update total price
@@ -343,7 +337,8 @@ const FormulaAssignment = () => {
       setFormData(prev => {
         const newData = {
           ...prev,
-          [type.toLowerCase()]: null
+          [type.toLowerCase()]: null,
+          isManual: true  // Auto-check Important when user manually changes formulas
         };
         
         // Recalculate total price with new formula selection
@@ -371,7 +366,8 @@ const FormulaAssignment = () => {
           const newData = {
             ...prev,
             [type.toLowerCase()]: formulaId,
-            stdOutput: formulaBatchSize
+            stdOutput: formulaBatchSize,
+            isManual: true  // Auto-check Important when user manually changes formulas
           };
           
           // Recalculate total price with new formula selection
@@ -394,7 +390,8 @@ const FormulaAssignment = () => {
               const newData = {
                 ...prev,
                 [type.toLowerCase()]: formulaId,
-                stdOutput: formulaBatchSize
+                stdOutput: formulaBatchSize,
+                isManual: true  // Auto-check Important when user manually changes formulas
               };
               
               // Recalculate total price with new formula selection
@@ -412,7 +409,8 @@ const FormulaAssignment = () => {
             setFormData(prev => {
               const newData = {
                 ...prev,
-                [type.toLowerCase()]: formulaId
+                [type.toLowerCase()]: formulaId,
+                isManual: true  // Auto-check Important when user manually changes formulas
               };
               
               // Recalculate total price with new formula selection
@@ -431,7 +429,8 @@ const FormulaAssignment = () => {
         setFormData(prev => {
           const newData = {
             ...prev,
-            [type.toLowerCase()]: formulaId
+            [type.toLowerCase()]: formulaId,
+            isManual: true  // Auto-check Important when user manually changes formulas
           };
           
           // Recalculate total price with new formula selection
@@ -448,7 +447,8 @@ const FormulaAssignment = () => {
       setFormData(prev => {
         const newData = {
           ...prev,
-          [type.toLowerCase()]: formulaId
+          [type.toLowerCase()]: formulaId,
+          isManual: true  // Auto-check Important when user manually changes formulas
         };
         
         // Recalculate total price with new formula selection
@@ -490,12 +490,17 @@ const FormulaAssignment = () => {
           ps: formData.ps,
           kp: formData.kp,
           ks: formData.ks,
-          stdOutput: formData.stdOutput
+          stdOutput: formData.stdOutput,
+          isManual: formData.isManual ? 1 : null  // Convert boolean to 1 or null
         });
         notifier.success(`Formula assignment updated successfully for product ${formData.productId}`);
       } else {
         // Add new
-        await api.products.addChosenFormula(formData);
+        const dataToSend = {
+          ...formData,
+          isManual: formData.isManual ? 1 : null  // Convert boolean to 1 or null
+        };
+        await api.products.addChosenFormula(dataToSend);
         notifier.success(`Formula assignment added successfully for product ${formData.productId}`);
       }
 
@@ -564,7 +569,6 @@ const FormulaAssignment = () => {
       },
       () => {
         // User cancelled
-        console.log('Auto assignment cancelled by user');
       },
       {
         title: 'Auto Assign Formulas',
@@ -612,31 +616,22 @@ const FormulaAssignment = () => {
 
   // Helper function to calculate total product price based on current formula selection
   const calculateTotalProductPrice = (formulaPrices, currentSelection) => {
-    console.log('Calculating total price with:', { formulaPrices, currentSelection });
     let total = 0;
     
     // For each type (PI, PS, KP, KS), add the price of the selected formula
     ['PI', 'PS', 'KP', 'KS'].forEach(typeCode => {
       const selectedFormula = currentSelection[typeCode.toLowerCase()];
-      console.log(`Checking ${typeCode}: selectedFormula = "${selectedFormula}"`);
       
       // Check if formula is selected (not null/undefined, but empty string is valid)
       if (selectedFormula !== null && selectedFormula !== undefined) {
         const key = `${typeCode}-${selectedFormula}`;
-        console.log(`Looking for key: "${key}" in formulaPrices`);
         
         if (formulaPrices[key]) {
-          console.log(`Found price for ${key}:`, formulaPrices[key]);
           total += formulaPrices[key].totalPrice;
-        } else {
-          console.log(`No price found for key: "${key}"`);
         }
-      } else {
-        console.log(`${typeCode} formula is null/undefined, skipping`);
       }
     });
     
-    console.log('Final total calculated:', total);
     return total;
   };
 
@@ -672,16 +667,25 @@ const FormulaAssignment = () => {
     }
   };
 
-  // Filter chosen formulas based on search term
-  const filteredChosenFormulas = chosenFormulas.filter(formula => {
-    if (!tableSearchTerm.trim()) return true;
-    
-    const searchLower = tableSearchTerm.toLowerCase();
-    const productName = getProductName(formula.Product_ID);
-    
-    return formula.Product_ID.toLowerCase().includes(searchLower) ||
-           productName.toLowerCase().includes(searchLower);
-  });
+  // Filter and sort chosen formulas based on search term and importance
+  const filteredChosenFormulas = chosenFormulas
+    .filter(formula => {
+      if (!tableSearchTerm.trim()) return true;
+      
+      const searchLower = tableSearchTerm.toLowerCase();
+      const productName = getProductName(formula.Product_ID);
+      
+      return formula.Product_ID.toLowerCase().includes(searchLower) ||
+             productName.toLowerCase().includes(searchLower);
+    })
+    .sort((a, b) => {
+      // Sort by isManual first (important products first)
+      if (a.isManual === 1 && b.isManual !== 1) return -1;
+      if (a.isManual !== 1 && b.isManual === 1) return 1;
+      
+      // Then sort by Product_ID for consistent ordering
+      return a.Product_ID.localeCompare(b.Product_ID);
+    });
 
   if (loading && chosenFormulas.length === 0) {
     return (
@@ -733,6 +737,7 @@ const FormulaAssignment = () => {
               <tr>
                 <th>Product ID</th>
                 <th>Product Name</th>
+                <th>Important</th>
                 <th>PI Formula</th>
                 <th>PS Formula</th>
                 <th>KP Formula</th>
@@ -756,6 +761,13 @@ const FormulaAssignment = () => {
                   <tr key={`${formula.Product_ID}-${index}`}>
                     <td>{formula.Product_ID}</td>
                     <td>{getProductName(formula.Product_ID)}</td>
+                    <td>
+                      {formula.isManual === 1 ? (
+                        <span className="important-checkmark">✓</span>
+                      ) : (
+                        <span className="not-important">—</span>
+                      )}
+                    </td>
                     <td>{getFormulaDetails(formula.PI)}</td>
                     <td>{getFormulaDetails(formula.PS)}</td>
                     <td>{getFormulaDetails(formula.KP)}</td>
@@ -950,21 +962,48 @@ const FormulaAssignment = () => {
                 </div>
               )}
 
-              {/* Standard Output */}
+              {/* Standard Output and Important */}
               {selectedProduct && Object.keys(productFormulas).some(type => productFormulas[type].length > 0) && (
                 <div className="form-section">
                   <h4>3. Set Standard Output</h4>
-                  <div className="std-output-section">
-                    <label>Standard Output:</label>
-                    <input
-                      type="number"
-                      value={formData.stdOutput}
-                      onChange={(e) => setFormData(prev => ({ ...prev, stdOutput: e.target.value }))}
-                      className="input-field"
-                      min="0"
-                      step="0.01"
-                    />
+                  <div className="output-and-cost-section">
+                    <div className="std-output-field">
+                      <label>Standard Output:</label>
+                      <input
+                        type="number"
+                        value={formData.stdOutput}
+                        onChange={(e) => setFormData(prev => ({ ...prev, stdOutput: e.target.value, isManual: true }))}
+                        className="input-field"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    
+                    <div className="important-field">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={formData.isManual}
+                          onChange={(e) => setFormData(prev => ({ ...prev, isManual: e.target.checked }))}
+                          className="important-checkbox"
+                        />
+                        Important (Protected from Auto Assignment)
+                      </label>
+                    </div>
+                    
+                    <div className="total-cost-field">
+                      <label>Total Product Cost:</label>
+                      <div className="price-value">
+                        {totalProductPrice > 0 ? formatCurrency(totalProductPrice) : 'Not calculated'}
+                      </div>
+                    </div>
                   </div>
+                  
+                  {totalProductPrice > 0 && (
+                    <div className="price-note">
+                      <small>* Based on selected formula combination</small>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1098,11 +1137,23 @@ const FormulaAssignment = () => {
                     <input
                       type="number"
                       value={formData.stdOutput}
-                      onChange={(e) => setFormData(prev => ({ ...prev, stdOutput: e.target.value }))}
+                      onChange={(e) => setFormData(prev => ({ ...prev, stdOutput: e.target.value, isManual: true }))}
                       className="input-field"
                       min="0"
                       step="0.01"
                     />
+                  </div>
+                  
+                  <div className="important-field">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={formData.isManual}
+                        onChange={(e) => setFormData(prev => ({ ...prev, isManual: e.target.checked }))}
+                        className="important-checkbox"
+                      />
+                      Important (Protected from Auto Assignment)
+                    </label>
                   </div>
                   
                   <div className="total-cost-field">

@@ -37,7 +37,7 @@ async function findFormula(id) {
 }
 
 // Add chosen formula record
-async function addChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId) {
+async function addChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId, isManual) {
     try {
         const pool = await connect();
         const currentYear = new Date().getFullYear().toString();
@@ -45,8 +45,8 @@ async function addChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId) {
         
         const query = `
             INSERT INTO M_COGS_PRODUCT_FORMULA_FIX 
-            (Periode, Product_ID, PI, PS, KP, KS, Std_Output, user_id, delegated_to, process_date)
-            VALUES (@periode, @productId, @pi, @ps, @kp, @ks, @stdOutput, @userId, @delegatedTo, @processDate)
+            (Periode, Product_ID, PI, PS, KP, KS, Std_Output, user_id, delegated_to, process_date, isManual)
+            VALUES (@periode, @productId, @pi, @ps, @kp, @ks, @stdOutput, @userId, @delegatedTo, @processDate, @isManual)
         `;
         
         const result = await pool.request()
@@ -60,6 +60,7 @@ async function addChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId) {
             .input('userId', sql.VarChar, userId || 'SYSTEM')
             .input('delegatedTo', sql.VarChar, userId || 'SYSTEM')
             .input('processDate', sql.DateTime, currentDateTime)
+            .input('isManual', sql.Int, isManual)
             .query(query);
             
         return result;
@@ -70,7 +71,7 @@ async function addChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId) {
 }
 
 // Update chosen formula record
-async function updateChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId) {
+async function updateChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId, isManual) {
     try {
         const pool = await connect();
         const currentYear = new Date().getFullYear().toString();
@@ -85,7 +86,8 @@ async function updateChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId)
                 Std_Output = @stdOutput,
                 user_id = @userId,
                 delegated_to = @delegatedTo,
-                process_date = @processDate
+                process_date = @processDate,
+                isManual = @isManual
             WHERE Product_ID = @productId AND Periode = @periode
         `;
         
@@ -100,6 +102,7 @@ async function updateChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId)
             .input('userId', sql.VarChar, userId || 'SYSTEM')
             .input('delegatedTo', sql.VarChar, userId || 'SYSTEM')
             .input('processDate', sql.DateTime, currentDateTime)
+            .input('isManual', sql.Int, isManual)
             .query(query);
             
         return result;
@@ -191,7 +194,7 @@ async function autoAssignFormulas() {
         const currentYear = new Date().getFullYear().toString();
         await pool.request()
             .input('periode', sql.VarChar, currentYear)
-            .query('DELETE FROM M_COGS_PRODUCT_FORMULA_FIX WHERE Periode = @periode');
+            .query(`DELETE FROM M_COGS_PRODUCT_FORMULA_FIX WHERE Periode = @periode AND isnull(isManual, '') = ''`);
         
         // Step 4: Bulk insert new assignments
         if (processedAssignments.length > 0) {
@@ -306,8 +309,6 @@ const getFormulaRecommendations = async (productId) => {
         // Execute the stored procedure with the specific product ID
         const result = await request.query(`exec sp_COGS_get_formula_product_cost '${productId}'`);
         
-        console.log('Formula recommendations result:', result.recordset);
-        
         // Group by standard output to create recommendation sets
         const recommendations = {};
         
@@ -346,7 +347,6 @@ const getFormulaRecommendations = async (productId) => {
         // Convert to array and sort by standard output
         const recommendationArray = Object.values(recommendations).sort((a, b) => a.stdOutput - b.stdOutput);
         
-        console.log('Processed recommendations:', recommendationArray);
         return recommendationArray;
         
     } catch (error) {
