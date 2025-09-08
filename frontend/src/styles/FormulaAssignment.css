@@ -688,6 +688,7 @@
   font-size: 0.95rem;
 }
 
+/* Enhanced select styling for better visibility */
 .recommendation-select {
   width: 100%;
   padding: 8px 12px;
@@ -697,6 +698,7 @@
   font-size: 0.9rem;
   color: #374151;
   transition: border-color 0.2s;
+  cursor: pointer;
 }
 
 .recommendation-select:focus {
@@ -717,6 +719,32 @@
   color: #6b7280;
   font-style: italic;
   text-align: center;
+}
+
+/* Formula completeness styling */
+.recommendation-select option.complete-formula {
+  background-color: #dcfce7 !important;
+  color: #166534 !important;
+  font-weight: 600;
+}
+
+.recommendation-select option.incomplete-formula {
+  background-color: #fed7aa !important;
+  color: #c2410c !important;
+  font-weight: 500;
+}
+
+/* Enhanced select styling for better visibility */
+.recommendation-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  font-size: 0.9rem;
+  color: #374151;
+  transition: border-color 0.2s;
+  cursor: pointer;
 }
 
 /* Responsive adjustments for recommendations */

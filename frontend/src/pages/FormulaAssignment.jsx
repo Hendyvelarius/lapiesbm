@@ -640,6 +640,27 @@ const FormulaAssignment = () => {
     return total;
   };
 
+  // Helper function to calculate formula completeness (PI, KP, KS only - excluding PS)
+  const calculateFormulaCompleteness = (formulas) => {
+    let count = 0;
+    if (formulas.PI !== null && formulas.PI !== undefined) count++;
+    if (formulas.KP !== null && formulas.KP !== undefined) count++;
+    if (formulas.KS !== null && formulas.KS !== undefined) count++;
+    return count;
+  };
+
+  // Helper function to get the maximum completeness among all recommendations
+  const getMaxCompleteness = (recommendations) => {
+    if (!recommendations || recommendations.length === 0) return 0;
+    return Math.max(...recommendations.map(rec => calculateFormulaCompleteness(rec.formulas)));
+  };
+
+  // Helper function to determine if a recommendation is complete
+  const isRecommendationComplete = (recommendation, maxCompleteness) => {
+    const completeness = calculateFormulaCompleteness(recommendation.formulas);
+    return completeness === maxCompleteness && completeness === 3; // Complete means all 3 (PI, KP, KS) are set
+  };
+
   // Helper function to get formula details - distinguish between null and unnamed
   const getFormulaDetails = (formulaId) => {
     if (formulaId === null || formulaId === undefined) {
@@ -1000,11 +1021,28 @@ const FormulaAssignment = () => {
                         className="recommendation-select"
                       >
                         <option value="">-- Select Formula Set --</option>
-                        {recommendations.map((rec, index) => (
-                          <option key={index} value={index}>
-                            Batch {rec.stdOutput} - Cost: {formatCurrency(rec.totalCost)}
-                          </option>
-                        ))}
+                        {(() => {
+                          const maxCompleteness = getMaxCompleteness(recommendations);
+                          return recommendations.map((rec, index) => {
+                            const completeness = calculateFormulaCompleteness(rec.formulas);
+                            const isComplete = isRecommendationComplete(rec, maxCompleteness);
+                            const completenessText = `(${completeness}/3 formulas)`;
+                            
+                            return (
+                              <option 
+                                key={index} 
+                                value={index}
+                                className={isComplete ? 'complete-formula' : 'incomplete-formula'}
+                                style={{
+                                  backgroundColor: isComplete ? '#dcfce7' : '#fed7aa',
+                                  color: isComplete ? '#166534' : '#c2410c'
+                                }}
+                              >
+                                Batch {rec.stdOutput} - Cost: {formatCurrency(rec.totalCost)} {completenessText}
+                              </option>
+                            );
+                          });
+                        })()}
                         <option value="manual">Manual Selection</option>
                       </select>
                     )}
