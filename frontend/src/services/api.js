@@ -98,6 +98,9 @@ export const productsAPI = {
   autoAssignFormulas: () => apiRequest('/products/auto-assign-formulas', {
     method: 'POST',
   }),
+  
+  // Get formula recommendations for a specific product
+  getFormulaRecommendations: (productId) => apiRequest(`/products/formula-recommendations/${productId}`),
 };
 
 // HPP API

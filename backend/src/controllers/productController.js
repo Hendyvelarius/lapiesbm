@@ -414,6 +414,24 @@ class ProductController {
       });
     }
   }
+
+  static async getFormulaRecommendations(req, res) {
+    try {
+      const { productId } = req.params;
+      const { getFormulaRecommendations } = require('../models/productModel');
+      const recommendations = await getFormulaRecommendations(productId);
+      res.status(200).json({
+        success: true,
+        data: recommendations
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving formula recommendations',
+        error: error.message
+      });
+    }
+  }
 }
 
 module.exports = ProductController;

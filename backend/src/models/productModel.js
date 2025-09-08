@@ -298,6 +298,63 @@ function calculateTotalValue(combination) {
     return pi + ps + kp + ks;
 }
 
+// Get formula recommendations for a specific product using stored procedure
+const getFormulaRecommendations = async (productId) => {
+    const request = new sql.Request();
+    
+    try {
+        // Execute the stored procedure with the specific product ID
+        const result = await request.query(`exec sp_COGS_get_formula_product_cost '${productId}'`);
+        
+        console.log('Formula recommendations result:', result.recordset);
+        
+        // Group by standard output to create recommendation sets
+        const recommendations = {};
+        
+        result.recordset.forEach(row => {
+            const stdOutput = row.Std_Output;
+            const key = `batch_${stdOutput}`;
+            
+            if (!recommendations[key]) {
+                recommendations[key] = {
+                    stdOutput: stdOutput,
+                    productId: row.Product_ID,
+                    formulas: {
+                        PI: null,
+                        PS: null,
+                        KP: null,
+                        KS: null
+                    },
+                    totalCost: 0
+                };
+            }
+            
+            // Map the formulas based on type - preserve empty strings as valid formulas
+            if (row.PI !== null && row.PI !== undefined) recommendations[key].formulas.PI = row.PI;
+            if (row.PS !== null && row.PS !== undefined) recommendations[key].formulas.PS = row.PS;
+            if (row.KP !== null && row.KP !== undefined) recommendations[key].formulas.KP = row.KP;
+            if (row.KS !== null && row.KS !== undefined) recommendations[key].formulas.KS = row.KS;
+            
+            // Calculate total cost (sum of all type values)
+            recommendations[key].totalCost = 
+                (parseFloat(row.PI_Val) || 0) +
+                (parseFloat(row.PS_Val) || 0) +
+                (parseFloat(row.KP_Val) || 0) +
+                (parseFloat(row.KS_Val) || 0);
+        });
+        
+        // Convert to array and sort by standard output
+        const recommendationArray = Object.values(recommendations).sort((a, b) => a.stdOutput - b.stdOutput);
+        
+        console.log('Processed recommendations:', recommendationArray);
+        return recommendationArray;
+        
+    } catch (error) {
+        console.error('Error getting formula recommendations:', error);
+        throw error;
+    }
+};
+
 module.exports = {
     getFormula,
     getChosenFormula,
@@ -309,5 +366,6 @@ module.exports = {
     getAllFormulaDetails,
     getActiveFormulaDetails,
     getFormulaProductCost,
-    autoAssignFormulas
+    autoAssignFormulas,
+    getFormulaRecommendations
 };

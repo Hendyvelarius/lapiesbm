@@ -47,6 +47,17 @@ const FormulaAssignment = () => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   
+  // Recipe and price calculation states
+  const [recipeData, setRecipeData] = useState([]);
+  const [formulaPrices, setFormulaPrices] = useState({});
+  const [totalProductPrice, setTotalProductPrice] = useState(0);
+  
+  // Recommendation states
+  const [recommendations, setRecommendations] = useState([]);
+  const [selectedRecommendation, setSelectedRecommendation] = useState('');
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(false);
+  
   // Table search state
   const [tableSearchTerm, setTableSearchTerm] = useState('');
 
@@ -106,15 +117,40 @@ const FormulaAssignment = () => {
     loadData();
   }, [loadData]);
 
+  // Recalculate price when formulaPrices or editingFormula changes
+  useEffect(() => {
+    if (editingFormula && Object.keys(formulaPrices).length > 0) {
+      console.log('Recalculating price due to formulaPrices update');
+      const totalPrice = calculateTotalProductPrice(formulaPrices, {
+        pi: editingFormula.PI || '',
+        ps: editingFormula.PS || '',
+        kp: editingFormula.KP || '',
+        ks: editingFormula.KS || ''
+      });
+      console.log('Recalculated price:', totalPrice);
+      setTotalProductPrice(totalPrice);
+    }
+  }, [formulaPrices, editingFormula]);
+
   const loadProductFormulas = async (productId) => {
     try {
       setLoading(true);
       
-      const formulas = await api.products.getFormulaById(productId);
+      // Load both formula list and recipe data
+      const [formulas, recipe] = await Promise.all([
+        api.products.getFormulaById(productId),
+        api.products.getRecipe(productId)
+      ]);
+      
+      console.log('Loaded formulas:', formulas);
+      console.log('Loaded recipe:', recipe);
       
       // Check if we got any formulas
       if (!formulas || formulas.length === 0) {
         setProductFormulas({ PI: [], PS: [], KP: [], KS: [] });
+        setRecipeData([]);
+        setFormulaPrices({});
+        setTotalProductPrice(0);
         return;
       }
       
@@ -128,6 +164,12 @@ const FormulaAssignment = () => {
       
       setProductFormulas(grouped);
       
+      // Store recipe data and calculate formula prices
+      setRecipeData(recipe || []);
+      const prices = calculateFormulaPrices(recipe || []);
+      console.log('Calculated formula prices:', prices);
+      setFormulaPrices(prices);
+      
       // Note: Auto-selection removed to prevent form state inconsistencies
       // Users should manually select formulas to ensure intentional assignments
     } catch (err) {
@@ -135,27 +177,65 @@ const FormulaAssignment = () => {
       notifier.alert(`Failed to load formulas for this product: ${err.message}`);
       // Reset to empty state on error
       setProductFormulas({ PI: [], PS: [], KP: [], KS: [] });
+      setRecipeData([]);
+      setFormulaPrices({});
+      setTotalProductPrice(0);
     } finally {
       setLoading(false);
     }
   };
 
+  // Load formula recommendations for a specific product
+  const loadRecommendations = async (productId) => {
+    try {
+      setLoadingRecommendations(true);
+      console.log('Loading recommendations for product:', productId);
+      const result = await api.products.getFormulaRecommendations(productId);
+      console.log('Recommendations result:', result);
+      
+      if (result.success && result.data) {
+        setRecommendations(result.data);
+      } else {
+        setRecommendations([]);
+      }
+    } catch (error) {
+      console.error('Error loading recommendations:', error);
+      setRecommendations([]);
+      notifier.warning('Could not load formula recommendations for this product');
+    } finally {
+      setLoadingRecommendations(false);
+    }
+  };
+
   // Handle opening edit modal
   const handleEdit = async (formula) => {
-    setEditingFormula(formula);
-    setFormData({
-      productId: formula.Product_ID,
-      productName: formula.Product_Name || getProductName(formula.Product_ID),
-      pi: formula.PI === null || formula.PI === undefined ? null : formula.PI,
-      ps: formula.PS === null || formula.PS === undefined ? null : formula.PS,
-      kp: formula.KP === null || formula.KP === undefined ? null : formula.KP,
-      ks: formula.KS === null || formula.KS === undefined ? null : formula.KS,
-      stdOutput: formula.Std_Output || 0
-    });
-    
-    // Load available formulas for this product
-    await loadProductFormulas(formula.Product_ID);
-    setShowEditModal(true);
+    try {
+      setLoadingEdit(true);
+      setEditingFormula(formula);
+      setFormData({
+        productId: formula.Product_ID,
+        productName: formula.Product_Name || getProductName(formula.Product_ID),
+        pi: formula.PI === null || formula.PI === undefined ? null : formula.PI,
+        ps: formula.PS === null || formula.PS === undefined ? null : formula.PS,
+        kp: formula.KP === null || formula.KP === undefined ? null : formula.KP,
+        ks: formula.KS === null || formula.KS === undefined ? null : formula.KS,
+        stdOutput: formula.Std_Output || 0
+      });
+      
+      // Reset recommendation selection
+      setSelectedRecommendation('');
+      
+      // Show modal immediately but with loading state
+      setShowEditModal(true);
+      
+      // Load available formulas and recommendations for this product
+      await Promise.all([
+        loadProductFormulas(formula.Product_ID),
+        loadRecommendations(formula.Product_ID)
+      ]);
+    } finally {
+      setLoadingEdit(false);
+    }
   };
 
   // Handle closing the add modal and resetting states
@@ -207,7 +287,42 @@ const FormulaAssignment = () => {
     await loadProductFormulas(product.Product_ID);
   };
 
-  // Handle manual formula selection
+  // Handle recommendation selection
+  const handleRecommendationSelect = (recommendationIndex) => {
+    setSelectedRecommendation(recommendationIndex);
+    
+    if (recommendationIndex === '' || recommendationIndex === 'manual') {
+      // User selected "Select Formula" or manual - don't change anything
+      return;
+    }
+    
+    const recommendation = recommendations[parseInt(recommendationIndex)];
+    if (!recommendation) return;
+    
+    console.log('Applying recommendation:', recommendation);
+    
+    // Update form data with recommendation
+    setFormData(prev => ({
+      ...prev,
+      pi: recommendation.formulas.PI !== null && recommendation.formulas.PI !== undefined ? recommendation.formulas.PI : null,
+      ps: recommendation.formulas.PS !== null && recommendation.formulas.PS !== undefined ? recommendation.formulas.PS : null,
+      kp: recommendation.formulas.KP !== null && recommendation.formulas.KP !== undefined ? recommendation.formulas.KP : null,
+      ks: recommendation.formulas.KS !== null && recommendation.formulas.KS !== undefined ? recommendation.formulas.KS : null,
+      stdOutput: recommendation.stdOutput
+    }));
+    
+    // Update total price
+    setTimeout(() => {
+      const totalPrice = calculateTotalProductPrice(formulaPrices, {
+        pi: recommendation.formulas.PI !== null && recommendation.formulas.PI !== undefined ? recommendation.formulas.PI : '',
+        ps: recommendation.formulas.PS !== null && recommendation.formulas.PS !== undefined ? recommendation.formulas.PS : '',
+        kp: recommendation.formulas.KP !== null && recommendation.formulas.KP !== undefined ? recommendation.formulas.KP : '',
+        ks: recommendation.formulas.KS !== null && recommendation.formulas.KS !== undefined ? recommendation.formulas.KS : ''
+      });
+      setTotalProductPrice(totalPrice);
+    }, 10);
+  };
+
   const handleFormulaSelect = (type, formulaId) => {
     // Check if user is trying to select "No Formula" when formulas are available
     if ((formulaId === undefined || formulaId === null || formulaId === 'NO_FORMULA')) {
@@ -225,10 +340,20 @@ const FormulaAssignment = () => {
       }
       
       // Allow setting to null if conditions are met
-      setFormData(prev => ({
-        ...prev,
-        [type.toLowerCase()]: null
-      }));
+      setFormData(prev => {
+        const newData = {
+          ...prev,
+          [type.toLowerCase()]: null
+        };
+        
+        // Recalculate total price with new formula selection
+        setTimeout(() => {
+          const totalPrice = calculateTotalProductPrice(formulaPrices, newData);
+          setTotalProductPrice(totalPrice);
+        }, 10);
+        
+        return newData;
+      });
       return;
     }
 
@@ -242,11 +367,21 @@ const FormulaAssignment = () => {
       
       // If standard output is 0 or empty, automatically set it to formula batch size
       if (currentStdOutput === 0) {
-        setFormData(prev => ({
-          ...prev,
-          [type.toLowerCase()]: formulaId,
-          stdOutput: formulaBatchSize
-        }));
+        setFormData(prev => {
+          const newData = {
+            ...prev,
+            [type.toLowerCase()]: formulaId,
+            stdOutput: formulaBatchSize
+          };
+          
+          // Recalculate total price with new formula selection
+          setTimeout(() => {
+            const totalPrice = calculateTotalProductPrice(formulaPrices, newData);
+            setTotalProductPrice(totalPrice);
+          }, 10);
+          
+          return newData;
+        });
       } else if (currentStdOutput !== formulaBatchSize) {
         // Show professional confirmation dialog using Awesome Notifications
         const formulaDisplayName = formulaId || '(unnamed)';
@@ -255,35 +390,75 @@ const FormulaAssignment = () => {
           `Your chosen formula "${formulaDisplayName}" has a different output than the product's standard output.\n\nFormula Output: ${formulaBatchSize}\nCurrent Standard Output: ${currentStdOutput}\n\nClick OK to change the standard output to match the formula, or Cancel to keep the current output.`,
           () => {
             // User clicked OK - update both formula and std output
-            setFormData(prev => ({
-              ...prev,
-              [type.toLowerCase()]: formulaId,
-              stdOutput: formulaBatchSize
-            }));
+            setFormData(prev => {
+              const newData = {
+                ...prev,
+                [type.toLowerCase()]: formulaId,
+                stdOutput: formulaBatchSize
+              };
+              
+              // Recalculate total price with new formula selection
+              setTimeout(() => {
+                const totalPrice = calculateTotalProductPrice(formulaPrices, newData);
+                setTotalProductPrice(totalPrice);
+              }, 10);
+              
+              return newData;
+            });
             notifier.success(`Standard output updated from ${currentStdOutput} to ${formulaBatchSize}`);
           },
           () => {
             // User clicked Cancel - update formula but keep current std output
-            setFormData(prev => ({
-              ...prev,
-              [type.toLowerCase()]: formulaId
-            }));
+            setFormData(prev => {
+              const newData = {
+                ...prev,
+                [type.toLowerCase()]: formulaId
+              };
+              
+              // Recalculate total price with new formula selection
+              setTimeout(() => {
+                const totalPrice = calculateTotalProductPrice(formulaPrices, newData);
+                setTotalProductPrice(totalPrice);
+              }, 10);
+              
+              return newData;
+            });
             notifier.info(`Formula updated, standard output kept at ${currentStdOutput}`);
           }
         );
       } else {
         // Batch sizes match, just update the formula
-        setFormData(prev => ({
-          ...prev,
-          [type.toLowerCase()]: formulaId
-        }));
+        setFormData(prev => {
+          const newData = {
+            ...prev,
+            [type.toLowerCase()]: formulaId
+          };
+          
+          // Recalculate total price with new formula selection
+          setTimeout(() => {
+            const totalPrice = calculateTotalProductPrice(formulaPrices, newData);
+            setTotalProductPrice(totalPrice);
+          }, 10);
+          
+          return newData;
+        });
       }
     } else {
       // Formula not found, just update with the formulaId (might be empty string)
-      setFormData(prev => ({
-        ...prev,
-        [type.toLowerCase()]: formulaId
-      }));
+      setFormData(prev => {
+        const newData = {
+          ...prev,
+          [type.toLowerCase()]: formulaId
+        };
+        
+        // Recalculate total price with new formula selection
+        setTimeout(() => {
+          const totalPrice = calculateTotalProductPrice(formulaPrices, newData);
+          setTotalProductPrice(totalPrice);
+        }, 10);
+        
+        return newData;
+      });
     }
   };
 
@@ -405,6 +580,66 @@ const FormulaAssignment = () => {
     return product ? product.Product_Name : productId;
   };
 
+  // Helper function to format currency
+  const formatCurrency = (amount) => {
+    if (!amount || isNaN(amount)) return '0';
+    return parseFloat(amount).toLocaleString('id-ID');
+  };
+
+  // Helper function to calculate formula prices from recipe data
+  const calculateFormulaPrices = (recipeData) => {
+    const formulaPrices = {};
+    
+    // Group by TypeCode and PPI_SubID
+    recipeData.forEach(item => {
+      const key = `${item.TypeCode}-${item.PPI_SubID}`;
+      if (!formulaPrices[key]) {
+        formulaPrices[key] = {
+          typeCode: item.TypeCode,
+          subId: item.PPI_SubID,
+          typeName: item.TypeName,
+          totalPrice: 0
+        };
+      }
+      
+      // Add UnitPrice to the total (UnitPrice is already the total price per ingredient)
+      const unitPrice = parseFloat(item.UnitPrice) || 0;
+      formulaPrices[key].totalPrice += unitPrice;
+    });
+    
+    return formulaPrices;
+  };
+
+  // Helper function to calculate total product price based on current formula selection
+  const calculateTotalProductPrice = (formulaPrices, currentSelection) => {
+    console.log('Calculating total price with:', { formulaPrices, currentSelection });
+    let total = 0;
+    
+    // For each type (PI, PS, KP, KS), add the price of the selected formula
+    ['PI', 'PS', 'KP', 'KS'].forEach(typeCode => {
+      const selectedFormula = currentSelection[typeCode.toLowerCase()];
+      console.log(`Checking ${typeCode}: selectedFormula = "${selectedFormula}"`);
+      
+      // Check if formula is selected (not null/undefined, but empty string is valid)
+      if (selectedFormula !== null && selectedFormula !== undefined) {
+        const key = `${typeCode}-${selectedFormula}`;
+        console.log(`Looking for key: "${key}" in formulaPrices`);
+        
+        if (formulaPrices[key]) {
+          console.log(`Found price for ${key}:`, formulaPrices[key]);
+          total += formulaPrices[key].totalPrice;
+        } else {
+          console.log(`No price found for key: "${key}"`);
+        }
+      } else {
+        console.log(`${typeCode} formula is null/undefined, skipping`);
+      }
+    });
+    
+    console.log('Final total calculated:', total);
+    return total;
+  };
+
   // Helper function to get formula details - distinguish between null and unnamed
   const getFormulaDetails = (formulaId) => {
     if (formulaId === null || formulaId === undefined) {
@@ -515,8 +750,9 @@ const FormulaAssignment = () => {
                           }}
                           className="btn-edit"
                           type="button"
+                          disabled={loadingEdit}
                         >
-                          Edit
+                          {loadingEdit ? 'Loading...' : 'Edit'}
                         </button>
                         <button 
                           onClick={(e) => {
@@ -745,8 +981,34 @@ const FormulaAssignment = () => {
             <div className="modal-body-scrollable">
               <form onSubmit={handleSubmit} className="formula-form">
               <div className="form-section">
-                <div className="selected-product">
-                  <strong>Product:</strong> {formData.productId} - {formData.productName}
+                <div className="product-and-recommendations">
+                  <div className="selected-product">
+                    <strong>Product:</strong> {formData.productId} - {formData.productName}
+                  </div>
+                  
+                  {/* Recommended Formula Sets */}
+                  <div className="recommendations-section">
+                    <label>Recommended Formula Set:</label>
+                    {loadingRecommendations ? (
+                      <div className="loading-recommendations">
+                        <span>Loading recommendations...</span>
+                      </div>
+                    ) : (
+                      <select
+                        value={selectedRecommendation}
+                        onChange={(e) => handleRecommendationSelect(e.target.value)}
+                        className="recommendation-select"
+                      >
+                        <option value="">-- Select Formula Set --</option>
+                        {recommendations.map((rec, index) => (
+                          <option key={index} value={index}>
+                            Batch {rec.stdOutput} - Cost: {formatCurrency(rec.totalCost)}
+                          </option>
+                        ))}
+                        <option value="manual">Manual Selection</option>
+                      </select>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -792,17 +1054,32 @@ const FormulaAssignment = () => {
                   ))}
                 </div>
                 
-                <div className="std-output-section">
-                  <label>Standard Output:</label>
-                  <input
-                    type="number"
-                    value={formData.stdOutput}
-                    onChange={(e) => setFormData(prev => ({ ...prev, stdOutput: e.target.value }))}
-                    className="input-field"
-                    min="0"
-                    step="0.01"
-                  />
+                <div className="output-and-cost-section">
+                  <div className="std-output-field">
+                    <label>Standard Output:</label>
+                    <input
+                      type="number"
+                      value={formData.stdOutput}
+                      onChange={(e) => setFormData(prev => ({ ...prev, stdOutput: e.target.value }))}
+                      className="input-field"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  
+                  <div className="total-cost-field">
+                    <label>Total Product Cost:</label>
+                    <div className="price-value">
+                      {totalProductPrice > 0 ? formatCurrency(totalProductPrice) : 'Not calculated'}
+                    </div>
+                  </div>
                 </div>
+                
+                {totalProductPrice > 0 && (
+                  <div className="price-note">
+                    <small>* Based on selected formula combination</small>
+                  </div>
+                )}
               </div>
 
               <div className="modal-actions">

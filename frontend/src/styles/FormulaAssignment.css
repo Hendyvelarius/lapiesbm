@@ -585,6 +585,153 @@
   color: #374151;
 }
 
+/* Output and Cost Section - Side by Side Layout */
+.output-and-cost-section {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.std-output-field {
+  flex: 1;
+  min-width: 200px;
+}
+
+.std-output-field label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.total-cost-field {
+  flex: 1;
+  min-width: 200px;
+}
+
+.total-cost-field label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.price-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #059669;
+  background: white;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  text-align: right;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.price-note {
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  margin-top: 8px;
+}
+
+.price-note small {
+  font-size: 0.85rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .output-and-cost-section {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .std-output-field,
+  .total-cost-field {
+    min-width: auto;
+  }
+}
+
+/* Product and Recommendations Section */
+.product-and-recommendations {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.selected-product {
+  flex: 1;
+  min-width: 200px;
+  font-size: 1rem;
+  color: #374151;
+}
+
+.recommendations-section {
+  flex: 1;
+  min-width: 250px;
+}
+
+.recommendations-section label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.95rem;
+}
+
+.recommendation-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  font-size: 0.9rem;
+  color: #374151;
+  transition: border-color 0.2s;
+}
+
+.recommendation-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.recommendation-select:hover {
+  border-color: #9ca3af;
+}
+
+.loading-recommendations {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #6b7280;
+  font-style: italic;
+  text-align: center;
+}
+
+/* Responsive adjustments for recommendations */
+@media (max-width: 768px) {
+  .product-and-recommendations {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .selected-product,
+  .recommendations-section {
+    min-width: auto;
+  }
+}
+
 /* Modal Actions */
 .modal-actions {
   display: flex;

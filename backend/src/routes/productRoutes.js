@@ -9,6 +9,9 @@ router.get('/', ProductController.getAllProducts);
 router.get('/formula', ProductController.getFormula);
 router.get('/formula/:id', ProductController.findFormula);
 
+// GET /api/products/formula-recommendations/:productId - Get recommended formula sets for a specific product
+router.get('/formula-recommendations/:productId', ProductController.getFormulaRecommendations);
+
 // GET /api/products/formula-details - Get all formula details from vw_COGS_FORMULA_List_detail
 router.get('/formula-details', ProductController.getAllFormulaDetails);
 
