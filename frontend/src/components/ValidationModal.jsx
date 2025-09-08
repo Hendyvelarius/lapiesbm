@@ -33,7 +33,7 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
     {
       id: 4,
       title: 'Validating cost parameters',
-      description: 'Checking labor costs, overhead costs, and other parameters',
+      description: 'Checking labor costs (PN1/PN2), factory overhead (PN1/PN2), depreciation (PN1/PN2), and other parameters',
       status: 'pending',
       details: null,
       errors: []
@@ -427,14 +427,33 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
           errors.push('Parameter data for current year (2025) not found');
         } else {
           const requiredParams = [
-            'Direct_Labor', 'Factory_Over_Head', 'Depresiasi', 'MH_Timbang_BB',
-            'MH_Timbang_BK', 'MH_Analisa', 'Biaya_Analisa', 'Jam_KWH_Mesin_Utama', 'Rate_KWH_Mesin'
+            'Direct_Labor_PN1', 'Direct_Labor_PN2', 
+            'Factory_Over_Head_PN1', 'Factory_Over_Head_PN2', 
+            'Depresiasi_PN1', 'Depresiasi_PN2', 
+            'MH_Timbang_BB', 'MH_Timbang_BK', 'MH_Analisa', 'Biaya_Analisa', 
+            'Jam_KWH_Mesin_Utama', 'Rate_KWH_Mesin'
           ];
           
           requiredParams.forEach(param => {
             const value = currentYearParam[param];
             if (value === null || value === undefined || typeof value !== 'number') {
-              errors.push(`Parameter "${param}" is not properly set (current value: ${value})`);
+              // Provide more user-friendly parameter names
+              let friendlyName = param;
+              switch(param) {
+                case 'Direct_Labor_PN1': friendlyName = 'Direct Labor PN1'; break;
+                case 'Direct_Labor_PN2': friendlyName = 'Direct Labor PN2'; break;
+                case 'Factory_Over_Head_PN1': friendlyName = 'Factory Overhead PN1'; break;
+                case 'Factory_Over_Head_PN2': friendlyName = 'Factory Overhead PN2'; break;
+                case 'Depresiasi_PN1': friendlyName = 'Depreciation PN1'; break;
+                case 'Depresiasi_PN2': friendlyName = 'Depreciation PN2'; break;
+                case 'Rate_KWH_Mesin': friendlyName = 'Machine Rate per KWH'; break;
+                case 'MH_Timbang_BB': friendlyName = 'Man Hour Weighing Raw Materials'; break;
+                case 'MH_Timbang_BK': friendlyName = 'Man Hour Weighing Finished Goods'; break;
+                case 'MH_Analisa': friendlyName = 'Man Hour Analysis'; break;
+                case 'Biaya_Analisa': friendlyName = 'Analysis Cost'; break;
+                case 'Jam_KWH_Mesin_Utama': friendlyName = 'Main Machine KWH Hours'; break;
+              }
+              errors.push(`Parameter "${friendlyName}" is not properly set (current value: ${value})`);
             }
           });
         }
@@ -480,7 +499,7 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
         updateStepStatus(4, 'failed', {
           summary: `${errors.length} cost parameter issue(s) found`,
           errors,
-          helpMessage: 'Please configure cost parameters in Pembebanan and Parameter pages.'
+          helpMessage: 'Please configure cost parameters in Biaya Lain and Pembebanan pages.'
         });
         
         return false;
