@@ -1,0 +1,274 @@
+.hpp-results-page {
+  padding: 24px;
+  background-color: #f8fafc;
+  min-height: 100vh;
+}
+
+.hpp-results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.hpp-results-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.hpp-header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.hpp-export-btn,
+.hpp-refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hpp-export-btn {
+  background-color: #059669;
+  color: white;
+}
+
+.hpp-export-btn:hover {
+  background-color: #047857;
+}
+
+.hpp-refresh-btn {
+  background-color: #e2e8f0;
+  color: #475569;
+}
+
+.hpp-refresh-btn:hover {
+  background-color: #cbd5e1;
+}
+
+.hpp-results-content {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.hpp-table-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.hpp-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background-color: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.hpp-table-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+.hpp-table-icon {
+  color: #3b82f6;
+}
+
+.hpp-record-count {
+  background-color: #3b82f6;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.hpp-table-wrapper {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 600px;
+  scroll-behavior: smooth;
+  /* Prevent scroll position from jumping */
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.hpp-table-wrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.hpp-table-wrapper::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.hpp-table-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.hpp-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.hpp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.hpp-table th {
+  background-color: #f8fafc;
+  color: #374151;
+  font-weight: 600;
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 2px solid #e5e7eb;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.hpp-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  white-space: nowrap;
+}
+
+.hpp-table tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+.product-name {
+  max-width: 300px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hpp-value {
+  font-weight: 600;
+  color: #059669;
+}
+
+.hpp-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  gap: 16px;
+}
+
+.hpp-loading-spinner {
+  animation: spin 1s linear infinite;
+  color: #3b82f6;
+  width: 32px;
+  height: 32px;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.hpp-loading p {
+  color: #6b7280;
+  font-size: 1.125rem;
+}
+
+.hpp-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  gap: 16px;
+}
+
+.hpp-error p {
+  color: #dc2626;
+  font-size: 1.125rem;
+  text-align: center;
+}
+
+.hpp-retry-btn {
+  padding: 10px 20px;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.hpp-retry-btn:hover {
+  background-color: #2563eb;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .hpp-results-page {
+    padding: 16px;
+  }
+
+  .hpp-results-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .hpp-results-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .hpp-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .hpp-table-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .hpp-table th,
+  .hpp-table td {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+
+  .product-name {
+    max-width: 200px;
+  }
+}

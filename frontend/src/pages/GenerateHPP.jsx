@@ -1,17 +1,54 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router';
 import '../styles/GenerateHPP.css';
-import { CheckCircle, Calculator, Database, AlertTriangle, Clock, ChevronRight } from 'lucide-react';
+import { CheckCircle, Calculator, Eye, AlertTriangle, Clock, ChevronRight } from 'lucide-react';
 import ValidationModal from '../components/ValidationModal';
 
+// API base configuration
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+
+// Generic API request function
+const apiCall = async (endpoint, method = 'GET', data = null) => {
+  const url = `${API_BASE_URL}${endpoint}`;
+  
+  const config = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+
+  if (data && method !== 'GET') {
+    config.body = JSON.stringify(data);
+  }
+
+  try {
+    const response = await fetch(url, config);
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return result;
+  } catch (error) {
+    console.error('API Request Error:', error);
+    throw error;
+  }
+};
+
 export default function GenerateHPP() {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [stepStatus, setStepStatus] = useState({
     validation: 'pending', // pending, running, completed, failed
     calculation: 'pending',
-    posting: 'pending'
+    dataCheck: 'pending' // Changed from 'posting' to 'dataCheck'
   });
   const [loading, setLoading] = useState(false);
   const [showValidationModal, setShowValidationModal] = useState(false);
+
+  const currentYear = new Date().getFullYear().toString();
 
   const steps = [
     {
@@ -25,18 +62,18 @@ export default function GenerateHPP() {
     {
       number: 2,
       title: 'HPP Calculation',
-      description: 'Calculate Cost of Goods Sold (HPP) for all products based on assigned formulas',
+      description: 'Execute stored procedure to calculate Cost of Goods Sold (HPP) for all products',
       icon: Calculator,
       action: 'Calculate',
       status: stepStatus.calculation
     },
     {
       number: 3,
-      title: 'Post to Database',
-      description: 'Save calculated HPP values to the database and update product records',
-      icon: Database,
-      action: 'Post',
-      status: stepStatus.posting
+      title: 'Check Data Validity',
+      description: 'Review calculated HPP values and verify data integrity in the results',
+      icon: Eye,
+      action: 'Check Data',
+      status: stepStatus.dataCheck
     }
   ];
 
@@ -71,24 +108,36 @@ export default function GenerateHPP() {
       // Open validation modal for step 1
       setShowValidationModal(true);
     } else if (stepNumber === 2) {
-      // Calculation
+      // HPP Calculation using stored procedure
+      await handleHPPCalculation();
+    } else if (stepNumber === 3) {
+      // Check Data Validity - navigate to results page
+      navigate('/hpp-results');
+    }
+  };
+
+  const handleHPPCalculation = async () => {
+    try {
       setLoading(true);
       setStepStatus(prev => ({ ...prev, calculation: 'running' }));
-      // TODO: Implement calculation logic
-      setTimeout(() => {
+
+      // Call the backend to execute sp_COGS_GenerateHPP with hardcoded parameters
+      const response = await apiCall('/hpp/generate', 'POST', {
+        periode: currentYear
+      });
+
+      if (response.success) {
         setStepStatus(prev => ({ ...prev, calculation: 'completed' }));
         setCurrentStep(3);
-        setLoading(false);
-      }, 3000);
-    } else if (stepNumber === 3) {
-      // Post to Database
-      setLoading(true);
-      setStepStatus(prev => ({ ...prev, posting: 'running' }));
-      // TODO: Implement posting logic
-      setTimeout(() => {
-        setStepStatus(prev => ({ ...prev, posting: 'completed' }));
-        setLoading(false);
-      }, 2000);
+      } else {
+        setStepStatus(prev => ({ ...prev, calculation: 'failed' }));
+      }
+    } catch (error) {
+      console.error('HPP Calculation Error:', error);
+      setStepStatus(prev => ({ ...prev, calculation: 'failed' }));
+      alert('Error during HPP calculation: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -117,7 +166,7 @@ export default function GenerateHPP() {
     setStepStatus({
       validation: 'pending',
       calculation: 'pending',
-      posting: 'pending'
+      dataCheck: 'pending'
     });
     setShowValidationModal(false); // Close modal if it's open
   };
@@ -185,9 +234,9 @@ export default function GenerateHPP() {
               <h4>Important Notes</h4>
               <ul>
                 <li>Complete validation checks before proceeding to calculation</li>
-                <li>HPP calculation may take several minutes for large product catalogs</li>
-                <li>Ensure all formula assignments are up-to-date before starting</li>
-                <li>Database posting is final - review calculations carefully</li>
+                <li>HPP calculation executes stored procedure sp_COGS_GenerateHPP for year {currentYear}</li>
+                <li>Calculation updates database tables automatically when completed</li>
+                <li>Review calculated results in the data validity check step</li>
               </ul>
             </div>
           </div>

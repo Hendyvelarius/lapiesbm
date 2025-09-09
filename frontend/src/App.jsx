@@ -13,6 +13,7 @@ import FormulaAssignment from './pages/FormulaAssignment';
 import ProductFormula from './pages/ProductFormula';
 import GenerateHPP from './pages/GenerateHPP';
 import ExpiryCost from './pages/ExpiryCost';
+import HPPResults from './pages/HPPResults';
 import './styles/App.css';
 
 function AppContent() {
@@ -61,6 +62,8 @@ function AppContent() {
         return 'Generate HPP';
       case '/expiry-cost':
         return 'Expiry Cost Management';
+      case '/hpp-results':
+        return 'HPP Calculation Results';
       default:
         return 'Hello, Gunawan';
     }
@@ -105,6 +108,7 @@ function AppContent() {
             <Route path="/product-formula" element={<ProductFormula />} />
             <Route path="/generate-hpp" element={<GenerateHPP />} />
             <Route path="/expiry-cost" element={<ExpiryCost />} />
+            <Route path="/hpp-results" element={<HPPResults />} />
           </Routes>
       </main>
     </div>

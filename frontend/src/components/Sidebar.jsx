@@ -1,5 +1,5 @@
 import '../styles/Sidebar.css';
-import { FileText, BarChart3, DollarSign, Package, Calculator, Users, Layers, FlaskConical, Settings, CalendarX } from 'lucide-react';
+import { FileText, BarChart3, DollarSign, Package, Calculator, Users, Layers, FlaskConical, Settings, CalendarX, ClipboardList } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 
 export default function Sidebar() {
@@ -69,6 +69,12 @@ export default function Sidebar() {
             <li className={location.pathname === '/generate-hpp' ? 'active' : ''}>
               <Link to="/generate-hpp" className="sidebar-link">
                 <Calculator className="sidebar-icon" size={20} /> Generate HPP
+              </Link>
+            </li>
+            {/* HPP Results */}
+            <li className={location.pathname === '/hpp-results' ? 'active' : ''}>
+              <Link to="/hpp-results" className="sidebar-link">
+                <ClipboardList className="sidebar-icon" size={20} /> HPP Results
               </Link>
             </li>
             {/* Expiry Cost Management */}

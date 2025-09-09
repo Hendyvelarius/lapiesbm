@@ -19,6 +19,28 @@ async function getHPP() {
   }
 }
 
+// Generate HPP calculation using stored procedure
+async function generateHPPCalculation(periode = '2025') {
+  try {
+    const db = await connect();
+    // Hardcoded parameters: ethical = '0', generik = '1'
+    const query = `exec sp_COGS_GenerateHPP @periode, '0', '1'`;
+    
+    await db.request()
+      .input('periode', sql.VarChar(4), periode)
+      .query(query);
+    
+    return { 
+      success: true, 
+      message: `HPP calculation completed for period ${periode}` 
+    };
+  } catch (error) {
+    console.error('Error executing HPP calculation:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   getHPP,
+  generateHPPCalculation,
 };
