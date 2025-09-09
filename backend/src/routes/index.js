@@ -5,11 +5,13 @@ const router = express.Router();
 const productRoutes = require('./productRoutes');
 const hppRoutes = require('./hppRoutes');
 const masterRoutes = require('./masterRoutes');
+const expiryCostRoutes = require('./expiryCostRoutes');
 
 // Use routes
 router.use('/products', productRoutes);
 router.use('/hpp', hppRoutes);
 router.use('/master', masterRoutes);
+router.use('/expiry-cost', expiryCostRoutes);
 
 // Health check endpoint
 router.get('/health', (req, res) => {

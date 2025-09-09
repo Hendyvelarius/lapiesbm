@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const HPPController = require('../controllers/hppController');
 
+router.get('/data', HPPController.getHPP);
+
 // GET /api/hpp - Get all HPP records with filtering and pagination
 router.get('/', HPPController.getAllHPP);
 

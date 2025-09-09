@@ -1,8 +1,22 @@
 const { HPP, Product, HPPIngredient } = require('../../models');
 const { Op } = require('sequelize');
+const { getHPP } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
+  static async getHPP(req, res) {
+    try {
+      const hpp = await getHPP();
+      res.status(200).json(hpp);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving HPP data',
+        error: error.message
+      });
+    }
+  }
+
   static async getAllHPP(req, res) {
     try {
       const { page = 1, limit = 10, productId, status } = req.query;
