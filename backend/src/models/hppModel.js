@@ -4,10 +4,9 @@ const sql = require('mssql');
 async function getHPP() {
   try {
     const db = await connect();
-    const result = await db.request().query(`exec sp_COGS_GenerateHPP '2025','1','0'`);
+    const result = await db.request().query(`exec sp_COGS_HPP_List`);
     
     // The stored procedure returns multiple result sets
-    // result.recordsets is an array containing all result sets
     return {
       ethical: result.recordsets[0] || [],
       generik1: result.recordsets[1] || [],
