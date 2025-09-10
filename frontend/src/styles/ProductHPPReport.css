@@ -1,0 +1,374 @@
+/* ProductHPPReport.css - Excel Document Style */
+.product-hpp-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.product-hpp-modal {
+  background: white;
+  width: 95%;
+  max-width: 1200px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  position: relative;
+  margin: 20px;
+}
+
+.product-hpp-modal-header {
+  padding: 20px 30px;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f8f9fa;
+}
+
+.product-hpp-modal-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 1.5rem;
+}
+
+.product-hpp-modal-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.product-hpp-export-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background-color 0.2s;
+}
+
+.product-hpp-export-btn.excel {
+  background-color: #217346;
+  color: white;
+}
+
+.product-hpp-export-btn.excel:hover {
+  background-color: #1e6540;
+}
+
+.product-hpp-close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.product-hpp-close-btn:hover {
+  color: #333;
+}
+
+.product-hpp-modal-content {
+  padding: 30px;
+  background: white;
+}
+
+/* Document Layout */
+.product-hpp-report {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: white;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #000;
+}
+
+/* Document Header */
+.document-header {
+  margin-bottom: 20px;
+  border-bottom: 2px solid #000;
+  padding-bottom: 10px;
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.header-left h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: bold;
+  color: #000;
+}
+
+.header-right {
+  text-align: right;
+}
+
+.header-info {
+  margin-bottom: 5px;
+}
+
+.header-info .label {
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+/* Product Info Section */
+.product-info-section {
+  margin-bottom: 20px;
+  padding: 15px 0;
+  border-bottom: 1px solid #ccc;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
+.info-line {
+  display: flex;
+  margin-bottom: 8px;
+  align-items: flex-start;
+}
+
+.info-line .label {
+  min-width: 200px;
+  font-weight: normal;
+  flex-shrink: 0;
+}
+
+.info-line .separator {
+  margin: 0 10px;
+  flex-shrink: 0;
+}
+
+.info-line .value {
+  font-weight: bold;
+  flex: 1;
+}
+
+/* Excel-style Tables */
+.excel-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  font-size: 11px;
+}
+
+.excel-table th,
+.excel-table td {
+  border: 1px solid #000;
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.excel-table th {
+  background-color: #f0f0f0;
+  font-weight: bold;
+  text-align: center;
+}
+
+.excel-table .narrow {
+  width: 30px;
+  text-align: center;
+}
+
+.excel-table .number {
+  text-align: right;
+  font-family: 'Courier New', monospace;
+}
+
+.section-header td {
+  background-color: #e8e8e8;
+  font-weight: bold;
+  text-align: left;
+}
+
+.subsection-header td {
+  background-color: #f5f5f5;
+  font-style: italic;
+  text-align: left;
+  padding-left: 20px;
+}
+
+.total-row {
+  background-color: #f8f8f8;
+}
+
+.total-row td {
+  font-weight: bold;
+}
+
+.total-row .total {
+  background-color: #e8e8e8;
+  border: 2px solid #000;
+}
+
+/* Material Sections */
+.material-section {
+  margin-bottom: 25px;
+}
+
+.section-title {
+  margin-bottom: 5px;
+  padding: 8px 12px;
+  background-color: #e8e8e8;
+  border: 1px solid #000;
+  font-weight: bold;
+}
+
+.section-title h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: bold;
+  color: #000;
+}
+
+/* Labor Section */
+.labor-section {
+  margin-bottom: 25px;
+}
+
+/* Final Total Section */
+.final-total-section {
+  margin-top: 30px;
+  border-top: 2px solid #000;
+  padding-top: 15px;
+}
+
+.final-total td {
+  font-size: 14px;
+  font-weight: bold;
+  padding: 8px;
+}
+
+.final-total .final {
+  background-color: #ffeb9c;
+  border: 2px solid #000;
+}
+
+/* Loading and Error States */
+.product-hpp-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  font-size: 16px;
+  color: #666;
+}
+
+.product-hpp-error {
+  color: #d32f2f;
+  text-align: center;
+  padding: 20px;
+  background-color: #ffebee;
+  border-radius: 4px;
+  margin: 20px 0;
+}
+
+/* Print styles */
+@media print {
+  .product-hpp-modal-overlay {
+    position: static;
+    background: none;
+  }
+  
+  .product-hpp-modal {
+    box-shadow: none;
+    border-radius: 0;
+    max-height: none;
+    overflow: visible;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+  }
+  
+  .product-hpp-modal-header {
+    display: none;
+  }
+  
+  .product-hpp-modal-content {
+    padding: 0;
+  }
+  
+  .product-hpp-report {
+    font-size: 10px;
+  }
+  
+  .excel-table {
+    font-size: 9px;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .product-hpp-modal {
+    width: 98%;
+    margin: 10px;
+  }
+  
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .excel-table {
+    font-size: 10px;
+  }
+  
+  .excel-table th,
+  .excel-table td {
+    padding: 3px 6px;
+  }
+}
+
+@media (max-width: 768px) {
+  .product-hpp-modal-header {
+    padding: 15px 20px;
+  }
+  
+  .product-hpp-modal-content {
+    padding: 20px;
+  }
+  
+  .header-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .info-line {
+    flex-direction: column;
+  }
+  
+  .info-line .separator {
+    display: none;
+  }
+  
+  .excel-table {
+    font-size: 9px;
+  }
+  
+  .excel-table th,
+  .excel-table td {
+    padding: 2px 4px;
+  }
+}

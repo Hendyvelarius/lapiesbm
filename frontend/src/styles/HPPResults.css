@@ -282,6 +282,20 @@
   text-overflow: ellipsis;
 }
 
+.product-name.clickable {
+  color: #3b82f6;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+}
+
+.product-name.clickable:hover {
+  color: #1d4ed8;
+  text-decoration-color: #1d4ed8;
+  background-color: #eff6ff;
+}
+
 .hpp-value {
   font-weight: 600;
   color: #059669;

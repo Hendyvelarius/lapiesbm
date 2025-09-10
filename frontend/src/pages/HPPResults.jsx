@@ -3,6 +3,7 @@ import { Download, FileText, Loader2, ChevronLeft, ChevronRight, Search, Refresh
 import { useNavigate } from 'react-router';
 import * as XLSX from 'xlsx';
 import { hppAPI, masterAPI } from '../services/api';
+import ProductHPPReport from '../components/ProductHPPReport';
 import '../styles/HPPResults.css';
 
 // Utility functions
@@ -92,7 +93,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange, totalItems }) => {
 };
 
 // Table components moved outside to prevent re-creation on each render
-const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages }) => (
+const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onProductClick }) => (
   <div className="hpp-table-container">
     <div className="hpp-table-header">
       <h3><FileText className="hpp-table-icon" />Ethical Products</h3>
@@ -134,7 +135,7 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
           {data.map((item, index) => (
             <tr key={`${item.Product_ID}-${index}`}>
               <td>{item.Product_ID}</td>
-              <td className="product-name">{item.Product_Name}</td>
+              <td className="product-name clickable" onClick={() => onProductClick(item)}>{item.Product_Name}</td>
               <td>{formatCurrency(item.totalBB)}</td>
               <td>{formatCurrency(item.totalBK)}</td>
               <td>{formatNumber(item.MH_Proses_Std)}</td>
@@ -159,7 +160,7 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
   </div>
 );
 
-const Generik1Table = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages }) => (
+const Generik1Table = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onProductClick }) => (
   <div className="hpp-table-container">
     <div className="hpp-table-header">
       <h3><FileText className="hpp-table-icon" />Generic Products (Type 1)</h3>
@@ -206,7 +207,7 @@ const Generik1Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
           {data.map((item, index) => (
             <tr key={`${item.Product_ID}-${index}`}>
               <td>{item.Product_ID}</td>
-              <td className="product-name">{item.Product_Name}</td>
+              <td className="product-name clickable" onClick={() => onProductClick(item)}>{item.Product_Name}</td>
               <td>{formatCurrency(item.totalBB)}</td>
               <td>{formatCurrency(item.totalBK)}</td>
               <td>{formatNumber(item.MH_Proses_Std)}</td>
@@ -236,7 +237,7 @@ const Generik1Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
   </div>
 );
 
-const Generik2Table = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages }) => (
+const Generik2Table = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onProductClick }) => (
   <div className="hpp-table-container">
     <div className="hpp-table-header">
       <h3><FileText className="hpp-table-icon" />Generic Products (Type 2)</h3>
@@ -270,6 +271,7 @@ const Generik2Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
             <th>Biaya Kemas</th>
             <th>Direct Labor</th>
             <th>Factory Over Head 50</th>
+            <th>Depresiasi</th>
             <th>Expiry Cost</th>
             <th>Group Rendemen</th>
             <th>Batch Size</th>
@@ -280,7 +282,7 @@ const Generik2Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
           {data.map((item, index) => (
             <tr key={`${item.Product_ID}-${index}`}>
               <td>{item.Product_ID}</td>
-              <td className="product-name">{item.Product_Name}</td>
+              <td className="product-name clickable" onClick={() => onProductClick(item)}>{item.Product_Name}</td>
               <td>{formatCurrency(item.totalBB)}</td>
               <td>{formatCurrency(item.totalBK)}</td>
               <td>{formatNumber(item.MH_Proses_Std)}</td>
@@ -289,6 +291,7 @@ const Generik2Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
               <td>{formatCurrency(item.Biaya_Kemas)}</td>
               <td>{formatCurrency(item.Direct_Labor)}</td>
               <td>{formatCurrency(item.Factory_Over_Head_50)}</td>
+              <td>{formatCurrency(item.Depresiasi)}</td>
               <td>{formatCurrency(item.Beban_Sisa_Bahan_Exp)}</td>
               <td>{formatNumber(item.Group_Rendemen)}%</td>
               <td>{formatNumber(item.Batch_Size)}</td>
@@ -319,6 +322,10 @@ const HPPResults = () => {
   const [activeTab, setActiveTab] = useState('ethical');
   const [exporting, setExporting] = useState(false);
   
+  // Product HPP Report modal state
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showProductReport, setShowProductReport] = useState(false);
+  
   // Pagination state for each table
   const [pagination, setPagination] = useState({
     ethical: { currentPage: 1, itemsPerPage: 50 },
@@ -348,6 +355,18 @@ const HPPResults = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handle opening product report
+  const handleProductClick = (product) => {
+    setSelectedProduct(product);
+    setShowProductReport(true);
+  };
+
+  // Handle closing product report
+  const handleCloseProductReport = () => {
+    setShowProductReport(false);
+    setSelectedProduct(null);
   };
 
   // Filter data based on search terms
@@ -464,7 +483,7 @@ const HPPResults = () => {
       const generik2Columns = [
         'Product_ID', 'Product_Name', 'totalBB', 'totalBK', 'MH_Proses_Std',
         'MH_Kemas_Std', 'Biaya_Proses', 'Biaya_Kemas', 'Direct_Labor',
-        'Factory_Over_Head_50', 'Beban_Sisa_Bahan_Exp', 'Group_Rendemen', 
+        'Factory_Over_Head_50', 'Depresiasi', 'Beban_Sisa_Bahan_Exp', 'Group_Rendemen', 
         'Batch_Size', 'HPP'
       ];
 
@@ -537,7 +556,8 @@ const HPPResults = () => {
       onSearchChange: (term) => handleSearchChange(activeTab, term),
       pagination: currentPagination,
       onPageChange: (page) => handlePageChange(activeTab, page),
-      totalPages: currentData.totalPages
+      totalPages: currentData.totalPages,
+      onProductClick: handleProductClick
     };
 
     switch (activeTab) {
@@ -635,6 +655,13 @@ const HPPResults = () => {
           </div>
         </div>
       </div>
+
+      {/* Product HPP Report Modal */}
+      <ProductHPPReport
+        product={selectedProduct}
+        isOpen={showProductReport}
+        onClose={handleCloseProductReport}
+      />
     </div>
   );
 };
