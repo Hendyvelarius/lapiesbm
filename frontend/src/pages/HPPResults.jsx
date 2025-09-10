@@ -124,6 +124,7 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
             <th>MH Kemas Std</th>
             <th>Biaya Proses</th>
             <th>Biaya Kemas</th>
+            <th>Expiry Cost</th>
             <th>Group Rendemen</th>
             <th>Batch Size</th>
             <th>HPP</th>
@@ -140,6 +141,7 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
               <td>{formatNumber(item.MH_Kemas_Std)}</td>
               <td>{formatCurrency(item.Biaya_Proses)}</td>
               <td>{formatCurrency(item.Biaya_Kemas)}</td>
+              <td>{formatCurrency(item.Beban_Sisa_Bahan_Exp)}</td>
               <td>{formatNumber(item.Group_Rendemen)}%</td>
               <td>{formatNumber(item.Batch_Size)}</td>
               <td className="hpp-value">{formatCurrency(item.HPP)}</td>
@@ -194,6 +196,7 @@ const Generik1Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
             <th>Biaya Analisa</th>
             <th>MH Mesin Std</th>
             <th>Rate PLN</th>
+            <th>Expiry Cost</th>
             <th>Group Rendemen</th>
             <th>Batch Size</th>
             <th>HPP</th>
@@ -215,6 +218,7 @@ const Generik1Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
               <td>{formatCurrency(item.Biaya_Analisa)}</td>
               <td>{formatNumber(item.MH_Mesin_Std)}</td>
               <td>{formatCurrency(item.Rate_PLN)}</td>
+              <td>{formatCurrency(item.Beban_Sisa_Bahan_Exp)}</td>
               <td>{formatNumber(item.Group_Rendemen)}%</td>
               <td>{formatNumber(item.Batch_Size)}</td>
               <td className="hpp-value">{formatCurrency(item.HPP)}</td>
@@ -266,6 +270,7 @@ const Generik2Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
             <th>Biaya Kemas</th>
             <th>Direct Labor</th>
             <th>Factory Over Head 50</th>
+            <th>Expiry Cost</th>
             <th>Group Rendemen</th>
             <th>Batch Size</th>
             <th>HPP</th>
@@ -284,6 +289,7 @@ const Generik2Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
               <td>{formatCurrency(item.Biaya_Kemas)}</td>
               <td>{formatCurrency(item.Direct_Labor)}</td>
               <td>{formatCurrency(item.Factory_Over_Head_50)}</td>
+              <td>{formatCurrency(item.Beban_Sisa_Bahan_Exp)}</td>
               <td>{formatNumber(item.Group_Rendemen)}%</td>
               <td>{formatNumber(item.Batch_Size)}</td>
               <td className="hpp-value">{formatCurrency(item.HPP)}</td>
@@ -444,21 +450,22 @@ const HPPResults = () => {
       // Define columns for each table type
       const ethicalColumns = [
         'Product_ID', 'Product_Name', 'totalBB', 'totalBK', 'MH_Proses_Std', 
-        'MH_Kemas_Std', 'Biaya_Proses', 'Biaya_Kemas', 'Group_Rendemen', 
-        'Batch_Size', 'HPP'
+        'MH_Kemas_Std', 'Biaya_Proses', 'Biaya_Kemas', 'Beban_Sisa_Bahan_Exp',
+        'Group_Rendemen', 'Batch_Size', 'HPP'
       ];
       
       const generik1Columns = [
         'Product_ID', 'Product_Name', 'totalBB', 'totalBK', 'MH_Proses_Std',
         'MH_Kemas_Std', 'MH_Analisa_Std', 'MH_Timbang_BB', 'MH_Timbang_BK',
         'Biaya_Generik', 'Biaya_Analisa', 'MH_Mesin_Std', 'Rate_PLN',
-        'Group_Rendemen', 'Batch_Size', 'HPP'
+        'Beban_Sisa_Bahan_Exp', 'Group_Rendemen', 'Batch_Size', 'HPP'
       ];
       
       const generik2Columns = [
         'Product_ID', 'Product_Name', 'totalBB', 'totalBK', 'MH_Proses_Std',
         'MH_Kemas_Std', 'Biaya_Proses', 'Biaya_Kemas', 'Direct_Labor',
-        'Factory_Over_Head_50', 'Group_Rendemen', 'Batch_Size', 'HPP'
+        'Factory_Over_Head_50', 'Beban_Sisa_Bahan_Exp', 'Group_Rendemen', 
+        'Batch_Size', 'HPP'
       ];
 
       const materialUsageColumns = [
