@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Download, FileText, Loader2, ChevronLeft, ChevronRight, Search, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import * as XLSX from 'xlsx';
-import { hppAPI } from '../services/api';
+import { hppAPI, masterAPI } from '../services/api';
 import '../styles/HPPResults.css';
 
 // Utility functions
@@ -461,6 +461,11 @@ const HPPResults = () => {
         'Factory_Over_Head_50', 'Group_Rendemen', 'Batch_Size', 'HPP'
       ];
 
+      const materialUsageColumns = [
+        'product_id', 'item_type', 'PPI_ItemID', 'Item_Name', 'PPI_QTY',
+        'PPI_UnitID', 'Item_unit', 'total'
+      ];
+
       // Create worksheets for each table
       if (hppData.ethical && hppData.ethical.length > 0) {
         const ethicalWS = XLSX.utils.json_to_sheet(hppData.ethical, { 
@@ -481,6 +486,20 @@ const HPPResults = () => {
           header: generik2Columns 
         });
         XLSX.utils.book_append_sheet(workbook, generik2WS, 'Generic Type 2');
+      }
+
+      // Fetch and add Material Raw Data sheet
+      try {
+        const materialUsageResponse = await masterAPI.getMaterialUsage();
+        if (materialUsageResponse && materialUsageResponse.length > 0) {
+          const materialUsageWS = XLSX.utils.json_to_sheet(materialUsageResponse, { 
+            header: materialUsageColumns 
+          });
+          XLSX.utils.book_append_sheet(workbook, materialUsageWS, 'Material Raw Data');
+        }
+      } catch (materialError) {
+        console.warn('Failed to fetch material usage data for export:', materialError);
+        // Continue with export without material data
       }
       
       // Generate filename with current date

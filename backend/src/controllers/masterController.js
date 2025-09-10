@@ -1,4 +1,4 @@
-const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, getMaterial, addFormulaManual, addBatchFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
+const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, getMaterial, getMaterialUsage, addFormulaManual, addBatchFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
 
 class MasterController {
     static async getCurrency(req, res) {
@@ -712,6 +712,20 @@ class MasterController {
             res.status(500).json({
                 success: false,
                 message: 'Failed to retrieve material',
+                error: error.message
+            });
+        }
+    }
+
+    static async getMaterialUsage(req, res) {
+        try {
+            const result = await getMaterialUsage();
+            res.status(200).json(result);
+        } catch (error) {
+            console.error('Error in getMaterialUsage endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve material usage',
                 error: error.message
             });
         }

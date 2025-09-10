@@ -609,6 +609,32 @@ async function getMaterial() {
   }
 }
 
+async function getMaterialUsage() {
+  try {
+    const db = await connect();
+    const query = `
+      SELECT 
+        d.product_id,
+        d.item_type,
+        d.PPI_ItemID,
+        m.Item_Name,
+        d.PPI_QTY,
+        d.PPI_UnitID,
+        ROUND(d.total / d.ppi_qty, 3) AS Item_unit,
+        d.total
+      FROM t_COGS_HPP_Product_Detail_Formula d
+      INNER JOIN m_item_Manufacturing m 
+        ON d.PPI_ItemID = m.Item_ID
+      ORDER BY d.product_id, d.ITEM_TYPE, d.PPI_ItemID
+    `;
+    const result = await db.request().query(query);
+    return result.recordset;
+  } catch (error) {
+    console.error('Error executing getMaterialUsage query:', error);
+    throw error;
+  }
+}
+
 // === FORMULA MANUAL CUD OPERATIONS ===
 
 async function addFormulaManual(ppiType, ppiSubId, ppiProductId, ppiBatchSize, ppiSeqId, ppiItemId, ppiQty, ppiUnitId, userId) {
@@ -875,6 +901,7 @@ module.exports = {
   updatePembebanan,
   deletePembebanan,
   getMaterial,
+  getMaterialUsage,
   addFormulaManual,
   addBatchFormulaManual,
   updateFormulaManual,

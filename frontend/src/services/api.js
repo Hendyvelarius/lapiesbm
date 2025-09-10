@@ -283,6 +283,9 @@ export const masterAPI = {
   // Get material data
   getMaterial: () => apiRequest('/master/material'),
   
+  // Get material usage data
+  getMaterialUsage: () => apiRequest('/master/materialUsage'),
+  
   // === FORMULA MANUAL CUD OPERATIONS ===
   
   // Add new formula ingredient
