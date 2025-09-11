@@ -6,27 +6,13 @@ const errorHandler = (err, req, res, next) => {
   let error = { ...err };
   error.message = err.message;
 
-  // Sequelize validation error
-  if (err.name === 'SequelizeValidationError') {
-    const messages = err.errors.map(error => error.message);
-    error.message = messages.join(', ');
-    error.statusCode = 400;
+  // SQL Server errors
+  if (err.name === 'RequestError') {
+    error.message = 'Database query error';
+    error.statusCode = 500;
   }
 
-  // Sequelize unique constraint error
-  if (err.name === 'SequelizeUniqueConstraintError') {
-    error.message = 'Duplicate entry found';
-    error.statusCode = 400;
-  }
-
-  // Sequelize foreign key constraint error
-  if (err.name === 'SequelizeForeignKeyConstraintError') {
-    error.message = 'Invalid reference - related record not found';
-    error.statusCode = 400;
-  }
-
-  // Sequelize database connection error
-  if (err.name === 'SequelizeConnectionError') {
+  if (err.name === 'ConnectionError') {
     error.message = 'Database connection error';
     error.statusCode = 500;
   }

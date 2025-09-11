@@ -11,9 +11,6 @@ const { generalLimiter } = require('./middleware/rateLimiter');
 // Import routes
 const apiRoutes = require('./routes');
 
-// Import models to establish database connection
-const { sequelize } = require('../models');
-
 // Create Express app
 const app = express();
 
@@ -92,17 +89,12 @@ app.use('*', (req, res) => {
 // Global error handler (must be last)
 app.use(errorHandler);
 
-// Database connection and server startup
+// Server startup
 const PORT = process.env.PORT || 3001;
 
 async function startServer() {
   try {
-    // Test database connection
-    await sequelize.authenticate();
-    console.log('✅ Database connection established successfully.');
-
-    // Tables are managed via migrations (npx sequelize db:migrate)
-    // No need for sync since migrations handle schema
+    console.log('✅ Database connection using SQL Server with mssql package.');
 
     // Start server
     app.listen(PORT, () => {
@@ -131,13 +123,11 @@ process.on('uncaughtException', (err) => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down gracefully');
-  await sequelize.close();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully');
-  await sequelize.close();
   process.exit(0);
 });
 

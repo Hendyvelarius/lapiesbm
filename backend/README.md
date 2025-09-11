@@ -1,12 +1,12 @@
 # eSBM Backend
 
-Backend API untuk e-Sistem Biaya Manufaktur (Manufacturing Cost System) menggunakan Node.js, Express.js, dan Sequelize ORM.
+Backend API untuk e-Sistem Biaya Manufaktur (Manufacturing Cost System) menggunakan Node.js, Express.js, dan SQL Server.
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 - Node.js (v14 or higher)
-- PostgreSQL or MySQL database
+- SQL Server database
 - npm or yarn
 
 ### Installation
@@ -25,21 +25,9 @@ npm install
 ```bash
 cp .env.example .env
 ```
-Edit `.env` file with your database credentials and configuration.
+Edit `.env` file with your SQL Server database credentials and configuration.
 
-4. **Setup database**
-```bash
-# Create database
-npm run db:create
-
-# Run migrations
-npm run db:migrate
-
-# (Optional) Run seeders
-npm run db:seed
-```
-
-5. **Start the server**
+4. **Start the server**
 ```bash
 # Development mode with nodemon
 npm run dev
@@ -48,7 +36,7 @@ npm run dev
 npm start
 ```
 
-The server will start on `http://localhost:5000`
+The server will start on `http://localhost:3001`
 
 ## 📁 Project Structure
 
@@ -56,22 +44,23 @@ The server will start on `http://localhost:5000`
 src/
 ├── controllers/          # Request handlers and business logic
 │   ├── productController.js
-│   └── hppController.js
-├── models/              # Sequelize database models
-│   ├── index.js
-│   ├── product.js
-│   ├── hpp.js
-│   └── hppingredient.js
+│   ├── hppController.js
+│   ├── masterController.js
+│   └── expiryCostController.js
+├── models/              # SQL database models and procedures
+│   ├── sqlModel.js
+│   ├── productModel.js
+│   ├── hppModel.js
+│   └── expiryCostModel.js
 ├── routes/              # API route definitions
 │   ├── index.js
 │   ├── productRoutes.js
-│   └── hppRoutes.js
+│   ├── hppRoutes.js
+│   └── masterRoutes.js
 ├── middleware/          # Custom middleware functions
 │   ├── cors.js
 │   ├── errorHandler.js
 │   └── rateLimiter.js
-├── services/            # Business logic and data processing
-│   └── hppService.js
 └── server.js           # Main application entry point
 ```
 
@@ -79,47 +68,50 @@ src/
 
 - `npm start` - Start production server
 - `npm run dev` - Start development server with nodemon
-- `npm run db:migrate` - Run database migrations
-- `npm run db:seed` - Run database seeders
-- `npm run db:reset` - Reset database (drop, create, migrate)
+- `npm test` - Run tests
 
-## 📊 Database Models
+## 📊 Database
 
-### Product
-- Stores basic product information
-- Fields: namaProduk, harga, jenisProduk, bentuk, kategori, pabrik, expiry
+The application uses SQL Server with stored procedures and direct SQL queries for optimal performance.
 
-### HPP (Cost of Goods Sold)
-- Stores cost calculation data
-- Fields: biayaTenagaKerja, biayaOverhead, totalBahanBaku, totalHPP, status
-- Status: draft → confirmed → archived
-
-### HPPIngredient
-- Stores individual ingredient/material data
-- Fields: namaBahan, jumlah, satuan, hargaSatuan, totalHarga, supplier info
+### Key Tables
+- **Products** - Product information and formulas
+- **HPP** - Cost calculation data
+- **Materials** - Raw materials and packaging
+- **Groups** - Product groupings and classifications
 
 ## 🔗 API Endpoints
 
-### Products
-- `GET /api/products` - Get all products (with pagination and filtering)
-- `GET /api/products/:id` - Get product by ID
-- `POST /api/products` - Create new product
-- `PUT /api/products/:id` - Update product
-- `DELETE /api/products/:id` - Delete product
+### Products & Formulas
+- `GET /api/products/formula` - Get all formulas
+- `GET /api/products/chosen-formula` - Get chosen formulas
+- `POST /api/products/chosen-formula` - Create chosen formula
+- `PUT /api/products/chosen-formula/:id` - Update chosen formula
+- `DELETE /api/products/chosen-formula/:id` - Delete chosen formula
 
-### HPP
-- `GET /api/hpp` - Get all HPP records (with pagination and filtering)
-- `GET /api/hpp/:id` - Get HPP by ID
-- `POST /api/hpp` - Create new HPP with ingredients
-- `PATCH /api/hpp/:id/status` - Update HPP status
-- `DELETE /api/hpp/:id` - Delete HPP (draft only)
+### HPP (Cost Calculation)
+- `GET /api/hpp` - Get HPP data
+- `POST /api/hpp/generate` - Generate HPP calculation
+
+### Master Data
+- `GET /api/master/currency` - Get currency list
+- `GET /api/master/material` - Get materials
+- `GET /api/master/group` - Get product groups
+- `POST /api/master/group` - Create product group
+- `PUT /api/master/group/:id` - Update product group
+- `DELETE /api/master/group/:id` - Delete product group
+
+### Expiry Cost Management
+- `GET /api/expiry-cost` - Get expired materials
+- `POST /api/expiry-cost` - Create expired material record
+- `POST /api/expiry-cost/generate` - Generate expiry cost allocation
 
 See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for detailed API documentation.
 
 ## 🔧 Features
 
 - **RESTful API** - Clean and consistent API design
-- **Database ORM** - Sequelize for database operations
+- **SQL Server Integration** - Direct database connections with stored procedures
 - **Error Handling** - Comprehensive error handling middleware
 - **Input Validation** - Request validation and sanitization
 - **CORS Support** - Cross-origin resource sharing
@@ -133,7 +125,7 @@ See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for detailed API documentatio
 - **Helmet.js** - Security headers
 - **CORS** - Configured for frontend domains
 - **Rate Limiting** - Prevents API abuse
-- **Input Validation** - Sequelize model validation
+- **Input Validation** - Server-side validation
 - **Error Handling** - Prevents information leakage
 
 ## 🚀 Deployment
@@ -141,13 +133,14 @@ See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for detailed API documentatio
 ### Environment Variables
 Make sure to set these in production:
 - `NODE_ENV=production`
-- `PORT=5000`
-- Database credentials
+- `PORT=3001`
+- SQL Server database credentials
 - `SESSION_SECRET` for sessions
 
 ### Database
-- Run migrations in production: `npm run db:migrate`
-- Set `DB_DIALECT` to your database type (postgres, mysql, etc.)
+- Ensure SQL Server is properly configured
+- Database schema should be created via SQL scripts
+- Stored procedures should be deployed
 
 ### Process Management
 Consider using PM2 for production process management:
