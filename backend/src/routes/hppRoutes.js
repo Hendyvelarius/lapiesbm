@@ -9,6 +9,8 @@ router.get('/data', HPPController.getHPP);
 // Body: { periode: "2025" }
 router.post('/generate', HPPController.generateHPPCalculation);
 
-module.exports = router;
+// POST /api/hpp/simulate-existing - Generate HPP simulation for existing product
+// Body: { productId: "01", formulaString: "GLC#-#B#A" }
+router.post('/simulate-existing', HPPController.generateHPPSimulation);
 
 module.exports = router;

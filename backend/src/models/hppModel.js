@@ -39,7 +39,27 @@ async function generateHPPCalculation(periode = '2025') {
   }
 }
 
+// Generate HPP simulation for existing product with selected formulas
+async function generateHPPSimulation(productId, formulaString) {
+  try {
+    const db = await connect();
+    const query = `exec sp_generate_simulasi_cogs_product_existing @productId, @formulaString`;
+    
+    const result = await db.request()
+      .input('productId', sql.VarChar(10), productId)
+      .input('formulaString', sql.VarChar(50), formulaString)
+      .query(query);
+    
+    // Return the first recordset from the stored procedure
+    return result.recordset || [];
+  } catch (error) {
+    console.error('Error executing HPP simulation:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   getHPP,
   generateHPPCalculation,
+  generateHPPSimulation,
 };

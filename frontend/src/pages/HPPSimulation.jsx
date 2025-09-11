@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { masterAPI, productsAPI } from '../services/api';
+import { masterAPI, productsAPI, hppAPI } from '../services/api';
 import '../styles/HPPSimulation.css';
+import '../styles/ProductHPPReport.css'; // Import for modal styling
+
+// Utility functions
+const formatNumber = (value, decimals = 2) => {
+  if (value === null || value === undefined) return '-';
+  return new Intl.NumberFormat('id-ID', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  }).format(value);
+};
 
 export default function HPPSimulation() {
   const [step, setStep] = useState(1);
@@ -29,6 +39,11 @@ export default function HPPSimulation() {
   // Material master data
   const [materialData, setMaterialData] = useState([]);
   const [materialMap, setMaterialMap] = useState({});
+
+  // Simulation results
+  const [simulationResults, setSimulationResults] = useState(null);
+  const [genericType, setGenericType] = useState('1'); // For GENERIC LOB products
+  const [showDetailedReport, setShowDetailedReport] = useState(false);
 
   // Load available products when component mounts or when simulation type changes to "Existing Formula"
   useEffect(() => {
@@ -219,6 +234,74 @@ export default function HPPSimulation() {
     }));
   };
 
+  const buildFormulaString = () => {
+    // Build formula string in format: PI#-#PS#KP#KS
+    // Use "-" for types that don't have selections
+    const parts = [];
+    availableTypeCodes.forEach(typeCode => {
+      const subId = selectedFormulas[typeCode];
+      parts.push(subId || '-');
+    });
+    return parts.join('#-#');
+  };
+
+  const handleRunSimulation = async () => {
+    if (Object.keys(selectedFormulas).length === 0) {
+      setError('Please select at least one formula before running simulation.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const formulaString = buildFormulaString();
+      console.log('Running simulation with:', {
+        productId: selectedProduct.Product_ID,
+        formulaString,
+        selectedFormulas
+      });
+
+      const response = await hppAPI.generateSimulation(
+        selectedProduct.Product_ID,
+        formulaString
+      );
+
+      const results = response.data || response;
+      setSimulationResults(results);
+      
+      // Move to simulation results step
+      setStep(4);
+      
+      console.log('Simulation completed:', results);
+    } catch (error) {
+      console.error('Simulation error:', error);
+      setError('Failed to run simulation. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateTotalCost = (result) => {
+    const costs = [
+      result.Biaya_Proses || 0,
+      result.Biaya_Kemas || 0,
+      result.Biaya_Generik || 0,
+      result.Biaya_Reagen || 0,
+      result.Toll_Fee || 0,
+      result.Direct_Labor || 0,
+      result.Factory_Over_Head || 0,
+      result.Depresiasi || 0
+    ];
+    return costs.reduce((sum, cost) => sum + cost, 0);
+  };
+
+  const calculateCostPerUnit = (result) => {
+    const totalCost = calculateTotalCost(result);
+    const batchSize = result.Batch_Size || 1;
+    return totalCost / batchSize;
+  };
+
   const handleBack = () => {
     if (step === 2) {
       setStep(1);
@@ -231,7 +314,44 @@ export default function HPPSimulation() {
       setRecipeData([]);
       setFormulaGroups({});
       setSelectedFormulas({});
+    } else if (step === 4) {
+      setStep(3);
+      setSimulationResults(null);
+      setGenericType('1');
     }
+  };
+
+  // Helper functions to extract material data from selected formulas
+  const getBahanBakuFromFormulas = () => {
+    const materials = [];
+    Object.entries(selectedFormulas).forEach(([typeCode, subId]) => {
+      const formula = formulaGroups[typeCode]?.[subId];
+      if (formula) {
+        formula.materials.forEach(material => {
+          const materialInfo = materialMap[material.itemId];
+          if (materialInfo && materialInfo.ITEM_TYPE === 'BB') {
+            materials.push(material);
+          }
+        });
+      }
+    });
+    return materials;
+  };
+
+  const getBahanKemasFromFormulas = () => {
+    const materials = [];
+    Object.entries(selectedFormulas).forEach(([typeCode, subId]) => {
+      const formula = formulaGroups[typeCode]?.[subId];
+      if (formula) {
+        formula.materials.forEach(material => {
+          const materialInfo = materialMap[material.itemId];
+          if (materialInfo && materialInfo.ITEM_TYPE === 'BK') {
+            materials.push(material);
+          }
+        });
+      }
+    });
+    return materials;
   };
 
   return (
@@ -527,54 +647,452 @@ export default function HPPSimulation() {
               </button>
               <button 
                 type="button" 
-                onClick={() => setStep(4)}
+                onClick={handleRunSimulation}
                 disabled={loading || Object.keys(selectedFormulas).length === 0}
               >
-                Continue to Simulation
+                {loading ? 'Running Simulation...' : 'Run Simulation'}
               </button>
             </div>
           </div>
         )}
 
-        {/* Step 4: Simulation Configuration (placeholder for next implementation) */}
-        {step === 4 && (
+        {/* Step 4: Simulation Results */}
+        {step === 4 && simulationResults && (
           <div className="simulation-step">
-            <h2>Step 4: Simulation Configuration</h2>
-            <p>Configure simulation parameters for <strong>{selectedProduct?.Product_ID} - {selectedProduct?.Product_Name}</strong></p>
+            <h2>Step 4: Simulation Results</h2>
+            <p>HPP simulation completed for <strong>{selectedProduct?.Product_ID} - {selectedProduct?.Product_Name}</strong></p>
             
-            <div className="selected-formulas-summary">
-              <h4>Selected Formulas:</h4>
-              <ul>
-                {Object.entries(selectedFormulas).map(([typeCode, subId]) => (
-                  <li key={typeCode}>
-                    <strong>{typeCode}</strong> - {typeCodeNames[typeCode]}: Formula {subId}
-                    {formulaGroups[typeCode]?.[subId]?.isActive && ' (Currently Active)'}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div className="placeholder-content">
-              <p>This step will be implemented next. Here we will:</p>
-              <ul>
-                <li>Display detailed cost calculations for selected formulas</li>
-                <li>Allow parameter adjustments (batch size, material prices)</li>
-                <li>Configure simulation scenarios</li>
-                <li>Run the simulation calculations</li>
-              </ul>
-            </div>
+            {simulationResults.length > 0 && (
+              <div className="simulation-results-section">
+                {/* Print Preview Button */}
+                <div className="simulation-actions">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowDetailedReport(true)}
+                    className="show-detailed-report-btn"
+                  >
+                    📋 Show Detailed Report (Print Preview)
+                  </button>
+                </div>
+
+                {/* LOB Type Selection for GENERIC products */}
+                {simulationResults[0].LOB === 'GENERIC' && (
+                  <div className="generic-type-selection">
+                    <h4>Generic Product Type Selection:</h4>
+                    <div className="radio-group">
+                      <label className="radio-option">
+                        <input
+                          type="radio"
+                          name="genericType"
+                          value="1"
+                          checked={genericType === '1'}
+                          onChange={(e) => setGenericType(e.target.value)}
+                        />
+                        <span>Generic Type 1</span>
+                      </label>
+                      <label className="radio-option">
+                        <input
+                          type="radio"
+                          name="genericType"
+                          value="2"
+                          checked={genericType === '2'}
+                          onChange={(e) => setGenericType(e.target.value)}
+                        />
+                        <span>Generic Type 2</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Simulation Summary */}
+                <div className="simulation-summary">
+                  <h4>Simulation Summary:</h4>
+                  <div className="summary-grid">
+                    <div className="summary-item">
+                      <span className="summary-label">Product Type (LOB):</span>
+                      <span className="summary-value">{simulationResults[0].LOB}</span>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-label">Batch Size:</span>
+                      <span className="summary-value">{simulationResults[0].Batch_Size?.toLocaleString()}</span>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-label">Group Category:</span>
+                      <span className="summary-value">{simulationResults[0].Group_PNCategory_Name}</span>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-label">Rendemen:</span>
+                      <span className="summary-value">{simulationResults[0].Group_Rendemen}%</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cost Breakdown */}
+                <div className="cost-breakdown">
+                  <h4>Cost Breakdown:</h4>
+                  <div className="cost-table">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Cost Component</th>
+                          <th>Amount (Rp)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Processing Cost</td>
+                          <td>{(simulationResults[0].Biaya_Proses || 0).toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                          <td>Packaging Cost</td>
+                          <td>{(simulationResults[0].Biaya_Kemas || 0).toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                          <td>Generic Cost</td>
+                          <td>{(simulationResults[0].Biaya_Generik || 0).toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                          <td>Reagent Cost</td>
+                          <td>{(simulationResults[0].Biaya_Reagen || 0).toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                          <td>Toll Fee</td>
+                          <td>{(simulationResults[0].Toll_Fee || 0).toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                          <td>Direct Labor</td>
+                          <td>{(simulationResults[0].Direct_Labor || 0).toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                          <td>Factory Overhead</td>
+                          <td>{(simulationResults[0].Factory_Over_Head || 0).toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                          <td>Depreciation</td>
+                          <td>{(simulationResults[0].Depresiasi || 0).toLocaleString()}</td>
+                        </tr>
+                      </tbody>
+                      <tfoot>
+                        <tr className="total-row">
+                          <td><strong>Total Cost per Batch</strong></td>
+                          <td><strong>{calculateTotalCost(simulationResults[0]).toLocaleString()}</strong></td>
+                        </tr>
+                        <tr className="total-row">
+                          <td><strong>Cost per Unit</strong></td>
+                          <td><strong>{calculateCostPerUnit(simulationResults[0]).toLocaleString()}</strong></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Labor Hours Breakdown */}
+                <div className="labor-hours">
+                  <h4>Labor Hours Breakdown:</h4>
+                  <div className="labor-grid">
+                    <div className="labor-item">
+                      <span className="labor-label">Processing (MH):</span>
+                      <span className="labor-value">{simulationResults[0].MH_Proses_Std || 0}</span>
+                    </div>
+                    <div className="labor-item">
+                      <span className="labor-label">Packaging (MH):</span>
+                      <span className="labor-value">{simulationResults[0].MH_Kemas_Std || 0}</span>
+                    </div>
+                    <div className="labor-item">
+                      <span className="labor-label">Analysis (MH):</span>
+                      <span className="labor-value">{simulationResults[0].MH_Analisa_Std || 0}</span>
+                    </div>
+                    <div className="labor-item">
+                      <span className="labor-label">Material Weighing (MH):</span>
+                      <span className="labor-value">{simulationResults[0].MH_Timbang_BB || 0}</span>
+                    </div>
+                    <div className="labor-item">
+                      <span className="labor-label">Packaging Weighing (MH):</span>
+                      <span className="labor-value">{simulationResults[0].MH_Timbang_BK || 0}</span>
+                    </div>
+                    <div className="labor-item">
+                      <span className="labor-label">Machine (MH):</span>
+                      <span className="labor-value">{simulationResults[0].MH_Mesin_Std || 0}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Selected Formulas Summary */}
+                <div className="selected-formulas-final">
+                  <h4>Selected Formulas Used:</h4>
+                  <div className="formulas-grid">
+                    {Object.entries(selectedFormulas).map(([typeCode, subId]) => (
+                      <div key={typeCode} className="formula-final-item">
+                        <span className="formula-type">{typeCode}:</span>
+                        <span className="formula-id">Formula {subId}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="form-actions">
               <button type="button" onClick={handleBack}>
-                Back
+                Back to Formula Selection
               </button>
-              <button type="button" disabled>
-                Run Simulation (Coming Soon)
+              <button type="button" onClick={() => window.print()}>
+                Print Results
+              </button>
+              <button type="button" onClick={() => setStep(1)}>
+                New Simulation
               </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* Detailed Report Modal - matching ProductHPPReport structure */}
+      {showDetailedReport && simulationResults && simulationResults.length > 0 && (
+        <div className="product-hpp-modal-overlay">
+          <div className="product-hpp-modal">
+            <div className="product-hpp-modal-header">
+              <h2>Product HPP Report - {selectedProduct?.Product_Name || 'Simulation Result'}</h2>
+              <div className="product-hpp-modal-actions">
+                <button
+                  onClick={() => window.print()}
+                  className="product-hpp-export-btn pdf"
+                >
+                  📄 PDF
+                </button>
+                <button 
+                  onClick={() => setShowDetailedReport(false)} 
+                  className="product-hpp-close-btn"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="product-hpp-modal-content">
+              <div className="product-hpp-report">
+                {/* Document Header - Excel Style */}
+                <div className="document-header">
+                  <div className="header-row">
+                    <div className="header-left">
+                      <h3>Perhitungan Estimasi COGS</h3>
+                    </div>
+                    <div className="header-right">
+                      <div className="header-info">
+                        <span className="label">Site :</span>
+                        <span className="value">PN1/PN2</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Product Info Section */}
+                <div className="product-info-section">
+                  <div className="info-grid">
+                    <div className="info-left">
+                      <div className="info-line">
+                        <span className="label">Kode Produk - Description</span>
+                        <span className="separator">:</span>
+                        <span className="value">{selectedProduct.Product_ID} - {selectedProduct.Product_Name}</span>
+                      </div>
+                      <div className="info-line">
+                        <span className="label">Batch Size Teori</span>
+                        <span className="separator">:</span>
+                        <span className="value">{(simulationResults[0].Batch_Size || 0).toLocaleString()} KOTAK</span>
+                      </div>
+                      <div className="info-line">
+                        <span className="label">Batch Size Actual</span>
+                        <span className="separator">:</span>
+                        <span className="value">{((simulationResults[0].Batch_Size || 0) * (simulationResults[0].Group_Rendemen || 100) / 100).toLocaleString()} KOTAK</span>
+                      </div>
+                      <div className="info-line">
+                        <span className="label">Rendemen</span>
+                        <span className="separator">:</span>
+                        <span className="value">{(simulationResults[0].Group_Rendemen || 0).toFixed(2)}%</span>
+                      </div>
+                    </div>
+                    <div className="info-right">
+                      <div className="info-line">
+                        <span className="label">LOB</span>
+                        <span className="separator">:</span>
+                        <span className="value">{simulationResults[0].LOB || 'ETH/GEN/OTC/EXP'}</span>
+                      </div>
+                      <div className="info-line">
+                        <span className="label">Tanggal Print</span>
+                        <span className="separator">:</span>
+                        <span className="value">{new Date().toLocaleDateString('id-ID')}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bahan Baku Section */}
+                <div className="material-section">
+                  <div className="section-title">
+                    <h4>Bahan Baku</h4>
+                  </div>
+                  <table className="excel-table">
+                    <thead>
+                      <tr>
+                        <th rowSpan="2" className="narrow"></th>
+                        <th rowSpan="2">Kode Material</th>
+                        <th rowSpan="2">Nama Material</th>
+                        <th rowSpan="2">Qty</th>
+                        <th rowSpan="2">Satuan</th>
+                        <th rowSpan="2">Cost/unit</th>
+                        <th rowSpan="2">Extended Cost</th>
+                        <th rowSpan="2">Per pack</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getBahanBakuFromFormulas().map((item, index) => (
+                        <tr key={`bb-sim-${item.itemId}-${index}`}>
+                          <td>{index + 1}</td>
+                          <td>{item.itemId}</td>
+                          <td>{materialMap[item.itemId]?.Item_Name || 'Unknown Material'}</td>
+                          <td className="number">{formatNumber(item.qty)}</td>
+                          <td>{item.unitId}</td>
+                          <td className="number">{formatNumber(item.unitPrice / item.qty)}</td>
+                          <td className="number">{formatNumber(item.unitPrice)}</td>
+                          <td className="number">{formatNumber(item.unitPrice / ((simulationResults[0].Batch_Size || 1) * (simulationResults[0].Group_Rendemen || 100) / 100))}</td>
+                        </tr>
+                      ))}
+                      <tr className="total-row">
+                        <td colSpan="6"><strong>Total BB :</strong></td>
+                        <td className="number total">
+                          <strong>{formatNumber(getBahanBakuFromFormulas().reduce((sum, item) => sum + item.unitPrice, 0))}</strong>
+                        </td>
+                        <td className="number total">
+                          <strong>{formatNumber(getBahanBakuFromFormulas().reduce((sum, item) => sum + item.unitPrice, 0) / ((simulationResults[0].Batch_Size || 1) * (simulationResults[0].Group_Rendemen || 100) / 100))}</strong>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Bahan Kemas Section */}
+                <div className="material-section">
+                  <div className="section-title">
+                    <h4>Bahan Kemas</h4>
+                  </div>
+                  <table className="excel-table">
+                    <thead>
+                      <tr>
+                        <th rowSpan="2" className="narrow"></th>
+                        <th rowSpan="2">Kode Material</th>
+                        <th rowSpan="2">Nama Material</th>
+                        <th rowSpan="2">Qty</th>
+                        <th rowSpan="2">Satuan</th>
+                        <th rowSpan="2">Cost/unit</th>
+                        <th rowSpan="2">Extended Cost</th>
+                        <th rowSpan="2">Per pack</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getBahanKemasFromFormulas().map((item, index) => (
+                        <tr key={`bk-sim-${item.itemId}-${index}`}>
+                          <td>{index + 1}</td>
+                          <td>{item.itemId}</td>
+                          <td>{materialMap[item.itemId]?.Item_Name || 'Unknown Material'}</td>
+                          <td className="number">{formatNumber(item.qty)}</td>
+                          <td>{item.unitId}</td>
+                          <td className="number">{formatNumber(item.unitPrice / item.qty)}</td>
+                          <td className="number">{formatNumber(item.unitPrice)}</td>
+                          <td className="number">{formatNumber(item.unitPrice / ((simulationResults[0].Batch_Size || 1) * (simulationResults[0].Group_Rendemen || 100) / 100))}</td>
+                        </tr>
+                      ))}
+                      <tr className="total-row">
+                        <td colSpan="6"><strong>Total BK :</strong></td>
+                        <td className="number total">
+                          <strong>{formatNumber(getBahanKemasFromFormulas().reduce((sum, item) => sum + item.unitPrice, 0))}</strong>
+                        </td>
+                        <td className="number total">
+                          <strong>{formatNumber(getBahanKemasFromFormulas().reduce((sum, item) => sum + item.unitPrice, 0) / ((simulationResults[0].Batch_Size || 1) * (simulationResults[0].Group_Rendemen || 100) / 100))}</strong>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Dynamic Overhead Section based on LOB */}
+                {simulationResults[0].LOB === 'ETHICAL' && (
+                  <div className="labor-section">
+                    <div className="material-section">
+                      <div className="section-title">
+                        <h4>Overhead</h4>
+                      </div>
+                      <table className="excel-table">
+                        <thead>
+                          <tr>
+                            <th>Resource Scheduling</th>
+                            <th>Nama Material</th>
+                            <th>Qty</th>
+                            <th>Mhrs/machine hours</th>
+                            <th>Cost/unit</th>
+                            <th>Extended Cost</th>
+                            <th>Per pack</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>1 PENGOLAHAN</td>
+                            <td>OPERATOR PROSES LINE PN1/PN2</td>
+                            <td className="number">{formatNumber(simulationResults[0].MH_Proses_Std || 0)}</td>
+                            <td>HRS</td>
+                            <td className="number">{formatNumber(simulationResults[0].Biaya_Proses || 0)}</td>
+                            <td className="number">{formatNumber((simulationResults[0].MH_Proses_Std || 0) * (simulationResults[0].Biaya_Proses || 0))}</td>
+                            <td className="number">{formatNumber(((simulationResults[0].MH_Proses_Std || 0) * (simulationResults[0].Biaya_Proses || 0)) / ((simulationResults[0].Batch_Size || 1) * (simulationResults[0].Group_Rendemen || 100) / 100))}</td>
+                          </tr>
+                          <tr>
+                            <td>2 PENGEMASAN</td>
+                            <td>OPERATOR PROSES LINE PN1/PN2</td>
+                            <td className="number">{formatNumber(simulationResults[0].MH_Kemas_Std || 0)}</td>
+                            <td>HRS</td>
+                            <td className="number">{formatNumber(simulationResults[0].Biaya_Kemas || 0)}</td>
+                            <td className="number">{formatNumber((simulationResults[0].MH_Kemas_Std || 0) * (simulationResults[0].Biaya_Kemas || 0))}</td>
+                            <td className="number">{formatNumber(((simulationResults[0].MH_Kemas_Std || 0) * (simulationResults[0].Biaya_Kemas || 0)) / ((simulationResults[0].Batch_Size || 1) * (simulationResults[0].Group_Rendemen || 100) / 100))}</td>
+                          </tr>
+                          <tr className="total-row">
+                            <td colSpan="2"><strong>Total Hours</strong></td>
+                            <td className="number"><strong>{formatNumber((simulationResults[0].MH_Proses_Std || 0) + (simulationResults[0].MH_Kemas_Std || 0))}</strong></td>
+                            <td><strong>Total Cost</strong></td>
+                            <td></td>
+                            <td className="number total">
+                              <strong>{formatNumber(((simulationResults[0].MH_Proses_Std || 0) * (simulationResults[0].Biaya_Proses || 0)) + ((simulationResults[0].MH_Kemas_Std || 0) * (simulationResults[0].Biaya_Kemas || 0)))}</strong>
+                            </td>
+                            <td className="number total">
+                              <strong>{formatNumber((((simulationResults[0].MH_Proses_Std || 0) * (simulationResults[0].Biaya_Proses || 0)) + ((simulationResults[0].MH_Kemas_Std || 0) * (simulationResults[0].Biaya_Kemas || 0))) / ((simulationResults[0].Batch_Size || 1) * (simulationResults[0].Group_Rendemen || 100) / 100))}</strong>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Final Total */}
+                <div className="final-total-section">
+                  <table className="excel-table">
+                    <tbody>
+                      <tr className="final-total">
+                        <td><strong>Total COGS Estimasi</strong></td>
+                        <td colSpan="3"></td>
+                        <td><strong>Total HPP</strong></td>
+                        <td className="number final">
+                          <strong>{formatNumber(calculateTotalCost(simulationResults[0]))}</strong>
+                        </td>
+                        <td className="number final">
+                          <strong>{formatNumber(calculateCostPerUnit(simulationResults[0]))}</strong>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

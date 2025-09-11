@@ -114,6 +114,12 @@ export const hppAPI = {
     body: JSON.stringify({ periode }),
   }),
 
+  // Generate HPP simulation for existing product with selected formulas
+  generateSimulation: (productId, formulaString) => apiRequest('/hpp/simulate-existing', {
+    method: 'POST',
+    body: JSON.stringify({ productId, formulaString }),
+  }),
+
   // Get all HPP records
   getAll: (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
