@@ -754,6 +754,33 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+.summary-select-input {
+  width: 120px;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  font-family: 'Inter', sans-serif;
+  background: #f9fafb;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.summary-select-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.summary-select-input:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
 .summary-input-group {
   display: flex;
   align-items: center;
@@ -1154,6 +1181,27 @@
   overflow-x: auto;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  /* Hide scrollbar when not needed */
+  scrollbar-width: thin;
+  -ms-overflow-style: none;
+}
+
+.material-table-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.material-table-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.material-table-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.material-table-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 .material-table {
@@ -1162,16 +1210,17 @@
   background: white;
   font-size: 14px;
   table-layout: fixed;
+  min-width: 800px;
 }
 
-.material-table th:nth-child(1) { width: 40px; }     /* No */
-.material-table th:nth-child(2) { width: 100px; }   /* Kode Material */
-.material-table th:nth-child(3) { width: 200px; }   /* Nama Material */
-.material-table th:nth-child(4) { width: 90px; }    /* Qty */
-.material-table th:nth-child(5) { width: 60px; }    /* Satuan */
+.material-table th:nth-child(1) { width: 35px; }     /* No */
+.material-table th:nth-child(2) { width: 85px; }    /* Kode Material */
+.material-table th:nth-child(3) { width: 160px; }   /* Nama Material */
+.material-table th:nth-child(4) { width: 70px; }    /* Qty */
+.material-table th:nth-child(5) { width: 45px; }    /* Satuan */
 .material-table th:nth-child(6) { width: 120px; }   /* Cost/Unit */
-.material-table th:nth-child(7) { width: 140px; }   /* Extended Cost */
-.material-table th:nth-child(8) { width: 60px; }    /* Actions */
+.material-table th:nth-child(7) { width: 150px; }   /* Extended Cost */
+.material-table th:nth-child(8) { width: 55px; }    /* Actions */
 
 .material-table th {
   background: linear-gradient(135deg, #10b981, #059669);
@@ -1205,6 +1254,15 @@
 .material-table tfoot .total-row td {
   border-top: 2px solid #10b981;
   padding: 12px 8px;
+}
+
+.material-table tfoot .total-value-cell {
+  min-width: 160px;
+  width: auto;
+  text-align: right;
+  padding-right: 16px;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 /* Cost Summary Grid */

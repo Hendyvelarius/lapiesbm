@@ -12,6 +12,12 @@ const formatNumber = (value, decimals = 2) => {
   }).format(value);
 };
 
+// Normalize LOB values from database to UI format
+const normalizeLOB = (databaseLOB) => {
+  if (databaseLOB === 'GENERIK') return 'GENERIC';
+  return databaseLOB;
+};
+
 export default function HPPSimulation() {
   const [step, setStep] = useState(1);
   const [simulationType, setSimulationType] = useState('');
@@ -42,7 +48,6 @@ export default function HPPSimulation() {
 
   // Simulation results
   const [simulationResults, setSimulationResults] = useState(null);
-  const [genericType, setGenericType] = useState('1'); // For GENERIC LOB products
   const [showDetailedReport, setShowDetailedReport] = useState(false);
   
   // Detailed simulation data from API
@@ -55,12 +60,29 @@ export default function HPPSimulation() {
   const [editableRendemen, setEditableRendemen] = useState(null);
   const [editableMaterialData, setEditableMaterialData] = useState([]);
   const [editableOverheadData, setEditableOverheadData] = useState({
+    // ETHICAL/OTC overhead parameters
     MH_Proses_Std: null,
     Biaya_Proses: null,
     MH_Kemas_Std: null,
     Biaya_Kemas: null,
-    Beban_Sisa_Bahan_Exp: null
+    Beban_Sisa_Bahan_Exp: null,
+    // GENERIC V1 overhead parameters
+    MH_Timbang_BB: null,
+    MH_Timbang_BK: null,
+    MH_Analisa_Std: null,
+    MH_Mesin_Std: null,
+    Biaya_Generik: null,
+    Biaya_Reagen: null,
+    Rate_PLN: null,
+    Depresiasi: null,
+    // GENERIC V2 overhead parameters
+    Direct_Labor: null,
+    Factory_Over_Head: null
   });
+
+  // LOB and Version selection
+  const [editableLOB, setEditableLOB] = useState(null);
+  const [editableVersion, setEditableVersion] = useState(null);
 
   // Material master data for adding new materials
   const [masterMaterials, setMasterMaterials] = useState([]);
@@ -333,14 +355,32 @@ export default function HPPSimulation() {
 
           // Initialize editable values with current data
           if (results && results.length > 0) {
+            const normalizedLOB = normalizeLOB(results[0].LOB);
+            console.log('Original LOB from database:', results[0].LOB, '-> Normalized LOB:', normalizedLOB);
+            
             setEditableBatchSize(results[0].Batch_Size);
             setEditableRendemen(results[0].Group_Rendemen);
+            setEditableLOB(normalizedLOB);
+            setEditableVersion(results[0].Versi || '1');
             setEditableOverheadData({
+              // ETHICAL/OTC overhead parameters
               MH_Proses_Std: results[0].MH_Proses_Std,
               Biaya_Proses: results[0].Biaya_Proses,
               MH_Kemas_Std: results[0].MH_Kemas_Std,
               Biaya_Kemas: results[0].Biaya_Kemas,
-              Beban_Sisa_Bahan_Exp: results[0].Beban_Sisa_Bahan_Exp
+              Beban_Sisa_Bahan_Exp: results[0].Beban_Sisa_Bahan_Exp,
+              // GENERIC V1 overhead parameters
+              MH_Timbang_BB: results[0].MH_Timbang_BB,
+              MH_Timbang_BK: results[0].MH_Timbang_BK,
+              MH_Analisa_Std: results[0].MH_Analisa_Std,
+              MH_Mesin_Std: results[0].MH_Mesin_Std,
+              Biaya_Generik: results[0].Biaya_Generik,
+              Biaya_Reagen: results[0].Biaya_Reagen,
+              Rate_PLN: results[0].Rate_PLN,
+              Depresiasi: results[0].Depresiasi,
+              // GENERIC V2 overhead parameters
+              Direct_Labor: results[0].Direct_Labor,
+              Factory_Over_Head: results[0].Factory_Over_Head
             });
           }
 
@@ -403,7 +443,6 @@ export default function HPPSimulation() {
     } else if (step === 4) {
       setStep(3);
       setSimulationResults(null);
-      setGenericType('1');
     }
   };
 
@@ -457,25 +496,162 @@ export default function HPPSimulation() {
     return getBahanKemasFromApiData().reduce((sum, item) => sum + ((item.Item_Unit_Price || 0) * (item.Item_QTY || 0)), 0);
   };
 
+  // Get current normalized LOB value
+  const getCurrentLOB = () => {
+    if (editableLOB) return editableLOB;
+    if (simulationResults && simulationResults[0]) return normalizeLOB(simulationResults[0].LOB);
+    return 'ETHICAL';
+  };
+
+  // Helper function to get actual batch size with rendemen
+  const getActualBatchSize = () => {
+    const batchSize = editableBatchSize || (simulationResults && simulationResults[0] ? simulationResults[0].Batch_Size : 1);
+    const rendemen = editableRendemen || (simulationResults && simulationResults[0] ? simulationResults[0].Group_Rendemen : 100);
+    return (batchSize * rendemen) / 100;
+  };
+
   // Overhead calculations for ETHICAL products (using editable data)
   const calculateProcessingCost = () => {
-    if (!simulationResults[0] || simulationResults[0].LOB !== 'ETHICAL') return 0;
+    const currentLOB = getCurrentLOB();
+    if (!simulationResults[0] || (currentLOB !== 'ETHICAL' && currentLOB !== 'OTC')) return 0;
     return (editableOverheadData.MH_Proses_Std || 0) * (editableOverheadData.Biaya_Proses || 0);
   };
 
   const calculatePackagingCost = () => {
-    if (!simulationResults[0] || simulationResults[0].LOB !== 'ETHICAL') return 0;
+    const currentLOB = getCurrentLOB();
+    if (!simulationResults[0] || (currentLOB !== 'ETHICAL' && currentLOB !== 'OTC')) return 0;
     return (editableOverheadData.MH_Kemas_Std || 0) * (editableOverheadData.Biaya_Kemas || 0);
   };
 
   const calculateExpiryCost = () => {
-    if (!simulationResults[0] || simulationResults[0].LOB !== 'ETHICAL') return 0;
+    const currentLOB = getCurrentLOB();
+    if (!simulationResults[0] || (currentLOB !== 'ETHICAL' && currentLOB !== 'OTC')) return 0;
     return editableOverheadData.Beban_Sisa_Bahan_Exp || 0;
   };
 
+  // GENERIC Version 1 overhead calculations
+  const calculateIngredientsWeighing = () => {
+    const currentLOB = getCurrentLOB();
+    const currentVersion = editableVersion || (simulationResults[0] && simulationResults[0].Versi);
+    if (!simulationResults[0] || currentLOB !== 'GENERIC' || currentVersion !== '1') return 0;
+    return (editableOverheadData.MH_Timbang_BB || 0) * (editableOverheadData.Biaya_Generik || 0);
+  };
+
+  const calculatePackagingWeighing = () => {
+    const currentLOB = getCurrentLOB();
+    const currentVersion = editableVersion || (simulationResults[0] && simulationResults[0].Versi);
+    if (!simulationResults[0] || currentLOB !== 'GENERIC' || currentVersion !== '1') return 0;
+    return (editableOverheadData.MH_Timbang_BK || 0) * (editableOverheadData.Biaya_Generik || 0);
+  };
+
+  const calculateGenericProcessingCost = () => {
+    const currentLOB = getCurrentLOB();
+    const currentVersion = editableVersion || (simulationResults[0] && simulationResults[0].Versi);
+    if (!simulationResults[0] || currentLOB !== 'GENERIC' || currentVersion !== '1') return 0;
+    return (editableOverheadData.MH_Proses_Std || 0) * (editableOverheadData.Biaya_Generik || 0);
+  };
+
+  const calculateGenericPackagingCost = () => {
+    const currentLOB = getCurrentLOB();
+    const currentVersion = editableVersion || (simulationResults[0] && simulationResults[0].Versi);
+    if (!simulationResults[0] || currentLOB !== 'GENERIC' || currentVersion !== '1') return 0;
+    return (editableOverheadData.MH_Kemas_Std || 0) * (editableOverheadData.Biaya_Generik || 0);
+  };
+
+  const calculateAnalysisFee = () => {
+    const currentLOB = getCurrentLOB();
+    const currentVersion = editableVersion || (simulationResults[0] && simulationResults[0].Versi);
+    if (!simulationResults[0] || currentLOB !== 'GENERIC' || currentVersion !== '1') return 0;
+    return (editableOverheadData.MH_Analisa_Std || 0) * (editableOverheadData.Biaya_Generik || 0);
+  };
+
+  const calculateMachineFee = () => {
+    const currentLOB = getCurrentLOB();
+    const currentVersion = editableVersion || (simulationResults[0] && simulationResults[0].Versi);
+    if (!simulationResults[0] || currentLOB !== 'GENERIC' || currentVersion !== '1') return 0;
+    return (editableOverheadData.MH_Mesin_Std || 0) * (editableOverheadData.Rate_PLN || 0);
+  };
+
+  const calculateReagentFee = () => {
+    const currentLOB = getCurrentLOB();
+    const currentVersion = editableVersion || (simulationResults[0] && simulationResults[0].Versi);
+    if (!simulationResults[0] || currentLOB !== 'GENERIC' || currentVersion !== '1') return 0;
+    return editableOverheadData.Biaya_Reagen || 0;
+  };
+
+  const calculateGenericExpiryCost = () => {
+    const currentLOB = getCurrentLOB();
+    const currentVersion = editableVersion || (simulationResults[0] && simulationResults[0].Versi);
+    if (!simulationResults[0] || currentLOB !== 'GENERIC' || currentVersion !== '1') return 0;
+    return editableOverheadData.Depresiasi || 0;
+  };
+
+  // GENERIC Version 2 overhead calculations
+  const calculateProductionLaborCost = () => {
+    const currentLOB = getCurrentLOB();
+    const currentVersion = editableVersion || (simulationResults[0] && simulationResults[0].Versi);
+    if (!simulationResults[0] || currentLOB !== 'GENERIC' || currentVersion !== '2') return 0;
+    return (editableOverheadData.MH_Proses_Std || 0) * (editableOverheadData.Direct_Labor || 0);
+  };
+
+  const calculatePackagingLaborCost = () => {
+    const currentLOB = getCurrentLOB();
+    const currentVersion = editableVersion || (simulationResults[0] && simulationResults[0].Versi);
+    if (!simulationResults[0] || currentLOB !== 'GENERIC' || currentVersion !== '2') return 0;
+    return (editableOverheadData.MH_Kemas_Std || 0) * (editableOverheadData.Direct_Labor || 0);
+  };
+
+  const calculateProductionFOH = () => {
+    const currentLOB = getCurrentLOB();
+    const currentVersion = editableVersion || (simulationResults[0] && simulationResults[0].Versi);
+    if (!simulationResults[0] || currentLOB !== 'GENERIC' || currentVersion !== '2') return 0;
+    return (editableOverheadData.MH_Proses_Std || 0) * (editableOverheadData.Factory_Over_Head || 0);
+  };
+
+  const calculatePackagingFOH = () => {
+    const currentLOB = getCurrentLOB();
+    const currentVersion = editableVersion || (simulationResults[0] && simulationResults[0].Versi);
+    if (!simulationResults[0] || currentLOB !== 'GENERIC' || currentVersion !== '2') return 0;
+    return (editableOverheadData.MH_Kemas_Std || 0) * (editableOverheadData.Factory_Over_Head || 0);
+  };
+
+  const calculateProductionDepreciation = () => {
+    const currentLOB = getCurrentLOB();
+    const currentVersion = editableVersion || (simulationResults[0] && simulationResults[0].Versi);
+    if (!simulationResults[0] || currentLOB !== 'GENERIC' || currentVersion !== '2') return 0;
+    return (editableOverheadData.MH_Proses_Std || 0) * (editableOverheadData.Depresiasi || 0);
+  };
+
+  const calculatePackagingDepreciation = () => {
+    const currentLOB = getCurrentLOB();
+    const currentVersion = editableVersion || (simulationResults[0] && simulationResults[0].Versi);
+    if (!simulationResults[0] || currentLOB !== 'GENERIC' || currentVersion !== '2') return 0;
+    return (editableOverheadData.MH_Kemas_Std || 0) * (editableOverheadData.Depresiasi || 0);
+  };
+
   const calculateTotalOverhead = () => {
-    if (!simulationResults[0] || simulationResults[0].LOB !== 'ETHICAL') return 0;
-    return calculateProcessingCost() + calculatePackagingCost() + calculateExpiryCost();
+    if (!simulationResults[0]) return 0;
+    
+    const currentLOB = getCurrentLOB();
+    const currentVersion = editableVersion || simulationResults[0].Versi;
+    
+    if (currentLOB === 'ETHICAL' || currentLOB === 'OTC') {
+      // ETHICAL/OTC overhead calculation
+      return calculateProcessingCost() + calculatePackagingCost() + calculateExpiryCost();
+    } else if (currentLOB === 'GENERIC' && currentVersion === '1') {
+      // GENERIC V1 overhead calculation
+      return calculateIngredientsWeighing() + calculatePackagingWeighing() + 
+             calculateGenericProcessingCost() + calculateGenericPackagingCost() + 
+             calculateAnalysisFee() + calculateMachineFee() + 
+             calculateReagentFee() + calculateGenericExpiryCost();
+    } else if (currentLOB === 'GENERIC' && currentVersion === '2') {
+      // GENERIC V2 overhead calculation
+      return calculateProductionLaborCost() + calculatePackagingLaborCost() + 
+             calculateProductionFOH() + calculatePackagingFOH() + 
+             calculateProductionDepreciation() + calculatePackagingDepreciation();
+    }
+    
+    return 0;
   };
 
   const calculateGrandTotal = () => {
@@ -873,35 +1049,6 @@ export default function HPPSimulation() {
                   </div>
                 )}
 
-                {/* LOB Type Selection for GENERIC products */}
-                {simulationResults[0].LOB === 'GENERIC' && (
-                  <div className="generic-type-selection">
-                    <h4>Generic Product Type Selection:</h4>
-                    <div className="radio-group">
-                      <label className="radio-option">
-                        <input
-                          type="radio"
-                          name="genericType"
-                          value="1"
-                          checked={genericType === '1'}
-                          onChange={(e) => setGenericType(e.target.value)}
-                        />
-                        <span>Generic Type 1</span>
-                      </label>
-                      <label className="radio-option">
-                        <input
-                          type="radio"
-                          name="genericType"
-                          value="2"
-                          checked={genericType === '2'}
-                          onChange={(e) => setGenericType(e.target.value)}
-                        />
-                        <span>Generic Type 2</span>
-                      </label>
-                    </div>
-                  </div>
-                )}
-
                 {/* Selected Formulas Summary */}
                 <div className="selected-formulas-final">
                   <h4>Selected Formulas Used:</h4>
@@ -921,7 +1068,27 @@ export default function HPPSimulation() {
                   <div className="summary-grid">
                     <div className="summary-item">
                       <span className="summary-label">Product Type (LOB):</span>
-                      <span className="summary-value">{simulationResults[0].LOB}</span>
+                      <select 
+                        value={editableLOB || normalizeLOB(simulationResults[0].LOB) || 'ETHICAL'} 
+                        onChange={(e) => setEditableLOB(e.target.value)}
+                        className="summary-select-input"
+                      >
+                        <option value="ETHICAL">ETHICAL</option>
+                        <option value="OTC">OTC</option>
+                        <option value="GENERIC">GENERIC</option>
+                      </select>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-label">Type:</span>
+                      <select 
+                        value={editableVersion || simulationResults[0].Versi || '1'} 
+                        onChange={(e) => setEditableVersion(e.target.value)}
+                        className="summary-select-input"
+                        disabled={getCurrentLOB() !== 'GENERIC'}
+                      >
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                      </select>
                     </div>
                     <div className="summary-item">
                       <span className="summary-label">Batch Size:</span>
@@ -1023,8 +1190,8 @@ export default function HPPSimulation() {
                           </tbody>
                           <tfoot>
                             <tr className="total-row">
-                              <td colSpan="7"><strong>Total Bahan Baku</strong></td>
-                              <td className="number"><strong>Rp {formatNumber(calculateTotalBahanBaku(), 2)}</strong></td>
+                              <td colSpan="6"><strong>Total Bahan Baku</strong></td>
+                              <td className="number total-value-cell" colSpan="2"><strong>Rp {formatNumber(calculateTotalBahanBaku(), 2)}</strong></td>
                             </tr>
                           </tfoot>
                         </table>
@@ -1096,8 +1263,8 @@ export default function HPPSimulation() {
                           </tbody>
                           <tfoot>
                             <tr className="total-row">
-                              <td colSpan="7"><strong>Total Bahan Kemas</strong></td>
-                              <td className="number"><strong>Rp {formatNumber(calculateTotalBahanKemas(), 2)}</strong></td>
+                              <td colSpan="6"><strong>Total Bahan Kemas</strong></td>
+                              <td className="number total-value-cell" colSpan="2"><strong>Rp {formatNumber(calculateTotalBahanKemas(), 2)}</strong></td>
                             </tr>
                           </tfoot>
                         </table>
@@ -1106,10 +1273,10 @@ export default function HPPSimulation() {
                   </>
                 )}
 
-                {/* Overhead Cost Breakdown for ETHICAL Products */}
-                {simulationResults[0].LOB === 'ETHICAL' && (
+                {/* Overhead Cost Breakdown for ETHICAL/OTC Products */}
+                {(getCurrentLOB() === 'ETHICAL' || getCurrentLOB() === 'OTC') && (
                   <div className="overhead-cost">
-                    <h4>Overhead Cost Breakdown (ETHICAL):</h4>
+                    <h4>Overhead Cost Breakdown ({getCurrentLOB()}):</h4>
                     <div className="overhead-cost-grid">
                       <div className="overhead-cost-item">
                         <span className="overhead-label">Processing Cost:</span>
@@ -1202,6 +1369,446 @@ export default function HPPSimulation() {
                   </div>
                 )}
 
+                {/* Overhead Cost Breakdown for GENERIC Version 1 Products */}
+                {(getCurrentLOB() === 'GENERIC' && (editableVersion || simulationResults[0].Versi) === '1') && (
+                  <div className="overhead-cost">
+                    <h4>Overhead Cost Breakdown (GENERIC V1):</h4>
+                    <div className="overhead-cost-grid">
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Ingredients Weighing:</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">(</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.MH_Timbang_BB || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              MH_Timbang_BB: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.1"
+                            min="0"
+                          />
+                          <span className="formula-part">MH × Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Biaya_Generik || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Biaya_Generik: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                          />
+                          <span className="formula-part">)</span>
+                        </div>
+                        <span className="overhead-value">Rp {formatNumber(calculateIngredientsWeighing(), 2)}</span>
+                      </div>
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Packaging Weighing:</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">(</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.MH_Timbang_BK || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              MH_Timbang_BK: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.1"
+                            min="0"
+                          />
+                          <span className="formula-part">MH × Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Biaya_Generik || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Biaya_Generik: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                          />
+                          <span className="formula-part">)</span>
+                        </div>
+                        <span className="overhead-value">Rp {formatNumber(calculatePackagingWeighing(), 2)}</span>
+                      </div>
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Processing Cost:</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">(</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.MH_Proses_Std || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              MH_Proses_Std: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.1"
+                            min="0"
+                          />
+                          <span className="formula-part">MH × Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Biaya_Generik || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Biaya_Generik: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                          />
+                          <span className="formula-part">)</span>
+                        </div>
+                        <span className="overhead-value">Rp {formatNumber(calculateGenericProcessingCost(), 2)}</span>
+                      </div>
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Packaging Cost:</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">(</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.MH_Kemas_Std || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              MH_Kemas_Std: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.1"
+                            min="0"
+                          />
+                          <span className="formula-part">MH × Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Biaya_Generik || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Biaya_Generik: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                          />
+                          <span className="formula-part">)</span>
+                        </div>
+                        <span className="overhead-value">Rp {formatNumber(calculateGenericPackagingCost(), 2)}</span>
+                      </div>
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Analysis Fee:</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">(</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.MH_Analisa_Std || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              MH_Analisa_Std: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.1"
+                            min="0"
+                          />
+                          <span className="formula-part">MH × Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Biaya_Generik || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Biaya_Generik: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                          />
+                          <span className="formula-part">)</span>
+                        </div>
+                        <span className="overhead-value">Rp {formatNumber(calculateAnalysisFee(), 2)}</span>
+                      </div>
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Machine Fee:</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">(</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.MH_Mesin_Std || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              MH_Mesin_Std: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.1"
+                            min="0"
+                          />
+                          <span className="formula-part">MH × Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Rate_PLN || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Rate_PLN: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                          />
+                          <span className="formula-part">)</span>
+                        </div>
+                        <span className="overhead-value">Rp {formatNumber(calculateMachineFee(), 2)}</span>
+                      </div>
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Reagent Fee:</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Biaya_Reagen || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Biaya_Reagen: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                            placeholder="0"
+                          />
+                          <span className="formula-part">(Direct Value)</span>
+                        </div>
+                        <span className="overhead-value">Rp {formatNumber(calculateReagentFee(), 2)}</span>
+                      </div>
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Expiry Cost:</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Depresiasi || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Depresiasi: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                            placeholder="0"
+                          />
+                          <span className="formula-part">(Direct Value)</span>
+                        </div>
+                        <span className="overhead-value">Rp {formatNumber(calculateGenericExpiryCost(), 2)}</span>
+                      </div>
+                      <div className="overhead-cost-item total-overhead">
+                        <span className="overhead-label">Total Overhead:</span>
+                        <span className="overhead-formula"></span>
+                        <span className="overhead-value">Rp {formatNumber(calculateTotalOverhead(), 2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Overhead Cost Breakdown for GENERIC Version 2 Products */}
+                {(getCurrentLOB() === 'GENERIC' && (editableVersion || simulationResults[0].Versi) === '2') && (
+                  <div className="overhead-cost">
+                    <h4>Overhead Cost Breakdown (GENERIC V2):</h4>
+                    <div className="overhead-cost-grid">
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Production Labor Cost:</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">(</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.MH_Proses_Std || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              MH_Proses_Std: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.1"
+                            min="0"
+                          />
+                          <span className="formula-part">MH × Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Direct_Labor || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Direct_Labor: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                          />
+                          <span className="formula-part">)</span>
+                        </div>
+                        <span className="overhead-value">Rp {formatNumber(calculateProductionLaborCost(), 2)}</span>
+                      </div>
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Packaging Labor Cost:</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">(</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.MH_Kemas_Std || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              MH_Kemas_Std: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.1"
+                            min="0"
+                          />
+                          <span className="formula-part">MH × Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Direct_Labor || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Direct_Labor: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                          />
+                          <span className="formula-part">)</span>
+                        </div>
+                        <span className="overhead-value">Rp {formatNumber(calculatePackagingLaborCost(), 2)}</span>
+                      </div>
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Production FOH:</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">(</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.MH_Proses_Std || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              MH_Proses_Std: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.1"
+                            min="0"
+                          />
+                          <span className="formula-part">MH × Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Factory_Over_Head || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Factory_Over_Head: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                          />
+                          <span className="formula-part">)</span>
+                        </div>
+                        <span className="overhead-value">Rp {formatNumber(calculateProductionFOH(), 2)}</span>
+                      </div>
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Packaging FOH:</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">(</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.MH_Kemas_Std || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              MH_Kemas_Std: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.1"
+                            min="0"
+                          />
+                          <span className="formula-part">MH × Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Factory_Over_Head || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Factory_Over_Head: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                          />
+                          <span className="formula-part">)</span>
+                        </div>
+                        <span className="overhead-value">Rp {formatNumber(calculatePackagingFOH(), 2)}</span>
+                      </div>
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Production Depreciation:</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">(</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.MH_Proses_Std || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              MH_Proses_Std: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.1"
+                            min="0"
+                          />
+                          <span className="formula-part">MH × Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Depresiasi || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Depresiasi: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                          />
+                          <span className="formula-part">)</span>
+                        </div>
+                        <span className="overhead-value">Rp {formatNumber(calculateProductionDepreciation(), 2)}</span>
+                      </div>
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Packaging Depreciation:</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">(</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.MH_Kemas_Std || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              MH_Kemas_Std: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.1"
+                            min="0"
+                          />
+                          <span className="formula-part">MH × Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Depresiasi || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Depresiasi: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                          />
+                          <span className="formula-part">)</span>
+                        </div>
+                        <span className="overhead-value">Rp {formatNumber(calculatePackagingDepreciation(), 2)}</span>
+                      </div>
+                      <div className="overhead-cost-item total-overhead">
+                        <span className="overhead-label">Total Overhead:</span>
+                        <span className="overhead-formula"></span>
+                        <span className="overhead-value">Rp {formatNumber(calculateTotalOverhead(), 2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Grand Total Cost */}
                 <div className="grand-total-cost">
                   <h4>Total Cost Summary:</h4>
@@ -1218,7 +1825,8 @@ export default function HPPSimulation() {
                         </div>
                       </>
                     )}
-                    {simulationResults[0].LOB === 'ETHICAL' && (
+                    {(getCurrentLOB() === 'ETHICAL' || getCurrentLOB() === 'OTC' || 
+                      (getCurrentLOB() === 'GENERIC' && ((editableVersion || simulationResults[0].Versi) === '1' || (editableVersion || simulationResults[0].Versi) === '2'))) && (
                       <div className="total-cost-item">
                         <span className="total-label">Total Overhead:</span>
                         <span className="total-value">Rp {formatNumber(calculateTotalOverhead(), 2)}</span>
@@ -1256,8 +1864,8 @@ export default function HPPSimulation() {
         )}
       </div>
 
-      {/* Detailed Report Modal - matching ProductHPPReport structure */}
-      {showDetailedReport && simulationResults && simulationResults.length > 0 && (
+      {/* Detailed Report Modal - Comprehensive HPP Report */}
+      {showDetailedReport && (
         <div className="product-hpp-modal-overlay">
           <div className="product-hpp-modal">
             <div className="product-hpp-modal-header">
@@ -1266,7 +1874,6 @@ export default function HPPSimulation() {
                 <button
                   onClick={() => window.print()}
                   className="product-hpp-export-btn pdf"
-                  disabled={loadingDetails}
                 >
                   📄 PDF
                 </button>
@@ -1280,14 +1887,8 @@ export default function HPPSimulation() {
             </div>
 
             <div className="product-hpp-modal-content">
-              {loadingDetails ? (
-                <div className="loading-detailed-data">
-                  <div className="loading-spinner"></div>
-                  <p>Loading detailed simulation data...</p>
-                </div>
-              ) : simulationHeader && simulationHeader.length > 0 ? (
-                <div className="product-hpp-report">
-                {/* Document Header - Excel Style */}
+              <div className="product-hpp-report">
+                {/* Document Header */}
                 <div className="document-header">
                   <div className="header-row">
                     <div className="header-left">
@@ -1309,40 +1910,45 @@ export default function HPPSimulation() {
                       <div className="info-line">
                         <span className="label">Kode Produk - Description</span>
                         <span className="separator">:</span>
-                        <span className="value">{simulationHeader[0].Product_ID} - {simulationHeader[0].Product_Name}</span>
+                        <span className="value">{simulationResults && simulationResults[0] ? simulationResults[0].Product_ID : 'N/A'} - {simulationResults && simulationResults[0] ? simulationResults[0].Product_Name : 'Unknown Product'}</span>
                       </div>
                       <div className="info-line">
                         <span className="label">Batch Size Teori</span>
                         <span className="separator">:</span>
-                        <span className="value">{(simulationHeader[0].Batch_Size || 0).toLocaleString()} KOTAK</span>
+                        <span className="value">{(editableBatchSize || (simulationResults && simulationResults[0] ? simulationResults[0].Batch_Size : 0)).toLocaleString()} {simulationResults && simulationResults[0] ? simulationResults[0].Batch_Unit || 'UNIT' : 'UNIT'}</span>
                       </div>
                       <div className="info-line">
                         <span className="label">Batch Size Actual</span>
                         <span className="separator">:</span>
-                        <span className="value">{((simulationHeader[0].Batch_Size || 0) * (simulationHeader[0].Group_Rendemen || 100) / 100).toLocaleString()} KOTAK</span>
+                        <span className="value">{getActualBatchSize().toLocaleString()} {simulationResults && simulationResults[0] ? simulationResults[0].Batch_Unit || 'UNIT' : 'UNIT'}</span>
                       </div>
                       <div className="info-line">
                         <span className="label">Rendemen</span>
                         <span className="separator">:</span>
-                        <span className="value">{(simulationHeader[0].Group_Rendemen || 0).toFixed(2)}%</span>
+                        <span className="value">{(editableRendemen || (simulationResults && simulationResults[0] ? simulationResults[0].Group_Rendemen : 0)).toFixed(2)}%</span>
                       </div>
                     </div>
                     <div className="info-right">
                       <div className="info-line">
                         <span className="label">LOB</span>
                         <span className="separator">:</span>
-                        <span className="value">{simulationHeader[0].LOB || 'ETH/GEN/OTC/EXP'}</span>
+                        <span className="value">{getCurrentLOB()}</span>
+                      </div>
+                      <div className="info-line">
+                        <span className="label">Version</span>
+                        <span className="separator">:</span>
+                        <span className="value">{getCurrentLOB() === 'GENERIC' ? `Version ${editableVersion}` : 'Standard'}</span>
                       </div>
                       <div className="info-line">
                         <span className="label">Tanggal Print</span>
                         <span className="separator">:</span>
-                        <span className="value">{new Date(simulationHeader[0].Simulasi_Date).toLocaleDateString('id-ID')}</span>
+                        <span className="value">{new Date().toLocaleDateString('id-ID')}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Bahan Baku Section */}
+                {/* Raw Materials Section */}
                 <div className="material-section">
                   <div className="section-title">
                     <h4>Bahan Baku</h4>
@@ -1350,43 +1956,43 @@ export default function HPPSimulation() {
                   <table className="excel-table">
                     <thead>
                       <tr>
-                        <th rowSpan="2" className="narrow"></th>
-                        <th rowSpan="2">Kode Material</th>
-                        <th rowSpan="2">Nama Material</th>
-                        <th rowSpan="2">Qty</th>
-                        <th rowSpan="2">Satuan</th>
-                        <th rowSpan="2">Cost/unit</th>
-                        <th rowSpan="2">Extended Cost</th>
-                        <th rowSpan="2">Per pack</th>
+                        <th className="narrow">No</th>
+                        <th>Kode Material</th>
+                        <th>Nama Material</th>
+                        <th>Qty</th>
+                        <th>Satuan</th>
+                        <th>Cost/unit</th>
+                        <th>Extended Cost</th>
+                        <th>Cost per pack</th>
                       </tr>
                     </thead>
                     <tbody>
                       {getBahanBakuFromApiData().map((item, index) => (
-                        <tr key={`bb-api-${item.Item_ID}-${item.Seq_ID}-${index}`}>
+                        <tr key={`raw-${index}`}>
                           <td>{index + 1}</td>
                           <td>{item.Item_ID}</td>
                           <td>{item.Item_Name}</td>
                           <td className="number">{formatNumber(item.Item_QTY)}</td>
                           <td>{item.Item_Unit}</td>
-                          <td className="number">{formatNumber(item.Item_Unit_Price)}</td>
-                          <td className="number">{formatNumber(item.Item_Unit_Price * item.Item_QTY)}</td>
-                          <td className="number">{formatNumber((item.Item_Unit_Price * item.Item_QTY) / ((simulationHeader[0].Batch_Size || 1) * (simulationHeader[0].Group_Rendemen || 100) / 100))}</td>
+                          <td className="number">Rp {formatNumber(item.Item_Unit_Price, 2)}</td>
+                          <td className="number">Rp {formatNumber(item.Item_QTY * item.Item_Unit_Price, 2)}</td>
+                          <td className="number">Rp {formatNumber((item.Item_QTY * item.Item_Unit_Price) / getActualBatchSize(), 2)}</td>
                         </tr>
                       ))}
                       <tr className="total-row">
-                        <td colSpan="6"><strong>Total BB :</strong></td>
+                        <td colSpan="6"><strong>Total Bahan Baku :</strong></td>
                         <td className="number total">
-                          <strong>{formatNumber(calculateTotalBahanBaku())}</strong>
+                          <strong>Rp {formatNumber(calculateTotalBahanBaku(), 2)}</strong>
                         </td>
                         <td className="number total">
-                          <strong>{formatNumber(calculateTotalBahanBaku() / ((simulationHeader[0].Batch_Size || 1) * (simulationHeader[0].Group_Rendemen || 100) / 100))}</strong>
+                          <strong>Rp {formatNumber(calculateTotalBahanBaku() / getActualBatchSize(), 2)}</strong>
                         </td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
-                {/* Bahan Kemas Section */}
+                {/* Packaging Materials Section */}
                 <div className="material-section">
                   <div className="section-title">
                     <h4>Bahan Kemas</h4>
@@ -1394,122 +2000,331 @@ export default function HPPSimulation() {
                   <table className="excel-table">
                     <thead>
                       <tr>
-                        <th rowSpan="2" className="narrow"></th>
-                        <th rowSpan="2">Kode Material</th>
-                        <th rowSpan="2">Nama Material</th>
-                        <th rowSpan="2">Qty</th>
-                        <th rowSpan="2">Satuan</th>
-                        <th rowSpan="2">Cost/unit</th>
-                        <th rowSpan="2">Extended Cost</th>
-                        <th rowSpan="2">Per pack</th>
+                        <th className="narrow">No</th>
+                        <th>Kode Material</th>
+                        <th>Nama Material</th>
+                        <th>Qty</th>
+                        <th>Satuan</th>
+                        <th>Cost/unit</th>
+                        <th>Extended Cost</th>
+                        <th>Cost per pack</th>
                       </tr>
                     </thead>
                     <tbody>
                       {getBahanKemasFromApiData().map((item, index) => (
-                        <tr key={`bk-api-${item.Item_ID}-${item.Seq_ID}-${index}`}>
+                        <tr key={`pack-${index}`}>
                           <td>{index + 1}</td>
                           <td>{item.Item_ID}</td>
                           <td>{item.Item_Name}</td>
                           <td className="number">{formatNumber(item.Item_QTY)}</td>
                           <td>{item.Item_Unit}</td>
-                          <td className="number">{formatNumber(item.Item_Unit_Price)}</td>
-                          <td className="number">{formatNumber(item.Item_Unit_Price * item.Item_QTY)}</td>
-                          <td className="number">{formatNumber((item.Item_Unit_Price * item.Item_QTY) / ((simulationHeader[0].Batch_Size || 1) * (simulationHeader[0].Group_Rendemen || 100) / 100))}</td>
+                          <td className="number">Rp {formatNumber(item.Item_Unit_Price, 2)}</td>
+                          <td className="number">Rp {formatNumber(item.Item_QTY * item.Item_Unit_Price, 2)}</td>
+                          <td className="number">Rp {formatNumber((item.Item_QTY * item.Item_Unit_Price) / getActualBatchSize(), 2)}</td>
                         </tr>
                       ))}
                       <tr className="total-row">
-                        <td colSpan="6"><strong>Total BK :</strong></td>
+                        <td colSpan="6"><strong>Total Bahan Kemas :</strong></td>
                         <td className="number total">
-                          <strong>{formatNumber(calculateTotalBahanKemas())}</strong>
+                          <strong>Rp {formatNumber(calculateTotalBahanKemas(), 2)}</strong>
                         </td>
                         <td className="number total">
-                          <strong>{formatNumber(calculateTotalBahanKemas() / ((simulationHeader[0].Batch_Size || 1) * (simulationHeader[0].Group_Rendemen || 100) / 100))}</strong>
+                          <strong>Rp {formatNumber(calculateTotalBahanKemas() / getActualBatchSize(), 2)}</strong>
                         </td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
-                {/* Dynamic Overhead Section based on LOB */}
-                {simulationHeader[0].LOB === 'ETHICAL' && (
-                  <div className="labor-section">
-                    <div className="material-section">
-                      <div className="section-title">
-                        <h4>Overhead</h4>
-                      </div>
-                      <table className="excel-table">
-                        <thead>
-                          <tr>
-                            <th>Resource Scheduling</th>
-                            <th>Nama Material</th>
-                            <th>Qty</th>
-                            <th>Mhrs/machine hours</th>
-                            <th>Cost/unit</th>
-                            <th>Extended Cost</th>
-                            <th>Per pack</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            <td>1 PENGOLAHAN</td>
-                            <td>OPERATOR PROSES LINE PN1/PN2</td>
-                            <td className="number">{formatNumber(simulationHeader[0].MH_Proses_Std || 0)}</td>
-                            <td>HRS</td>
-                            <td className="number">{formatNumber(simulationHeader[0].Biaya_Proses || 0)}</td>
-                            <td className="number">{formatNumber((simulationHeader[0].MH_Proses_Std || 0) * (simulationHeader[0].Biaya_Proses || 0))}</td>
-                            <td className="number">{formatNumber(((simulationHeader[0].MH_Proses_Std || 0) * (simulationHeader[0].Biaya_Proses || 0)) / ((simulationHeader[0].Batch_Size || 1) * (simulationHeader[0].Group_Rendemen || 100) / 100))}</td>
-                          </tr>
-                          <tr>
-                            <td>2 PENGEMASAN</td>
-                            <td>OPERATOR PROSES LINE PN1/PN2</td>
-                            <td className="number">{formatNumber(simulationHeader[0].MH_Kemas_Std || 0)}</td>
-                            <td>HRS</td>
-                            <td className="number">{formatNumber(simulationHeader[0].Biaya_Kemas || 0)}</td>
-                            <td className="number">{formatNumber((simulationHeader[0].MH_Kemas_Std || 0) * (simulationHeader[0].Biaya_Kemas || 0))}</td>
-                            <td className="number">{formatNumber(((simulationHeader[0].MH_Kemas_Std || 0) * (simulationHeader[0].Biaya_Kemas || 0)) / ((simulationHeader[0].Batch_Size || 1) * (simulationHeader[0].Group_Rendemen || 100) / 100))}</td>
-                          </tr>
-                          <tr className="total-row">
-                            <td colSpan="2"><strong>Total Hours</strong></td>
-                            <td className="number"><strong>{formatNumber((simulationHeader[0].MH_Proses_Std || 0) + (simulationHeader[0].MH_Kemas_Std || 0))}</strong></td>
-                            <td><strong>Total Cost</strong></td>
-                            <td></td>
-                            <td className="number total">
-                              <strong>{formatNumber(((simulationHeader[0].MH_Proses_Std || 0) * (simulationHeader[0].Biaya_Proses || 0)) + ((simulationHeader[0].MH_Kemas_Std || 0) * (simulationHeader[0].Biaya_Kemas || 0)))}</strong>
-                            </td>
-                            <td className="number total">
-                              <strong>{formatNumber((((simulationHeader[0].MH_Proses_Std || 0) * (simulationHeader[0].Biaya_Proses || 0)) + ((simulationHeader[0].MH_Kemas_Std || 0) * (simulationHeader[0].Biaya_Kemas || 0))) / ((simulationHeader[0].Batch_Size || 1) * (simulationHeader[0].Group_Rendemen || 100) / 100))}</strong>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
+                {/* Overhead Section - Dynamic based on LOB and Version */}
+                <div className="material-section">
+                  <div className="section-title">
+                    <h4>Overhead</h4>
                   </div>
-                )}
+                  
+                  {getCurrentLOB() === 'ETHICAL' && (
+                    <table className="excel-table">
+                      <thead>
+                        <tr>
+                          <th>Resource Scheduling</th>
+                          <th>Description</th>
+                          <th>Qty</th>
+                          <th>Unit</th>
+                          <th>Cost/unit</th>
+                          <th>Extended Cost</th>
+                          <th>Cost per pack</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>1 PENGOLAHAN</td>
+                          <td>OPERATOR PROSES LINE PN1/PN2</td>
+                          <td className="number">{formatNumber(editableOverheadData.MH_Proses_Std || 0)}</td>
+                          <td>HRS</td>
+                          <td className="number">Rp {formatNumber(editableOverheadData.Biaya_Proses || 0, 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateProcessingCost(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateProcessingCost() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>2 PENGEMASAN</td>
+                          <td>OPERATOR PROSES LINE PN1/PN2</td>
+                          <td className="number">{formatNumber(editableOverheadData.MH_Kemas_Std || 0)}</td>
+                          <td>HRS</td>
+                          <td className="number">Rp {formatNumber(editableOverheadData.Biaya_Kemas || 0, 2)}</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingCost(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingCost() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr className="total-row">
+                          <td colSpan="2"><strong>Total Hours</strong></td>
+                          <td className="number"><strong>{formatNumber((editableOverheadData.MH_Proses_Std || 0) + (editableOverheadData.MH_Kemas_Std || 0))}</strong></td>
+                          <td><strong>Total Cost</strong></td>
+                          <td></td>
+                          <td className="number total">
+                            <strong>Rp {formatNumber(calculateTotalOverhead(), 2)}</strong>
+                          </td>
+                          <td className="number total">
+                            <strong>Rp {formatNumber(calculateTotalOverhead() / getActualBatchSize(), 2)}</strong>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
 
-                {/* Final Total */}
+                  {getCurrentLOB() === 'OTC' && (
+                    <table className="excel-table">
+                      <thead>
+                        <tr>
+                          <th>Component</th>
+                          <th>Description</th>
+                          <th>Formula</th>
+                          <th>Extended Cost</th>
+                          <th>Cost per pack</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Processing Labor</td>
+                          <td>Production Labor Cost</td>
+                          <td>({formatNumber(editableOverheadData.MH_Proses_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Direct_Labor || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculateProcessingLaborCost(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateProcessingLaborCost() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Packaging Labor</td>
+                          <td>Packaging Labor Cost</td>
+                          <td>({formatNumber(editableOverheadData.MH_Kemas_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Direct_Labor || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingLaborCost(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingLaborCost() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Production FOH</td>
+                          <td>Production Factory Overhead</td>
+                          <td>({formatNumber(editableOverheadData.MH_Proses_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Factory_Over_Head || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculateProductionFOH(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateProductionFOH() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Packaging FOH</td>
+                          <td>Packaging Factory Overhead</td>
+                          <td>({formatNumber(editableOverheadData.MH_Kemas_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Factory_Over_Head || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingFOH(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingFOH() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Production Depreciation</td>
+                          <td>Production Equipment Depreciation</td>
+                          <td>({formatNumber(editableOverheadData.MH_Proses_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Depresiasi || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculateProductionDepreciation(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateProductionDepreciation() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Packaging Depreciation</td>
+                          <td>Packaging Equipment Depreciation</td>
+                          <td>({formatNumber(editableOverheadData.MH_Kemas_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Depresiasi || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingDepreciation(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingDepreciation() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr className="total-row">
+                          <td colSpan="3"><strong>Total Overhead</strong></td>
+                          <td className="number total">
+                            <strong>Rp {formatNumber(calculateTotalOverhead(), 2)}</strong>
+                          </td>
+                          <td className="number total">
+                            <strong>Rp {formatNumber(calculateTotalOverhead() / getActualBatchSize(), 2)}</strong>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+
+                  {getCurrentLOB() === 'GENERIC' && editableVersion === 1 && (
+                    <table className="excel-table">
+                      <thead>
+                        <tr>
+                          <th>Component</th>
+                          <th>Description</th>
+                          <th>Formula</th>
+                          <th>Extended Cost</th>
+                          <th>Cost per pack</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Packaging Weighing</td>
+                          <td>Packaging Weighing Cost</td>
+                          <td>(Rp {formatNumber(editableOverheadData.Biaya_Generik || 0, 2)} × {formatNumber(editableOverheadData.Faktor_A || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingWeighing(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingWeighing() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Processing Cost</td>
+                          <td>Production Processing Cost</td>
+                          <td>(Rp {formatNumber(editableOverheadData.Biaya_Generik || 0, 2)} × {formatNumber(editableOverheadData.Faktor_B || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculateProcessingCostGeneric(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateProcessingCostGeneric() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Packaging Cost</td>
+                          <td>Packaging Processing Cost</td>
+                          <td>(Rp {formatNumber(editableOverheadData.Biaya_Generik || 0, 2)} × {formatNumber(editableOverheadData.Faktor_C || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingCostGeneric(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingCostGeneric() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Analysis Fee</td>
+                          <td>Quality Control Analysis</td>
+                          <td>(Rp {formatNumber(editableOverheadData.Biaya_Generik || 0, 2)} × {formatNumber(editableOverheadData.Faktor_D || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculateAnalysisFee(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateAnalysisFee() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Factory Overhead</td>
+                          <td>Factory General Overhead</td>
+                          <td>(Rp {formatNumber(editableOverheadData.Biaya_Generik || 0, 2)} × {formatNumber(editableOverheadData.Faktor_E || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculateFactoryOverhead(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateFactoryOverhead() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Production Overhead</td>
+                          <td>Production General Overhead</td>
+                          <td>(Rp {formatNumber(editableOverheadData.Biaya_Generik || 0, 2)} × {formatNumber(editableOverheadData.Faktor_F || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculateProductionOverhead(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateProductionOverhead() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Packaging Overhead</td>
+                          <td>Packaging General Overhead</td>
+                          <td>(Rp {formatNumber(editableOverheadData.Biaya_Generik || 0, 2)} × {formatNumber(editableOverheadData.Faktor_G || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingOverhead(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingOverhead() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Generic Depreciation</td>
+                          <td>Equipment Depreciation</td>
+                          <td>(Rp {formatNumber(editableOverheadData.Biaya_Generik || 0, 2)} × {formatNumber(editableOverheadData.Faktor_H || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculateGenericDepreciation(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateGenericDepreciation() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr className="total-row">
+                          <td colSpan="3"><strong>Total Overhead</strong></td>
+                          <td className="number total">
+                            <strong>Rp {formatNumber(calculateTotalOverhead(), 2)}</strong>
+                          </td>
+                          <td className="number total">
+                            <strong>Rp {formatNumber(calculateTotalOverhead() / getActualBatchSize(), 2)}</strong>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+
+                  {getCurrentLOB() === 'GENERIC' && editableVersion === 2 && (
+                    <table className="excel-table">
+                      <thead>
+                        <tr>
+                          <th>Component</th>
+                          <th>Description</th>
+                          <th>Formula</th>
+                          <th>Extended Cost</th>
+                          <th>Cost per pack</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Processing Labor</td>
+                          <td>Production Labor Cost</td>
+                          <td>({formatNumber(editableOverheadData.MH_Proses_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Direct_Labor || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculateProcessingLaborCost(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateProcessingLaborCost() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Packaging Labor</td>
+                          <td>Packaging Labor Cost</td>
+                          <td>({formatNumber(editableOverheadData.MH_Kemas_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Direct_Labor || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingLaborCost(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingLaborCost() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Production FOH</td>
+                          <td>Production Factory Overhead</td>
+                          <td>({formatNumber(editableOverheadData.MH_Proses_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Factory_Over_Head || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculateProductionFOH(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateProductionFOH() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Packaging FOH</td>
+                          <td>Packaging Factory Overhead</td>
+                          <td>({formatNumber(editableOverheadData.MH_Kemas_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Factory_Over_Head || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingFOH(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingFOH() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Production Depreciation</td>
+                          <td>Production Equipment Depreciation</td>
+                          <td>({formatNumber(editableOverheadData.MH_Proses_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Depresiasi || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculateProductionDepreciation(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateProductionDepreciation() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Packaging Depreciation</td>
+                          <td>Packaging Equipment Depreciation</td>
+                          <td>({formatNumber(editableOverheadData.MH_Kemas_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Depresiasi || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingDepreciation(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingDepreciation() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr className="total-row">
+                          <td colSpan="3"><strong>Total Overhead</strong></td>
+                          <td className="number total">
+                            <strong>Rp {formatNumber(calculateTotalOverhead(), 2)}</strong>
+                          </td>
+                          <td className="number total">
+                            <strong>Rp {formatNumber(calculateTotalOverhead() / getActualBatchSize(), 2)}</strong>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                {/* Final Total Section */}
                 <div className="final-total-section">
                   <table className="excel-table">
                     <tbody>
                       <tr className="final-total">
                         <td><strong>Total COGS Estimasi</strong></td>
-                        <td colSpan="3"></td>
+                        <td colSpan="2"></td>
                         <td><strong>Total HPP</strong></td>
                         <td className="number final">
-                          <strong>{formatNumber(calculateTotalBahanBaku() + calculateTotalBahanKemas() + (simulationHeader[0].LOB === 'ETHICAL' ? ((simulationHeader[0].MH_Proses_Std || 0) * (simulationHeader[0].Biaya_Proses || 0)) + ((simulationHeader[0].MH_Kemas_Std || 0) * (simulationHeader[0].Biaya_Kemas || 0)) : 0))}</strong>
+                          <strong>Rp {formatNumber(calculateTotalBahanBaku() + calculateTotalBahanKemas() + calculateTotalOverhead(), 2)}</strong>
                         </td>
                         <td className="number final">
-                          <strong>{formatNumber((calculateTotalBahanBaku() + calculateTotalBahanKemas() + (simulationHeader[0].LOB === 'ETHICAL' ? ((simulationHeader[0].MH_Proses_Std || 0) * (simulationHeader[0].Biaya_Proses || 0)) + ((simulationHeader[0].MH_Kemas_Std || 0) * (simulationHeader[0].Biaya_Kemas || 0)) : 0)) / ((simulationHeader[0].Batch_Size || 1) * (simulationHeader[0].Group_Rendemen || 100) / 100))}</strong>
+                          <strong>Rp {formatNumber((calculateTotalBahanBaku() + calculateTotalBahanKemas() + calculateTotalOverhead()) / getActualBatchSize(), 2)}</strong>
                         </td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
               </div>
-              ) : (
-                <div className="no-detailed-data">
-                  <p>Detailed simulation data not available. Please try running the simulation again.</p>
-                </div>
-              )}
             </div>
           </div>
         </div>
