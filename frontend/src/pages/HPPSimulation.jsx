@@ -44,6 +44,11 @@ export default function HPPSimulation() {
   const [simulationResults, setSimulationResults] = useState(null);
   const [genericType, setGenericType] = useState('1'); // For GENERIC LOB products
   const [showDetailedReport, setShowDetailedReport] = useState(false);
+  
+  // Detailed simulation data from API
+  const [simulationHeader, setSimulationHeader] = useState(null);
+  const [simulationDetailBahan, setSimulationDetailBahan] = useState([]);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   // Load available products when component mounts or when simulation type changes to "Existing Formula"
   useEffect(() => {
@@ -219,7 +224,8 @@ export default function HPPSimulation() {
         groups[typeCode][subId].isActive
       );
       
-      if (activeSubId) {
+      // activeSubId can be empty string, which is a valid formula
+      if (activeSubId !== undefined) {
         defaults[typeCode] = activeSubId;
       }
     });
@@ -228,25 +234,42 @@ export default function HPPSimulation() {
   };
 
   const handleFormulaSelection = (typeCode, subId) => {
-    setSelectedFormulas(prev => ({
-      ...prev,
-      [typeCode]: subId
-    }));
+    setSelectedFormulas(prev => {
+      const newFormulas = { ...prev };
+      
+      if (subId === '__NO_SELECTION__') {
+        // Special value for "-- Select a formula --" was chosen, so remove the selection
+        delete newFormulas[typeCode];
+      } else {
+        // Store the selection (including empty string formulas which are valid)
+        newFormulas[typeCode] = subId;
+      }
+      
+      return newFormulas;
+    });
   };
 
   const buildFormulaString = () => {
-    // Build formula string in format: PI#-#PS#KP#KS
+    // Build formula string in format: PI#PS#KP#KS
     // Use "-" for types that don't have selections
     const parts = [];
     availableTypeCodes.forEach(typeCode => {
       const subId = selectedFormulas[typeCode];
-      parts.push(subId || '-');
+      // Handle empty string formulas properly - they are valid selections
+      if (selectedFormulas.hasOwnProperty(typeCode)) {
+        parts.push(subId); // subId can be empty string, which is valid
+      } else {
+        parts.push('-'); // No selection made
+      }
     });
-    return parts.join('#-#');
+    return parts.join('#');
   };
 
   const handleRunSimulation = async () => {
-    if (Object.keys(selectedFormulas).length === 0) {
+    // Check if at least one formula is selected (empty string is a valid selection)
+    const hasAtLeastOneSelection = Object.keys(selectedFormulas).length > 0;
+    
+    if (!hasAtLeastOneSelection) {
       setError('Please select at least one formula before running simulation.');
       return;
     }
@@ -269,6 +292,33 @@ export default function HPPSimulation() {
 
       const results = response.data || response;
       setSimulationResults(results);
+      
+      // If simulation is successful and we have a Simulasi_ID, fetch detailed data
+      if (results && results.length > 0 && results[0].Simulasi_ID) {
+        const simulasiId = results[0].Simulasi_ID;
+        console.log('Fetching detailed simulation data for Simulasi_ID:', simulasiId);
+        
+        setLoadingDetails(true);
+        try {
+          // Fetch both header and detail data in parallel
+          const [headerResponse, detailResponse] = await Promise.all([
+            hppAPI.getSimulationHeader(simulasiId),
+            hppAPI.getSimulationDetailBahan(simulasiId)
+          ]);
+
+          setSimulationHeader(headerResponse.data || []);
+          setSimulationDetailBahan(detailResponse.data || []);
+          console.log('Detailed simulation data loaded:', {
+            header: headerResponse.data,
+            detail: detailResponse.data
+          });
+        } catch (detailError) {
+          console.error('Error fetching detailed simulation data:', detailError);
+          // Don't fail the whole process if detailed data fails
+        } finally {
+          setLoadingDetails(false);
+        }
+      }
       
       // Move to simulation results step
       setStep(4);
@@ -352,6 +402,51 @@ export default function HPPSimulation() {
       }
     });
     return materials;
+  };
+
+  // Helper functions to work with detailed API data
+  const getBahanBakuFromApiData = () => {
+    return simulationDetailBahan.filter(item => item.Tipe_Bahan === 'BB');
+  };
+
+  const getBahanKemasFromApiData = () => {
+    return simulationDetailBahan.filter(item => item.Tipe_Bahan === 'BK');
+  };
+
+  const calculateTotalBahanBaku = () => {
+    return getBahanBakuFromApiData().reduce((sum, item) => sum + ((item.Item_Unit_Price || 0) * (item.Item_QTY || 0)), 0);
+  };
+
+  const calculateTotalBahanKemas = () => {
+    return getBahanKemasFromApiData().reduce((sum, item) => sum + ((item.Item_Unit_Price || 0) * (item.Item_QTY || 0)), 0);
+  };
+
+  // Overhead calculations for ETHICAL products
+  const calculateProcessingCost = () => {
+    if (!simulationResults[0] || simulationResults[0].LOB !== 'ETHICAL') return 0;
+    return (simulationResults[0].MH_Proses_Std || 0) * (simulationResults[0].Biaya_Proses || 0);
+  };
+
+  const calculatePackagingCost = () => {
+    if (!simulationResults[0] || simulationResults[0].LOB !== 'ETHICAL') return 0;
+    return (simulationResults[0].MH_Kemas_Std || 0) * (simulationResults[0].Biaya_Kemas || 0);
+  };
+
+  const calculateExpiryCost = () => {
+    if (!simulationResults[0] || simulationResults[0].LOB !== 'ETHICAL') return 0;
+    return simulationResults[0].Beban_Sisa_Bahan_Exp || 0;
+  };
+
+  const calculateTotalOverhead = () => {
+    if (!simulationResults[0] || simulationResults[0].LOB !== 'ETHICAL') return 0;
+    return calculateProcessingCost() + calculatePackagingCost() + calculateExpiryCost();
+  };
+
+  const calculateGrandTotal = () => {
+    const bahanBaku = !loadingDetails && simulationDetailBahan.length > 0 ? calculateTotalBahanBaku() : 0;
+    const bahanKemas = !loadingDetails && simulationDetailBahan.length > 0 ? calculateTotalBahanKemas() : 0;
+    const overhead = calculateTotalOverhead();
+    return bahanBaku + bahanKemas + overhead;
   };
 
   return (
@@ -513,7 +608,8 @@ export default function HPPSimulation() {
 
                   const subIds = Object.keys(typeFormulas);
                   const selectedSubId = selectedFormulas[typeCode];
-                  const selectedFormula = selectedSubId ? typeFormulas[selectedSubId] : null;
+                  // Handle empty string formulas properly
+                  const selectedFormula = selectedFormulas.hasOwnProperty(typeCode) ? typeFormulas[selectedSubId] : null;
 
                   return (
                     <div key={typeCode} className="formula-type-section">
@@ -527,15 +623,17 @@ export default function HPPSimulation() {
                         </label>
                         <select
                           className="formula-dropdown"
-                          value={selectedSubId || ''}
+                          value={selectedFormulas.hasOwnProperty(typeCode) ? selectedSubId : '__NO_SELECTION__'}
                           onChange={(e) => handleFormulaSelection(typeCode, e.target.value)}
                         >
-                          <option value="">-- Select a formula --</option>
+                          <option value="__NO_SELECTION__">-- Select a formula --</option>
                           {subIds.map(subId => {
                             const formula = typeFormulas[subId];
+                            // Handle display for empty string formulas
+                            const formulaDisplay = subId === '' ? '(Empty Formula)' : `Formula ${subId}`;
                             return (
                               <option key={subId} value={subId}>
-                                Formula {subId} - {formula.source} 
+                                {formulaDisplay} - {formula.source} 
                                 {formula.isActive ? ' (Currently Active)' : ''}
                                 {formula.batchSize ? ` - Batch: ${formula.batchSize.toLocaleString()}` : ''}
                               </option>
@@ -550,7 +648,7 @@ export default function HPPSimulation() {
                             <div className="formula-info-row">
                               <span className="info-label">Formula ID:</span>
                               <span className="info-value">
-                                {selectedSubId}
+                                {selectedSubId === '' ? '(Empty Formula)' : selectedSubId}
                                 {selectedFormula.isActive && <span className="active-indicator">Currently Active</span>}
                               </span>
                             </div>
@@ -664,12 +762,21 @@ export default function HPPSimulation() {
             
             {simulationResults.length > 0 && (
               <div className="simulation-results-section">
+                {/* Loading state for detailed data */}
+                {loadingDetails && (
+                  <div className="loading-detailed-data">
+                    <div className="loading-spinner"></div>
+                    <p>Loading detailed simulation data...</p>
+                  </div>
+                )}
+
                 {/* Print Preview Button */}
                 <div className="simulation-actions">
                   <button 
                     type="button" 
                     onClick={() => setShowDetailedReport(true)}
                     className="show-detailed-report-btn"
+                    disabled={loadingDetails || !simulationHeader}
                   >
                     📋 Show Detailed Report (Print Preview)
                   </button>
@@ -704,6 +811,19 @@ export default function HPPSimulation() {
                   </div>
                 )}
 
+                {/* Selected Formulas Summary */}
+                <div className="selected-formulas-final">
+                  <h4>Selected Formulas Used:</h4>
+                  <div className="formulas-grid">
+                    {Object.entries(selectedFormulas).map(([typeCode, subId]) => (
+                      <div key={typeCode} className="formula-final-item">
+                        <span className="formula-type">{typeCode}:</span>
+                        <span className="formula-id">{subId === '' ? '(Empty Formula)' : `Formula ${subId}`}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Simulation Summary */}
                 <div className="simulation-summary">
                   <h4>Simulation Summary:</h4>
@@ -717,8 +837,8 @@ export default function HPPSimulation() {
                       <span className="summary-value">{simulationResults[0].Batch_Size?.toLocaleString()}</span>
                     </div>
                     <div className="summary-item">
-                      <span className="summary-label">Group Category:</span>
-                      <span className="summary-value">{simulationResults[0].Group_PNCategory_Name}</span>
+                      <span className="summary-label">Line:</span>
+                      <span className="summary-value">{simulationResults[0].Group_PNCategory_Dept}</span>
                     </div>
                     <div className="summary-item">
                       <span className="summary-label">Rendemen:</span>
@@ -727,106 +847,148 @@ export default function HPPSimulation() {
                   </div>
                 </div>
 
-                {/* Cost Breakdown */}
-                <div className="cost-breakdown">
-                  <h4>Cost Breakdown:</h4>
-                  <div className="cost-table">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Cost Component</th>
-                          <th>Amount (Rp)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td>Processing Cost</td>
-                          <td>{(simulationResults[0].Biaya_Proses || 0).toLocaleString()}</td>
-                        </tr>
-                        <tr>
-                          <td>Packaging Cost</td>
-                          <td>{(simulationResults[0].Biaya_Kemas || 0).toLocaleString()}</td>
-                        </tr>
-                        <tr>
-                          <td>Generic Cost</td>
-                          <td>{(simulationResults[0].Biaya_Generik || 0).toLocaleString()}</td>
-                        </tr>
-                        <tr>
-                          <td>Reagent Cost</td>
-                          <td>{(simulationResults[0].Biaya_Reagen || 0).toLocaleString()}</td>
-                        </tr>
-                        <tr>
-                          <td>Toll Fee</td>
-                          <td>{(simulationResults[0].Toll_Fee || 0).toLocaleString()}</td>
-                        </tr>
-                        <tr>
-                          <td>Direct Labor</td>
-                          <td>{(simulationResults[0].Direct_Labor || 0).toLocaleString()}</td>
-                        </tr>
-                        <tr>
-                          <td>Factory Overhead</td>
-                          <td>{(simulationResults[0].Factory_Over_Head || 0).toLocaleString()}</td>
-                        </tr>
-                        <tr>
-                          <td>Depreciation</td>
-                          <td>{(simulationResults[0].Depresiasi || 0).toLocaleString()}</td>
-                        </tr>
-                      </tbody>
-                      <tfoot>
-                        <tr className="total-row">
-                          <td><strong>Total Cost per Batch</strong></td>
-                          <td><strong>{calculateTotalCost(simulationResults[0]).toLocaleString()}</strong></td>
-                        </tr>
-                        <tr className="total-row">
-                          <td><strong>Cost per Unit</strong></td>
-                          <td><strong>{calculateCostPerUnit(simulationResults[0]).toLocaleString()}</strong></td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Labor Hours Breakdown */}
-                <div className="labor-hours">
-                  <h4>Labor Hours Breakdown:</h4>
-                  <div className="labor-grid">
-                    <div className="labor-item">
-                      <span className="labor-label">Processing (MH):</span>
-                      <span className="labor-value">{simulationResults[0].MH_Proses_Std || 0}</span>
-                    </div>
-                    <div className="labor-item">
-                      <span className="labor-label">Packaging (MH):</span>
-                      <span className="labor-value">{simulationResults[0].MH_Kemas_Std || 0}</span>
-                    </div>
-                    <div className="labor-item">
-                      <span className="labor-label">Analysis (MH):</span>
-                      <span className="labor-value">{simulationResults[0].MH_Analisa_Std || 0}</span>
-                    </div>
-                    <div className="labor-item">
-                      <span className="labor-label">Material Weighing (MH):</span>
-                      <span className="labor-value">{simulationResults[0].MH_Timbang_BB || 0}</span>
-                    </div>
-                    <div className="labor-item">
-                      <span className="labor-label">Packaging Weighing (MH):</span>
-                      <span className="labor-value">{simulationResults[0].MH_Timbang_BK || 0}</span>
-                    </div>
-                    <div className="labor-item">
-                      <span className="labor-label">Machine (MH):</span>
-                      <span className="labor-value">{simulationResults[0].MH_Mesin_Std || 0}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Selected Formulas Summary */}
-                <div className="selected-formulas-final">
-                  <h4>Selected Formulas Used:</h4>
-                  <div className="formulas-grid">
-                    {Object.entries(selectedFormulas).map(([typeCode, subId]) => (
-                      <div key={typeCode} className="formula-final-item">
-                        <span className="formula-type">{typeCode}:</span>
-                        <span className="formula-id">Formula {subId}</span>
+                {/* Detailed Materials Section - Only show when data is loaded */}
+                {!loadingDetails && simulationDetailBahan.length > 0 && (
+                  <>
+                    {/* Bahan Baku Section */}
+                    <div className="material-breakdown">
+                      <h4>Bahan Baku (Raw Materials)</h4>
+                      <div className="material-table-container">
+                        <table className="material-table">
+                          <thead>
+                            <tr>
+                              <th>No</th>
+                              <th>Kode Material</th>
+                              <th>Nama Material</th>
+                              <th>Qty</th>
+                              <th>Satuan</th>
+                              <th>Cost/Unit</th>
+                              <th>Extended Cost</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {getBahanBakuFromApiData().map((item, index) => (
+                              <tr key={`bb-${item.Item_ID}-${item.Seq_ID}`}>
+                                <td>{index + 1}</td>
+                                <td>{item.Item_ID}</td>
+                                <td>{item.Item_Name}</td>
+                                <td className="number">{formatNumber(item.Item_QTY, 2)}</td>
+                                <td>{item.Item_Unit}</td>
+                                <td className="number">Rp {formatNumber(item.Item_Unit_Price, 2)}</td>
+                                <td className="number">Rp {formatNumber((item.Item_Unit_Price * item.Item_QTY), 2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot>
+                            <tr className="total-row">
+                              <td colSpan="6"><strong>Total Bahan Baku</strong></td>
+                              <td className="number"><strong>Rp {formatNumber(calculateTotalBahanBaku(), 2)}</strong></td>
+                            </tr>
+                          </tfoot>
+                        </table>
                       </div>
-                    ))}
+                    </div>
+
+                    {/* Bahan Kemas Section */}
+                    <div className="material-breakdown">
+                      <h4>Bahan Kemas (Packaging Materials)</h4>
+                      <div className="material-table-container">
+                        <table className="material-table">
+                          <thead>
+                            <tr>
+                              <th>No</th>
+                              <th>Kode Material</th>
+                              <th>Nama Material</th>
+                              <th>Qty</th>
+                              <th>Satuan</th>
+                              <th>Cost/Unit</th>
+                              <th>Extended Cost</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {getBahanKemasFromApiData().map((item, index) => (
+                              <tr key={`bk-${item.Item_ID}-${item.Seq_ID}`}>
+                                <td>{index + 1}</td>
+                                <td>{item.Item_ID}</td>
+                                <td>{item.Item_Name}</td>
+                                <td className="number">{formatNumber(item.Item_QTY, 2)}</td>
+                                <td>{item.Item_Unit}</td>
+                                <td className="number">Rp {formatNumber(item.Item_Unit_Price, 2)}</td>
+                                <td className="number">Rp {formatNumber((item.Item_Unit_Price * item.Item_QTY), 2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot>
+                            <tr className="total-row">
+                              <td colSpan="6"><strong>Total Bahan Kemas</strong></td>
+                              <td className="number"><strong>Rp {formatNumber(calculateTotalBahanKemas(), 2)}</strong></td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Overhead Cost Breakdown for ETHICAL Products */}
+                {simulationResults[0].LOB === 'ETHICAL' && (
+                  <div className="overhead-cost">
+                    <h4>Overhead Cost Breakdown (ETHICAL):</h4>
+                    <div className="overhead-cost-grid">
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Processing Cost:</span>
+                        <span className="overhead-formula">({simulationResults[0].MH_Proses_Std || 0} MH × Rp {formatNumber(simulationResults[0].Biaya_Proses || 0, 2)})</span>
+                        <span className="overhead-value">Rp {formatNumber(calculateProcessingCost(), 2)}</span>
+                      </div>
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Packaging Cost:</span>
+                        <span className="overhead-formula">({simulationResults[0].MH_Kemas_Std || 0} MH × Rp {formatNumber(simulationResults[0].Biaya_Kemas || 0, 2)})</span>
+                        <span className="overhead-value">Rp {formatNumber(calculatePackagingCost(), 2)}</span>
+                      </div>
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Expiry Cost:</span>
+                        <span className="overhead-formula">{simulationResults[0].Beban_Sisa_Bahan_Exp ? 'Direct Value' : 'Not Available'}</span>
+                        <span className="overhead-value">{simulationResults[0].Beban_Sisa_Bahan_Exp ? `Rp ${formatNumber(calculateExpiryCost(), 2)}` : '-'}</span>
+                      </div>
+                      <div className="overhead-cost-item total-overhead">
+                        <span className="overhead-label">Total Overhead:</span>
+                        <span className="overhead-formula"></span>
+                        <span className="overhead-value">Rp {formatNumber(calculateTotalOverhead(), 2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Grand Total Cost */}
+                <div className="grand-total-cost">
+                  <h4>Total Cost Summary:</h4>
+                  <div className="grand-total-grid">
+                    {!loadingDetails && simulationDetailBahan.length > 0 && (
+                      <>
+                        <div className="total-cost-item">
+                          <span className="total-label">Total Bahan Baku:</span>
+                          <span className="total-value">Rp {formatNumber(calculateTotalBahanBaku(), 2)}</span>
+                        </div>
+                        <div className="total-cost-item">
+                          <span className="total-label">Total Bahan Kemas:</span>
+                          <span className="total-value">Rp {formatNumber(calculateTotalBahanKemas(), 2)}</span>
+                        </div>
+                      </>
+                    )}
+                    {simulationResults[0].LOB === 'ETHICAL' && (
+                      <div className="total-cost-item">
+                        <span className="total-label">Total Overhead:</span>
+                        <span className="total-value">Rp {formatNumber(calculateTotalOverhead(), 2)}</span>
+                      </div>
+                    )}
+                    <div className="total-cost-item grand-total">
+                      <span className="total-label">Grand Total per Batch:</span>
+                      <span className="total-value">Rp {formatNumber(calculateGrandTotal(), 2)}</span>
+                    </div>
+                    <div className="total-cost-item grand-total">
+                      <span className="total-label">Cost per Unit:</span>
+                      <span className="total-value">Rp {formatNumber(calculateGrandTotal() / (simulationResults[0].Batch_Size || 1), 2)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -857,6 +1019,7 @@ export default function HPPSimulation() {
                 <button
                   onClick={() => window.print()}
                   className="product-hpp-export-btn pdf"
+                  disabled={loadingDetails}
                 >
                   📄 PDF
                 </button>
@@ -870,7 +1033,13 @@ export default function HPPSimulation() {
             </div>
 
             <div className="product-hpp-modal-content">
-              <div className="product-hpp-report">
+              {loadingDetails ? (
+                <div className="loading-detailed-data">
+                  <div className="loading-spinner"></div>
+                  <p>Loading detailed simulation data...</p>
+                </div>
+              ) : simulationHeader && simulationHeader.length > 0 ? (
+                <div className="product-hpp-report">
                 {/* Document Header - Excel Style */}
                 <div className="document-header">
                   <div className="header-row">
@@ -893,34 +1062,34 @@ export default function HPPSimulation() {
                       <div className="info-line">
                         <span className="label">Kode Produk - Description</span>
                         <span className="separator">:</span>
-                        <span className="value">{selectedProduct.Product_ID} - {selectedProduct.Product_Name}</span>
+                        <span className="value">{simulationHeader[0].Product_ID} - {simulationHeader[0].Product_Name}</span>
                       </div>
                       <div className="info-line">
                         <span className="label">Batch Size Teori</span>
                         <span className="separator">:</span>
-                        <span className="value">{(simulationResults[0].Batch_Size || 0).toLocaleString()} KOTAK</span>
+                        <span className="value">{(simulationHeader[0].Batch_Size || 0).toLocaleString()} KOTAK</span>
                       </div>
                       <div className="info-line">
                         <span className="label">Batch Size Actual</span>
                         <span className="separator">:</span>
-                        <span className="value">{((simulationResults[0].Batch_Size || 0) * (simulationResults[0].Group_Rendemen || 100) / 100).toLocaleString()} KOTAK</span>
+                        <span className="value">{((simulationHeader[0].Batch_Size || 0) * (simulationHeader[0].Group_Rendemen || 100) / 100).toLocaleString()} KOTAK</span>
                       </div>
                       <div className="info-line">
                         <span className="label">Rendemen</span>
                         <span className="separator">:</span>
-                        <span className="value">{(simulationResults[0].Group_Rendemen || 0).toFixed(2)}%</span>
+                        <span className="value">{(simulationHeader[0].Group_Rendemen || 0).toFixed(2)}%</span>
                       </div>
                     </div>
                     <div className="info-right">
                       <div className="info-line">
                         <span className="label">LOB</span>
                         <span className="separator">:</span>
-                        <span className="value">{simulationResults[0].LOB || 'ETH/GEN/OTC/EXP'}</span>
+                        <span className="value">{simulationHeader[0].LOB || 'ETH/GEN/OTC/EXP'}</span>
                       </div>
                       <div className="info-line">
                         <span className="label">Tanggal Print</span>
                         <span className="separator">:</span>
-                        <span className="value">{new Date().toLocaleDateString('id-ID')}</span>
+                        <span className="value">{new Date(simulationHeader[0].Simulasi_Date).toLocaleDateString('id-ID')}</span>
                       </div>
                     </div>
                   </div>
@@ -945,25 +1114,25 @@ export default function HPPSimulation() {
                       </tr>
                     </thead>
                     <tbody>
-                      {getBahanBakuFromFormulas().map((item, index) => (
-                        <tr key={`bb-sim-${item.itemId}-${index}`}>
+                      {getBahanBakuFromApiData().map((item, index) => (
+                        <tr key={`bb-api-${item.Item_ID}-${item.Seq_ID}-${index}`}>
                           <td>{index + 1}</td>
-                          <td>{item.itemId}</td>
-                          <td>{materialMap[item.itemId]?.Item_Name || 'Unknown Material'}</td>
-                          <td className="number">{formatNumber(item.qty)}</td>
-                          <td>{item.unitId}</td>
-                          <td className="number">{formatNumber(item.unitPrice / item.qty)}</td>
-                          <td className="number">{formatNumber(item.unitPrice)}</td>
-                          <td className="number">{formatNumber(item.unitPrice / ((simulationResults[0].Batch_Size || 1) * (simulationResults[0].Group_Rendemen || 100) / 100))}</td>
+                          <td>{item.Item_ID}</td>
+                          <td>{item.Item_Name}</td>
+                          <td className="number">{formatNumber(item.Item_QTY)}</td>
+                          <td>{item.Item_Unit}</td>
+                          <td className="number">{formatNumber(item.Item_Unit_Price)}</td>
+                          <td className="number">{formatNumber(item.Item_Unit_Price * item.Item_QTY)}</td>
+                          <td className="number">{formatNumber((item.Item_Unit_Price * item.Item_QTY) / ((simulationHeader[0].Batch_Size || 1) * (simulationHeader[0].Group_Rendemen || 100) / 100))}</td>
                         </tr>
                       ))}
                       <tr className="total-row">
                         <td colSpan="6"><strong>Total BB :</strong></td>
                         <td className="number total">
-                          <strong>{formatNumber(getBahanBakuFromFormulas().reduce((sum, item) => sum + item.unitPrice, 0))}</strong>
+                          <strong>{formatNumber(calculateTotalBahanBaku())}</strong>
                         </td>
                         <td className="number total">
-                          <strong>{formatNumber(getBahanBakuFromFormulas().reduce((sum, item) => sum + item.unitPrice, 0) / ((simulationResults[0].Batch_Size || 1) * (simulationResults[0].Group_Rendemen || 100) / 100))}</strong>
+                          <strong>{formatNumber(calculateTotalBahanBaku() / ((simulationHeader[0].Batch_Size || 1) * (simulationHeader[0].Group_Rendemen || 100) / 100))}</strong>
                         </td>
                       </tr>
                     </tbody>
@@ -989,25 +1158,25 @@ export default function HPPSimulation() {
                       </tr>
                     </thead>
                     <tbody>
-                      {getBahanKemasFromFormulas().map((item, index) => (
-                        <tr key={`bk-sim-${item.itemId}-${index}`}>
+                      {getBahanKemasFromApiData().map((item, index) => (
+                        <tr key={`bk-api-${item.Item_ID}-${item.Seq_ID}-${index}`}>
                           <td>{index + 1}</td>
-                          <td>{item.itemId}</td>
-                          <td>{materialMap[item.itemId]?.Item_Name || 'Unknown Material'}</td>
-                          <td className="number">{formatNumber(item.qty)}</td>
-                          <td>{item.unitId}</td>
-                          <td className="number">{formatNumber(item.unitPrice / item.qty)}</td>
-                          <td className="number">{formatNumber(item.unitPrice)}</td>
-                          <td className="number">{formatNumber(item.unitPrice / ((simulationResults[0].Batch_Size || 1) * (simulationResults[0].Group_Rendemen || 100) / 100))}</td>
+                          <td>{item.Item_ID}</td>
+                          <td>{item.Item_Name}</td>
+                          <td className="number">{formatNumber(item.Item_QTY)}</td>
+                          <td>{item.Item_Unit}</td>
+                          <td className="number">{formatNumber(item.Item_Unit_Price)}</td>
+                          <td className="number">{formatNumber(item.Item_Unit_Price * item.Item_QTY)}</td>
+                          <td className="number">{formatNumber((item.Item_Unit_Price * item.Item_QTY) / ((simulationHeader[0].Batch_Size || 1) * (simulationHeader[0].Group_Rendemen || 100) / 100))}</td>
                         </tr>
                       ))}
                       <tr className="total-row">
                         <td colSpan="6"><strong>Total BK :</strong></td>
                         <td className="number total">
-                          <strong>{formatNumber(getBahanKemasFromFormulas().reduce((sum, item) => sum + item.unitPrice, 0))}</strong>
+                          <strong>{formatNumber(calculateTotalBahanKemas())}</strong>
                         </td>
                         <td className="number total">
-                          <strong>{formatNumber(getBahanKemasFromFormulas().reduce((sum, item) => sum + item.unitPrice, 0) / ((simulationResults[0].Batch_Size || 1) * (simulationResults[0].Group_Rendemen || 100) / 100))}</strong>
+                          <strong>{formatNumber(calculateTotalBahanKemas() / ((simulationHeader[0].Batch_Size || 1) * (simulationHeader[0].Group_Rendemen || 100) / 100))}</strong>
                         </td>
                       </tr>
                     </tbody>
@@ -1015,7 +1184,7 @@ export default function HPPSimulation() {
                 </div>
 
                 {/* Dynamic Overhead Section based on LOB */}
-                {simulationResults[0].LOB === 'ETHICAL' && (
+                {simulationHeader[0].LOB === 'ETHICAL' && (
                   <div className="labor-section">
                     <div className="material-section">
                       <div className="section-title">
@@ -1037,31 +1206,31 @@ export default function HPPSimulation() {
                           <tr>
                             <td>1 PENGOLAHAN</td>
                             <td>OPERATOR PROSES LINE PN1/PN2</td>
-                            <td className="number">{formatNumber(simulationResults[0].MH_Proses_Std || 0)}</td>
+                            <td className="number">{formatNumber(simulationHeader[0].MH_Proses_Std || 0)}</td>
                             <td>HRS</td>
-                            <td className="number">{formatNumber(simulationResults[0].Biaya_Proses || 0)}</td>
-                            <td className="number">{formatNumber((simulationResults[0].MH_Proses_Std || 0) * (simulationResults[0].Biaya_Proses || 0))}</td>
-                            <td className="number">{formatNumber(((simulationResults[0].MH_Proses_Std || 0) * (simulationResults[0].Biaya_Proses || 0)) / ((simulationResults[0].Batch_Size || 1) * (simulationResults[0].Group_Rendemen || 100) / 100))}</td>
+                            <td className="number">{formatNumber(simulationHeader[0].Biaya_Proses || 0)}</td>
+                            <td className="number">{formatNumber((simulationHeader[0].MH_Proses_Std || 0) * (simulationHeader[0].Biaya_Proses || 0))}</td>
+                            <td className="number">{formatNumber(((simulationHeader[0].MH_Proses_Std || 0) * (simulationHeader[0].Biaya_Proses || 0)) / ((simulationHeader[0].Batch_Size || 1) * (simulationHeader[0].Group_Rendemen || 100) / 100))}</td>
                           </tr>
                           <tr>
                             <td>2 PENGEMASAN</td>
                             <td>OPERATOR PROSES LINE PN1/PN2</td>
-                            <td className="number">{formatNumber(simulationResults[0].MH_Kemas_Std || 0)}</td>
+                            <td className="number">{formatNumber(simulationHeader[0].MH_Kemas_Std || 0)}</td>
                             <td>HRS</td>
-                            <td className="number">{formatNumber(simulationResults[0].Biaya_Kemas || 0)}</td>
-                            <td className="number">{formatNumber((simulationResults[0].MH_Kemas_Std || 0) * (simulationResults[0].Biaya_Kemas || 0))}</td>
-                            <td className="number">{formatNumber(((simulationResults[0].MH_Kemas_Std || 0) * (simulationResults[0].Biaya_Kemas || 0)) / ((simulationResults[0].Batch_Size || 1) * (simulationResults[0].Group_Rendemen || 100) / 100))}</td>
+                            <td className="number">{formatNumber(simulationHeader[0].Biaya_Kemas || 0)}</td>
+                            <td className="number">{formatNumber((simulationHeader[0].MH_Kemas_Std || 0) * (simulationHeader[0].Biaya_Kemas || 0))}</td>
+                            <td className="number">{formatNumber(((simulationHeader[0].MH_Kemas_Std || 0) * (simulationHeader[0].Biaya_Kemas || 0)) / ((simulationHeader[0].Batch_Size || 1) * (simulationHeader[0].Group_Rendemen || 100) / 100))}</td>
                           </tr>
                           <tr className="total-row">
                             <td colSpan="2"><strong>Total Hours</strong></td>
-                            <td className="number"><strong>{formatNumber((simulationResults[0].MH_Proses_Std || 0) + (simulationResults[0].MH_Kemas_Std || 0))}</strong></td>
+                            <td className="number"><strong>{formatNumber((simulationHeader[0].MH_Proses_Std || 0) + (simulationHeader[0].MH_Kemas_Std || 0))}</strong></td>
                             <td><strong>Total Cost</strong></td>
                             <td></td>
                             <td className="number total">
-                              <strong>{formatNumber(((simulationResults[0].MH_Proses_Std || 0) * (simulationResults[0].Biaya_Proses || 0)) + ((simulationResults[0].MH_Kemas_Std || 0) * (simulationResults[0].Biaya_Kemas || 0)))}</strong>
+                              <strong>{formatNumber(((simulationHeader[0].MH_Proses_Std || 0) * (simulationHeader[0].Biaya_Proses || 0)) + ((simulationHeader[0].MH_Kemas_Std || 0) * (simulationHeader[0].Biaya_Kemas || 0)))}</strong>
                             </td>
                             <td className="number total">
-                              <strong>{formatNumber((((simulationResults[0].MH_Proses_Std || 0) * (simulationResults[0].Biaya_Proses || 0)) + ((simulationResults[0].MH_Kemas_Std || 0) * (simulationResults[0].Biaya_Kemas || 0))) / ((simulationResults[0].Batch_Size || 1) * (simulationResults[0].Group_Rendemen || 100) / 100))}</strong>
+                              <strong>{formatNumber((((simulationHeader[0].MH_Proses_Std || 0) * (simulationHeader[0].Biaya_Proses || 0)) + ((simulationHeader[0].MH_Kemas_Std || 0) * (simulationHeader[0].Biaya_Kemas || 0))) / ((simulationHeader[0].Batch_Size || 1) * (simulationHeader[0].Group_Rendemen || 100) / 100))}</strong>
                             </td>
                           </tr>
                         </tbody>
@@ -1079,16 +1248,21 @@ export default function HPPSimulation() {
                         <td colSpan="3"></td>
                         <td><strong>Total HPP</strong></td>
                         <td className="number final">
-                          <strong>{formatNumber(calculateTotalCost(simulationResults[0]))}</strong>
+                          <strong>{formatNumber(calculateTotalBahanBaku() + calculateTotalBahanKemas() + (simulationHeader[0].LOB === 'ETHICAL' ? ((simulationHeader[0].MH_Proses_Std || 0) * (simulationHeader[0].Biaya_Proses || 0)) + ((simulationHeader[0].MH_Kemas_Std || 0) * (simulationHeader[0].Biaya_Kemas || 0)) : 0))}</strong>
                         </td>
                         <td className="number final">
-                          <strong>{formatNumber(calculateCostPerUnit(simulationResults[0]))}</strong>
+                          <strong>{formatNumber((calculateTotalBahanBaku() + calculateTotalBahanKemas() + (simulationHeader[0].LOB === 'ETHICAL' ? ((simulationHeader[0].MH_Proses_Std || 0) * (simulationHeader[0].Biaya_Proses || 0)) + ((simulationHeader[0].MH_Kemas_Std || 0) * (simulationHeader[0].Biaya_Kemas || 0)) : 0)) / ((simulationHeader[0].Batch_Size || 1) * (simulationHeader[0].Group_Rendemen || 100) / 100))}</strong>
                         </td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
               </div>
+              ) : (
+                <div className="no-detailed-data">
+                  <p>Detailed simulation data not available. Please try running the simulation again.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

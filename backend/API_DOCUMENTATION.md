@@ -5,7 +5,7 @@ This is the backend API for the e-Sistem Biaya Manufaktur (Manufacturing Cost Sy
 
 ## Base URL
 ```
-Development: http://localhost:3100
+Development: http://localhost:3001
 ```
 
 ## Authentication

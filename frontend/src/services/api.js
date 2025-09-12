@@ -1,5 +1,5 @@
 // API base configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3100/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 // Generic API request function
 const apiRequest = async (endpoint, options = {}) => {
@@ -119,6 +119,12 @@ export const hppAPI = {
     method: 'POST',
     body: JSON.stringify({ productId, formulaString }),
   }),
+
+  // Get simulation header details by Simulasi_ID
+  getSimulationHeader: (simulasiId) => apiRequest(`/hpp/simulation/${simulasiId}/header`),
+
+  // Get simulation detail materials by Simulasi_ID
+  getSimulationDetailBahan: (simulasiId) => apiRequest(`/hpp/simulation/${simulasiId}/detail-bahan`),
 
   // Get all HPP records
   getAll: (params = {}) => {

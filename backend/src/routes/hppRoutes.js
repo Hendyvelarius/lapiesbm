@@ -13,4 +13,10 @@ router.post('/generate', HPPController.generateHPPCalculation);
 // Body: { productId: "01", formulaString: "GLC#-#B#A" }
 router.post('/simulate-existing', HPPController.generateHPPSimulation);
 
+// GET /api/hpp/simulation/:simulasiId/header - Get simulation header details
+router.get('/simulation/:simulasiId/header', HPPController.getSimulationHeader);
+
+// GET /api/hpp/simulation/:simulasiId/detail-bahan - Get simulation detail materials
+router.get('/simulation/:simulasiId/detail-bahan', HPPController.getSimulationDetailBahan);
+
 module.exports = router;

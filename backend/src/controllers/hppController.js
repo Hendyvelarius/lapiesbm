@@ -1,4 +1,4 @@
-const { getHPP, generateHPPCalculation, generateHPPSimulation } = require('../models/hppModel');
+const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
@@ -77,6 +77,70 @@ class HPPController {
       res.status(500).json({
         success: false,
         message: 'Error generating HPP simulation',
+        error: error.message
+      });
+    }
+  }
+
+  // Get simulation header details by Simulasi_ID
+  static async getSimulationHeader(req, res) {
+    try {
+      const { simulasiId } = req.params;
+      
+      // Validate required parameter
+      if (!simulasiId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Simulasi ID is required'
+        });
+      }
+      
+      console.log('Fetching simulation header for Simulasi_ID:', simulasiId);
+      
+      const result = await getSimulationHeader(simulasiId);
+      
+      res.status(200).json({
+        success: true,
+        message: `Simulation header retrieved successfully for Simulasi_ID ${simulasiId}`,
+        data: result
+      });
+    } catch (error) {
+      console.error('Get Simulation Header Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving simulation header',
+        error: error.message
+      });
+    }
+  }
+
+  // Get simulation detail materials by Simulasi_ID
+  static async getSimulationDetailBahan(req, res) {
+    try {
+      const { simulasiId } = req.params;
+      
+      // Validate required parameter
+      if (!simulasiId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Simulasi ID is required'
+        });
+      }
+      
+      console.log('Fetching simulation detail bahan for Simulasi_ID:', simulasiId);
+      
+      const result = await getSimulationDetailBahan(simulasiId);
+      
+      res.status(200).json({
+        success: true,
+        message: `Simulation detail bahan retrieved successfully for Simulasi_ID ${simulasiId}`,
+        data: result
+      });
+    } catch (error) {
+      console.error('Get Simulation Detail Bahan Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving simulation detail bahan',
         error: error.message
       });
     }

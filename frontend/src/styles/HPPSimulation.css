@@ -1053,3 +1053,294 @@
     margin: 20px !important;
   }
 }
+
+/* Loading states for detailed data */
+.loading-detailed-data {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 20px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid #10b981;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-detailed-data p {
+  color: #6b7280;
+  font-size: 16px;
+  text-align: center;
+  margin: 0;
+}
+
+.no-detailed-data {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+}
+
+.no-detailed-data p {
+  color: #ef4444;
+  font-size: 16px;
+  text-align: center;
+  margin: 0;
+}
+
+/* Material Breakdown Styles */
+.material-breakdown {
+  margin-bottom: 32px;
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.material-breakdown h4 {
+  color: #1f2937;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  border-bottom: 2px solid #10b981;
+  padding-bottom: 8px;
+}
+
+.material-table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.material-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  font-size: 14px;
+}
+
+.material-table th {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  padding: 12px 8px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 1px solid #d1d5db;
+  font-size: 13px;
+}
+
+.material-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+.material-table tbody tr:hover {
+  background-color: #f3f4f6;
+}
+
+.material-table .number {
+  text-align: right;
+}
+
+.material-table tfoot .total-row {
+  background: #f3f4f6;
+  font-weight: 600;
+}
+
+.material-table tfoot .total-row td {
+  border-top: 2px solid #10b981;
+  padding: 12px 8px;
+}
+
+/* Cost Summary Grid */
+.cost-summary {
+  margin-top: 32px;
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.cost-summary h4 {
+  color: #1f2937;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  border-bottom: 2px solid #3b82f6;
+  padding-bottom: 8px;
+}
+
+.cost-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.cost-summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border-left: 4px solid #e5e7eb;
+}
+
+.cost-summary-item.total-cost {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border-left-color: #f59e0b;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.cost-summary-item .cost-label {
+  color: #374151;
+  font-weight: 500;
+}
+
+.cost-summary-item .cost-value {
+  color: #1f2937;
+  font-weight: 600;
+}
+
+/* Overhead Cost Grid for ETHICAL Products */
+.overhead-cost {
+  margin-top: 32px;
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 2px solid #f59e0b;
+}
+
+.overhead-cost h4 {
+  color: #f59e0b;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  border-bottom: 2px solid #f59e0b;
+  padding-bottom: 8px;
+}
+
+.overhead-cost-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.overhead-cost-item {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+  padding: 16px;
+  background: #fffbeb;
+  border-radius: 8px;
+  border: 1px solid #fed7aa;
+  gap: 16px;
+}
+
+.overhead-cost-item.total-overhead {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 2px solid #f59e0b;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.overhead-cost-item .overhead-label {
+  color: #92400e;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.overhead-cost-item .overhead-formula {
+  color: #6b7280;
+  font-size: 13px;
+  font-style: italic;
+  text-align: center;
+}
+
+.overhead-cost-item .overhead-value {
+  color: #1f2937;
+  font-weight: 700;
+  font-size: 15px;
+  text-align: right;
+}
+
+.overhead-cost-item.total-overhead .overhead-label,
+.overhead-cost-item.total-overhead .overhead-value {
+  color: #92400e;
+  font-size: 16px;
+}
+
+/* Grand Total Cost Grid */
+.grand-total-cost {
+  margin-top: 32px;
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  border: 3px solid #0ea5e9;
+}
+
+.grand-total-cost h4 {
+  color: #0c4a6e;
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 20px 0;
+  border-bottom: 3px solid #0ea5e9;
+  padding-bottom: 8px;
+  text-align: center;
+}
+
+.grand-total-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.total-cost-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: white;
+  border-radius: 10px;
+  border-left: 4px solid #0ea5e9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.total-cost-item.grand-total {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border-left-color: #dc2626;
+  border-left-width: 6px;
+  font-weight: 700;
+  font-size: 18px;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
+}
+
+.total-cost-item .total-label {
+  color: #374151;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.total-cost-item .total-value {
+  color: #1f2937;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.total-cost-item.grand-total .total-label,
+.total-cost-item.grand-total .total-value {
+  color: #991b1b;
+}

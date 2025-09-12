@@ -58,8 +58,44 @@ async function generateHPPSimulation(productId, formulaString) {
   }
 }
 
+// Get simulation header details by Simulasi_ID
+async function getSimulationHeader(simulasiId) {
+  try {
+    const db = await connect();
+    const query = `SELECT * FROM t_COGS_HPP_Product_Header_Simulasi WHERE Simulasi_ID = @simulasiId`;
+    
+    const result = await db.request()
+      .input('simulasiId', sql.VarChar(20), simulasiId)
+      .query(query);
+    
+    return result.recordset || [];
+  } catch (error) {
+    console.error('Error fetching simulation header:', error);
+    throw error;
+  }
+}
+
+// Get simulation detail materials by Simulasi_ID  
+async function getSimulationDetailBahan(simulasiId) {
+  try {
+    const db = await connect();
+    const query = `SELECT * FROM dbo.t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan WHERE Simulasi_ID = @simulasiId`;
+    
+    const result = await db.request()
+      .input('simulasiId', sql.VarChar(20), simulasiId)
+      .query(query);
+    
+    return result.recordset || [];
+  } catch (error) {
+    console.error('Error fetching simulation detail bahan:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   getHPP,
   generateHPPCalculation,
   generateHPPSimulation,
+  getSimulationHeader,
+  getSimulationDetailBahan,
 };
