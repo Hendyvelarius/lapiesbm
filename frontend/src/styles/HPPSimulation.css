@@ -733,6 +733,40 @@
   font-family: 'Inter', sans-serif;
 }
 
+.summary-edit-input {
+  width: 100px;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  font-family: 'Inter', sans-serif;
+  text-align: right;
+  background: #f9fafb;
+  transition: all 0.2s ease;
+}
+
+.summary-edit-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.summary-input-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.summary-unit {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+}
+
 .cost-breakdown {
   background: #ffffff;
   border: 1px solid #e5e7eb;
@@ -1127,7 +1161,17 @@
   border-collapse: collapse;
   background: white;
   font-size: 14px;
+  table-layout: fixed;
 }
+
+.material-table th:nth-child(1) { width: 40px; }     /* No */
+.material-table th:nth-child(2) { width: 100px; }   /* Kode Material */
+.material-table th:nth-child(3) { width: 200px; }   /* Nama Material */
+.material-table th:nth-child(4) { width: 90px; }    /* Qty */
+.material-table th:nth-child(5) { width: 60px; }    /* Satuan */
+.material-table th:nth-child(6) { width: 120px; }   /* Cost/Unit */
+.material-table th:nth-child(7) { width: 140px; }   /* Extended Cost */
+.material-table th:nth-child(8) { width: 60px; }    /* Actions */
 
 .material-table th {
   background: linear-gradient(135deg, #10b981, #059669);
@@ -1282,6 +1326,46 @@
   font-size: 16px;
 }
 
+/* Editable Overhead Formula Styles */
+.overhead-formula-editable {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.formula-part {
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.overhead-edit-input {
+  width: 70px;
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: center;
+  background: #f9fafb;
+  transition: all 0.2s ease;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.overhead-edit-input:focus {
+  outline: none;
+  border-color: #f59e0b;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1);
+}
+
+.overhead-edit-input::placeholder {
+  color: #9ca3af;
+  font-weight: normal;
+}
+
 /* Grand Total Cost Grid */
 .grand-total-cost {
   margin-top: 32px;
@@ -1343,4 +1427,219 @@
 .total-cost-item.grand-total .total-label,
 .total-cost-item.grand-total .total-value {
   color: #991b1b;
+}
+
+/* Material Table Enhancements for Editable Mode */
+.material-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.add-material-btn {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-material-btn:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+.qty-edit-input {
+  width: 80px;
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: right;
+  background: #f9fafb;
+  transition: all 0.2s ease;
+}
+
+.qty-edit-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.remove-material-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.remove-material-btn:hover {
+  background: #dc2626;
+  transform: scale(1.05);
+}
+
+.actions {
+  text-align: center;
+  width: 60px;
+  padding: 4px !important;
+}
+
+.material-table th:last-child,
+.material-table td:last-child {
+  width: 60px;
+  min-width: 60px;
+  max-width: 60px;
+}
+
+/* Add Material Modal Styles */
+.add-material-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.add-material-modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.add-material-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+}
+
+.add-material-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.add-material-close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.add-material-close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.add-material-modal-content {
+  padding: 24px;
+}
+
+.material-search-section {
+  margin-bottom: 20px;
+}
+
+.material-search-section label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.material-search-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.material-search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.material-list-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+.material-selection-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.material-selection-table th {
+  background: #f9fafb;
+  padding: 12px 8px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 14px;
+}
+
+.material-selection-table td {
+  padding: 12px 8px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.material-selection-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.select-material-btn {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.select-material-btn:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-1px);
+}
+
+.no-materials-found {
+  padding: 40px 20px;
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
 }

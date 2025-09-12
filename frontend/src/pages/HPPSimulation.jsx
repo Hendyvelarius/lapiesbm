@@ -50,6 +50,24 @@ export default function HPPSimulation() {
   const [simulationDetailBahan, setSimulationDetailBahan] = useState([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
+  // Editable simulation parameters
+  const [editableBatchSize, setEditableBatchSize] = useState(null);
+  const [editableRendemen, setEditableRendemen] = useState(null);
+  const [editableMaterialData, setEditableMaterialData] = useState([]);
+  const [editableOverheadData, setEditableOverheadData] = useState({
+    MH_Proses_Std: null,
+    Biaya_Proses: null,
+    MH_Kemas_Std: null,
+    Biaya_Kemas: null,
+    Beban_Sisa_Bahan_Exp: null
+  });
+
+  // Material master data for adding new materials
+  const [masterMaterials, setMasterMaterials] = useState([]);
+  const [showAddMaterialModal, setShowAddMaterialModal] = useState(false);
+  const [addMaterialType, setAddMaterialType] = useState(''); // 'BB' or 'BK'
+  const [materialSearchQuery, setMaterialSearchQuery] = useState('');
+
   // Load available products when component mounts or when simulation type changes to "Existing Formula"
   useEffect(() => {
     if (simulationType === 'existing') {
@@ -312,6 +330,24 @@ export default function HPPSimulation() {
             header: headerResponse.data,
             detail: detailResponse.data
           });
+
+          // Initialize editable values with current data
+          if (results && results.length > 0) {
+            setEditableBatchSize(results[0].Batch_Size);
+            setEditableRendemen(results[0].Group_Rendemen);
+            setEditableOverheadData({
+              MH_Proses_Std: results[0].MH_Proses_Std,
+              Biaya_Proses: results[0].Biaya_Proses,
+              MH_Kemas_Std: results[0].MH_Kemas_Std,
+              Biaya_Kemas: results[0].Biaya_Kemas,
+              Beban_Sisa_Bahan_Exp: results[0].Beban_Sisa_Bahan_Exp
+            });
+          }
+
+          // Initialize editable material data
+          if (detailResponse.data && detailResponse.data.length > 0) {
+            setEditableMaterialData([...detailResponse.data]);
+          }
         } catch (detailError) {
           console.error('Error fetching detailed simulation data:', detailError);
           // Don't fail the whole process if detailed data fails
@@ -404,13 +440,13 @@ export default function HPPSimulation() {
     return materials;
   };
 
-  // Helper functions to work with detailed API data
+  // Helper functions to work with detailed API data (using editable data)
   const getBahanBakuFromApiData = () => {
-    return simulationDetailBahan.filter(item => item.Tipe_Bahan === 'BB');
+    return editableMaterialData.filter(item => item.Tipe_Bahan === 'BB');
   };
 
   const getBahanKemasFromApiData = () => {
-    return simulationDetailBahan.filter(item => item.Tipe_Bahan === 'BK');
+    return editableMaterialData.filter(item => item.Tipe_Bahan === 'BK');
   };
 
   const calculateTotalBahanBaku = () => {
@@ -421,20 +457,20 @@ export default function HPPSimulation() {
     return getBahanKemasFromApiData().reduce((sum, item) => sum + ((item.Item_Unit_Price || 0) * (item.Item_QTY || 0)), 0);
   };
 
-  // Overhead calculations for ETHICAL products
+  // Overhead calculations for ETHICAL products (using editable data)
   const calculateProcessingCost = () => {
     if (!simulationResults[0] || simulationResults[0].LOB !== 'ETHICAL') return 0;
-    return (simulationResults[0].MH_Proses_Std || 0) * (simulationResults[0].Biaya_Proses || 0);
+    return (editableOverheadData.MH_Proses_Std || 0) * (editableOverheadData.Biaya_Proses || 0);
   };
 
   const calculatePackagingCost = () => {
     if (!simulationResults[0] || simulationResults[0].LOB !== 'ETHICAL') return 0;
-    return (simulationResults[0].MH_Kemas_Std || 0) * (simulationResults[0].Biaya_Kemas || 0);
+    return (editableOverheadData.MH_Kemas_Std || 0) * (editableOverheadData.Biaya_Kemas || 0);
   };
 
   const calculateExpiryCost = () => {
     if (!simulationResults[0] || simulationResults[0].LOB !== 'ETHICAL') return 0;
-    return simulationResults[0].Beban_Sisa_Bahan_Exp || 0;
+    return editableOverheadData.Beban_Sisa_Bahan_Exp || 0;
   };
 
   const calculateTotalOverhead = () => {
@@ -443,10 +479,77 @@ export default function HPPSimulation() {
   };
 
   const calculateGrandTotal = () => {
-    const bahanBaku = !loadingDetails && simulationDetailBahan.length > 0 ? calculateTotalBahanBaku() : 0;
-    const bahanKemas = !loadingDetails && simulationDetailBahan.length > 0 ? calculateTotalBahanKemas() : 0;
+    const bahanBaku = editableMaterialData.length > 0 ? calculateTotalBahanBaku() : 0;
+    const bahanKemas = editableMaterialData.length > 0 ? calculateTotalBahanKemas() : 0;
     const overhead = calculateTotalOverhead();
     return bahanBaku + bahanKemas + overhead;
+  };
+
+  const calculateCostPerUnitWithRendemen = () => {
+    if (!simulationResults[0]) return 0;
+    const grandTotal = calculateGrandTotal();
+    const batchSize = editableBatchSize || simulationResults[0].Batch_Size || 1;
+    const rendemen = editableRendemen || simulationResults[0].Group_Rendemen || 100;
+    const effectiveUnits = batchSize * (rendemen / 100);
+    return grandTotal / effectiveUnits;
+  };
+
+  // Material management functions
+  const handleMaterialQuantityChange = (index, newQty) => {
+    const updatedMaterials = [...editableMaterialData];
+    updatedMaterials[index].Item_QTY = parseFloat(newQty) || 0;
+    setEditableMaterialData(updatedMaterials);
+  };
+
+  const handleRemoveMaterial = (index) => {
+    if (window.confirm('Are you sure you want to remove this material?')) {
+      const updatedMaterials = editableMaterialData.filter((_, i) => i !== index);
+      setEditableMaterialData(updatedMaterials);
+    }
+  };
+
+  const handleAddMaterial = (materialType) => {
+    setAddMaterialType(materialType);
+    setShowAddMaterialModal(true);
+    // Load master materials if not already loaded
+    if (masterMaterials.length === 0) {
+      loadMasterMaterials();
+    }
+  };
+
+  const loadMasterMaterials = async () => {
+    try {
+      const response = await masterAPI.getMaterial();
+      setMasterMaterials(response.data || response || []);
+    } catch (error) {
+      console.error('Error loading master materials:', error);
+    }
+  };
+
+  const addNewMaterial = (material, quantity) => {
+    const newMaterial = {
+      Periode: simulationResults[0].Periode || new Date().getFullYear().toString(),
+      Simulasi_ID: simulationResults[0].Simulasi_ID,
+      Seq_ID: Math.max(...editableMaterialData.map(m => m.Seq_ID || 0)) + 1,
+      Tipe_Bahan: addMaterialType,
+      Item_ID: material.ITEM_ID,
+      Item_Name: material.Item_Name,
+      Item_QTY: quantity,
+      Item_Unit: material.Item_Unit,
+      Item_Unit_Price: material.Unit_Price || 0
+    };
+    
+    setEditableMaterialData([...editableMaterialData, newMaterial]);
+    setShowAddMaterialModal(false);
+    setMaterialSearchQuery(''); // Reset search
+  };
+
+  const getFilteredMaterials = () => {
+    return masterMaterials.filter(material => 
+      material.ITEM_TYPE === addMaterialType &&
+      (material.ITEM_ID.toLowerCase().includes(materialSearchQuery.toLowerCase()) ||
+       material.Item_Name.toLowerCase().includes(materialSearchQuery.toLowerCase()))
+    );
   };
 
   return (
@@ -770,18 +873,6 @@ export default function HPPSimulation() {
                   </div>
                 )}
 
-                {/* Print Preview Button */}
-                <div className="simulation-actions">
-                  <button 
-                    type="button" 
-                    onClick={() => setShowDetailedReport(true)}
-                    className="show-detailed-report-btn"
-                    disabled={loadingDetails || !simulationHeader}
-                  >
-                    📋 Show Detailed Report (Print Preview)
-                  </button>
-                </div>
-
                 {/* LOB Type Selection for GENERIC products */}
                 {simulationResults[0].LOB === 'GENERIC' && (
                   <div className="generic-type-selection">
@@ -834,7 +925,13 @@ export default function HPPSimulation() {
                     </div>
                     <div className="summary-item">
                       <span className="summary-label">Batch Size:</span>
-                      <span className="summary-value">{simulationResults[0].Batch_Size?.toLocaleString()}</span>
+                      <input 
+                        type="number" 
+                        value={editableBatchSize || simulationResults[0].Batch_Size || ''} 
+                        onChange={(e) => setEditableBatchSize(parseFloat(e.target.value) || 0)}
+                        className="summary-edit-input"
+                        min="1"
+                      />
                     </div>
                     <div className="summary-item">
                       <span className="summary-label">Line:</span>
@@ -842,7 +939,18 @@ export default function HPPSimulation() {
                     </div>
                     <div className="summary-item">
                       <span className="summary-label">Rendemen:</span>
-                      <span className="summary-value">{simulationResults[0].Group_Rendemen}%</span>
+                      <div className="summary-input-group">
+                        <input 
+                          type="number" 
+                          value={editableRendemen || simulationResults[0].Group_Rendemen || ''} 
+                          onChange={(e) => setEditableRendemen(parseFloat(e.target.value) || 0)}
+                          className="summary-edit-input"
+                          min="1"
+                          max="100"
+                          step="0.1"
+                        />
+                        <span className="summary-unit">%</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -852,7 +960,16 @@ export default function HPPSimulation() {
                   <>
                     {/* Bahan Baku Section */}
                     <div className="material-breakdown">
-                      <h4>Bahan Baku (Raw Materials)</h4>
+                      <div className="material-section-header">
+                        <h4>Bahan Baku (Raw Materials)</h4>
+                        <button 
+                          className="add-material-btn" 
+                          onClick={() => handleAddMaterial('BB')}
+                          type="button"
+                        >
+                          + Add Material
+                        </button>
+                      </div>
                       <div className="material-table-container">
                         <table className="material-table">
                           <thead>
@@ -864,24 +981,49 @@ export default function HPPSimulation() {
                               <th>Satuan</th>
                               <th>Cost/Unit</th>
                               <th>Extended Cost</th>
+                              <th>Actions</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {getBahanBakuFromApiData().map((item, index) => (
-                              <tr key={`bb-${item.Item_ID}-${item.Seq_ID}`}>
-                                <td>{index + 1}</td>
-                                <td>{item.Item_ID}</td>
-                                <td>{item.Item_Name}</td>
-                                <td className="number">{formatNumber(item.Item_QTY, 2)}</td>
-                                <td>{item.Item_Unit}</td>
-                                <td className="number">Rp {formatNumber(item.Item_Unit_Price, 2)}</td>
-                                <td className="number">Rp {formatNumber((item.Item_Unit_Price * item.Item_QTY), 2)}</td>
-                              </tr>
-                            ))}
+                            {getBahanBakuFromApiData().map((item, index) => {
+                              const globalIndex = editableMaterialData.findIndex(m => 
+                                m.Item_ID === item.Item_ID && m.Seq_ID === item.Seq_ID && m.Tipe_Bahan === 'BB'
+                              );
+                              return (
+                                <tr key={`bb-${item.Item_ID}-${item.Seq_ID}`}>
+                                  <td>{index + 1}</td>
+                                  <td>{item.Item_ID}</td>
+                                  <td>{item.Item_Name}</td>
+                                  <td className="number">
+                                    <input 
+                                      type="number" 
+                                      value={item.Item_QTY || 0}
+                                      onChange={(e) => handleMaterialQuantityChange(globalIndex, e.target.value)}
+                                      className="qty-edit-input"
+                                      min="0"
+                                      step="0.01"
+                                    />
+                                  </td>
+                                  <td>{item.Item_Unit}</td>
+                                  <td className="number">Rp {formatNumber(item.Item_Unit_Price, 2)}</td>
+                                  <td className="number">Rp {formatNumber((item.Item_Unit_Price * item.Item_QTY), 2)}</td>
+                                  <td className="actions">
+                                    <button 
+                                      className="remove-material-btn" 
+                                      onClick={() => handleRemoveMaterial(globalIndex)}
+                                      type="button"
+                                      title="Remove material"
+                                    >
+                                      ✕
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                           <tfoot>
                             <tr className="total-row">
-                              <td colSpan="6"><strong>Total Bahan Baku</strong></td>
+                              <td colSpan="7"><strong>Total Bahan Baku</strong></td>
                               <td className="number"><strong>Rp {formatNumber(calculateTotalBahanBaku(), 2)}</strong></td>
                             </tr>
                           </tfoot>
@@ -891,7 +1033,16 @@ export default function HPPSimulation() {
 
                     {/* Bahan Kemas Section */}
                     <div className="material-breakdown">
-                      <h4>Bahan Kemas (Packaging Materials)</h4>
+                      <div className="material-section-header">
+                        <h4>Bahan Kemas (Packaging Materials)</h4>
+                        <button 
+                          className="add-material-btn" 
+                          onClick={() => handleAddMaterial('BK')}
+                          type="button"
+                        >
+                          + Add Material
+                        </button>
+                      </div>
                       <div className="material-table-container">
                         <table className="material-table">
                           <thead>
@@ -903,24 +1054,49 @@ export default function HPPSimulation() {
                               <th>Satuan</th>
                               <th>Cost/Unit</th>
                               <th>Extended Cost</th>
+                              <th>Actions</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {getBahanKemasFromApiData().map((item, index) => (
-                              <tr key={`bk-${item.Item_ID}-${item.Seq_ID}`}>
-                                <td>{index + 1}</td>
-                                <td>{item.Item_ID}</td>
-                                <td>{item.Item_Name}</td>
-                                <td className="number">{formatNumber(item.Item_QTY, 2)}</td>
-                                <td>{item.Item_Unit}</td>
-                                <td className="number">Rp {formatNumber(item.Item_Unit_Price, 2)}</td>
-                                <td className="number">Rp {formatNumber((item.Item_Unit_Price * item.Item_QTY), 2)}</td>
-                              </tr>
-                            ))}
+                            {getBahanKemasFromApiData().map((item, index) => {
+                              const globalIndex = editableMaterialData.findIndex(m => 
+                                m.Item_ID === item.Item_ID && m.Seq_ID === item.Seq_ID && m.Tipe_Bahan === 'BK'
+                              );
+                              return (
+                                <tr key={`bk-${item.Item_ID}-${item.Seq_ID}`}>
+                                  <td>{index + 1}</td>
+                                  <td>{item.Item_ID}</td>
+                                  <td>{item.Item_Name}</td>
+                                  <td className="number">
+                                    <input 
+                                      type="number" 
+                                      value={item.Item_QTY || 0}
+                                      onChange={(e) => handleMaterialQuantityChange(globalIndex, e.target.value)}
+                                      className="qty-edit-input"
+                                      min="0"
+                                      step="0.01"
+                                    />
+                                  </td>
+                                  <td>{item.Item_Unit}</td>
+                                  <td className="number">Rp {formatNumber(item.Item_Unit_Price, 2)}</td>
+                                  <td className="number">Rp {formatNumber((item.Item_Unit_Price * item.Item_QTY), 2)}</td>
+                                  <td className="actions">
+                                    <button 
+                                      className="remove-material-btn" 
+                                      onClick={() => handleRemoveMaterial(globalIndex)}
+                                      type="button"
+                                      title="Remove material"
+                                    >
+                                      ✕
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                           <tfoot>
                             <tr className="total-row">
-                              <td colSpan="6"><strong>Total Bahan Kemas</strong></td>
+                              <td colSpan="7"><strong>Total Bahan Kemas</strong></td>
                               <td className="number"><strong>Rp {formatNumber(calculateTotalBahanKemas(), 2)}</strong></td>
                             </tr>
                           </tfoot>
@@ -937,18 +1113,85 @@ export default function HPPSimulation() {
                     <div className="overhead-cost-grid">
                       <div className="overhead-cost-item">
                         <span className="overhead-label">Processing Cost:</span>
-                        <span className="overhead-formula">({simulationResults[0].MH_Proses_Std || 0} MH × Rp {formatNumber(simulationResults[0].Biaya_Proses || 0, 2)})</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">(</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.MH_Proses_Std || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              MH_Proses_Std: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.1"
+                            min="0"
+                          />
+                          <span className="formula-part">MH × Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Biaya_Proses || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Biaya_Proses: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                          />
+                          <span className="formula-part">)</span>
+                        </div>
                         <span className="overhead-value">Rp {formatNumber(calculateProcessingCost(), 2)}</span>
                       </div>
                       <div className="overhead-cost-item">
                         <span className="overhead-label">Packaging Cost:</span>
-                        <span className="overhead-formula">({simulationResults[0].MH_Kemas_Std || 0} MH × Rp {formatNumber(simulationResults[0].Biaya_Kemas || 0, 2)})</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">(</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.MH_Kemas_Std || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              MH_Kemas_Std: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.1"
+                            min="0"
+                          />
+                          <span className="formula-part">MH × Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Biaya_Kemas || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Biaya_Kemas: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                          />
+                          <span className="formula-part">)</span>
+                        </div>
                         <span className="overhead-value">Rp {formatNumber(calculatePackagingCost(), 2)}</span>
                       </div>
                       <div className="overhead-cost-item">
                         <span className="overhead-label">Expiry Cost:</span>
-                        <span className="overhead-formula">{simulationResults[0].Beban_Sisa_Bahan_Exp ? 'Direct Value' : 'Not Available'}</span>
-                        <span className="overhead-value">{simulationResults[0].Beban_Sisa_Bahan_Exp ? `Rp ${formatNumber(calculateExpiryCost(), 2)}` : '-'}</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Beban_Sisa_Bahan_Exp || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Beban_Sisa_Bahan_Exp: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                            placeholder="0"
+                          />
+                          <span className="formula-part">(Direct Value)</span>
+                        </div>
+                        <span className="overhead-value">Rp {formatNumber(calculateExpiryCost(), 2)}</span>
                       </div>
                       <div className="overhead-cost-item total-overhead">
                         <span className="overhead-label">Total Overhead:</span>
@@ -987,7 +1230,7 @@ export default function HPPSimulation() {
                     </div>
                     <div className="total-cost-item grand-total">
                       <span className="total-label">Cost per Unit:</span>
-                      <span className="total-value">Rp {formatNumber(calculateGrandTotal() / (simulationResults[0].Batch_Size || 1), 2)}</span>
+                      <span className="total-value">Rp {formatNumber(calculateCostPerUnitWithRendemen(), 2)}</span>
                     </div>
                   </div>
                 </div>
@@ -998,8 +1241,12 @@ export default function HPPSimulation() {
               <button type="button" onClick={handleBack}>
                 Back to Formula Selection
               </button>
-              <button type="button" onClick={() => window.print()}>
-                Print Results
+              <button 
+                type="button" 
+                onClick={() => setShowDetailedReport(true)}
+                disabled={loadingDetails || !simulationHeader}
+              >
+                📋 Show Detailed Report
               </button>
               <button type="button" onClick={() => setStep(1)}>
                 New Simulation
@@ -1263,6 +1510,89 @@ export default function HPPSimulation() {
                   <p>Detailed simulation data not available. Please try running the simulation again.</p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Material Modal */}
+      {showAddMaterialModal && (
+        <div className="add-material-modal-overlay">
+          <div className="add-material-modal">
+            <div className="add-material-modal-header">
+              <h3>Add {addMaterialType === 'BB' ? 'Bahan Baku' : 'Bahan Kemas'}</h3>
+              <button 
+                className="add-material-close-btn"
+                onClick={() => setShowAddMaterialModal(false)}
+                type="button"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="add-material-modal-content">
+              <div className="material-search-section">
+                <label htmlFor="material-search">Search Materials:</label>
+                <input
+                  id="material-search"
+                  type="text"
+                  placeholder="Search by code or name..."
+                  className="material-search-input"
+                  value={materialSearchQuery}
+                  onChange={(e) => setMaterialSearchQuery(e.target.value)}
+                />
+              </div>
+
+              <div className="material-list-section">
+                <div className="material-list-container">
+                  <table className="material-selection-table">
+                    <thead>
+                      <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Unit</th>
+                        <th>Unit Price</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getFilteredMaterials().map((material, index) => (
+                        <tr key={`${material.ITEM_ID}-${index}`}>
+                          <td>{material.ITEM_ID}</td>
+                          <td>{material.Item_Name}</td>
+                          <td>{material.Item_Unit}</td>
+                          <td className="number">Rp {formatNumber(material.Unit_Price || 0, 2)}</td>
+                          <td>
+                            <button
+                              className="select-material-btn"
+                              onClick={() => {
+                                const quantity = prompt(`Enter quantity for ${material.Item_Name}:`, '1');
+                                if (quantity && parseFloat(quantity) > 0) {
+                                  addNewMaterial(material, parseFloat(quantity));
+                                }
+                              }}
+                              type="button"
+                            >
+                              Select
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  
+                  {getFilteredMaterials().length === 0 && (
+                    <div className="no-materials-found">
+                      <p>
+                        {masterMaterials.length === 0 
+                          ? 'Loading materials...' 
+                          : `No ${addMaterialType === 'BB' ? 'Bahan Baku' : 'Bahan Kemas'} materials found.`
+                        }
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
