@@ -446,6 +446,77 @@ export default function HPPSimulation() {
     }
   };
 
+  // Save simulation handler
+  const handleSaveSimulation = async () => {
+    try {
+      if (!simulationResults || !simulationResults[0] || !simulationResults[0].Simulasi_ID) {
+        setError('No simulation data to save');
+        return;
+      }
+
+      setLoading(true);
+      setError('');
+
+      const simulasiId = simulationResults[0].Simulasi_ID;
+
+      // Prepare header data from current editable state
+      const headerData = {
+        Periode: simulationResults[0].Periode || '2025',
+        Simulasi_Deskripsi: simulationResults[0].Simulasi_Deskripsi || '',
+        Group_Rendemen: editableRendemen || simulationResults[0].Group_Rendemen,
+        Batch_Size: editableBatchSize || simulationResults[0].Batch_Size,
+        LOB: editableLOB || normalizeLOB(simulationResults[0].LOB),
+        Versi: editableVersion || simulationResults[0].Versi || '1',
+        MH_Proses_Std: editableOverheadData.MH_Proses_Std || simulationResults[0].MH_Proses_Std || 0,
+        MH_Kemas_Std: editableOverheadData.MH_Kemas_Std || simulationResults[0].MH_Kemas_Std || 0,
+        MH_Analisa_Std: editableOverheadData.MH_Analisa_Std || simulationResults[0].MH_Analisa_Std || 0,
+        MH_Timbang_BB: editableOverheadData.MH_Timbang_BB || simulationResults[0].MH_Timbang_BB || 0,
+        MH_Timbang_BK: editableOverheadData.MH_Timbang_BK || simulationResults[0].MH_Timbang_BK || 0,
+        MH_Mesin_Std: editableOverheadData.MH_Mesin_Std || simulationResults[0].MH_Mesin_Std || 0,
+        Biaya_Proses: editableOverheadData.Biaya_Proses || simulationResults[0].Biaya_Proses || 0,
+        Biaya_Kemas: editableOverheadData.Biaya_Kemas || simulationResults[0].Biaya_Kemas || 0,
+        Biaya_Generik: editableOverheadData.Biaya_Generik || simulationResults[0].Biaya_Generik,
+        Biaya_Reagen: editableOverheadData.Biaya_Reagen || simulationResults[0].Biaya_Reagen,
+        Toll_Fee: editableOverheadData.Toll_Fee || simulationResults[0].Toll_Fee,
+        Rate_PLN: editableOverheadData.Rate_PLN || simulationResults[0].Rate_PLN || 0,
+        Direct_Labor: editableOverheadData.Direct_Labor || simulationResults[0].Direct_Labor || 0,
+        Factory_Over_Head: editableOverheadData.Factory_Over_Head || simulationResults[0].Factory_Over_Head || 0,
+        Depresiasi: editableOverheadData.Depresiasi || simulationResults[0].Depresiasi || 0,
+        Beban_Sisa_Bahan_Exp: editableOverheadData.Beban_Sisa_Bahan_Exp || simulationResults[0].Beban_Sisa_Bahan_Exp
+      };
+
+      // Prepare materials data from current editable state
+      const materials = editableMaterialData.map((item) => ({
+        Tipe_Bahan: item.Tipe_Bahan,
+        Item_ID: item.Item_ID,
+        Item_Name: item.Item_Name,
+        Item_QTY: item.Item_QTY,
+        Item_Unit: item.Item_Unit,
+        Item_Unit_Price: item.Item_Unit_Price
+      }));
+
+      console.log('Saving simulation with data:', { simulasiId, headerData, materials });
+
+      // Call the save API
+      const response = await hppAPI.saveSimulation(simulasiId, headerData, materials);
+
+      console.log('Save response:', response);
+
+      // Show success message
+      alert(`Simulation saved successfully! Updated ${response.data.materialsInserted} materials.`);
+
+      // Optionally refresh the simulation data to reflect the saved changes
+      // await fetchSimulationData(simulasiId);
+
+    } catch (err) {
+      console.error('Error saving simulation:', err);
+      setError('Failed to save simulation: ' + err.message);
+      alert('Failed to save simulation: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Helper functions to extract material data from selected formulas
   const getBahanBakuFromFormulas = () => {
     const materials = [];
@@ -1856,6 +1927,14 @@ export default function HPPSimulation() {
               >
                 📋 Show Detailed Report
               </button>
+              <button 
+                type="button" 
+                onClick={handleSaveSimulation}
+                disabled={loading || !simulationResults || !simulationResults[0]?.Simulasi_ID}
+                className="save-simulation-btn"
+              >
+                💾 Save Simulation
+              </button>
               <button type="button" onClick={() => setStep(1)}>
                 New Simulation
               </button>
@@ -2094,58 +2173,48 @@ export default function HPPSimulation() {
                     <table className="excel-table">
                       <thead>
                         <tr>
-                          <th>Component</th>
+                          <th>Resource Scheduling</th>
                           <th>Description</th>
-                          <th>Formula</th>
+                          <th>Qty</th>
+                          <th>Unit</th>
+                          <th>Cost/unit</th>
                           <th>Extended Cost</th>
                           <th>Cost per pack</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr>
-                          <td>Processing Labor</td>
-                          <td>Production Labor Cost</td>
-                          <td>({formatNumber(editableOverheadData.MH_Proses_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Direct_Labor || 0, 2)})</td>
-                          <td className="number">Rp {formatNumber(calculateProcessingLaborCost(), 2)}</td>
-                          <td className="number">Rp {formatNumber(calculateProcessingLaborCost() / getActualBatchSize(), 2)}</td>
+                          <td>1 PENGOLAHAN</td>
+                          <td>OPERATOR PROSES LINE PN1/PN2</td>
+                          <td className="number">{formatNumber(editableOverheadData.MH_Proses_Std || 0)}</td>
+                          <td>HRS</td>
+                          <td className="number">Rp {formatNumber(editableOverheadData.Biaya_Proses || 0, 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateProcessingCost(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateProcessingCost() / getActualBatchSize(), 2)}</td>
                         </tr>
                         <tr>
-                          <td>Packaging Labor</td>
-                          <td>Packaging Labor Cost</td>
-                          <td>({formatNumber(editableOverheadData.MH_Kemas_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Direct_Labor || 0, 2)})</td>
-                          <td className="number">Rp {formatNumber(calculatePackagingLaborCost(), 2)}</td>
-                          <td className="number">Rp {formatNumber(calculatePackagingLaborCost() / getActualBatchSize(), 2)}</td>
+                          <td>2 PENGEMASAN</td>
+                          <td>OPERATOR PROSES LINE PN1/PN2</td>
+                          <td className="number">{formatNumber(editableOverheadData.MH_Kemas_Std || 0)}</td>
+                          <td>HRS</td>
+                          <td className="number">Rp {formatNumber(editableOverheadData.Biaya_Kemas || 0, 2)}</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingCost(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculatePackagingCost() / getActualBatchSize(), 2)}</td>
                         </tr>
                         <tr>
-                          <td>Production FOH</td>
-                          <td>Production Factory Overhead</td>
-                          <td>({formatNumber(editableOverheadData.MH_Proses_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Factory_Over_Head || 0, 2)})</td>
-                          <td className="number">Rp {formatNumber(calculateProductionFOH(), 2)}</td>
-                          <td className="number">Rp {formatNumber(calculateProductionFOH() / getActualBatchSize(), 2)}</td>
-                        </tr>
-                        <tr>
-                          <td>Packaging FOH</td>
-                          <td>Packaging Factory Overhead</td>
-                          <td>({formatNumber(editableOverheadData.MH_Kemas_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Factory_Over_Head || 0, 2)})</td>
-                          <td className="number">Rp {formatNumber(calculatePackagingFOH(), 2)}</td>
-                          <td className="number">Rp {formatNumber(calculatePackagingFOH() / getActualBatchSize(), 2)}</td>
-                        </tr>
-                        <tr>
-                          <td>Production Depreciation</td>
-                          <td>Production Equipment Depreciation</td>
-                          <td>({formatNumber(editableOverheadData.MH_Proses_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Depresiasi || 0, 2)})</td>
-                          <td className="number">Rp {formatNumber(calculateProductionDepreciation(), 2)}</td>
-                          <td className="number">Rp {formatNumber(calculateProductionDepreciation() / getActualBatchSize(), 2)}</td>
-                        </tr>
-                        <tr>
-                          <td>Packaging Depreciation</td>
-                          <td>Packaging Equipment Depreciation</td>
-                          <td>({formatNumber(editableOverheadData.MH_Kemas_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Depresiasi || 0, 2)})</td>
-                          <td className="number">Rp {formatNumber(calculatePackagingDepreciation(), 2)}</td>
-                          <td className="number">Rp {formatNumber(calculatePackagingDepreciation() / getActualBatchSize(), 2)}</td>
+                          <td>3 EXPIRY</td>
+                          <td>BEBAN SISA BAHAN EXPIRE</td>
+                          <td className="number">1</td>
+                          <td>BATCH</td>
+                          <td className="number">Rp {formatNumber(editableOverheadData.Beban_Sisa_Bahan_Exp || 0, 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateExpiryCost(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateExpiryCost() / getActualBatchSize(), 2)}</td>
                         </tr>
                         <tr className="total-row">
-                          <td colSpan="3"><strong>Total Overhead</strong></td>
+                          <td colSpan="2"><strong>Total Hours</strong></td>
+                          <td className="number"><strong>{formatNumber((editableOverheadData.MH_Proses_Std || 0) + (editableOverheadData.MH_Kemas_Std || 0))}</strong></td>
+                          <td><strong>Total Cost</strong></td>
+                          <td></td>
                           <td className="number total">
                             <strong>Rp {formatNumber(calculateTotalOverhead(), 2)}</strong>
                           </td>
@@ -2157,7 +2226,7 @@ export default function HPPSimulation() {
                     </table>
                   )}
 
-                  {getCurrentLOB() === 'GENERIC' && editableVersion === 1 && (
+                  {getCurrentLOB() === 'GENERIC' && (editableVersion || simulationResults[0]?.Versi) === '1' && (
                     <table className="excel-table">
                       <thead>
                         <tr>
@@ -2169,6 +2238,13 @@ export default function HPPSimulation() {
                         </tr>
                       </thead>
                       <tbody>
+                        <tr>
+                          <td>Ingredients Weighing</td>
+                          <td>Ingredients Weighing Cost</td>
+                          <td>({formatNumber(editableOverheadData.MH_Timbang_BB || 0)} MH × Rp {formatNumber(editableOverheadData.Biaya_Generik || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculateIngredientsWeighing(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateIngredientsWeighing() / getActualBatchSize(), 2)}</td>
+                        </tr>
                         <tr>
                           <td>Packaging Weighing</td>
                           <td>Packaging Weighing Cost</td>
@@ -2180,15 +2256,15 @@ export default function HPPSimulation() {
                           <td>Processing Cost</td>
                           <td>Production Processing Cost</td>
                           <td>(Rp {formatNumber(editableOverheadData.Biaya_Generik || 0, 2)} × {formatNumber(editableOverheadData.Faktor_B || 0, 2)})</td>
-                          <td className="number">Rp {formatNumber(calculateProcessingCostGeneric(), 2)}</td>
-                          <td className="number">Rp {formatNumber(calculateProcessingCostGeneric() / getActualBatchSize(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateGenericProcessingCost(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateGenericProcessingCost() / getActualBatchSize(), 2)}</td>
                         </tr>
                         <tr>
                           <td>Packaging Cost</td>
                           <td>Packaging Processing Cost</td>
                           <td>(Rp {formatNumber(editableOverheadData.Biaya_Generik || 0, 2)} × {formatNumber(editableOverheadData.Faktor_C || 0, 2)})</td>
-                          <td className="number">Rp {formatNumber(calculatePackagingCostGeneric(), 2)}</td>
-                          <td className="number">Rp {formatNumber(calculatePackagingCostGeneric() / getActualBatchSize(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateGenericPackagingCost(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateGenericPackagingCost() / getActualBatchSize(), 2)}</td>
                         </tr>
                         <tr>
                           <td>Analysis Fee</td>
@@ -2198,33 +2274,27 @@ export default function HPPSimulation() {
                           <td className="number">Rp {formatNumber(calculateAnalysisFee() / getActualBatchSize(), 2)}</td>
                         </tr>
                         <tr>
-                          <td>Factory Overhead</td>
-                          <td>Factory General Overhead</td>
-                          <td>(Rp {formatNumber(editableOverheadData.Biaya_Generik || 0, 2)} × {formatNumber(editableOverheadData.Faktor_E || 0, 2)})</td>
-                          <td className="number">Rp {formatNumber(calculateFactoryOverhead(), 2)}</td>
-                          <td className="number">Rp {formatNumber(calculateFactoryOverhead() / getActualBatchSize(), 2)}</td>
+                          <td>Machine Fee</td>
+                          <td>Equipment Usage Fee</td>
+                          <td>({formatNumber(editableOverheadData.MH_Proses_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Biaya_Mesin || 0, 2)})</td>
+                          <td className="number">Rp {formatNumber(calculateMachineFee(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateMachineFee() / getActualBatchSize(), 2)}</td>
                         </tr>
                         <tr>
-                          <td>Production Overhead</td>
-                          <td>Production General Overhead</td>
-                          <td>(Rp {formatNumber(editableOverheadData.Biaya_Generik || 0, 2)} × {formatNumber(editableOverheadData.Faktor_F || 0, 2)})</td>
-                          <td className="number">Rp {formatNumber(calculateProductionOverhead(), 2)}</td>
-                          <td className="number">Rp {formatNumber(calculateProductionOverhead() / getActualBatchSize(), 2)}</td>
+                          <td>Reagent Fee</td>
+                          <td>Testing Reagent Cost</td>
+                          <td>Rp {formatNumber(editableOverheadData.Biaya_Reagen || 0, 2)} (Direct Value)</td>
+                          <td className="number">Rp {formatNumber(calculateReagentFee(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateReagentFee() / getActualBatchSize(), 2)}</td>
                         </tr>
                         <tr>
-                          <td>Packaging Overhead</td>
-                          <td>Packaging General Overhead</td>
-                          <td>(Rp {formatNumber(editableOverheadData.Biaya_Generik || 0, 2)} × {formatNumber(editableOverheadData.Faktor_G || 0, 2)})</td>
-                          <td className="number">Rp {formatNumber(calculatePackagingOverhead(), 2)}</td>
-                          <td className="number">Rp {formatNumber(calculatePackagingOverhead() / getActualBatchSize(), 2)}</td>
+                          <td>Expiry Cost</td>
+                          <td>Material Expiry Cost</td>
+                          <td>Rp {formatNumber(editableOverheadData.Biaya_Exp_Generik || 0, 2)} (Direct Value)</td>
+                          <td className="number">Rp {formatNumber(calculateGenericExpiryCost(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateGenericExpiryCost() / getActualBatchSize(), 2)}</td>
                         </tr>
-                        <tr>
-                          <td>Generic Depreciation</td>
-                          <td>Equipment Depreciation</td>
-                          <td>(Rp {formatNumber(editableOverheadData.Biaya_Generik || 0, 2)} × {formatNumber(editableOverheadData.Faktor_H || 0, 2)})</td>
-                          <td className="number">Rp {formatNumber(calculateGenericDepreciation(), 2)}</td>
-                          <td className="number">Rp {formatNumber(calculateGenericDepreciation() / getActualBatchSize(), 2)}</td>
-                        </tr>
+
                         <tr className="total-row">
                           <td colSpan="3"><strong>Total Overhead</strong></td>
                           <td className="number total">
@@ -2238,7 +2308,7 @@ export default function HPPSimulation() {
                     </table>
                   )}
 
-                  {getCurrentLOB() === 'GENERIC' && editableVersion === 2 && (
+                  {getCurrentLOB() === 'GENERIC' && (editableVersion || simulationResults[0]?.Versi) === '2' && (
                     <table className="excel-table">
                       <thead>
                         <tr>
@@ -2254,8 +2324,8 @@ export default function HPPSimulation() {
                           <td>Processing Labor</td>
                           <td>Production Labor Cost</td>
                           <td>({formatNumber(editableOverheadData.MH_Proses_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Direct_Labor || 0, 2)})</td>
-                          <td className="number">Rp {formatNumber(calculateProcessingLaborCost(), 2)}</td>
-                          <td className="number">Rp {formatNumber(calculateProcessingLaborCost() / getActualBatchSize(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateProductionLaborCost(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateProductionLaborCost() / getActualBatchSize(), 2)}</td>
                         </tr>
                         <tr>
                           <td>Packaging Labor</td>

@@ -92,10 +92,132 @@ async function getSimulationDetailBahan(simulasiId) {
   }
 }
 
+// Update simulation header
+async function updateSimulationHeader(simulasiId, headerData) {
+  try {
+    const db = await connect();
+    
+    const query = `
+      UPDATE t_COGS_HPP_Product_Header_Simulasi 
+      SET 
+        Simulasi_Deskripsi = @SimulasiDeskripsi,
+        Group_Rendemen = @GroupRendemen,
+        Batch_Size = @BatchSize,
+        LOB = @LOB,
+        Versi = @Versi,
+        MH_Proses_Std = @MHProsesStd,
+        MH_Kemas_Std = @MHKemasStd,
+        MH_Analisa_Std = @MHAnalisaStd,
+        MH_Timbang_BB = @MHTimbangBB,
+        MH_Timbang_BK = @MHTimbangBK,
+        MH_Mesin_Std = @MHMesinStd,
+        Biaya_Proses = @BiayaProses,
+        Biaya_Kemas = @BiayaKemas,
+        Biaya_Generik = @BiayaGenerik,
+        Biaya_Reagen = @BiayaReagen,
+        Toll_Fee = @TollFee,
+        Rate_PLN = @RatePLN,
+        Direct_Labor = @DirectLabor,
+        Factory_Over_Head = @FactoryOverHead,
+        Depresiasi = @Depresiasi,
+        Beban_Sisa_Bahan_Exp = @BebanSisaBahanExp
+      WHERE Simulasi_ID = @SimulasiId
+    `;
+    
+    const result = await db.request()
+      .input('SimulasiId', sql.Int, simulasiId)
+      .input('SimulasiDeskripsi', sql.VarChar(255), headerData.Simulasi_Deskripsi || '')
+      .input('GroupRendemen', sql.Decimal(10, 2), headerData.Group_Rendemen || 100)
+      .input('BatchSize', sql.Int, headerData.Batch_Size || 1)
+      .input('LOB', sql.VarChar(20), headerData.LOB || 'ETHICAL')
+      .input('Versi', sql.VarChar(10), headerData.Versi || '1')
+      .input('MHProsesStd', sql.Decimal(10, 2), headerData.MH_Proses_Std || 0)
+      .input('MHKemasStd', sql.Decimal(10, 2), headerData.MH_Kemas_Std || 0)
+      .input('MHAnalisaStd', sql.Decimal(10, 2), headerData.MH_Analisa_Std || 0)
+      .input('MHTimbangBB', sql.Decimal(10, 2), headerData.MH_Timbang_BB || 0)
+      .input('MHTimbangBK', sql.Decimal(10, 2), headerData.MH_Timbang_BK || 0)
+      .input('MHMesinStd', sql.Decimal(10, 2), headerData.MH_Mesin_Std || 0)
+      .input('BiayaProses', sql.Decimal(18, 2), headerData.Biaya_Proses || 0)
+      .input('BiayaKemas', sql.Decimal(18, 2), headerData.Biaya_Kemas || 0)
+      .input('BiayaGenerik', sql.Decimal(18, 2), headerData.Biaya_Generik || null)
+      .input('BiayaReagen', sql.Decimal(18, 2), headerData.Biaya_Reagen || null)
+      .input('TollFee', sql.Decimal(18, 2), headerData.Toll_Fee || null)
+      .input('RatePLN', sql.Decimal(18, 2), headerData.Rate_PLN || 0)
+      .input('DirectLabor', sql.Decimal(18, 2), headerData.Direct_Labor || 0)
+      .input('FactoryOverHead', sql.Decimal(18, 2), headerData.Factory_Over_Head || 0)
+      .input('Depresiasi', sql.Decimal(18, 2), headerData.Depresiasi || 0)
+      .input('BebanSisaBahanExp', sql.Decimal(18, 2), headerData.Beban_Sisa_Bahan_Exp || null)
+      .query(query);
+    
+    return result.rowsAffected[0];
+  } catch (error) {
+    console.error('Error updating simulation header:', error);
+    throw error;
+  }
+}
+
+// Delete all materials for a simulation
+async function deleteSimulationMaterials(simulasiId) {
+  try {
+    const db = await connect();
+    const query = `DELETE FROM t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan WHERE Simulasi_ID = @SimulasiId`;
+    
+    const result = await db.request()
+      .input('SimulasiId', sql.Int, simulasiId)
+      .query(query);
+    
+    return result.rowsAffected[0];
+  } catch (error) {
+    console.error('Error deleting simulation materials:', error);
+    throw error;
+  }
+}
+
+// Bulk insert materials for a simulation
+async function insertSimulationMaterials(simulasiId, materials, periode = '2025') {
+  try {
+    const db = await connect();
+    
+    if (!materials || materials.length === 0) {
+      return 0;
+    }
+    
+    // Use parameterized queries to prevent SQL injection
+    const insertPromises = materials.map((material, index) => {
+      return db.request()
+        .input('periode', sql.VarChar(4), periode)
+        .input('simulasiId', sql.Int, simulasiId)
+        .input('seqId', sql.Int, index + 1)
+        .input('tipeBahan', sql.VarChar(10), material.Tipe_Bahan)
+        .input('itemId', sql.VarChar(20), material.Item_ID)
+        .input('itemName', sql.VarChar(255), material.Item_Name)
+        .input('itemQty', sql.Decimal(18, 4), material.Item_QTY)
+        .input('itemUnit', sql.VarChar(10), material.Item_Unit)
+        .input('itemUnitPrice', sql.Decimal(18, 4), material.Item_Unit_Price)
+        .query(`
+          INSERT INTO t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan 
+          (Periode, Simulasi_ID, Seq_ID, Tipe_Bahan, Item_ID, Item_Name, Item_QTY, Item_Unit, Item_Unit_Price) 
+          VALUES (@periode, @simulasiId, @seqId, @tipeBahan, @itemId, @itemName, @itemQty, @itemUnit, @itemUnitPrice)
+        `);
+    });
+    
+    // Execute all insert operations
+    await Promise.all(insertPromises);
+    
+    return materials.length;
+  } catch (error) {
+    console.error('Error inserting simulation materials:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   getHPP,
   generateHPPCalculation,
   generateHPPSimulation,
   getSimulationHeader,
   getSimulationDetailBahan,
+  updateSimulationHeader,
+  deleteSimulationMaterials,
+  insertSimulationMaterials,
 };

@@ -19,4 +19,8 @@ router.get('/simulation/:simulasiId/header', HPPController.getSimulationHeader);
 // GET /api/hpp/simulation/:simulasiId/detail-bahan - Get simulation detail materials
 router.get('/simulation/:simulasiId/detail-bahan', HPPController.getSimulationDetailBahan);
 
+// PUT /api/hpp/simulation/save - Save simulation (update header and replace materials)
+// Body: { simulasiId: 10, headerData: {...}, materials: [...] }
+router.put('/simulation/save', HPPController.saveSimulation);
+
 module.exports = router;

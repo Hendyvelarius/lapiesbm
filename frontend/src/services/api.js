@@ -126,6 +126,12 @@ export const hppAPI = {
   // Get simulation detail materials by Simulasi_ID
   getSimulationDetailBahan: (simulasiId) => apiRequest(`/hpp/simulation/${simulasiId}/detail-bahan`),
 
+  // Save simulation (update header and replace materials)
+  saveSimulation: (simulasiId, headerData, materials) => apiRequest('/hpp/simulation/save', {
+    method: 'PUT',
+    body: JSON.stringify({ simulasiId, headerData, materials }),
+  }),
+
   // Get all HPP records
   getAll: (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
