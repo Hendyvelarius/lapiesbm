@@ -1866,9 +1866,21 @@
   transform: scale(1.1);
 }
 
+.edit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .delete-btn:hover:not(:disabled) {
   background: #fecaca;
   transform: scale(1.1);
+}
+
+/* Lucide icon styling */
+.edit-btn svg, .delete-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .delete-btn:disabled {
@@ -1915,4 +1927,99 @@
 .back-btn:hover {
   background: #e5e7eb;
   color: #1f2937;
+}
+
+/* Custom Material Styles */
+.custom-material-section {
+  margin-top: 20px;
+  padding: 20px;
+  border-top: 1px solid #e5e7eb;
+  text-align: center;
+}
+
+.custom-material-divider {
+  position: relative;
+  margin-bottom: 15px;
+}
+
+.custom-material-divider span {
+  background: white;
+  padding: 0 15px;
+  color: #6b7280;
+  font-size: 14px;
+  position: relative;
+}
+
+.custom-material-divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.add-custom-material-btn {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 8px;
+}
+
+.add-custom-material-btn:hover {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.custom-material-hint {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 8px 0 0 0;
+}
+
+.custom-material-code {
+  background: #f3f4f6;
+  color: #374151;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.custom-material-input {
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 13px;
+  width: 100%;
+  background: #fefefe;
+}
+
+.custom-material-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.custom-material-input.unit-input {
+  width: 80px;
+}
+
+.custom-material-input.price-input {
+  width: 100px;
+  text-align: right;
+}
+
+.search-hint {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 5px 0 0 0;
+  font-style: italic;
 }

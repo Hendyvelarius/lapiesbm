@@ -4,6 +4,9 @@ import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import '../styles/HPPSimulation.css';
 import '../styles/ProductHPPReport.css'; // Import for modal styling
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import { FileDown, Printer, Edit, Trash2 } from 'lucide-react';
 
 // Initialize awesome-notifications
 const notifier = new AWN({
@@ -41,6 +44,7 @@ export default function HPPSimulation() {
   const [simulationList, setSimulationList] = useState([]);
   const [loadingList, setLoadingList] = useState(true);
   const [listError, setListError] = useState('');
+  const [isEditMode, setIsEditMode] = useState(false); // Track if we're editing an existing simulation
 
   // Available products with formulas (intersection of productName and chosenFormula)
   const [availableProducts, setAvailableProducts] = useState([]);
@@ -168,6 +172,10 @@ export default function HPPSimulation() {
     setProductOptions([]);
     setError('');
     setSimulationResults(null);
+    setSimulationDetailBahan([]); // Clear materials display data
+    setSimulationHeader(null); // Clear simulation header for detailed report
+    setLoadingDetails(false); // Reset loading details state
+    setIsEditMode(false); // New simulation mode
   };
 
   // Go back to simulation list
@@ -179,7 +187,187 @@ export default function HPPSimulation() {
     setProductOptions([]);
     setError('');
     setSimulationResults(null);
+    // Reset all editable data
+    setEditableLOB('');
+    setEditableVersion('');
+    setEditableBatchSize(0);
+    setEditableRendemen(0);
+    setEditableOverheadData({});
+    setEditableMaterialData([]);
+    setSimulationDetailBahan([]); // Clear materials display data
+    setSimulationHeader(null); // Clear simulation header for detailed report
+    setLoadingDetails(false); // Reset loading details state
+    setIsEditMode(false); // Reset edit mode
     loadSimulationList(); // Refresh the list
+  };
+
+  // Load existing simulation for editing
+  const handleEditSimulation = async (simulation) => {
+    try {
+      setLoading(true);
+      setLoadingDetails(false); // Reset loading details state
+      setError('');
+
+      console.log('Loading simulation for editing:', simulation);
+
+      // First, load the simulation header and detail data
+      const [headerResponse, materialsResponse] = await Promise.all([
+        hppAPI.getSimulationHeader(simulation.Simulasi_ID),
+        hppAPI.getSimulationDetailBahan(simulation.Simulasi_ID)
+      ]);
+
+      const headerData = headerResponse.data[0]; // API returns array, take first element
+      const materialsData = materialsResponse.data;
+
+      console.log('Loaded header data:', headerData);
+      console.log('Loaded materials data:', materialsData);
+
+      // Parse Formula to extract individual formulas
+      // Format: "GLC#-#B#C" means PI: GLC, PS: - (none), KP: B, KS: C
+      const parseFormula = (formula) => {
+        if (!formula) return { pi: '', ps: '', kp: '', ks: '' };
+        const parts = formula.split('#');
+        return {
+          pi: parts[0] || '',
+          ps: parts[1] === '-' ? '' : (parts[1] || ''),
+          kp: parts[2] || '',
+          ks: parts[3] || ''
+        };
+      };
+
+      const formulaParts = parseFormula(headerData.Formula);
+
+      // Set up the simulation results with properly mapped data
+      setSimulationResults([{
+        Simulasi_ID: headerData.Simulasi_ID,
+        Product_ID: headerData.Product_ID,
+        Product_Name: headerData.Product_Name,
+        LOB: headerData.LOB,
+        Versi: headerData.Versi,
+        Formula: headerData.Formula,
+        Batch_Size: headerData.Batch_Size,
+        Group_Rendemen: headerData.Group_Rendemen,
+        Group_PNCategory_Dept: headerData.Group_PNCategory_Dept, // This is what the display expects
+        Line: headerData.Group_PNCategory_Dept, // Also set Line field for consistency
+        
+        // Map Selected Formulas from Formula field
+        SelectedFormulas: {
+          PI: formulaParts.pi,
+          PS: formulaParts.ps,
+          KP: formulaParts.kp,
+          KS: formulaParts.ks
+        },
+
+        // Map Processing and Packaging costs with manhours
+        ProcessingCost: {
+          cost: headerData.Biaya_Proses || 0,
+          manhours: headerData.MH_Proses_Std || 0
+        },
+        PackagingCost: {
+          cost: headerData.Biaya_Kemas || 0,
+          manhours: headerData.MH_Kemas_Std || 0
+        },
+        ExpiryCost: {
+          cost: headerData.Beban_Sisa_Bahan_Exp || 0,
+          manhours: 0 // No specific manhours for expiry cost
+        },
+
+        // Map other overhead data
+        MH_Analisa_Std: headerData.MH_Analisa_Std || 0,
+        MH_Timbang_BB: headerData.MH_Timbang_BB || 0,
+        MH_Timbang_BK: headerData.MH_Timbang_BK || 0,
+        MH_Mesin_Std: headerData.MH_Mesin_Std || 0,
+        Biaya_Generik: headerData.Biaya_Generik || 0,
+        Biaya_Reagen: headerData.Biaya_Reagen || 0,
+        Toll_Fee: headerData.Toll_Fee || 0,
+        Rate_PLN: headerData.Rate_PLN || 0,
+        Direct_Labor: headerData.Direct_Labor || 0,
+        Factory_Over_Head: headerData.Factory_Over_Head || 0,
+        Depresiasi: headerData.Depresiasi || 0
+      }]);
+
+      // Set up editable state with loaded data
+      setEditableLOB(headerData.LOB || '');
+      setEditableVersion(headerData.Versi || '');
+      setEditableBatchSize(headerData.Batch_Size || 0);
+      setEditableRendemen(headerData.Group_Rendemen || 0);
+
+      // Set up overhead data with proper mapping
+      setEditableOverheadData({
+        MH_Proses_Std: headerData.MH_Proses_Std || 0,
+        MH_Kemas_Std: headerData.MH_Kemas_Std || 0,
+        MH_Analisa_Std: headerData.MH_Analisa_Std || 0,
+        MH_Timbang_BB: headerData.MH_Timbang_BB || 0,
+        MH_Timbang_BK: headerData.MH_Timbang_BK || 0,
+        MH_Mesin_Std: headerData.MH_Mesin_Std || 0,
+        Biaya_Proses: headerData.Biaya_Proses || 0,
+        Biaya_Kemas: headerData.Biaya_Kemas || 0,
+        Biaya_Generik: headerData.Biaya_Generik || 0,
+        Biaya_Reagen: headerData.Biaya_Reagen || 0,
+        Toll_Fee: headerData.Toll_Fee || 0,
+        Rate_PLN: headerData.Rate_PLN || 0,
+        Direct_Labor: headerData.Direct_Labor || 0,
+        Factory_Over_Head: headerData.Factory_Over_Head || 0,
+        Depresiasi: headerData.Depresiasi || 0,
+        Beban_Sisa_Bahan_Exp: headerData.Beban_Sisa_Bahan_Exp || 0
+      });
+
+      // Set up materials data with proper mapping from detail-bahan API
+      const formattedMaterials = materialsData?.map(material => ({
+        product_id: material.Item_ID,
+        product_code: material.Item_ID, // Use Item_ID as product code
+        product_name: material.Item_Name,
+        qty: material.Item_QTY,
+        uom: material.Item_Unit,
+        harga: material.Item_Unit_Price,
+        total: (material.Item_QTY || 0) * (material.Item_Unit_Price || 0),
+        // Keep API field names for compatibility with existing functions
+        Item_ID: material.Item_ID,
+        Item_Name: material.Item_Name,
+        Item_QTY: material.Item_QTY,
+        Item_Unit: material.Item_Unit,
+        Item_Unit_Price: material.Item_Unit_Price,
+        Tipe_Bahan: material.Tipe_Bahan, // Keep uppercase for existing functions
+        Seq_ID: material.Seq_ID
+      })) || [];
+
+      setEditableMaterialData(formattedMaterials);
+
+      // Also set simulationDetailBahan for display purposes
+      setSimulationDetailBahan(materialsData || []);
+
+      // Set simulationHeader for detailed report functionality
+      setSimulationHeader([headerData]);
+
+      // Set the selected formulas state for display
+      setSelectedFormulas({
+        PI: formulaParts.pi,
+        PS: formulaParts.ps,
+        KP: formulaParts.kp,
+        KS: formulaParts.ks
+      });
+
+      // Set simulation type and selected product info for context
+      setSimulationType('existing');
+      setSelectedProduct({
+        Product_ID: headerData.Product_ID,
+        Product_Name: headerData.Product_Name
+      });
+
+      // Set edit mode
+      setIsEditMode(true);
+
+      // Navigate to Step 4 (Simulation Results)
+      setStep(4);
+
+      notifier.success(`Loaded simulation "${headerData.Product_Name}" for editing`);
+
+    } catch (error) {
+      console.error('Error loading simulation for editing:', error);
+      notifier.alert('Failed to load simulation for editing. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Load available products when component mounts or when simulation type changes to "Existing Formula"
@@ -895,12 +1083,193 @@ export default function HPPSimulation() {
     setMaterialSearchQuery(''); // Reset search
   };
 
+  // Add custom material function
+  const addCustomMaterial = () => {
+    const nextSeqId = Math.max(...editableMaterialData.map(m => m.Seq_ID || 0)) + 1;
+    const customMaterial = {
+      Periode: simulationResults[0].Periode || new Date().getFullYear().toString(),
+      Simulasi_ID: simulationResults[0].Simulasi_ID,
+      Seq_ID: nextSeqId,
+      Tipe_Bahan: addMaterialType,
+      Item_ID: 'CUSTOM',
+      Item_Name: '', // This will be editable
+      Item_QTY: 0, // This will be editable
+      Item_Unit: '', // This will be editable
+      Item_Unit_Price: 0, // This will be editable
+      isCustom: true // Flag to identify custom materials
+    };
+    
+    setEditableMaterialData([...editableMaterialData, customMaterial]);
+    setShowAddMaterialModal(false);
+    setMaterialSearchQuery(''); // Reset search
+    
+    notifier.success('Custom material added. You can now edit its details in the table.');
+  };
+
+  // Handle custom material field updates
+  const handleCustomMaterialFieldChange = (materialIndex, field, value) => {
+    const updatedMaterials = [...editableMaterialData];
+    updatedMaterials[materialIndex] = {
+      ...updatedMaterials[materialIndex],
+      [field]: value
+    };
+
+    // Auto-calculate extended cost when quantity or unit price changes
+    if (field === 'Item_QTY' || field === 'Item_Unit_Price') {
+      const qty = field === 'Item_QTY' ? parseFloat(value) || 0 : updatedMaterials[materialIndex].Item_QTY || 0;
+      const unitPrice = field === 'Item_Unit_Price' ? parseFloat(value) || 0 : updatedMaterials[materialIndex].Item_Unit_Price || 0;
+      updatedMaterials[materialIndex].extendedCost = qty * unitPrice;
+    }
+
+    setEditableMaterialData(updatedMaterials);
+  };
+
   const getFilteredMaterials = () => {
-    return masterMaterials.filter(material => 
-      material.ITEM_TYPE === addMaterialType &&
-      (material.ITEM_ID.toLowerCase().includes(materialSearchQuery.toLowerCase()) ||
-       material.Item_Name.toLowerCase().includes(materialSearchQuery.toLowerCase()))
+    const typeFilteredMaterials = masterMaterials.filter(material => 
+      material.ITEM_TYPE === addMaterialType
     );
+
+    // If no search query, show only a random sample of 20 materials to avoid lag
+    if (!materialSearchQuery || materialSearchQuery.trim().length === 0) {
+      const sampleSize = Math.min(20, typeFilteredMaterials.length);
+      const shuffled = [...typeFilteredMaterials].sort(() => 0.5 - Math.random());
+      return shuffled.slice(0, sampleSize);
+    }
+
+    // If there's a search query, filter by ID or name
+    return typeFilteredMaterials.filter(material =>
+      material.ITEM_ID.toLowerCase().includes(materialSearchQuery.toLowerCase()) ||
+      material.Item_Name.toLowerCase().includes(materialSearchQuery.toLowerCase())
+    );
+  };
+
+  // PDF generation function
+  const handleGeneratePDF = async () => {
+    try {
+      notifier.info('Generating PDF...');
+      
+      // Get the modal content element
+      const modalContent = document.querySelector('.product-hpp-modal-content');
+      if (!modalContent) {
+        throw new Error('Modal content not found');
+      }
+
+      // Convert the modal content to canvas
+      const canvas = await html2canvas(modalContent, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        width: modalContent.scrollWidth,
+        height: modalContent.scrollHeight,
+        scrollX: 0,
+        scrollY: 0
+      });
+
+      // Calculate PDF dimensions
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 295; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+
+      // Create new PDF document
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      let position = 0;
+
+      // Add the image to PDF
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Add new pages if content is longer than one page
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      // Generate filename
+      const productName = selectedProduct?.Product_Name || 'Simulation_Result';
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const filename = `HPP_Report_${productName}_${timestamp}.pdf`;
+
+      // Download the PDF
+      pdf.save(filename);
+      
+      notifier.success('PDF generated successfully!');
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      notifier.error('Failed to generate PDF. Please try again.');
+    }
+  };
+
+  // Print function
+  const handlePrintModal = () => {
+    try {
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        throw new Error('Could not open print window');
+      }
+
+      // Get the modal content
+      const modalContent = document.querySelector('.product-hpp-modal-content');
+      if (!modalContent) {
+        throw new Error('Modal content not found');
+      }
+
+      // Get all stylesheets from the parent window
+      const stylesheets = Array.from(document.styleSheets)
+        .map(sheet => {
+          try {
+            if (sheet.href) {
+              return `<link rel="stylesheet" href="${sheet.href}">`;
+            } else if (sheet.ownerNode && sheet.ownerNode.textContent) {
+              return `<style>${sheet.ownerNode.textContent}</style>`;
+            }
+          } catch (e) {
+            console.warn('Could not access stylesheet:', e);
+          }
+          return '';
+        })
+        .join('');
+
+      // Write the content to the print window
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>HPP Report - ${selectedProduct?.Product_Name || 'Simulation Result'}</title>
+          ${stylesheets}
+          <style>
+            body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none !important; }
+            }
+          </style>
+        </head>
+        <body>
+          ${modalContent.innerHTML}
+        </body>
+        </html>
+      `);
+
+      printWindow.document.close();
+
+      // Wait for content to load then print
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.focus();
+          printWindow.print();
+          printWindow.close();
+        }, 500);
+      };
+
+    } catch (error) {
+      console.error('Error printing modal:', error);
+      notifier.error('Failed to print. Please try again.');
+    }
   };
 
   return (
@@ -975,13 +1344,11 @@ export default function HPPSimulation() {
                           <td className="actions-cell">
                             <button 
                               className="edit-btn"
-                              onClick={() => {
-                                // TODO: Implement edit functionality
-                                notifier.warning('Edit functionality will be implemented soon');
-                              }}
+                              onClick={() => handleEditSimulation(simulation)}
+                              disabled={loading}
                               title="Edit Simulation"
                             >
-                              ✏️
+                              {loading ? '⏳' : <Edit size={16} />}
                             </button>
                             <button 
                               className="delete-btn"
@@ -989,7 +1356,7 @@ export default function HPPSimulation() {
                               disabled={loading}
                               title="Delete Simulation"
                             >
-                              🗑️
+                              <Trash2 size={16} />
                             </button>
                           </td>
                         </tr>
@@ -1304,7 +1671,15 @@ export default function HPPSimulation() {
         {/* Step 4: Simulation Results */}
         {step === 4 && simulationResults && (
           <div className="simulation-step">
-            <h2>Step 4: Simulation Results</h2>
+            <div className="step-header">
+              <button 
+                className="back-btn"
+                onClick={handleBackToList}
+              >
+                ← Back to List
+              </button>
+              <h2>Step 4: Simulation Results</h2>
+            </div>
             <p>HPP simulation completed for <strong>{selectedProduct?.Product_ID} - {selectedProduct?.Product_Name}</strong></p>
             
             {simulationResults.length > 0 && (
@@ -1424,24 +1799,75 @@ export default function HPPSimulation() {
                               const globalIndex = editableMaterialData.findIndex(m => 
                                 m.Item_ID === item.Item_ID && m.Seq_ID === item.Seq_ID && m.Tipe_Bahan === 'BB'
                               );
+                              const isCustom = item.isCustom || item.Item_ID === 'CUSTOM';
+                              
                               return (
                                 <tr key={`bb-${item.Item_ID}-${item.Seq_ID}`}>
                                   <td>{index + 1}</td>
-                                  <td>{item.Item_ID}</td>
-                                  <td>{item.Item_Name}</td>
+                                  <td>
+                                    {isCustom ? (
+                                      <span className="custom-material-code">Custom</span>
+                                    ) : (
+                                      item.Item_ID
+                                    )}
+                                  </td>
+                                  <td>
+                                    {isCustom ? (
+                                      <input 
+                                        type="text" 
+                                        value={item.Item_Name || ''}
+                                        onChange={(e) => handleCustomMaterialFieldChange(globalIndex, 'Item_Name', e.target.value)}
+                                        className="custom-material-input"
+                                        placeholder="Material name..."
+                                      />
+                                    ) : (
+                                      item.Item_Name
+                                    )}
+                                  </td>
                                   <td className="number">
                                     <input 
                                       type="number" 
                                       value={item.Item_QTY || 0}
-                                      onChange={(e) => handleMaterialQuantityChange(globalIndex, e.target.value)}
+                                      onChange={(e) => isCustom 
+                                        ? handleCustomMaterialFieldChange(globalIndex, 'Item_QTY', e.target.value)
+                                        : handleMaterialQuantityChange(globalIndex, e.target.value)
+                                      }
                                       className="qty-edit-input"
                                       min="0"
                                       step="0.01"
                                     />
                                   </td>
-                                  <td>{item.Item_Unit}</td>
-                                  <td className="number">Rp {formatNumber(item.Item_Unit_Price, 2)}</td>
-                                  <td className="number">Rp {formatNumber((item.Item_Unit_Price * item.Item_QTY), 2)}</td>
+                                  <td>
+                                    {isCustom ? (
+                                      <input 
+                                        type="text" 
+                                        value={item.Item_Unit || ''}
+                                        onChange={(e) => handleCustomMaterialFieldChange(globalIndex, 'Item_Unit', e.target.value)}
+                                        className="custom-material-input unit-input"
+                                        placeholder="Unit..."
+                                      />
+                                    ) : (
+                                      item.Item_Unit
+                                    )}
+                                  </td>
+                                  <td className="number">
+                                    {isCustom ? (
+                                      <input 
+                                        type="number" 
+                                        value={item.Item_Unit_Price || 0}
+                                        onChange={(e) => handleCustomMaterialFieldChange(globalIndex, 'Item_Unit_Price', e.target.value)}
+                                        className="custom-material-input price-input"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="0.00"
+                                      />
+                                    ) : (
+                                      `Rp ${formatNumber(item.Item_Unit_Price, 2)}`
+                                    )}
+                                  </td>
+                                  <td className="number">
+                                    Rp {formatNumber((item.Item_Unit_Price * item.Item_QTY), 2)}
+                                  </td>
                                   <td className="actions">
                                     <button 
                                       className="remove-material-btn" 
@@ -1497,24 +1923,75 @@ export default function HPPSimulation() {
                               const globalIndex = editableMaterialData.findIndex(m => 
                                 m.Item_ID === item.Item_ID && m.Seq_ID === item.Seq_ID && m.Tipe_Bahan === 'BK'
                               );
+                              const isCustom = item.isCustom || item.Item_ID === 'CUSTOM';
+                              
                               return (
                                 <tr key={`bk-${item.Item_ID}-${item.Seq_ID}`}>
                                   <td>{index + 1}</td>
-                                  <td>{item.Item_ID}</td>
-                                  <td>{item.Item_Name}</td>
+                                  <td>
+                                    {isCustom ? (
+                                      <span className="custom-material-code">Custom</span>
+                                    ) : (
+                                      item.Item_ID
+                                    )}
+                                  </td>
+                                  <td>
+                                    {isCustom ? (
+                                      <input 
+                                        type="text" 
+                                        value={item.Item_Name || ''}
+                                        onChange={(e) => handleCustomMaterialFieldChange(globalIndex, 'Item_Name', e.target.value)}
+                                        className="custom-material-input"
+                                        placeholder="Material name..."
+                                      />
+                                    ) : (
+                                      item.Item_Name
+                                    )}
+                                  </td>
                                   <td className="number">
                                     <input 
                                       type="number" 
                                       value={item.Item_QTY || 0}
-                                      onChange={(e) => handleMaterialQuantityChange(globalIndex, e.target.value)}
+                                      onChange={(e) => isCustom 
+                                        ? handleCustomMaterialFieldChange(globalIndex, 'Item_QTY', e.target.value)
+                                        : handleMaterialQuantityChange(globalIndex, e.target.value)
+                                      }
                                       className="qty-edit-input"
                                       min="0"
                                       step="0.01"
                                     />
                                   </td>
-                                  <td>{item.Item_Unit}</td>
-                                  <td className="number">Rp {formatNumber(item.Item_Unit_Price, 2)}</td>
-                                  <td className="number">Rp {formatNumber((item.Item_Unit_Price * item.Item_QTY), 2)}</td>
+                                  <td>
+                                    {isCustom ? (
+                                      <input 
+                                        type="text" 
+                                        value={item.Item_Unit || ''}
+                                        onChange={(e) => handleCustomMaterialFieldChange(globalIndex, 'Item_Unit', e.target.value)}
+                                        className="custom-material-input unit-input"
+                                        placeholder="Unit..."
+                                      />
+                                    ) : (
+                                      item.Item_Unit
+                                    )}
+                                  </td>
+                                  <td className="number">
+                                    {isCustom ? (
+                                      <input 
+                                        type="number" 
+                                        value={item.Item_Unit_Price || 0}
+                                        onChange={(e) => handleCustomMaterialFieldChange(globalIndex, 'Item_Unit_Price', e.target.value)}
+                                        className="custom-material-input price-input"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="0.00"
+                                      />
+                                    ) : (
+                                      `Rp ${formatNumber(item.Item_Unit_Price, 2)}`
+                                    )}
+                                  </td>
+                                  <td className="number">
+                                    Rp {formatNumber((item.Item_Unit_Price * item.Item_QTY), 2)}
+                                  </td>
                                   <td className="actions">
                                     <button 
                                       className="remove-material-btn" 
@@ -2086,10 +2563,18 @@ export default function HPPSimulation() {
               <h2>Product HPP Report - {selectedProduct?.Product_Name || 'Simulation Result'}</h2>
               <div className="product-hpp-modal-actions">
                 <button
-                  onClick={() => window.print()}
+                  onClick={handleGeneratePDF}
                   className="product-hpp-export-btn pdf"
+                  title="Download as PDF"
                 >
-                  📄 PDF
+                  <FileDown size={16} /> PDF
+                </button>
+                <button
+                  onClick={handlePrintModal}
+                  className="product-hpp-export-btn print"
+                  title="Print Report"
+                >
+                  <Printer size={16} /> Print
                 </button>
                 <button 
                   onClick={() => setShowDetailedReport(false)} 
@@ -2547,6 +3032,12 @@ export default function HPPSimulation() {
                   value={materialSearchQuery}
                   onChange={(e) => setMaterialSearchQuery(e.target.value)}
                 />
+                <p className="search-hint">
+                  {materialSearchQuery.trim() === '' 
+                    ? 'Showing 20 random materials. Start typing to search specific materials.'
+                    : `Searching for "${materialSearchQuery}"...`
+                  }
+                </p>
               </div>
 
               <div className="material-list-section">
@@ -2598,6 +3089,23 @@ export default function HPPSimulation() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Custom Material Section */}
+              <div className="custom-material-section">
+                <div className="custom-material-divider">
+                  <span>or</span>
+                </div>
+                <button 
+                  className="add-custom-material-btn"
+                  onClick={addCustomMaterial}
+                  type="button"
+                >
+                  + Add Custom Material
+                </button>
+                <p className="custom-material-hint">
+                  Create a custom material with your own specifications
+                </p>
               </div>
             </div>
           </div>

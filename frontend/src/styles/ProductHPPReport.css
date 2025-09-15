@@ -52,7 +52,7 @@
   font-size: 14px;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
   transition: background-color 0.2s;
 }
 
@@ -63,6 +63,24 @@
 
 .product-hpp-export-btn.excel:hover {
   background-color: #1e6540;
+}
+
+.product-hpp-export-btn.pdf {
+  background-color: #dc3545;
+  color: white;
+}
+
+.product-hpp-export-btn.pdf:hover {
+  background-color: #c82333;
+}
+
+.product-hpp-export-btn.print {
+  background-color: #6c757d;
+  color: white;
+}
+
+.product-hpp-export-btn.print:hover {
+  background-color: #5a6268;
 }
 
 .product-hpp-close-btn {
