@@ -718,8 +718,7 @@ export default function HPPSimulation() {
     } else if (currentLOB === 'GENERIC' && currentVersion === '2') {
       // GENERIC V2 overhead calculation
       return calculateProductionLaborCost() + calculatePackagingLaborCost() + 
-             calculateProductionFOH() + calculatePackagingFOH() + 
-             calculateProductionDepreciation() + calculatePackagingDepreciation();
+             calculateProductionFOH() + calculatePackagingFOH();
     }
     
     return 0;
@@ -1809,68 +1808,6 @@ export default function HPPSimulation() {
                         </div>
                         <span className="overhead-value">Rp {formatNumber(calculatePackagingFOH(), 2)}</span>
                       </div>
-                      <div className="overhead-cost-item">
-                        <span className="overhead-label">Production Depreciation:</span>
-                        <div className="overhead-formula-editable">
-                          <span className="formula-part">(</span>
-                          <input 
-                            type="number" 
-                            value={editableOverheadData.MH_Proses_Std || 0}
-                            onChange={(e) => setEditableOverheadData({
-                              ...editableOverheadData,
-                              MH_Proses_Std: parseFloat(e.target.value) || 0
-                            })}
-                            className="overhead-edit-input"
-                            step="0.1"
-                            min="0"
-                          />
-                          <span className="formula-part">MH × Rp</span>
-                          <input 
-                            type="number" 
-                            value={editableOverheadData.Depresiasi || 0}
-                            onChange={(e) => setEditableOverheadData({
-                              ...editableOverheadData,
-                              Depresiasi: parseFloat(e.target.value) || 0
-                            })}
-                            className="overhead-edit-input"
-                            step="0.01"
-                            min="0"
-                          />
-                          <span className="formula-part">)</span>
-                        </div>
-                        <span className="overhead-value">Rp {formatNumber(calculateProductionDepreciation(), 2)}</span>
-                      </div>
-                      <div className="overhead-cost-item">
-                        <span className="overhead-label">Packaging Depreciation:</span>
-                        <div className="overhead-formula-editable">
-                          <span className="formula-part">(</span>
-                          <input 
-                            type="number" 
-                            value={editableOverheadData.MH_Kemas_Std || 0}
-                            onChange={(e) => setEditableOverheadData({
-                              ...editableOverheadData,
-                              MH_Kemas_Std: parseFloat(e.target.value) || 0
-                            })}
-                            className="overhead-edit-input"
-                            step="0.1"
-                            min="0"
-                          />
-                          <span className="formula-part">MH × Rp</span>
-                          <input 
-                            type="number" 
-                            value={editableOverheadData.Depresiasi || 0}
-                            onChange={(e) => setEditableOverheadData({
-                              ...editableOverheadData,
-                              Depresiasi: parseFloat(e.target.value) || 0
-                            })}
-                            className="overhead-edit-input"
-                            step="0.01"
-                            min="0"
-                          />
-                          <span className="formula-part">)</span>
-                        </div>
-                        <span className="overhead-value">Rp {formatNumber(calculatePackagingDepreciation(), 2)}</span>
-                      </div>
                       <div className="overhead-cost-item total-overhead">
                         <span className="overhead-label">Total Overhead:</span>
                         <span className="overhead-formula"></span>
@@ -2347,20 +2284,6 @@ export default function HPPSimulation() {
                           <td>({formatNumber(editableOverheadData.MH_Kemas_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Factory_Over_Head || 0, 2)})</td>
                           <td className="number">Rp {formatNumber(calculatePackagingFOH(), 2)}</td>
                           <td className="number">Rp {formatNumber(calculatePackagingFOH() / getActualBatchSize(), 2)}</td>
-                        </tr>
-                        <tr>
-                          <td>Production Depreciation</td>
-                          <td>Production Equipment Depreciation</td>
-                          <td>({formatNumber(editableOverheadData.MH_Proses_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Depresiasi || 0, 2)})</td>
-                          <td className="number">Rp {formatNumber(calculateProductionDepreciation(), 2)}</td>
-                          <td className="number">Rp {formatNumber(calculateProductionDepreciation() / getActualBatchSize(), 2)}</td>
-                        </tr>
-                        <tr>
-                          <td>Packaging Depreciation</td>
-                          <td>Packaging Equipment Depreciation</td>
-                          <td>({formatNumber(editableOverheadData.MH_Kemas_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Depresiasi || 0, 2)})</td>
-                          <td className="number">Rp {formatNumber(calculatePackagingDepreciation(), 2)}</td>
-                          <td className="number">Rp {formatNumber(calculatePackagingDepreciation() / getActualBatchSize(), 2)}</td>
                         </tr>
                         <tr className="total-row">
                           <td colSpan="3"><strong>Total Overhead</strong></td>
