@@ -132,6 +132,12 @@ export const hppAPI = {
     body: JSON.stringify({ simulasiId, headerData, materials }),
   }),
 
+  // Create custom simulation (new simulation with custom product/formula name)
+  createCustomSimulation: (headerData, materials) => apiRequest('/hpp/simulation/create-custom', {
+    method: 'POST',
+    body: JSON.stringify({ headerData, materials }),
+  }),
+
   // Get list of all simulation records
   getSimulationList: () => apiRequest('/hpp/simulation/list'),
 

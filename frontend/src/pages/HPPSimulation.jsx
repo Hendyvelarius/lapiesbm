@@ -6,7 +6,7 @@ import '../styles/HPPSimulation.css';
 import '../styles/ProductHPPReport.css'; // Import for modal styling
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { FileDown, Printer, Edit, Trash2 } from 'lucide-react';
+import { FileDown, Printer, Edit, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 
 // Initialize awesome-notifications
 const notifier = new AWN({
@@ -45,6 +45,19 @@ export default function HPPSimulation() {
   const [loadingList, setLoadingList] = useState(true);
   const [listError, setListError] = useState('');
   const [isEditMode, setIsEditMode] = useState(false); // Track if we're editing an existing simulation
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredSimulationList, setFilteredSimulationList] = useState([]);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20); // Show 20 simulations per page
+  const [paginatedSimulations, setPaginatedSimulations] = useState([]);
+  
+  // Sorting state
+  const [sortField, setSortField] = useState('Simulasi_Date'); // Default sort by date
+  const [sortDirection, setSortDirection] = useState('desc'); // Default newest first
 
   // Available products with formulas (intersection of productName and chosenFormula)
   const [availableProducts, setAvailableProducts] = useState([]);
@@ -102,6 +115,13 @@ export default function HPPSimulation() {
   // LOB and Version selection
   const [editableLOB, setEditableLOB] = useState(null);
   const [editableVersion, setEditableVersion] = useState(null);
+  const [editableDescription, setEditableDescription] = useState(null);
+
+  // Custom formula state
+  const [isCustomFormula, setIsCustomFormula] = useState(false);
+  const [customProductName, setCustomProductName] = useState('');
+  const [customFormulaName, setCustomFormulaName] = useState('');
+  const [customLine, setCustomLine] = useState('PN1'); // Default to PN1
 
   // Material master data for adding new materials
   const [masterMaterials, setMasterMaterials] = useState([]);
@@ -113,6 +133,105 @@ export default function HPPSimulation() {
   useEffect(() => {
     loadSimulationList();
   }, []);
+
+  // Sorting function
+  const sortSimulations = (simulations, field, direction) => {
+    return [...simulations].sort((a, b) => {
+      let aValue = a[field];
+      let bValue = b[field];
+      
+      // Handle different data types
+      if (field === 'Simulasi_Date') {
+        aValue = new Date(aValue);
+        bValue = new Date(bValue);
+      } else if (field === 'Simulasi_ID' || field === 'Product_ID') {
+        aValue = parseInt(aValue) || 0;
+        bValue = parseInt(bValue) || 0;
+      } else {
+        // Convert to string for text comparison
+        aValue = (aValue || '').toString().toLowerCase();
+        bValue = (bValue || '').toString().toLowerCase();
+      }
+      
+      if (direction === 'asc') {
+        return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+      } else {
+        return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
+      }
+    });
+  };
+
+  // Handle column header click for sorting
+  const handleSort = (field) => {
+    if (sortField === field) {
+      // Same field, toggle direction
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New field, default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Render sort icon for table headers
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ChevronsUpDown size={14} className="sort-icon inactive" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ChevronUp size={14} className="sort-icon active" />
+      : <ChevronDown size={14} className="sort-icon active" />;
+  };
+
+  // Format sort field name for display
+  const formatSortField = (field) => {
+    const fieldNames = {
+      'Simulasi_ID': 'ID',
+      'Simulasi_Type': 'Type',
+      'Product_ID': 'Product ID',
+      'Product_Name': 'Product Name',
+      'Formula': 'Formula',
+      'Simulasi_Date': 'Date'
+    };
+    return fieldNames[field] || field;
+  };
+
+  // Filter and sort simulation list
+  useEffect(() => {
+    let filtered;
+    
+    if (!searchQuery.trim()) {
+      filtered = simulationList;
+    } else {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = simulationList.filter(simulation => {
+        const productName = (simulation.Product_Name || '').toLowerCase();
+        const formula = (simulation.Formula || '').toLowerCase();
+        const date = new Date(simulation.Simulasi_Date).toLocaleDateString('id-ID').toLowerCase();
+        const productId = (simulation.Product_ID || '').toString().toLowerCase();
+        
+        return productName.includes(query) || 
+               formula.includes(query) || 
+               date.includes(query) ||
+               productId.includes(query);
+      });
+    }
+    
+    // Apply sorting
+    const sorted = sortSimulations(filtered, sortField, sortDirection);
+    setFilteredSimulationList(sorted);
+    
+    // Reset to page 1 when search or sort changes
+    setCurrentPage(1);
+  }, [searchQuery, simulationList, sortField, sortDirection]);
+
+  // Paginate filtered simulation list
+  useEffect(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginated = filteredSimulationList.slice(startIndex, endIndex);
+    setPaginatedSimulations(paginated);
+  }, [filteredSimulationList, currentPage, itemsPerPage]);
 
   // Load simulation list from API
   const loadSimulationList = async () => {
@@ -176,6 +295,7 @@ export default function HPPSimulation() {
     setSimulationHeader(null); // Clear simulation header for detailed report
     setLoadingDetails(false); // Reset loading details state
     setIsEditMode(false); // New simulation mode
+    setEditableDescription(null); // Reset description for new simulation
   };
 
   // Go back to simulation list
@@ -192,6 +312,7 @@ export default function HPPSimulation() {
     setEditableVersion('');
     setEditableBatchSize(0);
     setEditableRendemen(0);
+    setEditableDescription(''); // Reset description
     setEditableOverheadData({});
     setEditableMaterialData([]);
     setSimulationDetailBahan([]); // Clear materials display data
@@ -199,6 +320,78 @@ export default function HPPSimulation() {
     setLoadingDetails(false); // Reset loading details state
     setIsEditMode(false); // Reset edit mode
     loadSimulationList(); // Refresh the list
+  };
+
+  // Initialize custom formula simulation
+  const initializeCustomFormula = () => {
+    setIsCustomFormula(true);
+    setCustomProductName('');
+    setCustomFormulaName('');
+    setCustomLine('PN1');
+    
+    // Create mock simulation results for Step 4
+    const mockCustomSimulation = {
+      Simulasi_ID: null, // Will be set when saved
+      Product_ID: 'CUSTOM',
+      Product_Name: '', // Will be filled by user
+      Simulasi_Deskripsi: '',
+      LOB: 'ETHICAL',
+      Versi: '1',
+      Formula: '', // Will be filled by user
+      Batch_Size: 1000, // Default batch size
+      Group_Rendemen: 100, // Default rendemen
+      Group_PNCategory_Dept: 'PN1', // Default line
+      Line: 'PN1',
+      
+      // Initialize with zero costs - user will fill manually
+      MH_Proses_Std: 0,
+      MH_Kemas_Std: 0,
+      MH_Analisa_Std: 0,
+      MH_Timbang_BB: 0,
+      MH_Timbang_BK: 0,
+      MH_Mesin_Std: 0,
+      Biaya_Proses: 0,
+      Biaya_Kemas: 0,
+      Biaya_Generik: 0,
+      Biaya_Reagen: 0,
+      Toll_Fee: 0,
+      Rate_PLN: 0,
+      Direct_Labor: 0,
+      Factory_Over_Head: 0,
+      Depresiasi: 0,
+      Beban_Sisa_Bahan_Exp: 0
+    };
+
+    setSimulationResults([mockCustomSimulation]);
+    
+    // Initialize empty material data
+    setEditableMaterialData([]);
+    setSimulationDetailBahan([]);
+    
+    // Reset editable states
+    setEditableLOB('ETHICAL');
+    setEditableVersion('1');
+    setEditableBatchSize(1000);
+    setEditableRendemen(100);
+    setEditableDescription('');
+    setEditableOverheadData({
+      MH_Proses_Std: 0,
+      MH_Kemas_Std: 0,
+      MH_Analisa_Std: 0,
+      MH_Timbang_BB: 0,
+      MH_Timbang_BK: 0,
+      MH_Mesin_Std: 0,
+      Biaya_Proses: 0,
+      Biaya_Kemas: 0,
+      Biaya_Generik: 0,
+      Biaya_Reagen: 0,
+      Toll_Fee: 0,
+      Rate_PLN: 0,
+      Direct_Labor: 0,
+      Factory_Over_Head: 0,
+      Depresiasi: 0,
+      Beban_Sisa_Bahan_Exp: 0
+    });
   };
 
   // Load existing simulation for editing
@@ -242,6 +435,7 @@ export default function HPPSimulation() {
         Simulasi_ID: headerData.Simulasi_ID,
         Product_ID: headerData.Product_ID,
         Product_Name: headerData.Product_Name,
+        Simulasi_Deskripsi: headerData.Simulasi_Deskripsi,
         LOB: headerData.LOB,
         Versi: headerData.Versi,
         Formula: headerData.Formula,
@@ -291,6 +485,7 @@ export default function HPPSimulation() {
       setEditableVersion(headerData.Versi || '');
       setEditableBatchSize(headerData.Batch_Size || 0);
       setEditableRendemen(headerData.Group_Rendemen || 0);
+      setEditableDescription(headerData.Simulasi_Deskripsi || '');
 
       // Set up overhead data with proper mapping
       setEditableOverheadData({
@@ -435,8 +630,15 @@ export default function HPPSimulation() {
     
     if (type === 'existing') {
       setStep(2); // Move to product selection step (was step 2, now step 2)
+    } else if (type === 'custom') {
+      // Skip product selection and formula selection steps for custom formula
+      // Go directly to custom Step 4 (results/configuration)
+      setStep(4);
+      setIsEditMode(false); // This is a new custom simulation
+      // Initialize empty custom formula simulation
+      initializeCustomFormula();
     } else {
-      setError('Custom Formula simulation will be implemented soon.');
+      setError('Unknown simulation type selected.');
     }
   };
 
@@ -729,64 +931,125 @@ export default function HPPSimulation() {
   // Save simulation handler
   const handleSaveSimulation = async () => {
     try {
-      if (!simulationResults || !simulationResults[0] || !simulationResults[0].Simulasi_ID) {
-        setError('No simulation data to save');
-        return;
-      }
-
       setLoading(true);
       setError('');
 
-      const simulasiId = simulationResults[0].Simulasi_ID;
+      if (isCustomFormula) {
+        // Handle custom formula saving - create new simulation
+        if (!customProductName.trim() || !customFormulaName.trim()) {
+          setError('Product name and formula name are required for custom formulas');
+          return;
+        }
 
-      // Prepare header data from current editable state
-      const headerData = {
-        Periode: simulationResults[0].Periode || '2025',
-        Simulasi_Deskripsi: simulationResults[0].Simulasi_Deskripsi || '',
-        Group_Rendemen: editableRendemen || simulationResults[0].Group_Rendemen,
-        Batch_Size: editableBatchSize || simulationResults[0].Batch_Size,
-        LOB: editableLOB || normalizeLOB(simulationResults[0].LOB),
-        Versi: editableVersion || simulationResults[0].Versi || '1',
-        MH_Proses_Std: editableOverheadData.MH_Proses_Std || simulationResults[0].MH_Proses_Std || 0,
-        MH_Kemas_Std: editableOverheadData.MH_Kemas_Std || simulationResults[0].MH_Kemas_Std || 0,
-        MH_Analisa_Std: editableOverheadData.MH_Analisa_Std || simulationResults[0].MH_Analisa_Std || 0,
-        MH_Timbang_BB: editableOverheadData.MH_Timbang_BB || simulationResults[0].MH_Timbang_BB || 0,
-        MH_Timbang_BK: editableOverheadData.MH_Timbang_BK || simulationResults[0].MH_Timbang_BK || 0,
-        MH_Mesin_Std: editableOverheadData.MH_Mesin_Std || simulationResults[0].MH_Mesin_Std || 0,
-        Biaya_Proses: editableOverheadData.Biaya_Proses || simulationResults[0].Biaya_Proses || 0,
-        Biaya_Kemas: editableOverheadData.Biaya_Kemas || simulationResults[0].Biaya_Kemas || 0,
-        Biaya_Generik: editableOverheadData.Biaya_Generik || simulationResults[0].Biaya_Generik,
-        Biaya_Reagen: editableOverheadData.Biaya_Reagen || simulationResults[0].Biaya_Reagen,
-        Toll_Fee: editableOverheadData.Toll_Fee || simulationResults[0].Toll_Fee,
-        Rate_PLN: editableOverheadData.Rate_PLN || simulationResults[0].Rate_PLN || 0,
-        Direct_Labor: editableOverheadData.Direct_Labor || simulationResults[0].Direct_Labor || 0,
-        Factory_Over_Head: editableOverheadData.Factory_Over_Head || simulationResults[0].Factory_Over_Head || 0,
-        Depresiasi: editableOverheadData.Depresiasi || simulationResults[0].Depresiasi || 0,
-        Beban_Sisa_Bahan_Exp: editableOverheadData.Beban_Sisa_Bahan_Exp || simulationResults[0].Beban_Sisa_Bahan_Exp
-      };
+        // Prepare header data for custom formula
+        const headerData = {
+          Product_Name: customProductName.trim(),
+          Formula: customFormulaName.trim(),
+          Group_PNCategory_Dept: customLine,
+          Line: customLine,
+          Periode: '2025',
+          Simulasi_Deskripsi: editableDescription || '',
+          Group_Rendemen: editableRendemen || 100,
+          Batch_Size: editableBatchSize || 1000,
+          LOB: editableLOB || 'ETHICAL',
+          Versi: editableVersion || '1',
+          MH_Proses_Std: editableOverheadData.MH_Proses_Std || 0,
+          MH_Kemas_Std: editableOverheadData.MH_Kemas_Std || 0,
+          MH_Analisa_Std: editableOverheadData.MH_Analisa_Std || 0,
+          MH_Timbang_BB: editableOverheadData.MH_Timbang_BB || 0,
+          MH_Timbang_BK: editableOverheadData.MH_Timbang_BK || 0,
+          MH_Mesin_Std: editableOverheadData.MH_Mesin_Std || 0,
+          Biaya_Proses: editableOverheadData.Biaya_Proses || 0,
+          Biaya_Kemas: editableOverheadData.Biaya_Kemas || 0,
+          Biaya_Generik: editableOverheadData.Biaya_Generik || 0,
+          Biaya_Reagen: editableOverheadData.Biaya_Reagen || 0,
+          Toll_Fee: editableOverheadData.Toll_Fee || 0,
+          Rate_PLN: editableOverheadData.Rate_PLN || 0,
+          Direct_Labor: editableOverheadData.Direct_Labor || 0,
+          Factory_Over_Head: editableOverheadData.Factory_Over_Head || 0,
+          Depresiasi: editableOverheadData.Depresiasi || 0,
+          Beban_Sisa_Bahan_Exp: editableOverheadData.Beban_Sisa_Bahan_Exp || 0
+        };
 
-      // Prepare materials data from current editable state
-      const materials = editableMaterialData.map((item) => ({
-        Tipe_Bahan: item.Tipe_Bahan,
-        Item_ID: item.Item_ID,
-        Item_Name: item.Item_Name,
-        Item_QTY: item.Item_QTY,
-        Item_Unit: item.Item_Unit,
-        Item_Unit_Price: item.Item_Unit_Price
-      }));
+        // Prepare materials data for custom formula
+        const materials = editableMaterialData.map((item) => ({
+          Tipe_Bahan: item.Tipe_Bahan,
+          Item_ID: item.Item_ID,
+          Item_Name: item.Item_Name,
+          Item_QTY: item.Item_QTY,
+          Item_Unit: item.Item_Unit,
+          Item_Unit_Price: item.Item_Unit_Price
+        }));
 
-      console.log('Saving simulation with data:', { simulasiId, headerData, materials });
+        console.log('Saving custom formula simulation with data:', { headerData, materials });
 
-      // Call the save API
-      const response = await hppAPI.saveSimulation(simulasiId, headerData, materials);
+        // Call the create simulation API (assuming you have this endpoint)
+        const response = await hppAPI.createCustomSimulation(headerData, materials);
 
-      console.log('Save response:', response);
+        console.log('Custom simulation save response:', response);
+        
+        notifier.success('Custom formula simulation saved successfully!');
+        
+        // Reset custom formula state and return to list
+        setIsCustomFormula(false);
+        setCurrentStep(0);
+        loadSimulationList();
 
-      // Show success message
-      notifier.success(`Simulation saved successfully! Updated ${response.data.materialsInserted} materials.`);
+      } else {
+        // Handle regular simulation saving - update existing simulation
+        if (!simulationResults || !simulationResults[0] || !simulationResults[0].Simulasi_ID) {
+          setError('No simulation data to save');
+          return;
+        }
 
-      // Optionally refresh the simulation data to reflect the saved changes
-      // await fetchSimulationData(simulasiId);
+        const simulasiId = simulationResults[0].Simulasi_ID;
+
+        // Prepare header data from current editable state
+        const headerData = {
+          Periode: simulationResults[0].Periode || '2025',
+          Simulasi_Deskripsi: editableDescription || simulationResults[0].Simulasi_Deskripsi || '',
+          Group_Rendemen: editableRendemen || simulationResults[0].Group_Rendemen,
+          Batch_Size: editableBatchSize || simulationResults[0].Batch_Size,
+          LOB: editableLOB || normalizeLOB(simulationResults[0].LOB),
+          Versi: editableVersion || simulationResults[0].Versi || '1',
+          MH_Proses_Std: editableOverheadData.MH_Proses_Std || simulationResults[0].MH_Proses_Std || 0,
+          MH_Kemas_Std: editableOverheadData.MH_Kemas_Std || simulationResults[0].MH_Kemas_Std || 0,
+          MH_Analisa_Std: editableOverheadData.MH_Analisa_Std || simulationResults[0].MH_Analisa_Std || 0,
+          MH_Timbang_BB: editableOverheadData.MH_Timbang_BB || simulationResults[0].MH_Timbang_BB || 0,
+          MH_Timbang_BK: editableOverheadData.MH_Timbang_BK || simulationResults[0].MH_Timbang_BK || 0,
+          MH_Mesin_Std: editableOverheadData.MH_Mesin_Std || simulationResults[0].MH_Mesin_Std || 0,
+          Biaya_Proses: editableOverheadData.Biaya_Proses || simulationResults[0].Biaya_Proses || 0,
+          Biaya_Kemas: editableOverheadData.Biaya_Kemas || simulationResults[0].Biaya_Kemas || 0,
+          Biaya_Generik: editableOverheadData.Biaya_Generik || simulationResults[0].Biaya_Generik,
+          Biaya_Reagen: editableOverheadData.Biaya_Reagen || simulationResults[0].Biaya_Reagen,
+          Toll_Fee: editableOverheadData.Toll_Fee || simulationResults[0].Toll_Fee,
+          Rate_PLN: editableOverheadData.Rate_PLN || simulationResults[0].Rate_PLN || 0,
+          Direct_Labor: editableOverheadData.Direct_Labor || simulationResults[0].Direct_Labor || 0,
+          Factory_Over_Head: editableOverheadData.Factory_Over_Head || simulationResults[0].Factory_Over_Head || 0,
+          Depresiasi: editableOverheadData.Depresiasi || simulationResults[0].Depresiasi || 0,
+          Beban_Sisa_Bahan_Exp: editableOverheadData.Beban_Sisa_Bahan_Exp || simulationResults[0].Beban_Sisa_Bahan_Exp
+        };
+
+        // Prepare materials data from current editable state
+        const materials = editableMaterialData.map((item) => ({
+          Tipe_Bahan: item.Tipe_Bahan,
+          Item_ID: item.Item_ID,
+          Item_Name: item.Item_Name,
+          Item_QTY: item.Item_QTY,
+          Item_Unit: item.Item_Unit,
+          Item_Unit_Price: item.Item_Unit_Price
+        }));
+
+        console.log('Saving regular simulation with data:', { simulasiId, headerData, materials });
+
+        // Call the save API
+        const response = await hppAPI.saveSimulation(simulasiId, headerData, materials);
+
+        console.log('Save response:', response);
+
+        // Show success message
+        notifier.success(`Simulation saved successfully! Updated ${response.data.materialsInserted} materials.`);
+      }
 
     } catch (err) {
       console.error('Error saving simulation:', err);
@@ -1291,13 +1554,22 @@ export default function HPPSimulation() {
           <div className="simulation-step">
             <div className="simulation-list-header">
               <h2>HPP Simulations</h2>
-              <button 
-                className="new-simulation-btn"
-                onClick={handleNewSimulation}
-                disabled={loading}
-              >
-                + New Simulation
-              </button>
+              <div className="search-and-new">
+                <input
+                  type="text"
+                  placeholder="Search simulations (product name, formula, date)..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="simulation-search-input"
+                />
+                <button 
+                  className="new-simulation-btn"
+                  onClick={handleNewSimulation}
+                  disabled={loading}
+                >
+                  + New Simulation
+                </button>
+              </div>
             </div>
 
             {listError && (
@@ -1316,24 +1588,63 @@ export default function HPPSimulation() {
                 <table className="simulation-list-table">
                   <thead>
                     <tr>
-                      <th>ID</th>
-                      <th>Type</th>
-                      <th>Product ID</th>
-                      <th>Product Name</th>
-                      <th>Formula</th>
-                      <th>Date</th>
+                      <th 
+                        className="sortable-header"
+                        onClick={() => handleSort('Simulasi_ID')}
+                        title="Click to sort by ID"
+                      >
+                        ID {renderSortIcon('Simulasi_ID')}
+                      </th>
+                      <th 
+                        className="sortable-header"
+                        onClick={() => handleSort('Simulasi_Type')}
+                        title="Click to sort by Type"
+                      >
+                        Type {renderSortIcon('Simulasi_Type')}
+                      </th>
+                      <th 
+                        className="sortable-header"
+                        onClick={() => handleSort('Product_ID')}
+                        title="Click to sort by Product ID"
+                      >
+                        Product ID {renderSortIcon('Product_ID')}
+                      </th>
+                      <th 
+                        className="sortable-header"
+                        onClick={() => handleSort('Product_Name')}
+                        title="Click to sort by Product Name"
+                      >
+                        Product Name {renderSortIcon('Product_Name')}
+                      </th>
+                      <th 
+                        className="sortable-header"
+                        onClick={() => handleSort('Formula')}
+                        title="Click to sort by Formula"
+                      >
+                        Formula {renderSortIcon('Formula')}
+                      </th>
+                      <th 
+                        className="sortable-header"
+                        onClick={() => handleSort('Simulasi_Date')}
+                        title="Click to sort by Date"
+                      >
+                        Date {renderSortIcon('Simulasi_Date')}
+                      </th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {simulationList.length === 0 ? (
+                    {filteredSimulationList.length === 0 ? (
                       <tr>
                         <td colSpan="7" className="no-data">
-                          No simulations found. Click "New Simulation" to create your first simulation.
+                          {searchQuery.trim() 
+                            ? `No simulations found matching "${searchQuery}". Try adjusting your search terms.`
+                            : "No simulations found. Click \"New Simulation\" to create your first simulation."
+                          }
                         </td>
                       </tr>
                     ) : (
-                      simulationList.map((simulation) => (
+                      paginatedSimulations.map((simulation) => (
                         <tr key={simulation.Simulasi_ID}>
                           <td>{simulation.Simulasi_ID}</td>
                           <td>{simulation.Simulasi_Type}</td>
@@ -1364,6 +1675,90 @@ export default function HPPSimulation() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            )}
+            
+            {/* Pagination Controls */}
+            {!loadingList && filteredSimulationList.length > 0 && (
+              <div className="pagination-container">
+                <div className="pagination-info">
+                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredSimulationList.length)} of {filteredSimulationList.length} simulations
+                  {searchQuery.trim() && (
+                    <span className="search-info"> (filtered from {simulationList.length} total)</span>
+                  )}
+                  <span className="sort-info"> • Sorted by {formatSortField(sortField)} ({sortDirection === 'asc' ? 'A-Z' : 'Z-A'})</span>
+                </div>
+                
+                <div className="pagination-controls">
+                  <button
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                  >
+                    ← Previous
+                  </button>
+                  
+                  <div className="page-numbers">
+                    {(() => {
+                      const totalPages = Math.ceil(filteredSimulationList.length / itemsPerPage);
+                      const pages = [];
+                      const startPage = Math.max(1, currentPage - 2);
+                      const endPage = Math.min(totalPages, currentPage + 2);
+                      
+                      if (startPage > 1) {
+                        pages.push(
+                          <button
+                            key={1}
+                            className={`page-number ${currentPage === 1 ? 'active' : ''}`}
+                            onClick={() => setCurrentPage(1)}
+                          >
+                            1
+                          </button>
+                        );
+                        if (startPage > 2) {
+                          pages.push(<span key="ellipsis1" className="ellipsis">...</span>);
+                        }
+                      }
+                      
+                      for (let i = startPage; i <= endPage; i++) {
+                        pages.push(
+                          <button
+                            key={i}
+                            className={`page-number ${currentPage === i ? 'active' : ''}`}
+                            onClick={() => setCurrentPage(i)}
+                          >
+                            {i}
+                          </button>
+                        );
+                      }
+                      
+                      if (endPage < totalPages) {
+                        if (endPage < totalPages - 1) {
+                          pages.push(<span key="ellipsis2" className="ellipsis">...</span>);
+                        }
+                        pages.push(
+                          <button
+                            key={totalPages}
+                            className={`page-number ${currentPage === totalPages ? 'active' : ''}`}
+                            onClick={() => setCurrentPage(totalPages)}
+                          >
+                            {totalPages}
+                          </button>
+                        );
+                      }
+                      
+                      return pages;
+                    })()}
+                  </div>
+                  
+                  <button
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredSimulationList.length / itemsPerPage)))}
+                    disabled={currentPage >= Math.ceil(filteredSimulationList.length / itemsPerPage)}
+                  >
+                    Next →
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -1692,22 +2087,76 @@ export default function HPPSimulation() {
                   </div>
                 )}
 
-                {/* Selected Formulas Summary */}
-                <div className="selected-formulas-final">
-                  <h4>Selected Formulas Used:</h4>
-                  <div className="formulas-grid">
-                    {Object.entries(selectedFormulas).map(([typeCode, subId]) => (
-                      <div key={typeCode} className="formula-final-item">
-                        <span className="formula-type">{typeCode}:</span>
-                        <span className="formula-id">{subId === '' ? '(Empty Formula)' : `Formula ${subId}`}</span>
+                {/* Custom Formula or Selected Formulas Summary */}
+                {isCustomFormula ? (
+                  <div className="custom-formula-inputs">
+                    <h4>Custom Formula Configuration:</h4>
+                    <div className="custom-inputs-grid">
+                      <div className="custom-input-item">
+                        <label className="custom-input-label">Product Name:</label>
+                        <input
+                          type="text"
+                          value={customProductName}
+                          onChange={(e) => setCustomProductName(e.target.value)}
+                          className="custom-input-field"
+                          placeholder="Enter custom product name"
+                        />
                       </div>
-                    ))}
+                      <div className="custom-input-item">
+                        <label className="custom-input-label">Formula Name:</label>
+                        <input
+                          type="text"
+                          value={customFormulaName}
+                          onChange={(e) => setCustomFormulaName(e.target.value)}
+                          className="custom-input-field"
+                          placeholder="Enter custom formula name"
+                        />
+                      </div>
+                      <div className="custom-input-item">
+                        <label className="custom-input-label">Production Line:</label>
+                        <select
+                          value={customLine}
+                          onChange={(e) => setCustomLine(e.target.value)}
+                          className="custom-select-field"
+                        >
+                          <option value="PN1">PN1</option>
+                          <option value="PN2">PN2</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="selected-formulas-final">
+                    <h4>Selected Formulas Used:</h4>
+                    <div className="formulas-grid">
+                      {Object.entries(selectedFormulas).map(([typeCode, subId]) => (
+                        <div key={typeCode} className="formula-final-item">
+                          <span className="formula-type">{typeCode}:</span>
+                          <span className="formula-id">{subId === '' ? '(Empty Formula)' : `Formula ${subId}`}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Simulation Summary */}
                 <div className="simulation-summary">
                   <h4>Simulation Summary:</h4>
+                  
+                  {/* Description field - allows user to add notes/purpose for the simulation */}
+                  <div className="summary-description">
+                    <div className="summary-item full-width">
+                      <span className="summary-label">Description:</span>
+                      <textarea 
+                        value={editableDescription || simulationResults[0]?.Simulasi_Deskripsi || ''} 
+                        onChange={(e) => setEditableDescription(e.target.value)}
+                        className="summary-textarea-input"
+                        placeholder="Add a description for this simulation (optional)"
+                        rows="3"
+                      />
+                    </div>
+                  </div>
+                  
                   <div className="summary-grid">
                     <div className="summary-item">
                       <span className="summary-label">Product Type (LOB):</span>
@@ -1745,7 +2194,7 @@ export default function HPPSimulation() {
                     </div>
                     <div className="summary-item">
                       <span className="summary-label">Line:</span>
-                      <span className="summary-value">{simulationResults[0].Group_PNCategory_Dept}</span>
+                      <span className="summary-value">{isCustomFormula ? customLine : simulationResults[0].Group_PNCategory_Dept}</span>
                     </div>
                     <div className="summary-item">
                       <span className="summary-label">Rendemen:</span>
@@ -1765,8 +2214,8 @@ export default function HPPSimulation() {
                   </div>
                 </div>
 
-                {/* Detailed Materials Section - Only show when data is loaded */}
-                {!loadingDetails && simulationDetailBahan.length > 0 && (
+                {/* Detailed Materials Section - Show when data is loaded OR in custom formula mode */}
+                {!loadingDetails && (simulationDetailBahan.length > 0 || isCustomFormula) && (
                   <>
                     {/* Bahan Baku Section */}
                     <div className="material-breakdown">
@@ -2496,7 +2945,7 @@ export default function HPPSimulation() {
                 <div className="grand-total-cost">
                   <h4>Total Cost Summary:</h4>
                   <div className="grand-total-grid">
-                    {!loadingDetails && simulationDetailBahan.length > 0 && (
+                    {!loadingDetails && (simulationDetailBahan.length > 0 || isCustomFormula) && (
                       <>
                         <div className="total-cost-item">
                           <span className="total-label">Total Bahan Baku:</span>
