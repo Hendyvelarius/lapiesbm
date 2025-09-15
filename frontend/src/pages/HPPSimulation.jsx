@@ -332,7 +332,7 @@ export default function HPPSimulation() {
     // Create mock simulation results for Step 4
     const mockCustomSimulation = {
       Simulasi_ID: null, // Will be set when saved
-      Product_ID: 'CUSTOM',
+      Product_ID: '-',
       Product_Name: '', // Will be filled by user
       Simulasi_Deskripsi: '',
       LOB: 'ETHICAL',
@@ -400,6 +400,9 @@ export default function HPPSimulation() {
       setLoading(true);
       setLoadingDetails(false); // Reset loading details state
       setError('');
+
+      // Reset custom formula state when editing regular simulation
+      setIsCustomFormula(false);
 
       console.log('Loading simulation for editing:', simulation);
 
@@ -943,6 +946,7 @@ export default function HPPSimulation() {
 
         // Prepare header data for custom formula
         const headerData = {
+          Product_ID: '-',
           Product_Name: customProductName.trim(),
           Formula: customFormulaName.trim(),
           Group_PNCategory_Dept: customLine,
@@ -1138,8 +1142,7 @@ export default function HPPSimulation() {
   };
 
   const calculateExpiryCost = () => {
-    const currentLOB = getCurrentLOB();
-    if (!simulationResults[0] || (currentLOB !== 'ETHICAL' && currentLOB !== 'OTC')) return 0;
+    if (!simulationResults[0]) return 0;
     return editableOverheadData.Beban_Sisa_Bahan_Exp || 0;
   };
 
@@ -1261,7 +1264,7 @@ export default function HPPSimulation() {
     } else if (currentLOB === 'GENERIC' && currentVersion === '2') {
       // GENERIC V2 overhead calculation
       return calculateProductionLaborCost() + calculatePackagingLaborCost() + 
-             calculateProductionFOH() + calculatePackagingFOH();
+             calculateProductionFOH() + calculatePackagingFOH() + calculateExpiryCost();
     }
     
     return 0;
@@ -2932,6 +2935,26 @@ export default function HPPSimulation() {
                         </div>
                         <span className="overhead-value">Rp {formatNumber(calculatePackagingFOH(), 2)}</span>
                       </div>
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">Expiry Cost:</span>
+                        <div className="overhead-formula-editable">
+                          <span className="formula-part">Rp</span>
+                          <input 
+                            type="number" 
+                            value={editableOverheadData.Beban_Sisa_Bahan_Exp || 0}
+                            onChange={(e) => setEditableOverheadData({
+                              ...editableOverheadData,
+                              Beban_Sisa_Bahan_Exp: parseFloat(e.target.value) || 0
+                            })}
+                            className="overhead-edit-input"
+                            step="0.01"
+                            min="0"
+                            placeholder="0"
+                          />
+                          <span className="formula-part">(Direct Value)</span>
+                        </div>
+                        <span className="overhead-value">Rp {formatNumber(calculateExpiryCost(), 2)}</span>
+                      </div>
                       <div className="overhead-cost-item total-overhead">
                         <span className="overhead-label">Total Overhead:</span>
                         <span className="overhead-formula"></span>
@@ -2991,7 +3014,7 @@ export default function HPPSimulation() {
               <button 
                 type="button" 
                 onClick={handleSaveSimulation}
-                disabled={loading || !simulationResults || !simulationResults[0]?.Simulasi_ID}
+                disabled={loading || (!isCustomFormula && (!simulationResults || !simulationResults[0]?.Simulasi_ID))}
                 className="save-simulation-btn"
               >
                 💾 Save Simulation
@@ -3045,7 +3068,9 @@ export default function HPPSimulation() {
                     <div className="header-right">
                       <div className="header-info">
                         <span className="label">Site :</span>
-                        <span className="value">PN1/PN2</span>
+                        <span className="value">
+                          {isCustomFormula ? customLine : (simulationResults && simulationResults[0] ? simulationResults[0].Group_PNCategory_Dept : 'N/A')}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -3058,7 +3083,12 @@ export default function HPPSimulation() {
                       <div className="info-line">
                         <span className="label">Kode Produk - Description</span>
                         <span className="separator">:</span>
-                        <span className="value">{simulationResults && simulationResults[0] ? simulationResults[0].Product_ID : 'N/A'} - {simulationResults && simulationResults[0] ? simulationResults[0].Product_Name : 'Unknown Product'}</span>
+                        <span className="value">
+                          {isCustomFormula ? 
+                            `- - ${customProductName || 'Product Custom'}` : 
+                            `${simulationResults && simulationResults[0] ? simulationResults[0].Product_ID : 'N/A'} - ${simulationResults && simulationResults[0] ? simulationResults[0].Product_Name : 'Unknown Product'}`
+                          }
+                        </span>
                       </div>
                       <div className="info-line">
                         <span className="label">Batch Size Teori</span>
@@ -3221,6 +3251,15 @@ export default function HPPSimulation() {
                           <td className="number">Rp {formatNumber(editableOverheadData.Biaya_Kemas || 0, 2)}</td>
                           <td className="number">Rp {formatNumber(calculatePackagingCost(), 2)}</td>
                           <td className="number">Rp {formatNumber(calculatePackagingCost() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>3 EXPIRY</td>
+                          <td>BEBAN SISA BAHAN EXPIRE</td>
+                          <td className="number">1</td>
+                          <td>BATCH</td>
+                          <td className="number">Rp {formatNumber(editableOverheadData.Beban_Sisa_Bahan_Exp || 0, 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateExpiryCost(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateExpiryCost() / getActualBatchSize(), 2)}</td>
                         </tr>
                         <tr className="total-row">
                           <td colSpan="2"><strong>Total Hours</strong></td>
@@ -3416,6 +3455,13 @@ export default function HPPSimulation() {
                           <td>({formatNumber(editableOverheadData.MH_Kemas_Std || 0)} MH × Rp {formatNumber(editableOverheadData.Factory_Over_Head || 0, 2)})</td>
                           <td className="number">Rp {formatNumber(calculatePackagingFOH(), 2)}</td>
                           <td className="number">Rp {formatNumber(calculatePackagingFOH() / getActualBatchSize(), 2)}</td>
+                        </tr>
+                        <tr>
+                          <td>Expiry Cost</td>
+                          <td>Material Expiry Cost</td>
+                          <td>Rp {formatNumber(editableOverheadData.Beban_Sisa_Bahan_Exp || 0, 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateExpiryCost(), 2)}</td>
+                          <td className="number">Rp {formatNumber(calculateExpiryCost() / getActualBatchSize(), 2)}</td>
                         </tr>
                         <tr className="total-row">
                           <td colSpan="3"><strong>Total Overhead</strong></td>
