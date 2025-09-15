@@ -23,4 +23,10 @@ router.get('/simulation/:simulasiId/detail-bahan', HPPController.getSimulationDe
 // Body: { simulasiId: 10, headerData: {...}, materials: [...] }
 router.put('/simulation/save', HPPController.saveSimulation);
 
+// GET /api/hpp/simulation/list - Get list of all simulation records
+router.get('/simulation/list', HPPController.getSimulationList);
+
+// DELETE /api/hpp/simulation/:simulasiId - Delete simulation by ID
+router.delete('/simulation/:simulasiId', HPPController.deleteSimulation);
+
 module.exports = router;

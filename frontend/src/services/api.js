@@ -132,6 +132,14 @@ export const hppAPI = {
     body: JSON.stringify({ simulasiId, headerData, materials }),
   }),
 
+  // Get list of all simulation records
+  getSimulationList: () => apiRequest('/hpp/simulation/list'),
+
+  // Delete simulation by Simulasi_ID
+  deleteSimulation: (simulasiId) => apiRequest(`/hpp/simulation/${simulasiId}`, {
+    method: 'DELETE',
+  }),
+
   // Get all HPP records
   getAll: (params = {}) => {
     const queryString = new URLSearchParams(params).toString();

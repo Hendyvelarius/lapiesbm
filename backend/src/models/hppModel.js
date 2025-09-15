@@ -211,6 +211,50 @@ async function insertSimulationMaterials(simulasiId, materials, periode = '2025'
   }
 }
 
+// Get all simulation records from header table
+async function getSimulationList() {
+  try {
+    const db = await connect();
+    const query = `
+      SELECT *
+      FROM t_COGS_HPP_Product_Header_Simulasi 
+    `;
+    
+    const result = await db.request().query(query);
+    return result.recordset;
+  } catch (error) {
+    console.error('Error executing getSimulationList query:', error);
+    throw error;
+  }
+}
+
+// Delete simulation record and its related materials
+async function deleteSimulation(simulasiId) {
+  try {
+    const db = await connect();
+    
+    // First delete related materials
+    const deleteMaterialsQuery = `DELETE FROM t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan WHERE Simulasi_ID = @SimulasiId`;
+    const materialsResult = await db.request()
+      .input('SimulasiId', sql.Int, simulasiId)
+      .query(deleteMaterialsQuery);
+    
+    // Then delete the header
+    const deleteHeaderQuery = `DELETE FROM t_COGS_HPP_Product_Header_Simulasi WHERE Simulasi_ID = @SimulasiId`;
+    const headerResult = await db.request()
+      .input('SimulasiId', sql.Int, simulasiId)
+      .query(deleteHeaderQuery);
+    
+    return {
+      materialsDeleted: materialsResult.rowsAffected[0] || 0,
+      headerDeleted: headerResult.rowsAffected[0] || 0
+    };
+  } catch (error) {
+    console.error('Error executing deleteSimulation query:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   getHPP,
   generateHPPCalculation,
@@ -220,4 +264,6 @@ module.exports = {
   updateSimulationHeader,
   deleteSimulationMaterials,
   insertSimulationMaterials,
+  getSimulationList,
+  deleteSimulation,
 };

@@ -1,4 +1,4 @@
-const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials } = require('../models/hppModel');
+const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, deleteSimulation } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
@@ -191,6 +191,72 @@ class HPPController {
       res.status(500).json({
         success: false,
         message: 'Error saving simulation',
+        error: error.message
+      });
+    }
+  }
+
+  // Get list of all simulation records
+  static async getSimulationList(req, res) {
+    try {
+      console.log('Fetching simulation list');
+      
+      const result = await getSimulationList();
+      
+      res.status(200).json({
+        success: true,
+        message: 'Simulation list retrieved successfully',
+        data: result
+      });
+    } catch (error) {
+      console.error('Get Simulation List Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving simulation list',
+        error: error.message
+      });
+    }
+  }
+
+  // Delete simulation by Simulasi_ID
+  static async deleteSimulation(req, res) {
+    try {
+      const { simulasiId } = req.params;
+      
+      // Validate required parameter
+      if (!simulasiId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Simulasi ID is required'
+        });
+      }
+      
+      console.log('Deleting simulation for Simulasi_ID:', simulasiId);
+      
+      const result = await deleteSimulation(simulasiId);
+      
+      // Check if anything was actually deleted
+      if (result.headerDeleted === 0) {
+        return res.status(404).json({
+          success: false,
+          message: `Simulation with ID ${simulasiId} not found`
+        });
+      }
+      
+      res.status(200).json({
+        success: true,
+        message: `Simulation deleted successfully for Simulasi_ID ${simulasiId}`,
+        data: {
+          simulasiId: parseInt(simulasiId),
+          materialsDeleted: result.materialsDeleted,
+          headerDeleted: result.headerDeleted
+        }
+      });
+    } catch (error) {
+      console.error('Delete Simulation Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error deleting simulation',
         error: error.message
       });
     }

@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { masterAPI, productsAPI, hppAPI } from '../services/api';
+import AWN from 'awesome-notifications';
+import 'awesome-notifications/dist/style.css';
 import '../styles/HPPSimulation.css';
 import '../styles/ProductHPPReport.css'; // Import for modal styling
+
+// Initialize awesome-notifications
+const notifier = new AWN({
+  position: 'top-right',
+  durations: {
+    global: 5000
+  }
+});
 
 // Utility functions
 const formatNumber = (value, decimals = 2) => {
@@ -19,13 +29,18 @@ const normalizeLOB = (databaseLOB) => {
 };
 
 export default function HPPSimulation() {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0); // Start with simulation list view
   const [simulationType, setSimulationType] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [productOptions, setProductOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Simulation list state
+  const [simulationList, setSimulationList] = useState([]);
+  const [loadingList, setLoadingList] = useState(true);
+  const [listError, setListError] = useState('');
 
   // Available products with formulas (intersection of productName and chosenFormula)
   const [availableProducts, setAvailableProducts] = useState([]);
@@ -89,6 +104,83 @@ export default function HPPSimulation() {
   const [showAddMaterialModal, setShowAddMaterialModal] = useState(false);
   const [addMaterialType, setAddMaterialType] = useState(''); // 'BB' or 'BK'
   const [materialSearchQuery, setMaterialSearchQuery] = useState('');
+
+  // Load simulation list on component mount
+  useEffect(() => {
+    loadSimulationList();
+  }, []);
+
+  // Load simulation list from API
+  const loadSimulationList = async () => {
+    try {
+      setLoadingList(true);
+      setListError('');
+      
+      const response = await hppAPI.getSimulationList();
+      setSimulationList(response.data || []);
+    } catch (error) {
+      console.error('Error loading simulation list:', error);
+      setListError('Failed to load simulation list. Please try again.');
+    } finally {
+      setLoadingList(false);
+    }
+  };
+
+  // Delete simulation
+  const handleDeleteSimulation = async (simulasiId) => {
+    notifier.confirm(
+      'Are you sure you want to delete this simulation? This action cannot be undone.',
+      async () => {
+        // This runs if user clicks OK/Yes
+        try {
+          setLoading(true);
+          await hppAPI.deleteSimulation(simulasiId);
+          
+          // Reload the simulation list
+          await loadSimulationList();
+          
+          notifier.success('Simulation deleted successfully!');
+        } catch (error) {
+          console.error('Error deleting simulation:', error);
+          notifier.alert('Failed to delete simulation. Please try again.');
+        } finally {
+          setLoading(false);
+        }
+      },
+      () => {
+        // This runs if user clicks Cancel/No - do nothing
+      },
+      {
+        labels: {
+          confirm: 'Delete',
+          cancel: 'Cancel'
+        }
+      }
+    );
+  };
+
+  // Start new simulation
+  const handleNewSimulation = () => {
+    setStep(1);
+    setSimulationType('');
+    setSelectedProduct(null);
+    setProductSearchQuery('');
+    setProductOptions([]);
+    setError('');
+    setSimulationResults(null);
+  };
+
+  // Go back to simulation list
+  const handleBackToList = () => {
+    setStep(0);
+    setSimulationType('');
+    setSelectedProduct(null);
+    setProductSearchQuery('');
+    setProductOptions([]);
+    setError('');
+    setSimulationResults(null);
+    loadSimulationList(); // Refresh the list
+  };
 
   // Load available products when component mounts or when simulation type changes to "Existing Formula"
   useEffect(() => {
@@ -154,7 +246,7 @@ export default function HPPSimulation() {
     setProductOptions([]);
     
     if (type === 'existing') {
-      setStep(2); // Move to product selection step
+      setStep(2); // Move to product selection step (was step 2, now step 2)
     } else {
       setError('Custom Formula simulation will be implemented soon.');
     }
@@ -503,7 +595,7 @@ export default function HPPSimulation() {
       console.log('Save response:', response);
 
       // Show success message
-      alert(`Simulation saved successfully! Updated ${response.data.materialsInserted} materials.`);
+      notifier.success(`Simulation saved successfully! Updated ${response.data.materialsInserted} materials.`);
 
       // Optionally refresh the simulation data to reflect the saved changes
       // await fetchSimulationData(simulasiId);
@@ -511,7 +603,7 @@ export default function HPPSimulation() {
     } catch (err) {
       console.error('Error saving simulation:', err);
       setError('Failed to save simulation: ' + err.message);
-      alert('Failed to save simulation: ' + err.message);
+      notifier.alert('Failed to save simulation: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -748,10 +840,23 @@ export default function HPPSimulation() {
   };
 
   const handleRemoveMaterial = (index) => {
-    if (window.confirm('Are you sure you want to remove this material?')) {
-      const updatedMaterials = editableMaterialData.filter((_, i) => i !== index);
-      setEditableMaterialData(updatedMaterials);
-    }
+    notifier.confirm(
+      'Are you sure you want to remove this material?',
+      () => {
+        // This runs if user clicks OK/Yes
+        const updatedMaterials = editableMaterialData.filter((_, i) => i !== index);
+        setEditableMaterialData(updatedMaterials);
+      },
+      () => {
+        // This runs if user clicks Cancel/No - do nothing
+      },
+      {
+        labels: {
+          confirm: 'Remove',
+          cancel: 'Cancel'
+        }
+      }
+    );
   };
 
   const handleAddMaterial = (materialType) => {
@@ -812,10 +917,103 @@ export default function HPPSimulation() {
           </div>
         )}
 
+        {/* Step 0: Simulation List */}
+        {step === 0 && (
+          <div className="simulation-step">
+            <div className="simulation-list-header">
+              <h2>HPP Simulations</h2>
+              <button 
+                className="new-simulation-btn"
+                onClick={handleNewSimulation}
+                disabled={loading}
+              >
+                + New Simulation
+              </button>
+            </div>
+
+            {listError && (
+              <div className="error-message">
+                {listError}
+                <button onClick={loadSimulationList} className="retry-btn">
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {loadingList ? (
+              <div className="loading-message">Loading simulations...</div>
+            ) : (
+              <div className="simulation-table-container">
+                <table className="simulation-list-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Type</th>
+                      <th>Product ID</th>
+                      <th>Product Name</th>
+                      <th>Formula</th>
+                      <th>Date</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {simulationList.length === 0 ? (
+                      <tr>
+                        <td colSpan="7" className="no-data">
+                          No simulations found. Click "New Simulation" to create your first simulation.
+                        </td>
+                      </tr>
+                    ) : (
+                      simulationList.map((simulation) => (
+                        <tr key={simulation.Simulasi_ID}>
+                          <td>{simulation.Simulasi_ID}</td>
+                          <td>{simulation.Simulasi_Type}</td>
+                          <td>{simulation.Product_ID}</td>
+                          <td className="product-name">{simulation.Product_Name}</td>
+                          <td className="formula-cell">{simulation.Formula}</td>
+                          <td>{new Date(simulation.Simulasi_Date).toLocaleDateString('id-ID')}</td>
+                          <td className="actions-cell">
+                            <button 
+                              className="edit-btn"
+                              onClick={() => {
+                                // TODO: Implement edit functionality
+                                notifier.warning('Edit functionality will be implemented soon');
+                              }}
+                              title="Edit Simulation"
+                            >
+                              ✏️
+                            </button>
+                            <button 
+                              className="delete-btn"
+                              onClick={() => handleDeleteSimulation(simulation.Simulasi_ID)}
+                              disabled={loading}
+                              title="Delete Simulation"
+                            >
+                              🗑️
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Step 1: Select Simulation Type */}
         {step === 1 && (
           <div className="simulation-step">
-            <h2>Step 1: Choose Simulation Type</h2>
+            <div className="step-header">
+              <button 
+                className="back-btn"
+                onClick={handleBackToList}
+              >
+                ← Back to List
+              </button>
+              <h2>Step 1: Choose Simulation Type</h2>
+            </div>
             <p>What type of simulation would you like to perform?</p>
             
             <div className="simulation-type-options">
