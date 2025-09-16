@@ -3094,6 +3094,16 @@ export default function HPPSimulation() {
                         </span>
                       </div>
                       <div className="info-line">
+                        <span className="label">Simulation Description</span>
+                        <span className="separator">:</span>
+                        <span className="value">
+                          {isCustomFormula ? 
+                            editableDescription || '-' : 
+                            (editableDescription || (simulationResults && simulationResults[0] ? simulationResults[0].Simulasi_Deskripsi : '') || '-')
+                          }
+                        </span>
+                      </div>
+                      <div className="info-line">
                         <span className="label">Batch Size Teori</span>
                         <span className="separator">:</span>
                         <span className="value">{(editableBatchSize || (simulationResults && simulationResults[0] ? simulationResults[0].Batch_Size : 0)).toLocaleString()} {simulationResults && simulationResults[0] ? simulationResults[0].Batch_Unit || 'UNIT' : 'UNIT'}</span>
