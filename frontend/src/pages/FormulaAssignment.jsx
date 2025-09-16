@@ -583,15 +583,49 @@ const FormulaAssignment = () => {
   // Handle export to Excel
   const handleExportExcel = () => {
     try {
-      // Prepare data for export
-      const exportData = chosenFormulas.map(formula => ({
-        Product_ID: formula.Product_ID || '',
-        Product_Name: getProductName(formula.Product_ID) || '',
-        PI: formula.PI || '',
-        PS: formula.PS || '',
-        KP: formula.KP || '',
-        KS: formula.KS || ''
-      }));
+      // Helper function to format formula values for export
+      const formatFormulaForExport = (formulaValue) => {
+        if (formulaValue === null || formulaValue === undefined) {
+          return '-'; // Unassigned formula
+        } else if (formulaValue === '') {
+          return ''; // Empty string formula (blank in Excel)
+        } else {
+          return formulaValue; // Named formula
+        }
+      };
+
+      // Create a map of existing formula assignments for quick lookup
+      const formulaMap = new Map();
+      chosenFormulas.forEach(formula => {
+        formulaMap.set(formula.Product_ID, formula);
+      });
+
+      // Prepare data for export - include ALL products
+      const exportData = productList.map(product => {
+        const existingFormula = formulaMap.get(product.Product_ID);
+        
+        if (existingFormula) {
+          // Product has formula assignment - use proper formatting
+          return {
+            Product_ID: product.Product_ID,
+            Product_Name: product.Product_Name,
+            PI: formatFormulaForExport(existingFormula.PI),
+            PS: formatFormulaForExport(existingFormula.PS),
+            KP: formatFormulaForExport(existingFormula.KP),
+            KS: formatFormulaForExport(existingFormula.KS)
+          };
+        } else {
+          // Product has no formula assignment - all formulas are unassigned (-)
+          return {
+            Product_ID: product.Product_ID,
+            Product_Name: product.Product_Name,
+            PI: '-',
+            PS: '-',
+            KP: '-',
+            KS: '-'
+          };
+        }
+      });
 
       // Create workbook and worksheet
       const wb = XLSX.utils.book_new();
@@ -622,7 +656,9 @@ const FormulaAssignment = () => {
       // Save file
       XLSX.writeFile(wb, filename);
       
-      notifier.success(`Excel file exported successfully! (${exportData.length} records)`);
+      const assignedCount = chosenFormulas.length;
+      const unassignedCount = productList.length - assignedCount;
+      notifier.success(`Excel file exported successfully! (${exportData.length} products: ${assignedCount} assigned, ${unassignedCount} unassigned)`);
     } catch (error) {
       console.error('Error exporting to Excel:', error);
       notifier.alert('Failed to export Excel file. Please try again.');
@@ -771,8 +807,8 @@ const FormulaAssignment = () => {
             <button 
               onClick={handleExportExcel}
               className="btn-secondary export-btn"
-              disabled={loading || chosenFormulas.length === 0}
-              title="Export all formula assignments to Excel"
+              disabled={loading || productList.length === 0}
+              title="Export all products with formula assignments to Excel (includes unassigned products)"
             >
               <FileDown size={16} />
               Export Excel
