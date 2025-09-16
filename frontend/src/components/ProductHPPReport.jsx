@@ -25,6 +25,40 @@ const formatNumber = (value, decimals = 2) => {
   }).format(value);
 };
 
+// Format LOB based on product data
+const formatLOB = (product) => {
+  if (!product || !product.LOB) return 'Unknown';
+  
+  const lob = product.LOB.toString().toUpperCase();
+  
+  // Check if this is from the ethical tab (most likely Ethical/OTC)
+  if (lob === 'ETHICAL' || lob === 'ETH' || lob === 'OTC') {
+    return 'Ethical / OTC';
+  }
+  
+  // Check if this is Generic Type 1
+  if (lob === 'GENERIK' || lob === 'GENERIC' || lob.includes('GENERIK1') || lob.includes('GENERIC1')) {
+    return 'Generic Type 1';
+  }
+  
+  // Check if this is Generic Type 2  
+  if (lob.includes('GENERIK2') || lob.includes('GENERIC2')) {
+    return 'Generic Type 2';
+  }
+  
+  // Fallback to original value
+  return lob;
+};
+
+// Format date as dd/mm/yyyy with zero-padding
+const formatPrintDate = () => {
+  const now = new Date();
+  const day = String(now.getDate()).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = now.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
 const ProductHPPReport = ({ product, isOpen, onClose }) => {
   const [materialUsage, setMaterialUsage] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -161,8 +195,8 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
         ['Perhitungan Estimasi COGS', '', '', '', '', '', 'Site :', '', 'PN1/PN2'],
         ['', '', '', '', '', '', '', '', ''],
         ['', '', '', '', '', '', '', '', ''],
-        [`Kode Produk - Description`, ':', `${product.Product_ID} - ${product.Product_Name}`, '', 'LOB', ':', 'ETH/GEN/OTC/EXP'],
-        [`Batch Size Teori`, ':', formatNumber(product.Batch_Size), 'KOTAK', 'Tanggal Print', ':', new Date().toLocaleDateString('id-ID')],
+        [`Kode Produk - Description`, ':', `${product.Product_ID} - ${product.Product_Name}`, '', 'LOB', ':', formatLOB(product)],
+        [`Batch Size Teori`, ':', formatNumber(product.Batch_Size), 'KOTAK', 'Tanggal Print', ':', formatPrintDate()],
         [`Batch Size Actual`, ':', formatNumber(batchSizeActual), 'KOTAK', '', '', ''],
         [`Rendemen`, ':', `${formatNumber(product.Group_Rendemen)}%`, '', '', '', ''],
         ['', '', '', '', '', '', '', '', ''],
@@ -330,11 +364,11 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.text(`Kode Produk - Description: ${product.Product_ID} - ${product.Product_Name}`, 20, yPosition);
-      doc.text(`LOB: ETH/GEN/OTC/EXP`, pageWidth - 80, yPosition);
+      doc.text(`LOB: ${formatLOB(product)}`, pageWidth - 80, yPosition);
       yPosition += 7;
       
       doc.text(`Batch Size Teori: ${formatNumber(product.Batch_Size)} KOTAK`, 20, yPosition);
-      doc.text(`Tanggal Print: ${new Date().toLocaleDateString('id-ID')}`, pageWidth - 80, yPosition);
+      doc.text(`Tanggal Print: ${formatPrintDate()}`, pageWidth - 80, yPosition);
       yPosition += 7;
       
       doc.text(`Batch Size Actual: ${formatNumber(batchSizeActual)} KOTAK`, 20, yPosition);
@@ -794,12 +828,12 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                     <div className="info-line">
                       <span className="label">LOB</span>
                       <span className="separator">:</span>
-                      <span className="value">ETH/GEN/OTC/EXP</span>
+                      <span className="value">{formatLOB(product)}</span>
                     </div>
                     <div className="info-line">
                       <span className="label">Tanggal Print</span>
                       <span className="separator">:</span>
-                      <span className="value">{new Date().toLocaleDateString('id-ID')}</span>
+                      <span className="value">{formatPrintDate()}</span>
                     </div>
                   </div>
                 </div>
@@ -923,13 +957,22 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                         <td className="number">{formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0))}</td>
                         <td className="number">{formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)}</td>
                       </tr>
+                      <tr>
+                        <td>3 EXPIRY COST</td>
+                        <td>-</td>
+                        <td className="number">-</td>
+                        <td>-</td>
+                        <td className="number">{formatNumber(product.Biaya_Exp || 0)}</td>
+                        <td className="number">{formatNumber(product.Biaya_Exp || 0)}</td>
+                        <td className="number">{formatNumber((product.Biaya_Exp || 0) / batchSizeActual)}</td>
+                      </tr>
                       <tr className="total-row">
                         <td colSpan="2"><strong>Total Hours</strong></td>
                         <td className="number"><strong>{formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0))}</strong></td>
                         <td><strong>Total Cost</strong></td>
                         <td></td>
-                        <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)))}</strong></td>
-                        <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0))) / batchSizeActual)}</strong></td>
+                        <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Biaya_Exp || 0))}</strong></td>
+                        <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Biaya_Exp || 0)) / batchSizeActual)}</strong></td>
                       </tr>
                     </tbody>
                   </table>
@@ -1019,6 +1062,15 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                         <td className="number">{formatNumber(product.Biaya_Analisa || 0)}</td>
                         <td className="number">{formatNumber((product.Biaya_Analisa || 0) / batchSizeActual)}</td>
                       </tr>
+                      <tr>
+                        <td>8 EXPIRY COST</td>
+                        <td>-</td>
+                        <td className="number">-</td>
+                        <td>-</td>
+                        <td className="number">{formatNumber(product.Beban_Sisa_Bahan_Exp || 0)}</td>
+                        <td className="number">{formatNumber(product.Beban_Sisa_Bahan_Exp || 0)}</td>
+                        <td className="number">{formatNumber((product.Beban_Sisa_Bahan_Exp || 0) / batchSizeActual)}</td>
+                      </tr>
                       <tr className="total-row">
                         <td colSpan="5"><strong>Total Cost</strong></td>
                         <td className="number total"><strong>{formatNumber(
@@ -1028,7 +1080,8 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                           ((product.MH_Kemas_Std || 0) * (product.Biaya_Generik || 0)) +
                           ((product.MH_Analisa_Std || 0) * (product.Biaya_Generik || 0)) +
                           ((product.MH_Mesin_Std || 0) * (product.Rate_PLN || 0)) +
-                          (product.Biaya_Analisa || 0)
+                          (product.Biaya_Analisa || 0) +
+                          (product.Beban_Sisa_Bahan_Exp || 0)
                         )}</strong></td>
                         <td className="number total"><strong>{formatNumber((
                           ((product.MH_Timbang_BB || 0) * (product.Biaya_Generik || 0)) +
@@ -1037,7 +1090,8 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                           ((product.MH_Kemas_Std || 0) * (product.Biaya_Generik || 0)) +
                           ((product.MH_Analisa_Std || 0) * (product.Biaya_Generik || 0)) +
                           ((product.MH_Mesin_Std || 0) * (product.Rate_PLN || 0)) +
-                          (product.Biaya_Analisa || 0)
+                          (product.Biaya_Analisa || 0) +
+                          (product.Beban_Sisa_Bahan_Exp || 0)
                         ) / batchSizeActual)}</strong></td>
                       </tr>
                     </tbody>
@@ -1074,26 +1128,26 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                         <td>OPERATOR PROSES LINE PN1/PN2</td>
                         <td className="number">{formatNumber(product.MH_Proses_Std || 0)}</td>
                         <td>HRS</td>
-                        <td className="number">{formatNumber(product.Biaya_Proses || 0)}</td>
-                        <td className="number">{formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0))}</td>
-                        <td className="number">{formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)}</td>
+                        <td className="number">{formatNumber(product.Direct_Labor || 0)}</td>
+                        <td className="number">{formatNumber((product.MH_Proses_Std || 0) * (product.Direct_Labor || 0))}</td>
+                        <td className="number">{formatNumber(((product.MH_Proses_Std || 0) * (product.Direct_Labor || 0)) / batchSizeActual)}</td>
                       </tr>
                       <tr>
                         <td>2 PENGEMASAN</td>
                         <td>OPERATOR PROSES LINE PN1/PN2</td>
                         <td className="number">{formatNumber(product.MH_Kemas_Std || 0)}</td>
                         <td>HRS</td>
-                        <td className="number">{formatNumber(product.Biaya_Kemas || 0)}</td>
-                        <td className="number">{formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0))}</td>
-                        <td className="number">{formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)}</td>
+                        <td className="number">{formatNumber(product.Direct_Labor || 0)}</td>
+                        <td className="number">{formatNumber((product.MH_Kemas_Std || 0) * (product.Direct_Labor || 0))}</td>
+                        <td className="number">{formatNumber(((product.MH_Kemas_Std || 0) * (product.Direct_Labor || 0)) / batchSizeActual)}</td>
                       </tr>
                       <tr className="total-row">
                         <td colSpan="2"><strong>Total Hours</strong></td>
                         <td className="number"><strong>{formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0))}</strong></td>
                         <td><strong>Total Cost</strong></td>
                         <td></td>
-                        <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)))}</strong></td>
-                        <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0))) / batchSizeActual)}</strong></td>
+                        <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Direct_Labor || 0)) + ((product.MH_Kemas_Std || 0) * (product.Direct_Labor || 0)))}</strong></td>
+                        <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Direct_Labor || 0)) + ((product.MH_Kemas_Std || 0) * (product.Direct_Labor || 0))) / batchSizeActual)}</strong></td>
                       </tr>
                     </tbody>
                   </table>
@@ -1138,13 +1192,22 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                         <td className="number">{formatNumber((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0))}</td>
                         <td className="number">{formatNumber(((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0)) / batchSizeActual)}</td>
                       </tr>
+                      <tr>
+                        <td>3 EXPIRY COST</td>
+                        <td>-</td>
+                        <td className="number">-</td>
+                        <td>-</td>
+                        <td className="number">{formatNumber(product.Beban_Sisa_Bahan_Exp || 0)}</td>
+                        <td className="number">{formatNumber(product.Beban_Sisa_Bahan_Exp || 0)}</td>
+                        <td className="number">{formatNumber((product.Beban_Sisa_Bahan_Exp || 0) / batchSizeActual)}</td>
+                      </tr>
                       <tr className="total-row">
                         <td colSpan="2"><strong>Total Hours</strong></td>
                         <td className="number"><strong>{formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0))}</strong></td>
                         <td><strong>Total Cost</strong></td>
                         <td></td>
-                        <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)) + ((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0)))}</strong></td>
-                        <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)) + ((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0))) / batchSizeActual)}</strong></td>
+                        <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)) + ((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0)) + (product.Beban_Sisa_Bahan_Exp || 0))}</strong></td>
+                        <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)) + ((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0)) + (product.Beban_Sisa_Bahan_Exp || 0)) / batchSizeActual)}</strong></td>
                       </tr>
                     </tbody>
                   </table>
@@ -1189,13 +1252,22 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                         <td className="number">{formatNumber((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0))}</td>
                         <td className="number">{formatNumber(((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0)) / batchSizeActual)}</td>
                       </tr>
+                      <tr>
+                        <td>3 EXPIRY COST</td>
+                        <td>-</td>
+                        <td className="number">-</td>
+                        <td>-</td>
+                        <td className="number">{formatNumber(product.Beban_Sisa_Bahan_Exp || 0)}</td>
+                        <td className="number">{formatNumber(product.Beban_Sisa_Bahan_Exp || 0)}</td>
+                        <td className="number">{formatNumber((product.Beban_Sisa_Bahan_Exp || 0) / batchSizeActual)}</td>
+                      </tr>
                       <tr className="total-row">
                         <td colSpan="2"><strong>Total Hours</strong></td>
                         <td className="number"><strong>{formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0))}</strong></td>
                         <td><strong>Total Cost</strong></td>
                         <td></td>
-                        <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) + ((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0)))}</strong></td>
-                        <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) + ((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0))) / batchSizeActual)}</strong></td>
+                        <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) + ((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0)) + (product.Beban_Sisa_Bahan_Exp || 0))}</strong></td>
+                        <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) + ((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0)) + (product.Beban_Sisa_Bahan_Exp || 0)) / batchSizeActual)}</strong></td>
                       </tr>
                     </tbody>
                   </table>
