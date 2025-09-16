@@ -128,6 +128,7 @@ export default function HPPSimulation() {
   const [showAddMaterialModal, setShowAddMaterialModal] = useState(false);
   const [addMaterialType, setAddMaterialType] = useState(''); // 'BB' or 'BK'
   const [materialSearchQuery, setMaterialSearchQuery] = useState('');
+  const [randomMaterialSample, setRandomMaterialSample] = useState([]); // Stable random sample
 
   // Load simulation list on component mount
   useEffect(() => {
@@ -1319,10 +1320,27 @@ export default function HPPSimulation() {
   const handleAddMaterial = (materialType) => {
     setAddMaterialType(materialType);
     setShowAddMaterialModal(true);
+    setMaterialSearchQuery(''); // Reset search
+    
     // Load master materials if not already loaded
     if (masterMaterials.length === 0) {
-      loadMasterMaterials();
+      loadMasterMaterials().then(() => {
+        // Generate stable random sample after materials are loaded
+        generateRandomSample(materialType);
+      });
+    } else {
+      // Generate stable random sample immediately if materials are already loaded
+      generateRandomSample(materialType);
     }
+  };
+
+  const generateRandomSample = (materialType) => {
+    const typeFilteredMaterials = masterMaterials.filter(material => 
+      material.ITEM_TYPE === materialType
+    );
+    const sampleSize = Math.min(20, typeFilteredMaterials.length);
+    const shuffled = [...typeFilteredMaterials].sort(() => 0.5 - Math.random());
+    setRandomMaterialSample(shuffled.slice(0, sampleSize));
   };
 
   const loadMasterMaterials = async () => {
@@ -1349,7 +1367,6 @@ export default function HPPSimulation() {
     
     setEditableMaterialData([...editableMaterialData, newMaterial]);
     setShowAddMaterialModal(false);
-    setMaterialSearchQuery(''); // Reset search
   };
 
   // Add custom material function
@@ -1370,7 +1387,6 @@ export default function HPPSimulation() {
     
     setEditableMaterialData([...editableMaterialData, customMaterial]);
     setShowAddMaterialModal(false);
-    setMaterialSearchQuery(''); // Reset search
     
     notifier.success('Custom material added. You can now edit its details in the table.');
   };
@@ -1398,11 +1414,9 @@ export default function HPPSimulation() {
       material.ITEM_TYPE === addMaterialType
     );
 
-    // If no search query, show only a random sample of 20 materials to avoid lag
+    // If no search query, show the stable random sample
     if (!materialSearchQuery || materialSearchQuery.trim().length === 0) {
-      const sampleSize = Math.min(20, typeFilteredMaterials.length);
-      const shuffled = [...typeFilteredMaterials].sort(() => 0.5 - Math.random());
-      return shuffled.slice(0, sampleSize);
+      return randomMaterialSample;
     }
 
     // If there's a search query, filter by ID or name
