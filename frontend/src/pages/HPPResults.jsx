@@ -267,11 +267,8 @@ const Generik2Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
             <th>Total BK</th>
             <th>MH Proses Std</th>
             <th>MH Kemas Std</th>
-            <th>Biaya Proses</th>
-            <th>Biaya Kemas</th>
             <th>Direct Labor</th>
             <th>Factory Over Head 50</th>
-            <th>Depresiasi</th>
             <th>Expiry Cost</th>
             <th>Group Rendemen</th>
             <th>Batch Size</th>
@@ -287,11 +284,8 @@ const Generik2Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
               <td>{formatCurrency(item.totalBK)}</td>
               <td>{formatNumber(item.MH_Proses_Std)}</td>
               <td>{formatNumber(item.MH_Kemas_Std)}</td>
-              <td>{formatCurrency(item.Biaya_Proses)}</td>
-              <td>{formatCurrency(item.Biaya_Kemas)}</td>
               <td>{formatCurrency(item.Direct_Labor)}</td>
               <td>{formatCurrency(item.Factory_Over_Head_50)}</td>
-              <td>{formatCurrency(item.Depresiasi)}</td>
               <td>{formatCurrency(item.Beban_Sisa_Bahan_Exp)}</td>
               <td>{formatNumber(item.Group_Rendemen)}%</td>
               <td>{formatNumber(item.Batch_Size)}</td>
@@ -482,8 +476,8 @@ const HPPResults = () => {
       
       const generik2Columns = [
         'Product_ID', 'Product_Name', 'totalBB', 'totalBK', 'MH_Proses_Std',
-        'MH_Kemas_Std', 'Biaya_Proses', 'Biaya_Kemas', 'Direct_Labor',
-        'Factory_Over_Head_50', 'Depresiasi', 'Beban_Sisa_Bahan_Exp', 'Group_Rendemen', 
+        'MH_Kemas_Std', 'Direct_Labor',
+        'Factory_Over_Head_50', 'Beban_Sisa_Bahan_Exp', 'Group_Rendemen', 
         'Batch_Size', 'HPP'
       ];
 

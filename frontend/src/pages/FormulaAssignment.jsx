@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../services/api';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
+import * as XLSX from 'xlsx';
+import { FileDown } from 'lucide-react';
 import '../styles/FormulaAssignment.css';
 
 const FormulaAssignment = () => {
@@ -578,6 +580,55 @@ const FormulaAssignment = () => {
     );
   };
 
+  // Handle export to Excel
+  const handleExportExcel = () => {
+    try {
+      // Prepare data for export
+      const exportData = chosenFormulas.map(formula => ({
+        Product_ID: formula.Product_ID || '',
+        Product_Name: getProductName(formula.Product_ID) || '',
+        PI: formula.PI || '',
+        PS: formula.PS || '',
+        KP: formula.KP || '',
+        KS: formula.KS || ''
+      }));
+
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData, {
+        header: ['Product_ID', 'Product_Name', 'PI', 'PS', 'KP', 'KS']
+      });
+
+      // Set column widths for better readability
+      ws['!cols'] = [
+        { wch: 15 }, // Product_ID
+        { wch: 30 }, // Product_Name
+        { wch: 15 }, // PI
+        { wch: 15 }, // PS
+        { wch: 15 }, // KP
+        { wch: 15 }  // KS
+      ];
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'Formula Assignments');
+
+      // Generate filename with current date
+      const now = new Date();
+      const dateStr = now.getFullYear() + 
+                     String(now.getMonth() + 1).padStart(2, '0') + 
+                     String(now.getDate()).padStart(2, '0');
+      const filename = `Formula_Assignments_${dateStr}.xlsx`;
+
+      // Save file
+      XLSX.writeFile(wb, filename);
+      
+      notifier.success(`Excel file exported successfully! (${exportData.length} records)`);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      notifier.alert('Failed to export Excel file. Please try again.');
+    }
+  };
+
   // Helper function to get product name
   const getProductName = (productId) => {
     const product = productList.find(p => p.Product_ID === productId);
@@ -718,10 +769,21 @@ const FormulaAssignment = () => {
               />
             </div>
             <button 
+              onClick={handleExportExcel}
+              className="btn-secondary export-btn"
+              disabled={loading || chosenFormulas.length === 0}
+              title="Export all formula assignments to Excel"
+            >
+              <FileDown size={16} />
+              Export Excel
+            </button>
+            {/* Auto Assignment button temporarily hidden */}
+            <button 
               onClick={handleAutoAssign} 
               className="btn-secondary auto-assign-btn"
               disabled={loading}
               title="Automatically assign optimal formulas based on cost analysis"
+              style={{ display: 'none' }}
             >
               Auto Assignment
             </button>

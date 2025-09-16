@@ -239,6 +239,23 @@
   margin-right: 6px;
 }
 
+.btn-secondary.export-btn {
+  background-color: #059669 !important;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-secondary.export-btn:hover {
+  background-color: #047857 !important;
+}
+
+.btn-secondary.export-btn:disabled {
+  background-color: #9ca3af !important;
+  cursor: not-allowed;
+}
+
 .btn-edit {
   background-color: #10b981;
   color: white;

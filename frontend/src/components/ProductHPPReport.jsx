@@ -25,29 +25,59 @@ const formatNumber = (value, decimals = 2) => {
   }).format(value);
 };
 
-// Format LOB based on product data
+// Format LOB based on product data and detected product type
 const formatLOB = (product) => {
-  if (!product || !product.LOB) return 'Unknown';
+  if (!product) return 'Unknown';
   
-  const lob = product.LOB.toString().toUpperCase();
+  // Determine the actual product type first
+  const detectProductType = () => {
+    if (!product) return 'Generic2';
+    
+    // Check if it's Generic 2 first (has Factory_Over_Head_50 field)
+    if (product.Factory_Over_Head_50 !== undefined) {
+      return 'Generic2';
+    }
+    
+    // Check if it's Ethical (has specific Ethical fields)
+    if (product.totalBB !== undefined && product.totalBK !== undefined && 
+        product.MH_Proses_Std !== undefined && product.MH_Kemas_Std !== undefined &&
+        product.Biaya_Proses !== undefined && product.Biaya_Kemas !== undefined &&
+        !product.MH_Analisa_Std && !product.Biaya_Generik) {
+      return 'Ethical';
+    }
+    
+    // Check if it's Generic 1 (has Biaya_Generik and related fields)
+    if (product.Biaya_Generik !== undefined && product.MH_Analisa_Std !== undefined &&
+        product.MH_Timbang_BB !== undefined && product.MH_Timbang_BK !== undefined) {
+      return 'Generic1';
+    }
+    
+    return 'Generic2';
+  };
   
-  // Check if this is from the ethical tab (most likely Ethical/OTC)
+  const productType = detectProductType();
+  const lob = product.LOB ? product.LOB.toString().toUpperCase() : '';
+  
+  // Return the appropriate LOB based on detected product type
+  if (productType === 'Ethical') {
+    return 'Ethical / OTC';
+  } else if (productType === 'Generic1') {
+    return 'Generic Type 1';
+  } else if (productType === 'Generic2') {
+    return 'Generic Type 2';
+  }
+  
+  // Fallback to original LOB field parsing if detection fails
   if (lob === 'ETHICAL' || lob === 'ETH' || lob === 'OTC') {
     return 'Ethical / OTC';
   }
   
-  // Check if this is Generic Type 1
-  if (lob === 'GENERIK' || lob === 'GENERIC' || lob.includes('GENERIK1') || lob.includes('GENERIC1')) {
-    return 'Generic Type 1';
-  }
-  
-  // Check if this is Generic Type 2  
-  if (lob.includes('GENERIK2') || lob.includes('GENERIC2')) {
-    return 'Generic Type 2';
+  if (lob === 'GENERIK' || lob === 'GENERIC') {
+    return 'Generic Type 1'; // Default generic to Type 1
   }
   
   // Fallback to original value
-  return lob;
+  return lob || 'Unknown';
 };
 
 // Format date as dd/mm/yyyy with zero-padding
@@ -93,12 +123,12 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
   const bahanBaku = materialUsage.filter(item => item.item_type === 'BB');
   const bahanKemas = materialUsage.filter(item => item.item_type === 'BK');
 
-  // Determine product type based on available fields - this logic may need adjustment based on actual data structure
-  const getProductType = () => {
+  // Determine product type based on available fields
+  const productType = (() => {
     if (!product) return 'Generic2'; // Default fallback
     
-    // Check if it's Generic 2 first (has specific Generic2 fields like Factory_Over_Head_50 and Depresiasi)
-    if (product.Factory_Over_Head_50 !== undefined && product.Depresiasi !== undefined) {
+    // Check if it's Generic 2 first (has Factory_Over_Head_50 field)
+    if (product.Factory_Over_Head_50 !== undefined) {
       return 'Generic2';
     }
     
@@ -118,9 +148,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
     
     // Default to Generic 2
     return 'Generic2';
-  };
-
-  const productType = getProductType();
+  })();
 
   // Calculate totals and per pack costs only if product exists
   let totalBB = 0;
@@ -165,9 +193,8 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
       totalOverheadCost = ((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) +
                           ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) +
                           ((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)) +
-                          ((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0)) +
-                          ((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) +
-                          ((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0));
+                          ((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0));
+                          // Note: Depreciation (Depresiasi) removed as it's no longer used for Generic Type 2
     }
 
     totalOverheadPerPack = totalOverheadCost / batchSizeActual;
@@ -192,7 +219,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
       
       // Header section
       XLSX.utils.sheet_add_aoa(ws, [
-        ['Perhitungan Estimasi COGS', '', '', '', '', '', 'Site :', '', 'PN1/PN2'],
+        ['Perhitungan Estimasi COGS', '', '', '', '', '', 'Site :', '', product?.Group_PNCategory_Dept || 'N/A'],
         ['', '', '', '', '', '', '', '', ''],
         ['', '', '', '', '', '', '', '', ''],
         [`Kode Produk - Description`, ':', `${product.Product_ID} - ${product.Product_Name}`, '', 'LOB', ':', formatLOB(product)],
@@ -248,8 +275,8 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
         XLSX.utils.sheet_add_aoa(ws, [
           ['Resource Scheduling', 'Nama Material', 'Qty', 'Mhrs/machine hours', 'Cost/unit', 'Extended Cost', 'Per pack'],
           ['Overhead', '', '', '', '', '', ''],
-          ['1', 'PENGOLAHAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Biaya_Proses || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)],
-          ['2', 'PENGEMASAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Biaya_Kemas || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)],
+          ['1', 'PENGOLAHAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Biaya_Proses || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)],
+          ['2', 'PENGEMASAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Biaya_Kemas || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)],
           ['', '', 'Total Hours', formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0)), 'Total Cost', formatNumber(totalOverheadCost), formatNumber(totalOverheadPerPack)]
         ], { origin: `A${currentRow}` });
         currentRow += 6;
@@ -257,11 +284,11 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
         XLSX.utils.sheet_add_aoa(ws, [
           ['Resource Scheduling', 'Nama Material', 'Qty', 'Mhrs/machine hours', 'Cost/unit', 'Extended Cost', 'Per pack'],
           ['Overhead', '', '', '', '', '', ''],
-          ['1', 'TIMBANG BB', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Timbang_BB || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Timbang_BB || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Timbang_BB || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
-          ['2', 'TIMBANG BK', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Timbang_BK || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Timbang_BK || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Timbang_BK || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
-          ['3', 'PENGOLAHAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
-          ['4', 'PENGEMASAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
-          ['5', 'ANALISA', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Analisa_Std || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Analisa_Std || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Analisa_Std || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
+          ['1', 'TIMBANG BB', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Timbang_BB || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Timbang_BB || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Timbang_BB || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
+          ['2', 'TIMBANG BK', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Timbang_BK || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Timbang_BK || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Timbang_BK || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
+          ['3', 'PENGOLAHAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
+          ['4', 'PENGEMASAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
+          ['5', 'ANALISA', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Analisa_Std || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Analisa_Std || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Analisa_Std || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
           ['6', 'MESIN', 'MESIN OPERATION', formatNumber(product.MH_Mesin_Std || 0), 'HRS', formatNumber(product.Rate_PLN || 0), formatNumber((product.MH_Mesin_Std || 0) * (product.Rate_PLN || 0)), formatNumber(((product.MH_Mesin_Std || 0) * (product.Rate_PLN || 0)) / batchSizeActual)],
           ['7', 'REAGEN', 'ANALISA REAGENT', '1', 'LOT', formatNumber(product.Biaya_Analisa || 0), formatNumber(product.Biaya_Analisa || 0), formatNumber((product.Biaya_Analisa || 0) / batchSizeActual)],
           ['', '', '', '', 'Total Cost', formatNumber(totalOverheadCost), formatNumber(totalOverheadPerPack)]
@@ -273,8 +300,8 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
           ['Resource Scheduling', 'Nama Material', 'Qty', 'Mhrs/machine hours', 'Cost/unit', 'Extended Cost', 'Per pack'],
           ['Direct Labor', '', '', '', '', '', ''],
           ['Line Production', '', '', '', '', '', ''],
-          ['1', 'PENGOLAHAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Biaya_Proses || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)],
-          ['2', 'PENGEMASAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Biaya_Kemas || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)],
+          ['1', 'PENGOLAHAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Biaya_Proses || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)],
+          ['2', 'PENGEMASAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Biaya_Kemas || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)],
           ['', '', 'Total Hours', formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0)), 'Total Cost', formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0))), formatNumber((((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0))) / batchSizeActual)],
           ['', '', '', '', '', '', '']
         ], { origin: `A${currentRow}` });
@@ -285,23 +312,14 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
           ['Resource Scheduling', 'Nama Material', 'Qty', 'Mhrs/machine hours', 'Cost/unit', 'Extended Cost', 'Per pack'],
           ['Factory Over Head', '', '', '', '', '', ''],
           ['Line Production', '', '', '', '', '', ''],
-          ['1', 'PENGOLAHAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Factory_Over_Head_50 || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)) / batchSizeActual)],
-          ['2', 'PENGEMASAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Factory_Over_Head_50 || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0)) / batchSizeActual)],
+          ['1', 'PENGOLAHAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Factory_Over_Head_50 || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)) / batchSizeActual)],
+          ['2', 'PENGEMASAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Factory_Over_Head_50 || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0)) / batchSizeActual)],
           ['', '', 'Total Hours', formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0)), 'Total Cost', formatNumber(((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)) + ((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0))), formatNumber((((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)) + ((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0))) / batchSizeActual)],
           ['', '', '', '', '', '', '']
         ], { origin: `A${currentRow}` });
         currentRow += 7;
 
-        // Depreciation
-        XLSX.utils.sheet_add_aoa(ws, [
-          ['Resource Scheduling', 'Nama Material', 'Qty', 'Mhrs/machine hours', 'Cost/unit', 'Extended Cost', 'Per pack'],
-          ['Depreciation', '', '', '', '', '', ''],
-          ['Line Production', '', '', '', '', '', ''],
-          ['1', 'PENGOLAHAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Depresiasi || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) / batchSizeActual)],
-          ['2', 'PENGEMASAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Depresiasi || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0)) / batchSizeActual)],
-          ['', '', 'Total Hours', formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0)), 'Total Cost', formatNumber(((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) + ((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0))), formatNumber((((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) + ((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0))) / batchSizeActual)]
-        ], { origin: `A${currentRow}` });
-        currentRow += 6;
+        // Note: Depreciation section removed for Generic Type 2 as it's no longer used
       }
 
       // Final total
@@ -357,7 +375,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
       doc.text('Perhitungan Estimasi COGS', 20, yPosition);
-      doc.text('Site: PN1/PN2', pageWidth - 50, yPosition);
+      doc.text('Site: ' + (product?.Group_PNCategory_Dept || 'N/A'), pageWidth - 50, yPosition);
       yPosition += 15;
 
       // Product Information Section
@@ -490,8 +508,8 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
         yPosition += 10;
 
         const overheadData = [
-          ['1 PENGOLAHAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Biaya_Proses || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)],
-          ['2 PENGEMASAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Biaya_Kemas || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)],
+          ['1 PENGOLAHAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Biaya_Proses || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)],
+          ['2 PENGEMASAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Biaya_Kemas || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)],
           ['Total Hours: ' + formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0)), 'Total Cost', '', '', '', formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0))), formatNumber((((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0))) / batchSizeActual)]
         ];
 
@@ -527,11 +545,11 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
         yPosition += 10;
 
         const overheadData = [
-          ['1 TIMBANG BB', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Timbang_BB || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Timbang_BB || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Timbang_BB || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
-          ['2 TIMBANG BK', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Timbang_BK || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Timbang_BK || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Timbang_BK || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
-          ['3 PENGOLAHAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
-          ['4 PENGEMASAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
-          ['5 ANALISA', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Analisa_Std || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Analisa_Std || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Analisa_Std || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
+          ['1 TIMBANG BB', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Timbang_BB || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Timbang_BB || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Timbang_BB || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
+          ['2 TIMBANG BK', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Timbang_BK || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Timbang_BK || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Timbang_BK || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
+          ['3 PENGOLAHAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
+          ['4 PENGEMASAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
+          ['5 ANALISA', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Analisa_Std || 0), 'HRS', formatNumber(product.Biaya_Generik || 0), formatNumber((product.MH_Analisa_Std || 0) * (product.Biaya_Generik || 0)), formatNumber(((product.MH_Analisa_Std || 0) * (product.Biaya_Generik || 0)) / batchSizeActual)],
           ['6 MESIN', 'MESIN OPERATION', formatNumber(product.MH_Mesin_Std || 0), 'HRS', formatNumber(product.Rate_PLN || 0), formatNumber((product.MH_Mesin_Std || 0) * (product.Rate_PLN || 0)), formatNumber(((product.MH_Mesin_Std || 0) * (product.Rate_PLN || 0)) / batchSizeActual)],
           ['7 REAGEN', 'ANALISA REAGENT', '1', 'LOT', formatNumber(product.Biaya_Analisa || 0), formatNumber(product.Biaya_Analisa || 0), formatNumber((product.Biaya_Analisa || 0) / batchSizeActual)],
           ['Total Cost', '', '', '', '', formatNumber(
@@ -587,8 +605,8 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
 
         const directLaborData = [
           ['Line Production', '', '', '', '', '', ''],
-          ['1 PENGOLAHAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Biaya_Proses || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)],
-          ['2 PENGEMASAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Biaya_Kemas || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)],
+          ['1 PENGOLAHAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Biaya_Proses || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)],
+          ['2 PENGEMASAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Biaya_Kemas || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)],
           ['Total Hours: ' + formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0)), 'Total Cost', '', '', '', formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0))), formatNumber((((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0))) / batchSizeActual)]
         ];
 
@@ -628,8 +646,8 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
 
         const factoryOverHeadData = [
           ['Line Production', '', '', '', '', '', ''],
-          ['1 PENGOLAHAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Factory_Over_Head_50 || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)) / batchSizeActual)],
-          ['2 PENGEMASAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Factory_Over_Head_50 || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0)) / batchSizeActual)],
+          ['1 PENGOLAHAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Factory_Over_Head_50 || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)) / batchSizeActual)],
+          ['2 PENGEMASAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Factory_Over_Head_50 || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0)) / batchSizeActual)],
           ['Total Hours: ' + formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0)), 'Total Cost', '', '', '', formatNumber(((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)) + ((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0))), formatNumber((((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)) + ((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0))) / batchSizeActual)]
         ];
 
@@ -660,46 +678,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
         });
         yPosition = doc.lastAutoTable.finalY + 15;
 
-        // Depreciation Section
-        checkPageBreak(30);
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Depreciation', 20, yPosition);
-        yPosition += 10;
-
-        const depreciationData = [
-          ['Line Production', '', '', '', '', '', ''],
-          ['1 PENGOLAHAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Depresiasi || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) / batchSizeActual)],
-          ['2 PENGEMASAN', 'OPERATOR PROSES LINE PN1/PN2', formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Depresiasi || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0)) / batchSizeActual)],
-          ['Total Hours: ' + formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0)), 'Total Cost', '', '', '', formatNumber(((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) + ((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0))), formatNumber((((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) + ((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0))) / batchSizeActual)]
-        ];
-
-        autoTable(doc, {
-          startY: yPosition,
-          head: [['Resource Scheduling', 'Nama Material', 'Qty', 'Mhrs/machine hours', 'Cost/unit', 'Extended Cost', 'Per pack']],
-          body: depreciationData,
-          styles: { fontSize: 8, cellPadding: 2 },
-          headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
-          columnStyles: {
-            0: { cellWidth: 35 },
-            1: { cellWidth: 40 },
-            2: { halign: 'right', cellWidth: 15 },
-            3: { halign: 'center', cellWidth: 15 },
-            4: { halign: 'right', cellWidth: 20 },
-            5: { halign: 'right', cellWidth: 25 },
-            6: { halign: 'right', cellWidth: 20 }
-          },
-          didParseCell: function(data) {
-            if (data.row.index === 0) {
-              data.cell.styles.fontStyle = 'italic';
-              data.cell.styles.fillColor = [245, 245, 245];
-            } else if (data.row.index === depreciationData.length - 1) {
-              data.cell.styles.fontStyle = 'bold';
-              data.cell.styles.fillColor = [248, 248, 248];
-            }
-          }
-        });
-        yPosition = doc.lastAutoTable.finalY + 15;
+        // Note: Depreciation section removed for Generic Type 2 as it's no longer used
       }
 
       // Final Total Section
@@ -793,7 +772,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                   <div className="header-right">
                     <div className="header-info">
                       <span className="label">Site :</span>
-                      <span className="value">PN1/PN2</span>
+                      <span className="value">{product?.Group_PNCategory_Dept || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
@@ -941,7 +920,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                       <tbody>
                       <tr>
                         <td>1 PENGOLAHAN</td>
-                        <td>OPERATOR PROSES LINE PN1/PN2</td>
+                        <td>OPERATOR PROSES LINE {product?.Group_PNCategory_Dept || 'N/A'}</td>
                         <td className="number">{formatNumber(product.MH_Proses_Std || 0)}</td>
                         <td>HRS</td>
                         <td className="number">{formatNumber(product.Biaya_Proses || 0)}</td>
@@ -950,7 +929,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                       </tr>
                       <tr>
                         <td>2 PENGEMASAN</td>
-                        <td>OPERATOR PROSES LINE PN1/PN2</td>
+                        <td>OPERATOR PROSES LINE {product?.Group_PNCategory_Dept || 'N/A'}</td>
                         <td className="number">{formatNumber(product.MH_Kemas_Std || 0)}</td>
                         <td>HRS</td>
                         <td className="number">{formatNumber(product.Biaya_Kemas || 0)}</td>
@@ -962,17 +941,17 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                         <td>-</td>
                         <td className="number">-</td>
                         <td>-</td>
-                        <td className="number">{formatNumber(product.Biaya_Exp || 0)}</td>
-                        <td className="number">{formatNumber(product.Biaya_Exp || 0)}</td>
-                        <td className="number">{formatNumber((product.Biaya_Exp || 0) / batchSizeActual)}</td>
+                        <td className="number">{formatNumber(product.Beban_Sisa_Bahan_Exp || 0)}</td>
+                        <td className="number">{formatNumber(product.Beban_Sisa_Bahan_Exp || 0)}</td>
+                        <td className="number">{formatNumber((product.Beban_Sisa_Bahan_Exp || 0) / batchSizeActual)}</td>
                       </tr>
                       <tr className="total-row">
                         <td colSpan="2"><strong>Total Hours</strong></td>
                         <td className="number"><strong>{formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0))}</strong></td>
                         <td><strong>Total Cost</strong></td>
                         <td></td>
-                        <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Biaya_Exp || 0))}</strong></td>
-                        <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Biaya_Exp || 0)) / batchSizeActual)}</strong></td>
+                        <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Beban_Sisa_Bahan_Exp || 0))}</strong></td>
+                        <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Beban_Sisa_Bahan_Exp || 0)) / batchSizeActual)}</strong></td>
                       </tr>
                     </tbody>
                   </table>
@@ -1001,7 +980,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                       <tbody>
                       <tr>
                         <td>1 TIMBANG BB</td>
-                        <td>OPERATOR PROSES LINE PN1/PN2</td>
+                        <td>OPERATOR PROSES LINE {product?.Group_PNCategory_Dept || 'N/A'}</td>
                         <td className="number">{formatNumber(product.MH_Timbang_BB || 0)}</td>
                         <td>HRS</td>
                         <td className="number">{formatNumber(product.Biaya_Generik || 0)}</td>
@@ -1010,7 +989,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                       </tr>
                       <tr>
                         <td>2 TIMBANG BK</td>
-                        <td>OPERATOR PROSES LINE PN1/PN2</td>
+                        <td>OPERATOR PROSES LINE {product?.Group_PNCategory_Dept || 'N/A'}</td>
                         <td className="number">{formatNumber(product.MH_Timbang_BK || 0)}</td>
                         <td>HRS</td>
                         <td className="number">{formatNumber(product.Biaya_Generik || 0)}</td>
@@ -1019,7 +998,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                       </tr>
                       <tr>
                         <td>3 PENGOLAHAN</td>
-                        <td>OPERATOR PROSES LINE PN1/PN2</td>
+                        <td>OPERATOR PROSES LINE {product?.Group_PNCategory_Dept || 'N/A'}</td>
                         <td className="number">{formatNumber(product.MH_Proses_Std || 0)}</td>
                         <td>HRS</td>
                         <td className="number">{formatNumber(product.Biaya_Generik || 0)}</td>
@@ -1028,7 +1007,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                       </tr>
                       <tr>
                         <td>4 PENGEMASAN</td>
-                        <td>OPERATOR PROSES LINE PN1/PN2</td>
+                        <td>OPERATOR PROSES LINE {product?.Group_PNCategory_Dept || 'N/A'}</td>
                         <td className="number">{formatNumber(product.MH_Kemas_Std || 0)}</td>
                         <td>HRS</td>
                         <td className="number">{formatNumber(product.Biaya_Generik || 0)}</td>
@@ -1037,7 +1016,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                       </tr>
                       <tr>
                         <td>5 ANALISA</td>
-                        <td>OPERATOR PROSES LINE PN1/PN2</td>
+                        <td>OPERATOR PROSES LINE {product?.Group_PNCategory_Dept || 'N/A'}</td>
                         <td className="number">{formatNumber(product.MH_Analisa_Std || 0)}</td>
                         <td>HRS</td>
                         <td className="number">{formatNumber(product.Biaya_Generik || 0)}</td>
@@ -1213,65 +1192,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                   </table>
                   </div>
 
-                  {/* Depreciation Section */}
-                  <div className="material-section">
-                    <div className="section-title">
-                      <h4>Depreciation</h4>
-                    </div>
-                    <table className="excel-table">
-                      <thead>
-                        <tr>
-                          <th>Resource Scheduling</th>
-                          <th>Nama Material</th>
-                          <th>Qty</th>
-                          <th>Mhrs/machine hours</th>
-                          <th>Cost/unit</th>
-                          <th>Extended Cost</th>
-                          <th>Per pack</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                      <tr className="subsection-header">
-                        <td colSpan="7"><em>Line Production</em></td>
-                      </tr>
-                      <tr>
-                        <td>1 PENGOLAHAN</td>
-                        <td>OPERATOR PROSES LINE PN1/PN2</td>
-                        <td className="number">{formatNumber(product.MH_Proses_Std || 0)}</td>
-                        <td>HRS</td>
-                        <td className="number">{formatNumber(product.Depresiasi || 0)}</td>
-                        <td className="number">{formatNumber((product.MH_Proses_Std || 0) * (product.Depresiasi || 0))}</td>
-                        <td className="number">{formatNumber(((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) / batchSizeActual)}</td>
-                      </tr>
-                      <tr>
-                        <td>2 PENGEMASAN</td>
-                        <td>OPERATOR PROSES LINE PN1/PN2</td>
-                        <td className="number">{formatNumber(product.MH_Kemas_Std || 0)}</td>
-                        <td>HRS</td>
-                        <td className="number">{formatNumber(product.Depresiasi || 0)}</td>
-                        <td className="number">{formatNumber((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0))}</td>
-                        <td className="number">{formatNumber(((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0)) / batchSizeActual)}</td>
-                      </tr>
-                      <tr>
-                        <td>3 EXPIRY COST</td>
-                        <td>-</td>
-                        <td className="number">-</td>
-                        <td>-</td>
-                        <td className="number">{formatNumber(product.Beban_Sisa_Bahan_Exp || 0)}</td>
-                        <td className="number">{formatNumber(product.Beban_Sisa_Bahan_Exp || 0)}</td>
-                        <td className="number">{formatNumber((product.Beban_Sisa_Bahan_Exp || 0) / batchSizeActual)}</td>
-                      </tr>
-                      <tr className="total-row">
-                        <td colSpan="2"><strong>Total Hours</strong></td>
-                        <td className="number"><strong>{formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0))}</strong></td>
-                        <td><strong>Total Cost</strong></td>
-                        <td></td>
-                        <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) + ((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0)) + (product.Beban_Sisa_Bahan_Exp || 0))}</strong></td>
-                        <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) + ((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0)) + (product.Beban_Sisa_Bahan_Exp || 0)) / batchSizeActual)}</strong></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                  </div>
+                  {/* Note: Depreciation section removed for Generic Type 2 as it's no longer used */}
                 </div>
               )}
 
