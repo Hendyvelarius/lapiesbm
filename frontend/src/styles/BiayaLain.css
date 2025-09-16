@@ -270,6 +270,7 @@
   justify-content: center;
   padding: 4rem 2rem;
   text-align: center;
+  animation: none; /* Ensure container doesn't spin */
 }
 
 .biaya-lain-loading-spinner {

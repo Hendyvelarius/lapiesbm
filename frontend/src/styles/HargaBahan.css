@@ -261,7 +261,7 @@
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top: 2px solid white;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: harga-bahan-spin 1s linear infinite;
 }
 
 /* Delete Modal Styles */
@@ -711,19 +711,21 @@
   justify-content: center;
   height: 400px;
   color: #374151;
+  animation: none; /* Ensure container doesn't spin */
 }
 
-.spinner {
+/* Only apply animation to the spinner element inside the container */
+.loading-spinner .spinner {
   width: 50px;
   height: 50px;
   border: 4px solid rgba(102, 126, 234, 0.3);
   border-top: 4px solid #667eea;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: harga-bahan-spin 1s linear infinite;
   margin-bottom: 1rem;
 }
 
-@keyframes spin {
+@keyframes harga-bahan-spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }

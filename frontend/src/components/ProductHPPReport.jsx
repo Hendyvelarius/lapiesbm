@@ -941,17 +941,17 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                         <td>-</td>
                         <td className="number">-</td>
                         <td>-</td>
-                        <td className="number">{formatNumber(product.Beban_Sisa_Bahan_Exp || 0)}</td>
-                        <td className="number">{formatNumber(product.Beban_Sisa_Bahan_Exp || 0)}</td>
-                        <td className="number">{formatNumber((product.Beban_Sisa_Bahan_Exp || 0) / batchSizeActual)}</td>
+                        <td className="number">{formatNumber(product.Biaya_Exp || 0)}</td>
+                        <td className="number">{formatNumber(product.Biaya_Exp || 0)}</td>
+                        <td className="number">{formatNumber((product.Biaya_Exp || 0) / batchSizeActual)}</td>
                       </tr>
                       <tr className="total-row">
                         <td colSpan="2"><strong>Total Hours</strong></td>
                         <td className="number"><strong>{formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0))}</strong></td>
                         <td><strong>Total Cost</strong></td>
                         <td></td>
-                        <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Beban_Sisa_Bahan_Exp || 0))}</strong></td>
-                        <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Beban_Sisa_Bahan_Exp || 0)) / batchSizeActual)}</strong></td>
+                        <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Biaya_Exp || 0))}</strong></td>
+                        <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Biaya_Exp || 0)) / batchSizeActual)}</strong></td>
                       </tr>
                     </tbody>
                   </table>
@@ -980,7 +980,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                       <tbody>
                       <tr>
                         <td>1 TIMBANG BB</td>
-                        <td>OPERATOR PROSES LINE {product?.Group_PNCategory_Dept || 'N/A'}</td>
+                        <td>OPERATOR PROSES LINE PN1/PN2</td>
                         <td className="number">{formatNumber(product.MH_Timbang_BB || 0)}</td>
                         <td>HRS</td>
                         <td className="number">{formatNumber(product.Biaya_Generik || 0)}</td>
@@ -989,7 +989,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                       </tr>
                       <tr>
                         <td>2 TIMBANG BK</td>
-                        <td>OPERATOR PROSES LINE {product?.Group_PNCategory_Dept || 'N/A'}</td>
+                        <td>OPERATOR PROSES LINE PN1/PN2</td>
                         <td className="number">{formatNumber(product.MH_Timbang_BK || 0)}</td>
                         <td>HRS</td>
                         <td className="number">{formatNumber(product.Biaya_Generik || 0)}</td>
@@ -998,7 +998,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                       </tr>
                       <tr>
                         <td>3 PENGOLAHAN</td>
-                        <td>OPERATOR PROSES LINE {product?.Group_PNCategory_Dept || 'N/A'}</td>
+                        <td>OPERATOR PROSES LINE PN1/PN2</td>
                         <td className="number">{formatNumber(product.MH_Proses_Std || 0)}</td>
                         <td>HRS</td>
                         <td className="number">{formatNumber(product.Biaya_Generik || 0)}</td>
@@ -1007,7 +1007,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                       </tr>
                       <tr>
                         <td>4 PENGEMASAN</td>
-                        <td>OPERATOR PROSES LINE {product?.Group_PNCategory_Dept || 'N/A'}</td>
+                        <td>OPERATOR PROSES LINE PN1/PN2</td>
                         <td className="number">{formatNumber(product.MH_Kemas_Std || 0)}</td>
                         <td>HRS</td>
                         <td className="number">{formatNumber(product.Biaya_Generik || 0)}</td>
@@ -1016,7 +1016,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                       </tr>
                       <tr>
                         <td>5 ANALISA</td>
-                        <td>OPERATOR PROSES LINE {product?.Group_PNCategory_Dept || 'N/A'}</td>
+                        <td>OPERATOR PROSES LINE PN1/PN2</td>
                         <td className="number">{formatNumber(product.MH_Analisa_Std || 0)}</td>
                         <td>HRS</td>
                         <td className="number">{formatNumber(product.Biaya_Generik || 0)}</td>

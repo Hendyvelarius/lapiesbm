@@ -532,17 +532,23 @@
   margin: 2rem 0;
 }
 
-.spinner {
+/* Ensure no animation is applied to the container */
+.loading-spinner {
+  animation: none;
+}
+
+/* Only apply animation to the spinner element inside the container */
+.loading-spinner .spinner {
   width: 50px;
   height: 50px;
   border: 4px solid #f3f4f6;
   border-top: 4px solid #667eea;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: pembebanan-spin 1s linear infinite;
   margin-bottom: 1.5rem;
 }
 
-@keyframes spin {
+@keyframes pembebanan-spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
@@ -821,7 +827,7 @@
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top: 2px solid white;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: pembebanan-spin 1s linear infinite;
 }
 
 /* Delete Modal */
