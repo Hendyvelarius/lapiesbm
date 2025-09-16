@@ -21,6 +21,9 @@ router.get('/formula-cost', ProductController.getFormulaProductCost);
 // POST /api/products/auto-assign-formulas - Auto assign formulas based on cost analysis
 router.post('/auto-assign-formulas', ProductController.autoAssignFormulas);
 
+// POST /api/products/bulk-import-formulas - Bulk import formula assignments from Excel
+router.post('/bulk-import-formulas', ProductController.bulkImportFormulas);
+
 // Chosen formula CRUD operations
 router.get('/chosenformula', ProductController.getChosenFormula);
 router.post('/chosenformula', ProductController.addChosenFormula);
@@ -29,7 +32,5 @@ router.delete('/chosenformula/:productId', ProductController.deleteChosenFormula
 
 // Recipe operations
 router.get('/recipe/:productId', ProductController.findRecipe);
-
-module.exports = router;
 
 module.exports = router;

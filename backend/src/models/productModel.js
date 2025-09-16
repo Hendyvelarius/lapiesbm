@@ -355,6 +355,55 @@ const getFormulaRecommendations = async (productId) => {
     }
 };
 
+// Bulk import formula assignments (similar to autoAssignFormulas but with provided data)
+async function bulkImportFormulas(importData) {
+    try {
+        const pool = await connect();
+        
+        // Step 1: Clear existing assignments for the current period
+        const currentYear = new Date().getFullYear().toString();
+        await pool.request()
+            .input('periode', sql.VarChar, currentYear)
+            .query(`DELETE FROM M_COGS_PRODUCT_FORMULA_FIX WHERE Periode = @periode`);
+        
+        // Step 2: Bulk insert new assignments
+        if (importData.length > 0) {
+            const insertPromises = importData.map(assignment => {
+                return pool.request()
+                    .input('periode', sql.VarChar, assignment.Periode)
+                    .input('productId', sql.VarChar, assignment.Product_ID)
+                    .input('pi', sql.VarChar, assignment.PI === null ? null : assignment.PI)
+                    .input('ps', sql.VarChar, assignment.PS === null ? null : assignment.PS)
+                    .input('kp', sql.VarChar, assignment.KP === null ? null : assignment.KP)
+                    .input('ks', sql.VarChar, assignment.KS === null ? null : assignment.KS)
+                    .input('stdOutput', sql.Decimal(18,2), assignment.Std_Output || 0)
+                    .input('isManual', sql.Bit, assignment.isManual)
+                    .input('userId', sql.VarChar, assignment.user_id || 'AUTO_ASSIGN')
+                    .input('delegatedTo', sql.VarChar, assignment.delegated_to || 'AUTO_ASSIGN')
+                    .input('processDate', sql.DateTime, new Date(assignment.process_date))
+                    .input('flagUpdate', sql.VarChar, assignment.flag_update)
+                    .input('fromUpdate', sql.VarChar, assignment.from_update)
+                    .query(`
+                        INSERT INTO M_COGS_PRODUCT_FORMULA_FIX 
+                        (Periode, Product_ID, PI, PS, KP, KS, Std_Output, isManual, user_id, delegated_to, process_date, flag_update, from_update)
+                        VALUES 
+                        (@periode, @productId, @pi, @ps, @kp, @ks, @stdOutput, @isManual, @userId, @delegatedTo, @processDate, @flagUpdate, @fromUpdate)
+                    `);
+            });
+            
+            await Promise.all(insertPromises);
+        }
+        
+        return {
+            processed: importData.length,
+            message: `Successfully imported ${importData.length} formula assignments`
+        };
+    } catch (error) {
+        console.error('Error in bulkImportFormulas:', error);
+        throw error;
+    }
+}
+
 module.exports = {
     getFormula,
     getChosenFormula,
@@ -367,5 +416,6 @@ module.exports = {
     getActiveFormulaDetails,
     getFormulaProductCost,
     autoAssignFormulas,
-    getFormulaRecommendations
+    getFormulaRecommendations,
+    bulkImportFormulas
 };

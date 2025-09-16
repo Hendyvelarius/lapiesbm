@@ -235,6 +235,35 @@ class ProductController {
       });
     }
   }
+
+  static async bulkImportFormulas(req, res) {
+    try {
+      const importData = req.body;
+      
+      if (!Array.isArray(importData) || importData.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid import data. Expected non-empty array.'
+        });
+      }
+
+      const { bulkImportFormulas } = require('../models/productModel');
+      const result = await bulkImportFormulas(importData);
+      
+      res.status(200).json({
+        success: true,
+        message: `Successfully imported ${result.processed} formula assignments`,
+        data: result
+      });
+    } catch (error) {
+      console.error('Error bulk importing formulas:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error bulk importing formulas',
+        error: error.message
+      });
+    }
+  }
 }
 
 module.exports = ProductController;

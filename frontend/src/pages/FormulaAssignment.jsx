@@ -3,7 +3,7 @@ import api from '../services/api';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import * as XLSX from 'xlsx';
-import { FileDown } from 'lucide-react';
+import { FileDown, FileUp } from 'lucide-react';
 import '../styles/FormulaAssignment.css';
 
 const FormulaAssignment = () => {
@@ -63,6 +63,15 @@ const FormulaAssignment = () => {
   
   // Table search state
   const [tableSearchTerm, setTableSearchTerm] = useState('');
+
+  // Import-related states
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importData, setImportData] = useState([]);
+  const [validationResults, setValidationResults] = useState(null);
+  const [availableFormulas, setAvailableFormulas] = useState([]);
+  const [loadingImport, setLoadingImport] = useState(false);
+  const [importStep, setImportStep] = useState('upload'); // 'upload', 'validation', 'confirmation'
 
   // Filter products based on search term
   useEffect(() => {
@@ -665,6 +674,285 @@ const FormulaAssignment = () => {
     }
   };
 
+  // Handle import Excel
+  const handleImportExcel = () => {
+    setShowImportModal(true);
+    setImportStep('upload');
+    setImportFile(null);
+    setImportData([]);
+    setValidationResults(null);
+  };
+
+  // Handle file selection
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      notifier.warning('Please select a valid Excel file (.xlsx or .xls)');
+      return;
+    }
+
+    setImportFile(file);
+  };
+
+  // Parse Excel file and validate data
+  const handleParseAndValidate = async () => {
+    if (!importFile) {
+      notifier.warning('Please select a file first');
+      return;
+    }
+
+    try {
+      setLoadingImport(true);
+      
+      // Read Excel file
+      const data = await readExcelFile(importFile);
+      
+      // Load available formulas from API
+      const formulas = await api.products.getFormula();
+      setAvailableFormulas(formulas);
+      
+      // Validate the parsed data
+      const validation = validateImportData(data, formulas, productList);
+      
+      setImportData(data);
+      setValidationResults(validation);
+      
+      if (validation.isValid) {
+        setImportStep('confirmation');
+      } else {
+        setImportStep('validation');
+      }
+      
+    } catch (error) {
+      console.error('Error parsing Excel file:', error);
+      notifier.alert('Failed to parse Excel file. Please check the file format and try again.');
+    } finally {
+      setLoadingImport(false);
+    }
+  };
+
+  // Read Excel file and return parsed data
+  const readExcelFile = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet);
+          
+          // Validate Excel format
+          if (jsonData.length === 0) {
+            throw new Error('Excel file is empty');
+          }
+          
+          const requiredColumns = ['Product_ID', 'Product_Name', 'PI', 'PS', 'KP', 'KS'];
+          const firstRow = jsonData[0];
+          const missingColumns = requiredColumns.filter(col => !(col in firstRow));
+          
+          if (missingColumns.length > 0) {
+            throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
+          }
+          
+          resolve(jsonData);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
+  // Validate import data against available formulas and products
+  const validateImportData = (data, formulas, products) => {
+    const errors = [];
+    const warnings = [];
+    const validProducts = new Set(products.map(p => p.Product_ID));
+    
+    // Create formula lookup maps
+    const formulaMap = new Map();
+    formulas.forEach(formula => {
+      const key = `${formula.Product_ID}-${formula.TypeCode}-${formula.PPI_SubID}`;
+      formulaMap.set(key, formula);
+    });
+    
+    // Group formulas by product and type for batch size validation
+    const productFormulaBatches = new Map();
+    
+    data.forEach((row, index) => {
+      const rowNum = index + 2; // Excel row number (1-based + header)
+      const productId = row.Product_ID?.toString().trim();
+      const productName = row.Product_Name?.toString().trim();
+      
+      // Validate product existence
+      if (!productId) {
+        errors.push(`Row ${rowNum}: Product_ID is required`);
+        return;
+      }
+      
+      if (!validProducts.has(productId)) {
+        errors.push(`Row ${rowNum}: Product_ID "${productId}" does not exist in the system`);
+        return;
+      }
+      
+      // Initialize batch tracking for this product
+      if (!productFormulaBatches.has(productId)) {
+        productFormulaBatches.set(productId, new Set());
+      }
+      
+      // Validate each formula type
+      ['PI', 'PS', 'KP', 'KS'].forEach(typeCode => {
+        const formulaValue = row[typeCode];
+        
+        if (formulaValue === '-') {
+          // Unassigned formula - valid
+          return;
+        } else if (formulaValue === '' || formulaValue === null || formulaValue === undefined) {
+          // Empty string formula - need to validate it exists
+          const key = `${productId}-${typeCode}-`;
+          if (!formulaMap.has(key)) {
+            errors.push(`Row ${rowNum}: Empty string formula for ${typeCode} does not exist for product "${productId}"`);
+            return;
+          }
+          // Add batch size to tracking
+          const formula = formulaMap.get(key);
+          productFormulaBatches.get(productId).add(formula.BatchSize);
+        } else {
+          // Named formula - validate it exists
+          const key = `${productId}-${typeCode}-${formulaValue}`;
+          if (!formulaMap.has(key)) {
+            errors.push(`Row ${rowNum}: Formula "${formulaValue}" for ${typeCode} does not exist for product "${productId}"`);
+            return;
+          }
+          // Add batch size to tracking
+          const formula = formulaMap.get(key);
+          productFormulaBatches.get(productId).add(formula.BatchSize);
+        }
+      });
+    });
+    
+    // Validate batch size consistency for each product
+    productFormulaBatches.forEach((batchSizes, productId) => {
+      if (batchSizes.size > 1) {
+        const sizesArray = Array.from(batchSizes);
+        errors.push(`Product "${productId}" has formulas with different batch sizes: ${sizesArray.join(', ')}. All assigned formulas must have the same batch size.`);
+      }
+    });
+    
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+      summary: {
+        totalRows: data.length,
+        validProducts: data.filter(row => validProducts.has(row.Product_ID?.toString().trim())).length,
+        invalidProducts: data.filter(row => !validProducts.has(row.Product_ID?.toString().trim())).length
+      }
+    };
+  };
+
+  // Perform bulk import
+  const handleConfirmImport = async () => {
+    if (!validationResults?.isValid) {
+      notifier.warning('Please fix validation errors before importing');
+      return;
+    }
+
+    try {
+      setLoadingImport(true);
+      
+      // Transform import data to the format expected by backend
+      const transformedData = transformImportData(importData, availableFormulas);
+      
+      // Call API to perform bulk import (need to create this endpoint)
+      await api.products.bulkImportFormulas(transformedData);
+      
+      // Reload data and close modal
+      await loadData();
+      setShowImportModal(false);
+      
+      notifier.success(`Successfully imported ${transformedData.length} formula assignments!`);
+      
+    } catch (error) {
+      console.error('Error importing formulas:', error);
+      notifier.alert('Failed to import formulas. Please try again.');
+    } finally {
+      setLoadingImport(false);
+    }
+  };
+
+  // Transform import data to backend format
+  const transformImportData = (data, formulas) => {
+    const formulaMap = new Map();
+    formulas.forEach(formula => {
+      const key = `${formula.Product_ID}-${formula.TypeCode}-${formula.PPI_SubID}`;
+      formulaMap.set(key, formula);
+    });
+
+    const currentYear = new Date().getFullYear().toString();
+    const processDate = new Date().toISOString();
+    
+    return data.map(row => {
+      const productId = row.Product_ID.toString().trim();
+      
+      // Helper to convert Excel values to backend format
+      const convertFormulaValue = (excelValue, typeCode) => {
+        if (excelValue === '-') {
+          return null; // Unassigned
+        } else if (excelValue === '' || excelValue === null || excelValue === undefined) {
+          return ''; // Empty string formula
+        } else {
+          return excelValue.toString().trim(); // Named formula
+        }
+      };
+      
+      // Find batch size from any assigned formula
+      let stdOutput = 0;
+      for (const typeCode of ['PI', 'PS', 'KP', 'KS']) {
+        const formulaValue = convertFormulaValue(row[typeCode], typeCode);
+        if (formulaValue !== null) { // If formula is assigned (not unassigned)
+          const key = `${productId}-${typeCode}-${formulaValue}`;
+          const formula = formulaMap.get(key);
+          if (formula && formula.BatchSize) {
+            stdOutput = formula.BatchSize;
+            break;
+          }
+        }
+      }
+      
+      return {
+        Periode: currentYear,
+        Product_ID: productId,
+        PI: convertFormulaValue(row.PI, 'PI'),
+        PS: convertFormulaValue(row.PS, 'PS'),
+        KP: convertFormulaValue(row.KP, 'KP'),
+        KS: convertFormulaValue(row.KS, 'KS'),
+        Std_Output: stdOutput,
+        isManual: null,
+        user_id: 'AUTO_ASSIGN',
+        delegated_to: 'AUTO_ASSIGN',
+        process_date: processDate,
+        flag_update: null,
+        from_update: null
+      };
+    });
+  };
+
+  // Close import modal
+  const handleCloseImportModal = () => {
+    setShowImportModal(false);
+    setImportFile(null);
+    setImportData([]);
+    setValidationResults(null);
+    setImportStep('upload');
+  };
+
   // Helper function to get product name
   const getProductName = (productId) => {
     const product = productList.find(p => p.Product_ID === productId);
@@ -812,6 +1100,15 @@ const FormulaAssignment = () => {
             >
               <FileDown size={16} />
               Export Excel
+            </button>
+            <button 
+              onClick={handleImportExcel}
+              className="btn-secondary import-btn"
+              disabled={loading}
+              title="Import formula assignments from Excel file"
+            >
+              <FileUp size={16} />
+              Import Excel
             </button>
             {/* Auto Assignment button temporarily hidden */}
             <button 
@@ -1322,6 +1619,228 @@ const FormulaAssignment = () => {
               >
                 {loading ? 'Deleting...' : 'Delete Assignment'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Modal */}
+      {showImportModal && (
+        <div className="modal-overlay" onClick={handleCloseImportModal}>
+          <div className="modal-content large-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Import Formula Assignments from Excel</h3>
+              <button onClick={handleCloseImportModal} className="close-btn">×</button>
+            </div>
+            
+            <div className="modal-body-scrollable">
+              {importStep === 'upload' && (
+                <div className="import-upload-step">
+                  <div className="upload-instructions">
+                    <h4>Step 1: Select Excel File</h4>
+                    <p>Please select an Excel file (.xlsx or .xls) with the following format:</p>
+                    <div className="format-example">
+                      <table className="example-table">
+                        <thead>
+                          <tr>
+                            <th>Product_ID</th>
+                            <th>Product_Name</th>
+                            <th>PI</th>
+                            <th>PS</th>
+                            <th>KP</th>
+                            <th>KS</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>PROD001</td>
+                            <td>Product Name</td>
+                            <td>F1</td>
+                            <td>-</td>
+                            <td></td>
+                            <td>F3</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="format-notes">
+                      <h5>Format Notes:</h5>
+                      <ul>
+                        <li><strong>"-"</strong> = Unassigned formula (will be set to null)</li>
+                        <li><strong>Blank cell</strong> = Empty string formula (assigned but unnamed)</li>
+                        <li><strong>Formula name</strong> = Named formula assignment</li>
+                      </ul>
+                    </div>
+                  </div>
+                  
+                  <div className="file-input-section">
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleFileSelect}
+                      className="file-input"
+                      id="importFile"
+                    />
+                    <label htmlFor="importFile" className="file-input-label">
+                      <FileUp size={20} />
+                      {importFile ? importFile.name : 'Choose Excel File'}
+                    </label>
+                  </div>
+                  
+                  <div className="modal-actions">
+                    <button type="button" onClick={handleCloseImportModal} className="btn-secondary">
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={handleParseAndValidate}
+                      className="btn-primary"
+                      disabled={!importFile || loadingImport}
+                    >
+                      {loadingImport ? 'Processing...' : 'Validate Data'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {importStep === 'validation' && validationResults && (
+                <div className="import-validation-step">
+                  <h4>Validation Results</h4>
+                  
+                  <div className="validation-summary">
+                    <div className="summary-stats">
+                      <div className="stat-item error">
+                        <strong>{validationResults.errors.length}</strong> Error(s)
+                      </div>
+                      <div className="stat-item warning">
+                        <strong>{validationResults.warnings.length}</strong> Warning(s)
+                      </div>
+                      <div className="stat-item info">
+                        <strong>{validationResults.summary.totalRows}</strong> Total Rows
+                      </div>
+                    </div>
+                  </div>
+
+                  {validationResults.errors.length > 0 && (
+                    <div className="validation-errors">
+                      <h5>❌ Errors (must be fixed):</h5>
+                      <ul>
+                        {validationResults.errors.map((error, index) => (
+                          <li key={index} className="error-item">{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {validationResults.warnings.length > 0 && (
+                    <div className="validation-warnings">
+                      <h5>⚠️ Warnings:</h5>
+                      <ul>
+                        {validationResults.warnings.map((warning, index) => (
+                          <li key={index} className="warning-item">{warning}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="modal-actions">
+                    <button type="button" onClick={handleCloseImportModal} className="btn-secondary">
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={() => setImportStep('upload')}
+                      className="btn-secondary"
+                    >
+                      Back to Upload
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {importStep === 'confirmation' && validationResults && (
+                <div className="import-confirmation-step">
+                  <h4>✅ Validation Passed - Ready to Import</h4>
+                  
+                  <div className="confirmation-summary">
+                    <div className="summary-stats">
+                      <div className="stat-item success">
+                        <strong>{validationResults.summary.totalRows}</strong> Products Ready
+                      </div>
+                      <div className="stat-item info">
+                        <strong>{validationResults.summary.validProducts}</strong> Valid Products
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="import-preview">
+                    <h5>Preview of Import Data:</h5>
+                    <div className="preview-table-container">
+                      <table className="preview-table">
+                        <thead>
+                          <tr>
+                            <th>Product ID</th>
+                            <th>Product Name</th>
+                            <th>PI</th>
+                            <th>PS</th>
+                            <th>KP</th>
+                            <th>KS</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importData.slice(0, 10).map((row, index) => (
+                            <tr key={index}>
+                              <td>{row.Product_ID}</td>
+                              <td>{row.Product_Name}</td>
+                              <td>{row.PI === '-' ? '(unassigned)' : row.PI === '' ? '(empty)' : row.PI}</td>
+                              <td>{row.PS === '-' ? '(unassigned)' : row.PS === '' ? '(empty)' : row.PS}</td>
+                              <td>{row.KP === '-' ? '(unassigned)' : row.KP === '' ? '(empty)' : row.KP}</td>
+                              <td>{row.KS === '-' ? '(unassigned)' : row.KS === '' ? '(empty)' : row.KS}</td>
+                            </tr>
+                          ))}
+                          {importData.length > 10 && (
+                            <tr>
+                              <td colSpan="6" className="preview-more">
+                                ... and {importData.length - 10} more rows
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="import-warning">
+                    <div className="warning-box">
+                      <h5>⚠️ Important Warning</h5>
+                      <p>This operation will:</p>
+                      <ul>
+                        <li><strong>Delete ALL existing formula assignments</strong> for the current year ({new Date().getFullYear()})</li>
+                        <li><strong>Replace them with the imported data</strong></li>
+                        <li>This action <strong>cannot be undone</strong></li>
+                      </ul>
+                      <p>Please make sure you have backed up your current assignments by exporting them first.</p>
+                    </div>
+                  </div>
+
+                  <div className="modal-actions">
+                    <button type="button" onClick={handleCloseImportModal} className="btn-secondary">
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={() => setImportStep('upload')}
+                      className="btn-secondary"
+                    >
+                      Back to Upload
+                    </button>
+                    <button 
+                      onClick={handleConfirmImport}
+                      className="btn-danger"
+                      disabled={loadingImport}
+                    >
+                      {loadingImport ? 'Importing...' : 'Confirm Import'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

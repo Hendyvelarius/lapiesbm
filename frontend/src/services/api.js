@@ -101,6 +101,12 @@ export const productsAPI = {
   
   // Get formula recommendations for a specific product
   getFormulaRecommendations: (productId) => apiRequest(`/products/formula-recommendations/${productId}`),
+  
+  // Bulk import formula assignments
+  bulkImportFormulas: (data) => apiRequest('/products/bulk-import-formulas', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
 };
 
 // HPP API
