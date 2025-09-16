@@ -125,6 +125,7 @@ export default function HPPSimulation() {
 
   // Material master data for adding new materials
   const [masterMaterials, setMasterMaterials] = useState([]);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
   const [showAddMaterialModal, setShowAddMaterialModal] = useState(false);
   const [addMaterialType, setAddMaterialType] = useState(''); // 'BB' or 'BK'
   const [materialSearchQuery, setMaterialSearchQuery] = useState('');
@@ -134,6 +135,13 @@ export default function HPPSimulation() {
   useEffect(() => {
     loadSimulationList();
   }, []);
+
+  // Generate random sample when materials are loaded and modal type is set
+  useEffect(() => {
+    if (masterMaterials.length > 0 && addMaterialType && showAddMaterialModal) {
+      generateRandomSample(addMaterialType);
+    }
+  }, [masterMaterials, addMaterialType, showAddMaterialModal]);
 
   // Sorting function
   const sortSimulations = (simulations, field, direction) => {
@@ -1317,21 +1325,23 @@ export default function HPPSimulation() {
     );
   };
 
-  const handleAddMaterial = (materialType) => {
+  const handleAddMaterial = async (materialType) => {
     setAddMaterialType(materialType);
     setShowAddMaterialModal(true);
     setMaterialSearchQuery(''); // Reset search
     
     // Load master materials if not already loaded
     if (masterMaterials.length === 0) {
-      loadMasterMaterials().then(() => {
-        // Generate stable random sample after materials are loaded
-        generateRandomSample(materialType);
-      });
-    } else {
-      // Generate stable random sample immediately if materials are already loaded
-      generateRandomSample(materialType);
+      setLoadingMaterials(true);
+      try {
+        await loadMasterMaterials();
+      } catch (error) {
+        console.error('Error loading materials:', error);
+      } finally {
+        setLoadingMaterials(false);
+      }
     }
+    // Random sample generation is now handled by useEffect
   };
 
   const generateRandomSample = (materialType) => {
@@ -1419,11 +1429,19 @@ export default function HPPSimulation() {
       return randomMaterialSample;
     }
 
-    // If there's a search query, filter by ID or name
-    return typeFilteredMaterials.filter(material =>
+    // Require at least 2 characters for search to reduce lag from single character searches
+    if (materialSearchQuery.trim().length < 2) {
+      return []; // Show empty results with a hint message
+    }
+
+    // If there's a search query, filter by ID or name and limit results to prevent lag
+    const searchResults = typeFilteredMaterials.filter(material =>
       material.ITEM_ID.toLowerCase().includes(materialSearchQuery.toLowerCase()) ||
       material.Item_Name.toLowerCase().includes(materialSearchQuery.toLowerCase())
     );
+
+    // Limit results to 50 items to prevent rendering lag
+    return searchResults.slice(0, 50);
   };
 
   // PDF generation function
@@ -3565,6 +3583,20 @@ export default function HPPSimulation() {
               </div>
 
               <div className="material-list-section">
+                {/* Show limited results warning */}
+                {materialSearchQuery && materialSearchQuery.trim().length >= 2 && 
+                 masterMaterials.filter(material => 
+                   material.ITEM_TYPE === addMaterialType &&
+                   (material.ITEM_ID.toLowerCase().includes(materialSearchQuery.toLowerCase()) ||
+                    material.Item_Name.toLowerCase().includes(materialSearchQuery.toLowerCase()))
+                 ).length > 50 && (
+                  <div className="search-results-info">
+                    <p style={{ fontSize: '12px', color: '#666', marginBottom: '10px', textAlign: 'center' }}>
+                      Showing first 50 results. Type more characters to narrow down your search.
+                    </p>
+                  </div>
+                )}
+                
                 <div className="material-list-container">
                   <table className="material-selection-table">
                     <thead>
@@ -3605,9 +3637,13 @@ export default function HPPSimulation() {
                   {getFilteredMaterials().length === 0 && (
                     <div className="no-materials-found">
                       <p>
-                        {masterMaterials.length === 0 
+                        {loadingMaterials
                           ? 'Loading materials...' 
-                          : `No ${addMaterialType === 'BB' ? 'Bahan Baku' : 'Bahan Kemas'} materials found.`
+                          : materialSearchQuery && materialSearchQuery.trim().length === 1
+                            ? 'Please type at least 2 characters to search...'
+                            : materialSearchQuery && materialSearchQuery.trim().length > 1
+                              ? `No ${addMaterialType === 'BB' ? 'Bahan Baku' : 'Bahan Kemas'} materials found matching "${materialSearchQuery}". Try a different search term.`
+                              : `No ${addMaterialType === 'BB' ? 'Bahan Baku' : 'Bahan Kemas'} materials found.`
                         }
                       </p>
                     </div>

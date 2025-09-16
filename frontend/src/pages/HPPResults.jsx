@@ -96,7 +96,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange, totalItems }) => {
 const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onProductClick }) => (
   <div className="hpp-table-container">
     <div className="hpp-table-header">
-      <h3><FileText className="hpp-table-icon" />Ethical Products</h3>
+      <h3><FileText className="hpp-table-icon" />Ethical / OTC Products</h3>
       <div className="hpp-table-controls">
         <div className="hpp-search-container">
           <Search size={16} className="hpp-search-icon" />
@@ -431,7 +431,7 @@ const HPPResults = () => {
   const tabs = [
     {
       id: 'ethical',
-      label: 'Ethical Products',
+      label: 'Ethical / OTC',
       icon: FileText,
       count: hppData.ethical.length
     },
@@ -497,7 +497,7 @@ const HPPResults = () => {
         const ethicalWS = XLSX.utils.json_to_sheet(hppData.ethical, { 
           header: ethicalColumns 
         });
-        XLSX.utils.book_append_sheet(workbook, ethicalWS, 'Ethical Products');
+        XLSX.utils.book_append_sheet(workbook, ethicalWS, 'Ethical / OTC');
       }
       
       if (hppData.generik1 && hppData.generik1.length > 0) {
