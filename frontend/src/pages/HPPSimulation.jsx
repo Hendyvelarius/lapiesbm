@@ -2314,19 +2314,15 @@ export default function HPPSimulation() {
                                     )}
                                   </td>
                                   <td className="number">
-                                    {isCustom ? (
-                                      <input 
-                                        type="number" 
-                                        value={item.Item_Unit_Price || 0}
-                                        onChange={(e) => handleCustomMaterialFieldChange(globalIndex, 'Item_Unit_Price', e.target.value)}
-                                        className="custom-material-input price-input"
-                                        min="0"
-                                        step="0.01"
-                                        placeholder="0.00"
-                                      />
-                                    ) : (
-                                      `Rp ${formatNumber(item.Item_Unit_Price, 2)}`
-                                    )}
+                                    <input 
+                                      type="number" 
+                                      value={item.Item_Unit_Price || 0}
+                                      onChange={(e) => handleCustomMaterialFieldChange(globalIndex, 'Item_Unit_Price', e.target.value)}
+                                      className="custom-material-input price-input"
+                                      min="0"
+                                      step="0.01"
+                                      placeholder="0.00"
+                                    />
                                   </td>
                                   <td className="number">
                                     Rp {formatNumber((item.Item_Unit_Price * item.Item_QTY), 2)}
@@ -2438,19 +2434,15 @@ export default function HPPSimulation() {
                                     )}
                                   </td>
                                   <td className="number">
-                                    {isCustom ? (
-                                      <input 
-                                        type="number" 
-                                        value={item.Item_Unit_Price || 0}
-                                        onChange={(e) => handleCustomMaterialFieldChange(globalIndex, 'Item_Unit_Price', e.target.value)}
-                                        className="custom-material-input price-input"
-                                        min="0"
-                                        step="0.01"
-                                        placeholder="0.00"
-                                      />
-                                    ) : (
-                                      `Rp ${formatNumber(item.Item_Unit_Price, 2)}`
-                                    )}
+                                    <input 
+                                      type="number" 
+                                      value={item.Item_Unit_Price || 0}
+                                      onChange={(e) => handleCustomMaterialFieldChange(globalIndex, 'Item_Unit_Price', e.target.value)}
+                                      className="custom-material-input price-input"
+                                      min="0"
+                                      step="0.01"
+                                      placeholder="0.00"
+                                    />
                                   </td>
                                   <td className="number">
                                     Rp {formatNumber((item.Item_Unit_Price * item.Item_QTY), 2)}
