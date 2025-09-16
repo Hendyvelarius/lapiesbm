@@ -23,6 +23,10 @@ router.get('/simulation/:simulasiId/detail-bahan', HPPController.getSimulationDe
 // Body: { simulasiId: 10, headerData: {...}, materials: [...] }
 router.put('/simulation/save', HPPController.saveSimulation);
 
+// POST /api/hpp/simulation/create-custom - Create custom simulation (for custom formulas)
+// Body: { headerData: {...}, materials: [...] }
+router.post('/simulation/create-custom', HPPController.createCustomSimulation);
+
 // GET /api/hpp/simulation/list - Get list of all simulation records
 router.get('/simulation/list', HPPController.getSimulationList);
 

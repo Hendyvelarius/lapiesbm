@@ -958,11 +958,11 @@ export default function HPPSimulation() {
 
         // Prepare header data for custom formula
         const headerData = {
-          Product_ID: '-',
+          Product_ID: null, // Custom formulas don't have a product ID
           Product_Name: customProductName.trim(),
           Formula: customFormulaName.trim(),
+          Group_PNCategory: null, // Will be set based on department mapping if needed
           Group_PNCategory_Dept: customLine,
-          Line: customLine,
           Periode: '2025',
           Simulasi_Deskripsi: editableDescription || '',
           Group_Rendemen: editableRendemen || 100,
@@ -1008,7 +1008,7 @@ export default function HPPSimulation() {
         
         // Reset custom formula state and return to list
         setIsCustomFormula(false);
-        setCurrentStep(0);
+        setStep(0); // Return to simulation list view
         loadSimulationList();
 
       } else {
@@ -3619,14 +3619,13 @@ export default function HPPSimulation() {
                             <button
                               className="select-material-btn"
                               onClick={() => {
-                                const quantity = prompt(`Enter quantity for ${material.Item_Name}:`, '1');
-                                if (quantity && parseFloat(quantity) > 0) {
-                                  addNewMaterial(material, parseFloat(quantity));
-                                }
+                                // Add material immediately with quantity 0, user can edit inline
+                                addNewMaterial(material, 0);
+                                notifier.success(`${material.Item_Name} added! Set quantity in the materials table.`);
                               }}
                               type="button"
                             >
-                              Select
+                              Add Material
                             </button>
                           </td>
                         </tr>

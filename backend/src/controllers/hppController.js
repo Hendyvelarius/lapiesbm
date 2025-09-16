@@ -1,4 +1,4 @@
-const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, deleteSimulation } = require('../models/hppModel');
+const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, deleteSimulation, createSimulationHeader } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
@@ -257,6 +257,48 @@ class HPPController {
       res.status(500).json({
         success: false,
         message: 'Error deleting simulation',
+        error: error.message
+      });
+    }
+  }
+
+  // Create custom simulation (for custom formulas)
+  static async createCustomSimulation(req, res) {
+    try {
+      const { headerData, materials } = req.body;
+      
+      // Validate required parameters
+      if (!headerData || !Array.isArray(materials)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Header data and materials array are required'
+        });
+      }
+      
+      console.log('Creating custom simulation with header:', headerData);
+      console.log('Materials count:', materials.length);
+      
+      // Create the header and get the new Simulasi_ID
+      const simulasiId = await createSimulationHeader(headerData);
+      console.log('Created simulation with ID:', simulasiId);
+      
+      // Insert materials for the new simulation
+      const insertResult = await insertSimulationMaterials(simulasiId, materials, headerData.Periode || '2025');
+      console.log('Inserted materials count:', insertResult);
+      
+      res.status(201).json({
+        success: true,
+        message: `Custom simulation created successfully with ID ${simulasiId}`,
+        data: {
+          simulasiId,
+          materialsInserted: insertResult
+        }
+      });
+    } catch (error) {
+      console.error('Create Custom Simulation Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error creating custom simulation',
         error: error.message
       });
     }
