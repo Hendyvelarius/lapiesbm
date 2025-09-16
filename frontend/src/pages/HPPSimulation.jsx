@@ -1203,7 +1203,7 @@ export default function HPPSimulation() {
     const currentLOB = getCurrentLOB();
     const currentVersion = editableVersion || (simulationResults[0] && simulationResults[0].Versi);
     if (!simulationResults[0] || currentLOB !== 'GENERIC' || currentVersion !== '1') return 0;
-    return editableOverheadData.Depresiasi || 0;
+    return editableOverheadData.Beban_Sisa_Bahan_Exp || 0;
   };
 
   // GENERIC Version 2 overhead calculations
@@ -2143,12 +2143,17 @@ export default function HPPSimulation() {
                   <div className="selected-formulas-final">
                     <h4>Selected Formulas Used:</h4>
                     <div className="formulas-grid">
-                      {Object.entries(selectedFormulas).map(([typeCode, subId]) => (
-                        <div key={typeCode} className="formula-final-item">
-                          <span className="formula-type">{typeCode}:</span>
-                          <span className="formula-id">{subId === '' ? '(Empty Formula)' : `Formula ${subId}`}</span>
-                        </div>
-                      ))}
+                      {availableTypeCodes.map((typeCode) => {
+                        const subId = selectedFormulas[typeCode];
+                        return (
+                          <div key={typeCode} className="formula-final-item">
+                            <span className="formula-type">{typeCode}:</span>
+                            <span className="formula-id">
+                              {subId === undefined ? '(Empty Formula)' : (subId === '' ? '(Empty Formula)' : `Formula ${subId}`)}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -2786,10 +2791,10 @@ export default function HPPSimulation() {
                           <span className="formula-part">Rp</span>
                           <input 
                             type="number" 
-                            value={editableOverheadData.Depresiasi || 0}
+                            value={editableOverheadData.Beban_Sisa_Bahan_Exp || 0}
                             onChange={(e) => setEditableOverheadData({
                               ...editableOverheadData,
-                              Depresiasi: parseFloat(e.target.value) || 0
+                              Beban_Sisa_Bahan_Exp: parseFloat(e.target.value) || 0
                             })}
                             className="overhead-edit-input"
                             step="0.01"
@@ -3004,9 +3009,6 @@ export default function HPPSimulation() {
             )}
 
             <div className="form-actions">
-              <button type="button" onClick={handleBack}>
-                Back to Formula Selection
-              </button>
               <button 
                 type="button" 
                 onClick={() => setShowDetailedReport(true)}
