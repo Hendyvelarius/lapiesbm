@@ -63,8 +63,6 @@ class HPPController {
         });
       }
       
-      console.log('Generating HPP simulation:', { productId, formulaString });
-      
       const result = await generateHPPSimulation(productId, formulaString);
       
       res.status(200).json({
@@ -94,8 +92,6 @@ class HPPController {
           message: 'Simulasi ID is required'
         });
       }
-      
-      console.log('Fetching simulation header for Simulasi_ID:', simulasiId);
       
       const result = await getSimulationHeader(simulasiId);
       
@@ -127,8 +123,6 @@ class HPPController {
         });
       }
       
-      console.log('Fetching simulation detail bahan for Simulasi_ID:', simulasiId);
-      
       const result = await getSimulationDetailBahan(simulasiId);
       
       res.status(200).json({
@@ -159,22 +153,15 @@ class HPPController {
         });
       }
       
-      console.log('Saving simulation for Simulasi_ID:', simulasiId);
-      console.log('Header data:', headerData);
-      console.log('Materials count:', materials.length);
-      
       // Start transaction-like operations
       // 1. Update header
       const headerUpdateResult = await updateSimulationHeader(simulasiId, headerData);
-      console.log('Header update result:', headerUpdateResult);
       
       // 2. Delete existing materials
       const deleteResult = await deleteSimulationMaterials(simulasiId);
-      console.log('Deleted materials count:', deleteResult);
       
       // 3. Insert new materials
       const insertResult = await insertSimulationMaterials(simulasiId, materials, headerData.Periode || '2025');
-      console.log('Inserted materials count:', insertResult);
       
       res.status(200).json({
         success: true,
@@ -199,8 +186,6 @@ class HPPController {
   // Get list of all simulation records
   static async getSimulationList(req, res) {
     try {
-      console.log('Fetching simulation list');
-      
       const result = await getSimulationList();
       
       res.status(200).json({
@@ -230,8 +215,6 @@ class HPPController {
           message: 'Simulasi ID is required'
         });
       }
-      
-      console.log('Deleting simulation for Simulasi_ID:', simulasiId);
       
       const result = await deleteSimulation(simulasiId);
       
@@ -275,16 +258,11 @@ class HPPController {
         });
       }
       
-      console.log('Creating custom simulation with header:', headerData);
-      console.log('Materials count:', materials.length);
-      
       // Create the header and get the new Simulasi_ID
       const simulasiId = await createSimulationHeader(headerData);
-      console.log('Created simulation with ID:', simulasiId);
       
       // Insert materials for the new simulation
       const insertResult = await insertSimulationMaterials(simulasiId, materials, headerData.Periode || '2025');
-      console.log('Inserted materials count:', insertResult);
       
       res.status(201).json({
         success: true,

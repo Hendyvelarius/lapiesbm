@@ -166,8 +166,6 @@ async function createSimulationHeader(headerData) {
     const maxIdResult = await db.request().query(maxIdQuery);
     const nextSimulasiId = maxIdResult.recordset[0].NextId;
     
-    console.log('Generated Simulasi_ID:', nextSimulasiId);
-    
     const query = `
       INSERT INTO t_COGS_HPP_Product_Header_Simulasi (
         Simulasi_ID, Product_ID, Product_Name, Formula, Group_PNCategory, Group_PNCategory_Dept, Periode,

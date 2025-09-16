@@ -416,8 +416,6 @@ export default function HPPSimulation() {
       // Reset custom formula state when editing regular simulation
       setIsCustomFormula(false);
 
-      console.log('Loading simulation for editing:', simulation);
-
       // First, load the simulation header and detail data
       const [headerResponse, materialsResponse] = await Promise.all([
         hppAPI.getSimulationHeader(simulation.Simulasi_ID),
@@ -426,9 +424,6 @@ export default function HPPSimulation() {
 
       const headerData = headerResponse.data[0]; // API returns array, take first element
       const materialsData = materialsResponse.data;
-
-      console.log('Loaded header data:', headerData);
-      console.log('Loaded materials data:', materialsData);
 
       // Parse Formula to extract individual formulas
       // Format: "GLC#-#B#C" means PI: GLC, PS: - (none), KP: B, KS: C
@@ -627,7 +622,6 @@ export default function HPPSimulation() {
 
       setAvailableProducts(available);
       
-      console.log('Available products with formulas:', available);
     } catch (error) {
       console.error('Error loading available products:', error);
       setError('Failed to load available products. Please try again.');
@@ -675,8 +669,6 @@ export default function HPPSimulation() {
     setError('');
     
     try {
-      console.log('Loading recipe data for product:', productId);
-      
       // Load both recipe data and material data in parallel
       const [recipeResponse, materialResponse] = await Promise.all([
         productsAPI.getRecipe(productId),
@@ -705,7 +697,6 @@ export default function HPPSimulation() {
       setSelectedFormulas(defaultSelections);
       
       setStep(3);
-      console.log('Recipe data loaded:', { recipeData, materialData, groups, defaultSelections });
     } catch (error) {
       console.error('Error loading recipe data:', error);
       setError('Failed to load product recipe data. Please try again.');
@@ -816,12 +807,6 @@ export default function HPPSimulation() {
 
     try {
       const formulaString = buildFormulaString();
-      console.log('Running simulation with:', {
-        productId: selectedProduct.Product_ID,
-        formulaString,
-        selectedFormulas
-      });
-
       const response = await hppAPI.generateSimulation(
         selectedProduct.Product_ID,
         formulaString
@@ -845,15 +830,10 @@ export default function HPPSimulation() {
 
           setSimulationHeader(headerResponse.data || []);
           setSimulationDetailBahan(detailResponse.data || []);
-          console.log('Detailed simulation data loaded:', {
-            header: headerResponse.data,
-            detail: detailResponse.data
-          });
 
           // Initialize editable values with current data
           if (results && results.length > 0) {
             const normalizedLOB = normalizeLOB(results[0].LOB);
-            console.log('Original LOB from database:', results[0].LOB, '-> Normalized LOB:', normalizedLOB);
             
             setEditableBatchSize(results[0].Batch_Size);
             setEditableRendemen(results[0].Group_Rendemen);
@@ -896,7 +876,6 @@ export default function HPPSimulation() {
       // Move to simulation results step
       setStep(4);
       
-      console.log('Simulation completed:', results);
     } catch (error) {
       console.error('Simulation error:', error);
       setError('Failed to run simulation. Please try again.');
@@ -997,12 +976,8 @@ export default function HPPSimulation() {
           Item_Unit_Price: item.Item_Unit_Price
         }));
 
-        console.log('Saving custom formula simulation with data:', { headerData, materials });
-
         // Call the create simulation API (assuming you have this endpoint)
         const response = await hppAPI.createCustomSimulation(headerData, materials);
-
-        console.log('Custom simulation save response:', response);
         
         notifier.success('Custom formula simulation saved successfully!');
         
@@ -1056,12 +1031,8 @@ export default function HPPSimulation() {
           Item_Unit_Price: item.Item_Unit_Price
         }));
 
-        console.log('Saving regular simulation with data:', { simulasiId, headerData, materials });
-
         // Call the save API
         const response = await hppAPI.saveSimulation(simulasiId, headerData, materials);
-
-        console.log('Save response:', response);
 
         // Show success message
         notifier.success(`Simulation saved successfully! Updated ${response.data.materialsInserted} materials.`);
