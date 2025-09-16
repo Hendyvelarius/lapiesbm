@@ -191,6 +191,7 @@ export default function HPPSimulation() {
       'Product_ID': 'Product ID',
       'Product_Name': 'Product Name',
       'Formula': 'Formula',
+      'Simulasi_Deskripsi': 'Description',
       'Simulasi_Date': 'Date'
     };
     return fieldNames[field] || field;
@@ -209,11 +210,13 @@ export default function HPPSimulation() {
         const formula = (simulation.Formula || '').toLowerCase();
         const date = new Date(simulation.Simulasi_Date).toLocaleDateString('id-ID').toLowerCase();
         const productId = (simulation.Product_ID || '').toString().toLowerCase();
+        const description = (simulation.Simulasi_Deskripsi || '').toLowerCase();
         
         return productName.includes(query) || 
                formula.includes(query) || 
                date.includes(query) ||
-               productId.includes(query);
+               productId.includes(query) ||
+               description.includes(query);
       });
     }
     
@@ -1628,6 +1631,13 @@ export default function HPPSimulation() {
                       </th>
                       <th 
                         className="sortable-header"
+                        onClick={() => handleSort('Simulasi_Deskripsi')}
+                        title="Click to sort by Description"
+                      >
+                        Description {renderSortIcon('Simulasi_Deskripsi')}
+                      </th>
+                      <th 
+                        className="sortable-header"
                         onClick={() => handleSort('Simulasi_Date')}
                         title="Click to sort by Date"
                       >
@@ -1639,7 +1649,7 @@ export default function HPPSimulation() {
                   <tbody>
                     {filteredSimulationList.length === 0 ? (
                       <tr>
-                        <td colSpan="7" className="no-data">
+                        <td colSpan="8" className="no-data">
                           {searchQuery.trim() 
                             ? `No simulations found matching "${searchQuery}". Try adjusting your search terms.`
                             : "No simulations found. Click \"New Simulation\" to create your first simulation."
@@ -1654,6 +1664,7 @@ export default function HPPSimulation() {
                           <td>{simulation.Product_ID}</td>
                           <td className="product-name">{simulation.Product_Name}</td>
                           <td className="formula-cell">{simulation.Formula}</td>
+                          <td className="description-cell">{simulation.Simulasi_Deskripsi || '-'}</td>
                           <td>{new Date(simulation.Simulasi_Date).toLocaleDateString('id-ID')}</td>
                           <td className="actions-cell">
                             <button 

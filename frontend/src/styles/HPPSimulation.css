@@ -1943,6 +1943,17 @@
   white-space: nowrap;
 }
 
+.description-cell {
+  font-size: 13px;
+  color: #6b7280;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 4px 8px;
+  font-style: italic;
+}
+
 .actions-cell {
   text-align: center;
   width: 100px;
