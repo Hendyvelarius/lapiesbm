@@ -2,6 +2,7 @@
 .product-formula-container {
   padding: 20px;
   min-height: 100vh;
+  overflow: visible;
 }
 
 .product-formula-container *,
@@ -16,6 +17,8 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   overflow: visible;
   margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
 }
 
 .section-header {
@@ -25,6 +28,8 @@
   padding: 24px;
   border-bottom: 1px solid #e5e7eb;
   background-color: #f9fafb;
+  position: relative;
+  z-index: 10;
 }
 
 .section-title h2 {
@@ -98,7 +103,8 @@
   padding: 24px;
   border-bottom: 1px solid #e5e7eb;
   position: relative;
-  z-index: 1;
+  z-index: 999;
+  overflow: visible;
 }
 
 .product-selection-section h3 {
@@ -111,6 +117,7 @@
 .product-search {
   position: relative;
   margin-bottom: 16px;
+  overflow: visible;
 }
 
 .search-input {
@@ -130,18 +137,14 @@
 }
 
 .search-results {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 60%;
-  max-width: 600px;
+  position: fixed;
   background: white;
   border: 1px solid #d1d5db;
   border-top: none;
   border-radius: 0 0 8px 8px;
   max-height: 300px;
   overflow-y: auto;
-  z-index: 1000;
+  z-index: 99999;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
@@ -200,6 +203,8 @@
 /* Formula Section */
 .formula-section {
   padding: 24px;
+  position: relative;
+  z-index: 10;
 }
 
 .formula-section h3 {
@@ -889,7 +894,7 @@
   border-radius: 0 0 6px 6px;
   max-height: 200px;
   overflow-y: auto;
-  z-index: 1050;
+  z-index: 9999;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 

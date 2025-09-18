@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
@@ -18,6 +18,10 @@ const ProductFormula = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [exportLoading, setExportLoading] = useState(false);
+  
+  // Dropdown positioning ref
+  const searchInputRef = useRef(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   
   // Product selection states
   const [productList, setProductList] = useState([]);
@@ -69,6 +73,18 @@ const ProductFormula = () => {
       setFilteredProducts(filtered);
     }
   }, [searchTerm, productList, showProductDropdown]);
+
+  // Handle window resize to recalculate dropdown position
+  useEffect(() => {
+    const handleResize = () => {
+      if (showProductDropdown) {
+        calculateDropdownPosition();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [showProductDropdown]);
 
   const loadInitialData = async () => {
     try {
@@ -626,6 +642,27 @@ const ProductFormula = () => {
     }));
   };
 
+  // Calculate dropdown position for fixed positioning
+  const calculateDropdownPosition = () => {
+    if (searchInputRef.current) {
+      const rect = searchInputRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom,
+        left: rect.left,
+        width: rect.width
+      });
+    }
+  };
+
+  // Handle showing dropdown with position calculation
+  const handleShowDropdown = () => {
+    setShowProductDropdown(true);
+    // Small delay to ensure the dropdown is rendered before calculating position
+    setTimeout(() => {
+      calculateDropdownPosition();
+    }, 0);
+  };
+
   const handleExportAllFormula = async () => {
     try {
       setExportLoading(true);
@@ -859,10 +896,16 @@ const ProductFormula = () => {
           <h3>Select Product</h3>
           <div className="product-search">
             <input
+              ref={searchInputRef}
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onFocus={() => setShowProductDropdown(true)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                if (showProductDropdown) {
+                  calculateDropdownPosition();
+                }
+              }}
+              onFocus={handleShowDropdown}
               onBlur={() => {
                 setTimeout(() => setShowProductDropdown(false), 200);
               }}
@@ -871,7 +914,15 @@ const ProductFormula = () => {
             />
             
             {showProductDropdown && (
-              <div className="search-results">
+              <div 
+                className="search-results"
+                style={{
+                  top: `${dropdownPosition.top}px`,
+                  left: `${dropdownPosition.left}px`,
+                  width: `${Math.max(dropdownPosition.width * 1.0, 600)}px`,
+                  maxWidth: '60vw'
+                }}
+              >
                 {filteredProducts.length === 0 && searchTerm.trim() ? (
                   <div className="search-result-item no-results">
                     <span>No products found matching "{searchTerm}"</span>
