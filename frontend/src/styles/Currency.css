@@ -274,20 +274,22 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 400px;
+  min-height: 60vh;
+  width: 100%;
+  padding: 4rem 2rem;
   color: #333;
   animation: none; /* Ensure container doesn't spin */
 }
 
 /* Only apply animation to the spinner element inside the container */
 .loading-spinner .spinner {
-  width: 50px;
-  height: 50px;
+  width: 60px;
+  height: 60px;
   border: 4px solid rgba(102, 126, 234, 0.3);
   border-top: 4px solid #667eea;
   border-radius: 50%;
   animation: currency-spin 1s linear infinite;
-  margin-bottom: 1rem;
+  margin-bottom: 2rem;
 }
 
 @keyframes currency-spin {
