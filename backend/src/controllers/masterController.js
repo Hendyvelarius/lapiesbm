@@ -1,4 +1,4 @@
-const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, getMaterial, getMaterialUsage, addFormulaManual, addBatchFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
+const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, getMaterial, getMaterialUsage, exportAllFormulaDetail, addFormulaManual, addBatchFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
 
 class MasterController {
     static async getCurrency(req, res) {
@@ -1014,6 +1014,24 @@ class MasterController {
             res.status(500).json({
                 success: false,
                 message: 'Failed to delete entire formula',
+                error: error.message
+            });
+        }
+    }
+
+    static async exportAllFormulaDetail(req, res) {
+        try {
+            const result = await exportAllFormulaDetail();
+            res.status(200).json({
+                success: true,
+                message: 'Export all formula detail completed successfully',
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in exportAllFormulaDetail endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to export all formula detail',
                 error: error.message
             });
         }

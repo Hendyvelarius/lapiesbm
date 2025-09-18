@@ -56,6 +56,27 @@
   background-color: #2563eb;
 }
 
+.btn-export {
+  background-color: #10b981;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-export:hover:not(:disabled) {
+  background-color: #059669;
+}
+
+.btn-export:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
 .btn-secondary {
   background-color: #6b7280;
   color: white;

@@ -31,5 +31,6 @@ router.post('/formula/batch', MasterController.addBatchFormulaManual);
 router.put('/formula', MasterController.updateFormulaManual);
 router.delete('/formula', MasterController.deleteFormulaManual);
 router.delete('/formula/entire', MasterController.deleteEntireFormulaManual);
+router.get('/export-all-formula', MasterController.exportAllFormulaDetail);
 
 module.exports = router;

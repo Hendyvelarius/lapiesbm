@@ -635,6 +635,17 @@ async function getMaterialUsage() {
   }
 }
 
+async function exportAllFormulaDetail() {
+  try {
+    const db = await connect();
+    const result = await db.request().query('EXEC sp_COGS_generate_all_formula_detail');
+    return result.recordset;
+  } catch (error) {
+    console.error('Error executing exportAllFormulaDetail query:', error);
+    throw error;
+  }
+}
+
 // === FORMULA MANUAL CUD OPERATIONS ===
 
 async function addFormulaManual(ppiType, ppiSubId, ppiProductId, ppiBatchSize, ppiSeqId, ppiItemId, ppiQty, ppiUnitId, userId) {
@@ -902,6 +913,7 @@ module.exports = {
   deletePembebanan,
   getMaterial,
   getMaterialUsage,
+  exportAllFormulaDetail,
   addFormulaManual,
   addBatchFormulaManual,
   updateFormulaManual,

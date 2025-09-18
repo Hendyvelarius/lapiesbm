@@ -3,6 +3,7 @@ import api from '../services/api';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import '../styles/ProductFormula.css';
+import * as XLSX from 'xlsx';
 
 // Initialize awesome-notifications
 const notifier = new AWN({
@@ -16,6 +17,7 @@ const ProductFormula = () => {
   // State management
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [exportLoading, setExportLoading] = useState(false);
   
   // Product selection states
   const [productList, setProductList] = useState([]);
@@ -624,6 +626,46 @@ const ProductFormula = () => {
     }));
   };
 
+  const handleExportAllFormula = async () => {
+    try {
+      setExportLoading(true);
+      notifier.info('Starting export process...');
+      
+      // Call API to get data from stored procedure
+      const response = await api.master.exportAllFormulaDetail();
+      
+      if (!response.success || !response.data || response.data.length === 0) {
+        notifier.warning('No formula data available for export');
+        return;
+      }
+      
+      const data = response.data;
+      
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'All Formula Details');
+      
+      // Generate filename with current date
+      const currentDate = new Date();
+      const dateString = currentDate.toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '_');
+      const filename = `All_Formula_Export_${dateString}.xlsx`;
+      
+      // Save file
+      XLSX.writeFile(workbook, filename);
+      
+      notifier.success(`Export completed! File saved as ${filename}`);
+      
+    } catch (err) {
+      console.error('Error exporting all formulas:', err);
+      notifier.alert('Failed to export formula data. Please try again.');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   const handleSubmitFormula = async () => {
     // Validate ingredients
     const invalidIngredients = newFormulaData.ingredients.filter(ingredient => 
@@ -789,6 +831,14 @@ const ProductFormula = () => {
             <h2>Product Formula Management</h2>
           </div>
           <div className="header-actions">
+            <button 
+              onClick={handleExportAllFormula}
+              className="btn-export"
+              disabled={exportLoading}
+              title="Export all formulas to Excel"
+            >
+              {exportLoading ? 'Exporting...' : 'Export All Formula'}
+            </button>
             {selectedProduct && (
               <button onClick={handleClearProduct} className="btn-secondary">
                 Clear Selection

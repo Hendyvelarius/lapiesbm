@@ -355,6 +355,11 @@ export const masterAPI = {
     method: 'DELETE',
     body: JSON.stringify(data),
   }),
+  
+  // Export all formula detail using stored procedure
+  exportAllFormulaDetail: () => apiRequest('/master/export-all-formula', {
+    method: 'GET',
+  }),
 };
 
 // Health check
