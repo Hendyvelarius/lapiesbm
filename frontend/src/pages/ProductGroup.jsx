@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { masterAPI } from '../services/api';
 import '../styles/ProductGroup.css';
-import { Search, Filter, Edit, Trash2, Users, ChevronLeft, ChevronRight, X, Check, ChevronUp, ChevronDown } from 'lucide-react';
+import { Search, Filter, Edit, Trash2, Users, ChevronLeft, ChevronRight, X, Check, ChevronUp, ChevronDown, ToggleLeft, ToggleRight } from 'lucide-react';
 
 const ProductGroup = () => {
   const [groupData, setGroupData] = useState([]);
@@ -12,6 +12,10 @@ const ProductGroup = () => {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
+  
+  // View mode state - Standard (non-generik) or Generik mode
+  const [viewMode, setViewMode] = useState('Standard'); // 'Standard' or 'Generik'
+  const [hasModeSwitched, setHasModeSwitched] = useState(false); // Track if user has switched modes
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -40,7 +44,7 @@ const ProductGroup = () => {
 
   useEffect(() => {
     filterData();
-  }, [groupData, searchTerm, selectedCategory, sortField, sortDirection]);
+  }, [groupData, searchTerm, selectedCategory, sortField, sortDirection, viewMode]);
 
   useEffect(() => {
     paginateData();
@@ -60,6 +64,17 @@ const ProductGroup = () => {
       setDeptOptions(departments);
     }
   }, [groupData]);
+
+  // Reset category filter when switching view modes
+  useEffect(() => {
+    setSelectedCategory('All Categories');
+  }, [viewMode]);
+
+  // Handle mode switching with animation trigger
+  const handleModeSwitch = () => {
+    setHasModeSwitched(true);
+    setViewMode(viewMode === 'Standard' ? 'Generik' : 'Standard');
+  };
 
   const fetchAllData = async () => {
     try {
@@ -150,6 +165,15 @@ const ProductGroup = () => {
   const filterData = () => {
     let filtered = groupData;
 
+    // Apply view mode filter first
+    if (viewMode === 'Standard') {
+      // Show only non-generik products (exclude "Produk Generik")
+      filtered = filtered.filter(item => item.pnCategoryName !== 'Produk Generik');
+    } else if (viewMode === 'Generik') {
+      // Show only generik products (include "Produk Generik")
+      filtered = filtered.filter(item => item.pnCategoryName === 'Produk Generik');
+    }
+
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(item => {
@@ -232,17 +256,20 @@ const ProductGroup = () => {
   // Inline editing functions
   const handleEditClick = (item) => {
     setEditingRowId(item.productId);
+    // For Generik mode, only initialize the editable fields
     setEditFormData({
+      // Keep original values for read-only display
       pnCategory: item.pnCategory,
       pnCategoryName: item.pnCategoryName,
-      manHourPros: item.manHourPros || '',
-      manHourPack: item.manHourPack || '',
-      rendemen: item.rendemen || '',
+      manHourPros: item.manHourPros || 0,
+      manHourPack: item.manHourPack || 0,
+      rendemen: item.rendemen || 0,
       dept: item.dept || '',
-      mhtBB: item.mhtBB || '',
-      mhtBK: item.mhtBK || '',
-      mhAnalisa: item.mhAnalisa || '',
-      kwhMesin: item.kwhMesin || ''
+      // Initialize editable Generik fields
+      mhtBB: item.mhtBB || 0,
+      mhtBK: item.mhtBK || 0,
+      mhAnalisa: item.mhAnalisa || 0,
+      kwhMesin: item.kwhMesin || 0
     });
   };
 
@@ -273,28 +300,49 @@ const ProductGroup = () => {
     try {
       setSubmitLoading(true);
       
+      // For Generik mode, prepare data with only the editable fields
       const submitData = {
         productId: item.productId,
         productName: item.productName,
-        pnCategory: editFormData.pnCategory,
-        pnCategoryName: editFormData.pnCategoryName,
-        manHourPros: parseFloat(editFormData.manHourPros) || 0,
-        manHourPack: parseFloat(editFormData.manHourPack) || 0,
-        rendemen: parseFloat(editFormData.rendemen) || 0,
-        dept: editFormData.dept,
+        pnCategory: item.pnCategory, // Keep original
+        pnCategoryName: item.pnCategoryName, // Keep original
+        // Keep original values for non-editable fields (set as null for new entries)
+        manHourPros: null,
+        manHourPack: null,
+        rendemen: null,
+        dept: null,
+        // Only these fields are editable in Generik mode
         mhtBB: parseFloat(editFormData.mhtBB) || 0,
         mhtBK: parseFloat(editFormData.mhtBK) || 0,
         mhAnalisa: parseFloat(editFormData.mhAnalisa) || 0,
         kwhMesin: parseFloat(editFormData.kwhMesin) || 0
       };
 
+      console.log('Submitting data:', submitData); // Debug log
+
       const isManualItem = isInManual(item.productId);
       
       if (isManualItem) {
-        // Update existing manual entry
-        await masterAPI.updateGroup(item.productId, submitData);
+        // Update existing manual entry - only update Generik-specific fields
+        const updateData = {
+          productId: item.productId,
+          productName: item.productName,
+          pnCategory: item.pnCategory,
+          pnCategoryName: item.pnCategoryName,
+          // Keep existing values for these fields
+          manHourPros: item.manHourPros || 0,
+          manHourPack: item.manHourPack || 0,
+          rendemen: item.rendemen || 0,
+          dept: item.dept || '',
+          // Update only these Generik-specific fields
+          mhtBB: parseFloat(editFormData.mhtBB) || 0,
+          mhtBK: parseFloat(editFormData.mhtBK) || 0,
+          mhAnalisa: parseFloat(editFormData.mhAnalisa) || 0,
+          kwhMesin: parseFloat(editFormData.kwhMesin) || 0
+        };
+        await masterAPI.updateGroup(item.productId, updateData);
       } else {
-        // Create new manual entry
+        // Create new manual entry - only with Generik-specific fields
         await masterAPI.addGroup(submitData);
       }
 
@@ -345,12 +393,21 @@ const ProductGroup = () => {
 
   // Helper functions
   const formatNumber = (num) => {
-    if (num === null || num === undefined) return '-';
+    if (num === null || num === undefined) return '0';
+    if (num === 0) return '0';
     return num.toLocaleString();
   };
 
   const getCategories = () => {
-    const categories = [...new Set(groupData.map(item => item.pnCategoryName).filter(Boolean))];
+    // Filter categories based on current view mode
+    let relevantData = groupData;
+    if (viewMode === 'Standard') {
+      relevantData = groupData.filter(item => item.pnCategoryName !== 'Produk Generik');
+    } else if (viewMode === 'Generik') {
+      relevantData = groupData.filter(item => item.pnCategoryName === 'Produk Generik');
+    }
+    
+    const categories = [...new Set(relevantData.map(item => item.pnCategoryName).filter(Boolean))];
     return ['All Categories', ...categories];
   };
 
@@ -376,7 +433,7 @@ const ProductGroup = () => {
   }
 
   return (
-    <div className="product-group-container">
+    <div className={`product-group-container ${viewMode.toLowerCase()}-mode ${hasModeSwitched ? 'mode-switched' : ''}`}>
       <div className="controls-section">
         <div className="search-box">
           <Search size={20} />
@@ -388,12 +445,27 @@ const ProductGroup = () => {
           />
         </div>
         
+        <div className="view-mode-toggle">
+          <div className={`mode-indicator ${viewMode.toLowerCase()}-mode ${hasModeSwitched ? 'animated' : ''}`}>
+            <span>{viewMode} Mode</span>
+          </div>
+          <button 
+            className={`toggle-btn ${viewMode.toLowerCase()}-mode`}
+            onClick={handleModeSwitch}
+            title={`Switch to ${viewMode === 'Standard' ? 'Generik' : 'Standard'} mode`}
+          >
+            {viewMode === 'Standard' ? <ToggleLeft size={20} /> : <ToggleRight size={20} />}
+            <span>Switch to {viewMode === 'Standard' ? 'Generik' : 'Standard'}</span>
+          </button>
+        </div>
+        
         <div className="filter-controls">
           <div className="category-filter">
             <Filter size={18} />
             <select 
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
+              title={selectedCategory} // Show full text on hover
             >
               {getCategories().map(category => (
                 <option key={category} value={category}>{category}</option>
@@ -450,36 +522,42 @@ const ProductGroup = () => {
                     sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   )}
                 </th>
-                <th onClick={() => handleSort('mhtBB')} className="sortable">
-                  MHT BB
-                  {sortField === 'mhtBB' && (
-                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                  )}
-                </th>
-                <th onClick={() => handleSort('mhtBK')} className="sortable">
-                  MHT BK
-                  {sortField === 'mhtBK' && (
-                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                  )}
-                </th>
-                <th onClick={() => handleSort('mhAnalisa')} className="sortable">
-                  MH Analisa
-                  {sortField === 'mhAnalisa' && (
-                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                  )}
-                </th>
-                <th onClick={() => handleSort('kwhMesin')} className="sortable">
-                  KWH Mesin
-                  {sortField === 'kwhMesin' && (
-                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                  )}
-                </th>
-                <th>Actions</th>
+                {/* Generik-specific columns - only show in Generik mode */}
+                {viewMode === 'Generik' && (
+                  <>
+                    <th onClick={() => handleSort('mhtBB')} className="sortable">
+                      MHT BB
+                      {sortField === 'mhtBB' && (
+                        sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                      )}
+                    </th>
+                    <th onClick={() => handleSort('mhtBK')} className="sortable">
+                      MHT BK
+                      {sortField === 'mhtBK' && (
+                        sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                      )}
+                    </th>
+                    <th onClick={() => handleSort('mhAnalisa')} className="sortable">
+                      MH Analisa
+                      {sortField === 'mhAnalisa' && (
+                        sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                      )}
+                    </th>
+                    <th onClick={() => handleSort('kwhMesin')} className="sortable">
+                      KWH Mesin
+                      {sortField === 'kwhMesin' && (
+                        sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                      )}
+                    </th>
+                  </>
+                )}
+                {/* Actions column - only show in Generik mode */}
+                {viewMode === 'Generik' && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
               {paginatedData.map((item) => (
-                <tr key={item.productId}>
+                <tr key={item.productId} className={editingRowId === item.productId ? 'editing-row' : ''}>
                   <td className="product-id">
                     <div className="product-id-container">
                       <span className="id-text">{item.productId}</span>
@@ -498,110 +576,81 @@ const ProductGroup = () => {
                     // Editing mode
                     <>
                       <td>
-                        <select 
-                          value={editFormData.pnCategory}
-                          onChange={(e) => handleFormChange('pnCategory', e.target.value)}
-                          className="edit-select"
-                        >
-                          <option value="">Select Category</option>
-                          {categoryOptions.map(cat => (
-                            <option key={cat.id} value={cat.id}>{cat.name}</option>
-                          ))}
-                        </select>
+                        {/* Group name - read-only in Generik mode */}
+                        <span className={getCategoryBadgeClass(item.pnCategory, item.pnCategoryName)}>
+                          {item.pnCategoryName}
+                        </span>
                       </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={editFormData.manHourPros}
-                          onChange={(e) => handleFormChange('manHourPros', e.target.value)}
-                          className="edit-input"
-                          placeholder="Process"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={editFormData.manHourPack}
-                          onChange={(e) => handleFormChange('manHourPack', e.target.value)}
-                          className="edit-input"
-                          placeholder="Packing"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={editFormData.rendemen}
-                          onChange={(e) => handleFormChange('rendemen', e.target.value)}
-                          className="edit-input"
-                          placeholder="Rendemen"
-                        />
-                      </td>
-                      <td>
-                        <select 
-                          value={editFormData.dept}
-                          onChange={(e) => handleFormChange('dept', e.target.value)}
-                          className="edit-select"
-                        >
-                          <option value="">Select Dept</option>
-                          {deptOptions.map(dept => (
-                            <option key={dept} value={dept}>{dept}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={editFormData.mhtBB}
-                          onChange={(e) => handleFormChange('mhtBB', e.target.value)}
-                          className="edit-input"
-                          placeholder="MHT BB"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={editFormData.mhtBK}
-                          onChange={(e) => handleFormChange('mhtBK', e.target.value)}
-                          className="edit-input"
-                          placeholder="MHT BK"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={editFormData.mhAnalisa}
-                          onChange={(e) => handleFormChange('mhAnalisa', e.target.value)}
-                          className="edit-input"
-                          placeholder="MH Analisa"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={editFormData.kwhMesin}
-                          onChange={(e) => handleFormChange('kwhMesin', e.target.value)}
-                          className="edit-input"
-                          placeholder="KWH Mesin"
-                        />
-                      </td>
-                      <td className="actions editing-mode">
-                        <button 
-                          className="submit-btn"
-                          onClick={() => handleSubmitEdit(item)}
-                          disabled={submitLoading}
-                          title="Save Changes"
-                        >
-                          <Check size={16} />
-                        </button>
-                        <button 
-                          className="cancel-btn"
-                          onClick={handleCancelEdit}
-                          disabled={submitLoading}
-                          title="Cancel Edit"
-                        >
-                          <X size={16} />
-                        </button>
-                      </td>
+                      <td className="manhour">{formatNumber(item.manHourPros)}</td>
+                      <td className="manhour">{formatNumber(item.manHourPack)}</td>
+                      <td className="rendemen">{item.rendemen ? `${item.rendemen}%` : '-'}</td>
+                      <td className="dept">{item.dept || '-'}</td>
+                      {/* Generik-specific editing fields - only show in Generik mode */}
+                      {viewMode === 'Generik' && (
+                        <>
+                          <td>
+                            <input
+                              type="number"
+                              value={editFormData.mhtBB || 0}
+                              onChange={(e) => handleFormChange('mhtBB', e.target.value)}
+                              className="edit-input generik-field"
+                              min="0"
+                              step="0.01"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              value={editFormData.mhtBK || 0}
+                              onChange={(e) => handleFormChange('mhtBK', e.target.value)}
+                              className="edit-input generik-field"
+                              min="0"
+                              step="0.01"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              value={editFormData.mhAnalisa || 0}
+                              onChange={(e) => handleFormChange('mhAnalisa', e.target.value)}
+                              className="edit-input generik-field"
+                              min="0"
+                              step="0.01"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              value={editFormData.kwhMesin || 0}
+                              onChange={(e) => handleFormChange('kwhMesin', e.target.value)}
+                              className="edit-input generik-field"
+                              min="0"
+                              step="0.01"
+                            />
+                          </td>
+                        </>
+                      )}
+                      {/* Actions column - only show in Generik mode */}
+                      {viewMode === 'Generik' && (
+                        <td className="actions editing-mode">
+                          <button 
+                            className="submit-btn"
+                            onClick={() => handleSubmitEdit(item)}
+                            disabled={submitLoading}
+                            title="Save Changes"
+                          >
+                            <Check size={16} />
+                          </button>
+                          <button 
+                            className="cancel-btn"
+                            onClick={handleCancelEdit}
+                            disabled={submitLoading}
+                            title="Cancel Edit"
+                          >
+                            <X size={16} />
+                          </button>
+                        </td>
+                      )}
                     </>
                   ) : (
                     // Display mode
@@ -615,28 +664,36 @@ const ProductGroup = () => {
                       <td className="manhour">{formatNumber(item.manHourPack)}</td>
                       <td className="rendemen">{item.rendemen ? `${item.rendemen}%` : '-'}</td>
                       <td className="dept">{item.dept || '-'}</td>
-                      <td className="mht-bb">{formatNumber(item.mhtBB)}</td>
-                      <td className="mht-bk">{formatNumber(item.mhtBK)}</td>
-                      <td className="mh-analisa">{formatNumber(item.mhAnalisa)}</td>
-                      <td className="kwh-mesin">{formatNumber(item.kwhMesin)}</td>
-                      <td className={`actions display-mode ${isInManual(item.productId) ? 'multiple-buttons' : 'single-button'}`}>
-                        <button 
-                          className="edit-btn"
-                          onClick={() => handleEditClick(item)}
-                          title="Edit Group"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        {isInManual(item.productId) && (
+                      {/* Generik-specific display columns - only show in Generik mode */}
+                      {viewMode === 'Generik' && (
+                        <>
+                          <td className="mht-bb">{formatNumber(item.mhtBB)}</td>
+                          <td className="mht-bk">{formatNumber(item.mhtBK)}</td>
+                          <td className="mh-analisa">{formatNumber(item.mhAnalisa)}</td>
+                          <td className="kwh-mesin">{formatNumber(item.kwhMesin)}</td>
+                        </>
+                      )}
+                      {/* Actions column - only show in Generik mode */}
+                      {viewMode === 'Generik' && (
+                        <td className={`actions display-mode ${isInManual(item.productId) ? 'multiple-buttons' : 'single-button'}`}>
                           <button 
-                            className="delete-btn"
-                            onClick={() => handleDeleteClick(item)}
-                            title="Delete Group"
+                            className="edit-btn"
+                            onClick={() => handleEditClick(item)}
+                            title="Edit Group"
                           >
-                            <Trash2 size={16} />
+                            <Edit size={16} />
                           </button>
-                        )}
-                      </td>
+                          {isInManual(item.productId) && (
+                            <button 
+                              className="delete-btn"
+                              onClick={() => handleDeleteClick(item)}
+                              title="Delete Group"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </>
                   )}
                 </tr>
@@ -648,15 +705,15 @@ const ProductGroup = () => {
         {filteredData.length === 0 && !loading && (
           <div className="no-data">
             <Users size={48} />
-            <h3>No Product Groups Found</h3>
+            <h3>No {viewMode} Product Groups Found</h3>
             <p>
               {searchTerm
                 ? selectedCategory === 'All Categories'
-                  ? 'No groups match your search.'
-                  : `No ${selectedCategory.toLowerCase()} groups match your search.`
+                  ? `No ${viewMode.toLowerCase()} groups match your search.`
+                  : `No ${selectedCategory.toLowerCase()} groups match your search in ${viewMode.toLowerCase()} mode.`
                 : selectedCategory === 'All Categories'
-                  ? 'No groups available.'
-                  : `No ${selectedCategory.toLowerCase()} groups available.`
+                  ? `No ${viewMode.toLowerCase()} groups available.`
+                  : `No ${selectedCategory.toLowerCase()} groups available in ${viewMode.toLowerCase()} mode.`
               }
             </p>
           </div>
@@ -708,7 +765,11 @@ const ProductGroup = () => {
       )}
 
       <div className="table-info">
-        <span>{filteredData.length} of {groupData.length} groups</span>
+        <span>{filteredData.length} of {groupData.filter(item => 
+          viewMode === 'Standard' 
+            ? item.pnCategoryName !== 'Produk Generik' 
+            : item.pnCategoryName === 'Produk Generik'
+        ).length} {viewMode.toLowerCase()} groups</span>
       </div>
 
       {/* Delete Confirmation Modal */}

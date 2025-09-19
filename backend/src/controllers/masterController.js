@@ -314,18 +314,24 @@ class MasterController {
                 userId = "system"
             } = req.body;
             
-            // Validate required fields
-            if (!productId || !productName || !pnCategory || !pnCategoryName || 
-                !manHourPros || !manHourPack || !rendemen || !dept) {
+            // Validate required fields - only core product info is required
+            if (!productId || !productName || !pnCategory || !pnCategoryName) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Missing required fields: productId, productName, pnCategory, pnCategoryName, manHourPros, manHourPack, rendemen, dept'
+                    message: 'Missing required fields: productId, productName, pnCategory, pnCategoryName'
                 });
             }
             
-            // Validate numeric values
-            const numericFields = { 
-                pnCategory, 
+            // Validate numeric values for required fields
+            if (isNaN(parseInt(pnCategory))) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid numeric value for field: pnCategory'
+                });
+            }
+            
+            // Validate optional numeric fields if provided
+            const optionalNumericFields = { 
                 manHourPros, 
                 manHourPack, 
                 rendemen,
@@ -334,8 +340,8 @@ class MasterController {
                 mhAnalisa,
                 kwhMesin
             };
-            for (const [fieldName, value] of Object.entries(numericFields)) {
-                if (isNaN(parseFloat(value))) {
+            for (const [fieldName, value] of Object.entries(optionalNumericFields)) {
+                if (value !== null && value !== undefined && isNaN(parseFloat(value))) {
                     return res.status(400).json({
                         success: false,
                         message: `Invalid numeric value for field: ${fieldName}`
@@ -348,10 +354,10 @@ class MasterController {
                 productName,
                 parseInt(pnCategory),
                 pnCategoryName,
-                parseFloat(manHourPros),
-                parseFloat(manHourPack),
-                parseFloat(rendemen),
-                dept,
+                manHourPros !== null && manHourPros !== undefined ? parseFloat(manHourPros) : null,
+                manHourPack !== null && manHourPack !== undefined ? parseFloat(manHourPack) : null,
+                rendemen !== null && rendemen !== undefined ? parseFloat(rendemen) : null,
+                dept || null,
                 parseFloat(mhtBB),
                 parseFloat(mhtBK),
                 parseFloat(mhAnalisa),
@@ -393,12 +399,11 @@ class MasterController {
                 userId = "system"
             } = req.body;
             
-            // Validate required fields
-            if (!id || !productId || !productName || !pnCategory || !pnCategoryName || 
-                !manHourPros || !manHourPack || !rendemen || !dept) {
+            // Validate required fields - only core product info and ID are required
+            if (!id || !productId || !productName || !pnCategory || !pnCategoryName) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Missing required fields: id (in URL), productId, productName, pnCategory, pnCategoryName, manHourPros, manHourPack, rendemen, dept'
+                    message: 'Missing required fields: id (in URL), productId, productName, pnCategory, pnCategoryName'
                 });
             }
             
@@ -410,9 +415,16 @@ class MasterController {
                 });
             }
             
-            // Validate numeric values
-            const numericFields = { 
-                pnCategory, 
+            // Validate required numeric value
+            if (isNaN(parseInt(pnCategory))) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid numeric value for field: pnCategory'
+                });
+            }
+            
+            // Validate optional numeric fields if provided
+            const optionalNumericFields = { 
                 manHourPros, 
                 manHourPack, 
                 rendemen,
@@ -421,8 +433,8 @@ class MasterController {
                 mhAnalisa,
                 kwhMesin
             };
-            for (const [fieldName, value] of Object.entries(numericFields)) {
-                if (isNaN(parseFloat(value))) {
+            for (const [fieldName, value] of Object.entries(optionalNumericFields)) {
+                if (value !== null && value !== undefined && isNaN(parseFloat(value))) {
                     return res.status(400).json({
                         success: false,
                         message: `Invalid numeric value for field: ${fieldName}`
@@ -436,10 +448,10 @@ class MasterController {
                 productName,
                 parseInt(pnCategory),
                 pnCategoryName,
-                parseFloat(manHourPros),
-                parseFloat(manHourPack),
-                parseFloat(rendemen),
-                dept,
+                manHourPros !== null && manHourPros !== undefined ? parseFloat(manHourPros) : null,
+                manHourPack !== null && manHourPack !== undefined ? parseFloat(manHourPack) : null,
+                rendemen !== null && rendemen !== undefined ? parseFloat(rendemen) : null,
+                dept || null,
                 parseFloat(mhtBB),
                 parseFloat(mhtBK),
                 parseFloat(mhAnalisa),

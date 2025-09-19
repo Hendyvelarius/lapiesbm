@@ -3,6 +3,56 @@
   padding: 2rem;
   color: #374151;
   min-height: 100vh;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth easing */
+  position: relative;
+  overflow: hidden;
+}
+
+/* Only animate container when mode has been switched */
+.product-group-container.mode-switched {
+  animation: containerFadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes containerFadeIn {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Add a subtle background gradient that transitions */
+.product-group-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0.03;
+  transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* View Mode Specific Styles */
+.product-group-container.generik-mode {
+  /* Green theme for Generik mode */
+}
+
+.product-group-container.generik-mode::before {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.product-group-container.standard-mode {
+  /* Default blue theme for Standard mode */
+}
+
+.product-group-container.standard-mode::before {
+  background: linear-gradient(135deg, #667eea, #764ba2);
 }
 
 /* Page Header */
@@ -27,20 +77,52 @@
 
 .header-left svg {
   color: #667eea;
-  background: linear-gradient(135deg, #667eea, #764ba2);
   padding: 0.75rem;
   border-radius: 12px;
   color: white;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: scale(1);
+}
+
+/* Standard mode header (blue) */
+.product-group-container.standard-mode .header-left svg {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  transform: scale(1) rotate(0deg);
+}
+
+/* Generik mode header (green) */
+.product-group-container.generik-mode .header-left svg {
+  background: linear-gradient(135deg, #10b981, #059669);
+  transform: scale(1.05) rotate(5deg);
 }
 
 .header-left h1 {
   margin: 0;
   font-size: 1.8rem;
   font-weight: 700;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateX(0);
+}
+
+/* Standard mode title (blue) */
+.product-group-container.standard-mode .header-left h1 {
   background: linear-gradient(135deg, #667eea, #764ba2);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  transform: translateX(0);
+}
+
+/* Generik mode title (green) */
+.product-group-container.generik-mode .header-left h1 {
+  background: linear-gradient(135deg, #10b981, #059669);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  transform: translateX(2px);
 }
 
 .header-left p {
@@ -83,6 +165,7 @@
   border-radius: 20px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.2);
+  min-height: 80px; /* Consistent height to prevent layout shifts */
 }
 
 .search-box {
@@ -105,20 +188,173 @@
   border: 2px solid #e5e7eb;
   border-radius: 12px;
   font-size: 1rem;
-  transition: all 0.2s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   background: white;
+  transform: scale(1);
 }
 
 .search-box input:focus {
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  transform: scale(1.02);
+}
+
+/* View Mode Toggle */
+.view-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.mode-indicator {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: scale(1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Add a subtle pulse effect */
+.mode-indicator::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.6s ease;
+}
+
+.mode-indicator.standard-mode {
+  background: rgba(102, 126, 234, 0.1);
+  color: #4c51bf;
+  border: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.mode-indicator.standard-mode::before {
+  left: 100%;
+}
+
+.mode-indicator.generik-mode {
+  background: rgba(16, 185, 129, 0.1);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.mode-indicator.generik-mode::before {
+  left: 100%;
+}
+
+/* Mode indicator pulse animation */
+@keyframes modeIndicatorPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.1);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 8px rgba(102, 126, 234, 0);
+  }
+}
+
+/* Remove the duplicate Generik mode pulse */
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(255, 255, 255, 0.9);
+  color: #4b5563;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Add a sliding background effect */
+.toggle-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: -1;
+}
+
+/* Standard mode toggle button (default blue theme) */
+.toggle-btn.standard-mode {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border-color: rgba(102, 126, 234, 0.3);
+  transform: scale(1);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+}
+
+.toggle-btn.standard-mode::before {
+  background: linear-gradient(135deg, #5a67d8, #6b46c1);
+  left: 0;
+}
+
+.toggle-btn.standard-mode:hover {
+  background: linear-gradient(135deg, #5a67d8, #6b46c1);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+/* Generik mode toggle button (green theme) */
+.toggle-btn.generik-mode {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border-color: rgba(16, 185, 129, 0.3);
+  transform: scale(1);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
+}
+
+.toggle-btn.generik-mode::before {
+  background: linear-gradient(135deg, #0d9488, #047857);
+  left: 0;
+}
+
+.toggle-btn.generik-mode:hover {
+  background: linear-gradient(135deg, #0d9488, #047857);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+}
+
+/* Icon animation */
+.toggle-btn svg {
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-btn.standard-mode svg {
+  transform: rotate(0deg);
+}
+
+.toggle-btn.generik-mode svg {
+  transform: rotate(180deg);
 }
 
 .filter-controls {
   display: flex;
   gap: 1rem;
   align-items: center;
+  flex-shrink: 0; /* Prevent shrinking of filter controls */
 }
 
 /* Enhanced responsive controls section */
@@ -132,6 +368,10 @@
     flex: 1;
     min-width: 250px;
     max-width: 400px;
+  }
+  
+  .view-mode-toggle {
+    flex: 0 0 auto;
   }
   
   .filter-controls {
@@ -160,7 +400,7 @@
   }
   
   .category-filter {
-    flex: 1;
+    flex: 0 0 280px; /* Fixed width but allow some flexibility */
     margin-right: 1rem;
   }
   
@@ -179,11 +419,27 @@
   border: 2px solid #e5e7eb;
   border-radius: 12px;
   transition: all 0.2s ease;
+  width: 280px; /* Fixed width to prevent layout shifts */
+  min-width: 280px; /* Minimum width constraint */
 }
 
 .category-filter:focus-within {
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  transform: translateY(-1px); /* Subtle lift effect */
+}
+
+/* Mode-specific category filter styling */
+.product-group-container.generik-mode .category-filter:focus-within {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  transform: translateY(-1px); /* Subtle lift effect */
+}
+
+.product-group-container.generik-mode .search-box input:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  transform: scale(1.02);
 }
 
 .category-filter svg {
@@ -198,6 +454,27 @@
   font-weight: 500;
   color: #374151;
   cursor: pointer;
+  flex: 1; /* Take remaining space */
+  min-width: 0; /* Allow shrinking */
+  text-overflow: ellipsis; /* Show ... when text overflows */
+  overflow: hidden; /* Hide overflowing text */
+  white-space: nowrap; /* Prevent text wrapping */
+  padding-right: 1.5rem; /* Space for dropdown arrow and potential ellipsis */
+}
+
+/* Add a subtle visual cue when select is focused to indicate truncation */
+.category-filter select:focus {
+  background: rgba(59, 130, 246, 0.05);
+  border-radius: 4px;
+}
+
+/* Style for dropdown options - they should show full text */
+.category-filter select option {
+  white-space: normal; /* Allow wrapping in options */
+  text-overflow: clip; /* Don't truncate in options */
+  overflow: visible; /* Show full text in options */
+  padding: 0.5rem;
+  font-size: 0.95rem;
 }
 
 /* Table Styles */
@@ -257,11 +534,61 @@
   position: sticky;
   top: 0;
   z-index: 10;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 0;
 }
 
-.groups-table thead {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
+/* Mode-specific table header styling */
+.product-group-container.generik-mode.mode-switched .groups-table thead {
+  background: linear-gradient(135deg, #10b981, #059669);
+  animation: headerSlideIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.product-group-container.standard-mode.mode-switched .groups-table thead {
+  animation: headerSlideIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Table row animations for mode switching */
+.groups-table tbody tr {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Only animate table rows when mode has been switched */
+.product-group-container.mode-switched .groups-table tbody tr {
+  animation: tableRowFadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Stagger the row animations for a wave effect - only when mode switched */
+.product-group-container.mode-switched .groups-table tbody tr:nth-child(1) { animation-delay: 0.05s; }
+.product-group-container.mode-switched .groups-table tbody tr:nth-child(2) { animation-delay: 0.1s; }
+.product-group-container.mode-switched .groups-table tbody tr:nth-child(3) { animation-delay: 0.15s; }
+.product-group-container.mode-switched .groups-table tbody tr:nth-child(4) { animation-delay: 0.2s; }
+.product-group-container.mode-switched .groups-table tbody tr:nth-child(5) { animation-delay: 0.25s; }
+.product-group-container.mode-switched .groups-table tbody tr:nth-child(6) { animation-delay: 0.3s; }
+.product-group-container.mode-switched .groups-table tbody tr:nth-child(7) { animation-delay: 0.35s; }
+.product-group-container.mode-switched .groups-table tbody tr:nth-child(8) { animation-delay: 0.4s; }
+
+@keyframes tableRowFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header animation keyframes */
+@keyframes headerSlideIn {
+  0% {
+    transform: translateY(-10px);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .groups-table th {
@@ -556,12 +883,25 @@
 .edit-btn {
   background: #f0f9ff;
   color: #0369a1;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .edit-btn:hover {
   background: #0369a1;
   color: white;
-  transform: translateY(-1px);
+  transform: translateY(-1px) scale(1.05);
+}
+
+/* Mode-specific edit button styling */
+.product-group-container.generik-mode .edit-btn {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.product-group-container.generik-mode .edit-btn:hover {
+  background: #16a34a;
+  color: white;
+  transform: translateY(-1px) scale(1.05);
 }
 
 .delete-btn {
@@ -626,6 +966,60 @@
 
 .edit-input[type="number"] {
   text-align: center;
+}
+
+/* Improved styling for Generik mode editing fields */
+.edit-input.generik-field {
+  width: 80px !important;
+  min-width: 80px;
+  max-width: 80px;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: center;
+  background: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.edit-input.generik-field:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
+  background: #f0fdf4;
+}
+
+.edit-input.generik-field:hover {
+  border-color: #9ca3af;
+}
+
+/* Ensure proper spacing for editing rows */
+.groups-table tbody tr td .edit-input.generik-field {
+  margin: 0 auto;
+}
+
+/* Style for read-only elements during editing */
+.groups-table tbody tr .category-badge {
+  transition: opacity 0.2s ease;
+}
+
+/* Compact actions in editing mode */
+.actions.editing-mode {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+  min-width: 80px;
+}
+
+/* Adjust table cell spacing for editing rows */
+.groups-table tbody tr.editing-row td {
+  padding: 8px 4px;
+  vertical-align: middle;
+}
+
+.groups-table tbody tr.editing-row .edit-input.generik-field {
+  margin: 0;
 }
 
 /* Loading and Error States */
@@ -788,6 +1182,30 @@
 .page-number:hover {
   border-color: #667eea;
   background: #f8fafc;
+}
+
+.page-number.active {
+  color: white;
+  border-color: transparent;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: scale(1.1);
+}
+
+/* Mode-specific active page styling */
+.product-group-container.standard-mode .page-number.active {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.product-group-container.generik-mode .page-number.active {
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.product-group-container.generik-mode .page-number:hover {
+  border-color: #10b981;
+  background: #f0fdf4;
+  transform: translateY(-1px);
 }
 
 .page-number.active {
@@ -1049,6 +1467,22 @@
     max-width: none;
   }
 
+  .view-mode-toggle {
+    width: 100%;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .mode-indicator {
+    align-self: center;
+  }
+
+  .toggle-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
   .filter-controls {
     flex-direction: column;
     gap: 1rem;
@@ -1059,6 +1493,9 @@
     flex: 1;
     justify-content: space-between;
     margin-right: 0;
+    width: 100%; /* Full width on mobile */
+    min-width: unset; /* Remove min-width constraint on mobile */
+    max-width: none; /* Allow full width */
   }
   
   .add-btn {
