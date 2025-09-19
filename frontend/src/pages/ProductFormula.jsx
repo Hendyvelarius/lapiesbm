@@ -668,22 +668,37 @@ const ProductFormula = () => {
       setExportLoading(true);
       notifier.info('Starting export process...');
       
-      // Call API to get data from stored procedure
-      const response = await api.master.exportAllFormulaDetail();
+      // Call both APIs to get data from stored procedures
+      const [response1, response2] = await Promise.all([
+        api.master.exportAllFormulaDetail(),
+        api.master.exportAllFormulaDetailSumPerSubID()
+      ]);
       
-      if (!response.success || !response.data || response.data.length === 0) {
-        notifier.warning('No formula data available for export');
+      // Validate first dataset
+      if (!response1.success || !response1.data || response1.data.length === 0) {
+        notifier.warning('No detailed formula data available for export');
         return;
       }
       
-      const data = response.data;
+      // Validate second dataset
+      if (!response2.success || !response2.data || response2.data.length === 0) {
+        notifier.warning('No summary formula data available for export');
+        return;
+      }
       
-      // Create workbook and worksheet
+      const detailData = response1.data;
+      const summaryData = response2.data;
+      
+      // Create workbook
       const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.json_to_sheet(data);
       
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'All Formula Details');
+      // Create first worksheet with detailed data
+      const detailWorksheet = XLSX.utils.json_to_sheet(detailData);
+      XLSX.utils.book_append_sheet(workbook, detailWorksheet, 'Formula Details');
+      
+      // Create second worksheet with summary data
+      const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Summary Per SubID');
       
       // Generate filename with current date
       const currentDate = new Date();
@@ -693,7 +708,7 @@ const ProductFormula = () => {
       // Save file
       XLSX.writeFile(workbook, filename);
       
-      notifier.success(`Export completed! File saved as ${filename}`);
+      notifier.success(`Export completed! File saved as ${filename} with two sheets: "Formula Details" and "Summary Per SubID"`);
       
     } catch (err) {
       console.error('Error exporting all formulas:', err);

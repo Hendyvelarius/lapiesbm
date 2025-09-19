@@ -646,6 +646,17 @@ async function exportAllFormulaDetail() {
   }
 }
 
+async function exportAllFormulaDetailSumPerSubID() {
+  try {
+    const db = await connect();
+    const result = await db.request().query("EXEC sp_COGS_generate_all_formula_detail 'SumPerSubID'");
+    return result.recordset;
+  } catch (error) {
+    console.error('Error executing exportAllFormulaDetailSumPerSubID query:', error);
+    throw error;
+  }
+}
+
 // === FORMULA MANUAL CUD OPERATIONS ===
 
 async function addFormulaManual(ppiType, ppiSubId, ppiProductId, ppiBatchSize, ppiSeqId, ppiItemId, ppiQty, ppiUnitId, userId) {
@@ -914,6 +925,7 @@ module.exports = {
   getMaterial,
   getMaterialUsage,
   exportAllFormulaDetail,
+  exportAllFormulaDetailSumPerSubID,
   addFormulaManual,
   addBatchFormulaManual,
   updateFormulaManual,

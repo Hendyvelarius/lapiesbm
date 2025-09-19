@@ -360,6 +360,11 @@ export const masterAPI = {
   exportAllFormulaDetail: () => apiRequest('/master/export-all-formula', {
     method: 'GET',
   }),
+  
+  // Export all formula detail sum per sub ID using stored procedure
+  exportAllFormulaDetailSumPerSubID: () => apiRequest('/master/export-all-formula-sum-per-subid', {
+    method: 'GET',
+  }),
 };
 
 // Health check
