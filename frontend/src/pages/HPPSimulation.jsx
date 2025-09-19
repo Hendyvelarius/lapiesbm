@@ -818,7 +818,6 @@ export default function HPPSimulation() {
       // If simulation is successful and we have a Simulasi_ID, fetch detailed data
       if (results && results.length > 0 && results[0].Simulasi_ID) {
         const simulasiId = results[0].Simulasi_ID;
-        console.log('Fetching detailed simulation data for Simulasi_ID:', simulasiId);
         
         setLoadingDetails(true);
         try {

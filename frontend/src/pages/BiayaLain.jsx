@@ -107,8 +107,6 @@ export default function BiayaLain() {
       setIsEditing(false);
       setOriginalData({ ...formData });
       
-      // Show success message (you can add a toast notification here)
-      console.log('Biaya Lain data saved successfully');
     } catch (error) {
       console.error('Error saving biaya lain data:', error);
       // You might want to show an error message to the user here
