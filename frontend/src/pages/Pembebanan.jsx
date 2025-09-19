@@ -2,6 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { masterAPI } from '../services/api';
 import '../styles/Pembebanan.css';
 import { Search, Filter, Users, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, Edit, Trash2, X, Check } from 'lucide-react';
+import AWN from 'awesome-notifications';
+import 'awesome-notifications/dist/style.css';
+
+// Initialize awesome-notifications
+const notifier = new AWN({
+  position: 'top-right',
+  durations: {
+    global: 4000
+  }
+});
 
 const Pembebanan = () => {
   const [pembebanData, setPembebanData] = useState([]);
@@ -328,7 +338,7 @@ const Pembebanan = () => {
       
     } catch (error) {
       console.error('Error updating pembebanan:', error);
-      alert('Error updating entry: ' + error.message);
+      notifier.alert('Error updating entry: ' + error.message);
     } finally {
       setSubmitLoading(false);
     }
@@ -416,28 +426,28 @@ const Pembebanan = () => {
     try {
       // Validation
       if (!addFormData.groupPNCategoryName) {
-        alert('Please select a Group Name');
+        notifier.alert('Please select a Group Name');
         return;
       }
       
       if (!addFormData.groupProductID) {
-        alert('Please select a Product');
+        notifier.alert('Please select a Product');
         return;
       }
       
       if (!addFormData.groupProsesRate || parseFloat(addFormData.groupProsesRate) < 0) {
-        alert('Please enter a valid Proses Rate (must be 0 or greater)');
+        notifier.alert('Please enter a valid Proses Rate (must be 0 or greater)');
         return;
       }
       
       if (!addFormData.groupKemasRate || parseFloat(addFormData.groupKemasRate) < 0) {
-        alert('Please enter a valid Kemas Rate (must be 0 or greater)');
+        notifier.alert('Please enter a valid Kemas Rate (must be 0 or greater)');
         return;
       }
 
       // Additional validation to ensure groupPNCategoryID is set
       if (!addFormData.groupPNCategoryID) {
-        alert('Group Category ID is missing. Please select a product again.');
+        notifier.alert('Group Category ID is missing. Please select a product again.');
         return;
       }
       
@@ -448,12 +458,9 @@ const Pembebanan = () => {
       );
       
       if (isDuplicate) {
-        alert(`A cost allocation entry for ${addFormData.groupPNCategoryName} product ${addFormData.groupProductID} already exists. Please edit the existing entry instead.`);
+        notifier.alert(`A cost allocation entry for ${addFormData.groupPNCategoryName} product ${addFormData.groupProductID} already exists. Please edit the existing entry instead.`);
         return;
       }
-
-      // Debug logging
-      console.log('Add form data being sent:', addFormData);
       
       const newEntry = {
         groupPNCategoryID: String(addFormData.groupPNCategoryID),
@@ -465,8 +472,6 @@ const Pembebanan = () => {
         groupAnalisaRate: addFormData.groupAnalisaRate ? parseFloat(addFormData.groupAnalisaRate) : null,
         tollFee: addFormData.tollFee ? parseFloat(addFormData.tollFee) : null
       };
-
-      console.log('Processed entry data:', newEntry);
       
       await masterAPI.addPembebanan(newEntry);
       
@@ -475,7 +480,7 @@ const Pembebanan = () => {
       handleCancelAdd();
     } catch (error) {
       console.error('Error adding pembebanan entry:', error);
-      alert('Error adding entry: ' + error.message);
+      notifier.alert('Error adding entry: ' + error.message);
     }
   };
 

@@ -5,6 +5,16 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { masterAPI } from '../services/api';
 import '../styles/ProductHPPReport.css';
+import AWN from 'awesome-notifications';
+import 'awesome-notifications/dist/style.css';
+
+// Initialize awesome-notifications
+const notifier = new AWN({
+  position: 'top-right',
+  durations: {
+    global: 4000
+  }
+});
 
 // Utility functions
 const formatCurrency = (value) => {
@@ -208,7 +218,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
 
   const handleExportToExcel = async () => {
     if (!product) {
-      alert('No product selected for export');
+      notifier.alert('No product selected for export');
       return;
     }
 
@@ -345,7 +355,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
       
     } catch (error) {
       console.error('Error exporting to Excel:', error);
-      alert('Failed to export report to Excel. Please try again.');
+      notifier.alert('Failed to export report to Excel. Please try again.');
     } finally {
       setExporting(false);
     }
@@ -353,7 +363,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
 
   const handleExportToPDF = () => {
     if (!product) {
-      alert('No product selected for export');
+      notifier.alert('No product selected for export');
       return;
     }
 
@@ -717,7 +727,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
       
     } catch (error) {
       console.error('Error exporting to PDF:', error);
-      alert('Failed to export report to PDF. Please try again.');
+      notifier.alert('Failed to export report to PDF. Please try again.');
     } finally {
       setExporting(false);
     }

@@ -4,6 +4,16 @@ import { Edit, Trash2 } from 'lucide-react';
 import AddExpiredMaterialModal from '../components/AddExpiredMaterialModal';
 import EditExpiredMaterialModal from '../components/EditExpiredMaterialModal';
 import '../styles/ExpiryCost.css';
+import AWN from 'awesome-notifications';
+import 'awesome-notifications/dist/style.css';
+
+// Initialize awesome-notifications
+const notifier = new AWN({
+  position: 'top-right',
+  durations: {
+    global: 4000
+  }
+});
 
 // API base configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
@@ -110,48 +120,60 @@ const ExpiryCost = () => {
   };
 
   const handleDeleteMaterial = async (materialId) => {
-    if (!window.confirm('Are you sure you want to delete this expired material record?')) {
-      return;
-    }
-
-    try {
-      const response = await apiCall(`/expiry-cost/${materialId}`, 'DELETE');
-      
-      if (response.success) {
-        await loadData(); // Reload data
-      } else {
-        setError('Failed to delete material: ' + response.message);
+    notifier.confirm(
+      'Are you sure you want to delete this expired material record?',
+      async () => {
+        try {
+          const response = await apiCall(`/expiry-cost/${materialId}`, 'DELETE');
+          
+          if (response.success) {
+            await loadData(); // Reload data
+            notifier.success('Expired material record deleted successfully');
+          } else {
+            notifier.alert('Failed to delete material: ' + response.message);
+          }
+        } catch (err) {
+          notifier.alert('Error deleting material: ' + err.message);
+        }
+      },
+      () => {
+        // User cancelled - do nothing
       }
-    } catch (err) {
-      setError('Error deleting material: ' + err.message);
-    }
+    );
   };
 
   const handleGenerateExpiryCost = async () => {
-    if (!window.confirm(`Are you sure you want to generate expiry cost allocation for year ${currentYear}? This will process all expired materials for the current year.`)) {
-      return;
-    }
+    notifier.confirm(
+      `Are you sure you want to generate expiry cost allocation for year ${currentYear}? This will process all expired materials for the current year.`,
+      async () => {
+        try {
+          setGenerating(true);
+          setError('');
 
-    try {
-      setGenerating(true);
-      setError('');
+          // Call the generate endpoint
+          const response = await apiCall('/expiry-cost/generate', 'POST', { 
+            periode: currentYear 
+          });
 
-      // Call the generate endpoint
-      const response = await apiCall('/expiry-cost/generate', 'POST', { 
-        periode: currentYear 
-      });
-
-      if (response.success) {
-        // Reload the page after successful generation
-        window.location.reload();
-      } else {
-        setError('Failed to generate expiry cost: ' + response.message);
+          if (response.success) {
+            // Reload the page after successful generation
+            notifier.success('Expiry cost allocation generated successfully!');
+            window.location.reload();
+          } else {
+            setError('Failed to generate expiry cost: ' + response.message);
+            notifier.alert('Failed to generate expiry cost: ' + response.message);
+          }
+        } catch (err) {
+          setError('Error generating expiry cost: ' + err.message);
+          notifier.alert('Error generating expiry cost: ' + err.message);
+        } finally {
+          setGenerating(false);
+        }
+      },
+      () => {
+        // User cancelled - do nothing
       }
-    } catch (err) {
-      setError('Error generating expiry cost: ' + err.message);
-    } finally {
-      setGenerating(false);
-    }
+    );
   };
 
   const handleViewAffectedProducts = async () => {

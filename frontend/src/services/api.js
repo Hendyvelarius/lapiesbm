@@ -295,6 +295,12 @@ export const masterAPI = {
     method: 'DELETE',
   }),
   
+  // Bulk import Generik groups
+  bulkImportGenerikGroups: (generikData) => apiRequest('/master/group/bulk-import-generik', {
+    method: 'POST',
+    body: JSON.stringify({ generikData }),
+  }),
+  
   // Get product names
   getProductName: () => apiRequest('/master/productName'),
   

@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { masterAPI } from '../services/api';
 import '../styles/ProductGroup.css';
-import { Search, Filter, Edit, Trash2, Users, ChevronLeft, ChevronRight, X, Check, ChevronUp, ChevronDown, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Search, Filter, Edit, Trash2, Users, ChevronLeft, ChevronRight, X, Check, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, Download, Upload } from 'lucide-react';
+import AWN from 'awesome-notifications';
+import 'awesome-notifications/dist/style.css';
+
+// Initialize awesome-notifications
+const notifier = new AWN({
+  position: 'top-right',
+  durations: {
+    global: 5000
+  }
+});
 
 const ProductGroup = () => {
   const [groupData, setGroupData] = useState([]);
@@ -318,8 +328,6 @@ const ProductGroup = () => {
         kwhMesin: parseFloat(editFormData.kwhMesin) || 0
       };
 
-      console.log('Submitting data:', submitData); // Debug log
-
       const isManualItem = isInManual(item.productId);
       
       if (isManualItem) {
@@ -391,6 +399,272 @@ const ProductGroup = () => {
     setDeletingItem(null);
   };
 
+  // Export functionality
+  const handleExportAll = async () => {
+    try {
+      setSubmitLoading(true);
+      
+      // Create CSV content from all group data (both Standard and Generik)
+      const csvHeaders = [
+        'Product ID',
+        'Product Name', 
+        'Category ID',
+        'Category Name',
+        'MH Process',
+        'MH Packing',
+        'Yield (%)',
+        'Department',
+        'MHT BB',
+        'MHT BK',
+        'MH Analisa',
+        'KWH Mesin',
+        'Source'
+      ];
+      
+      const csvRows = groupData.map(item => [
+        item.productId || '',
+        item.productName || '',
+        item.pnCategory || '',
+        item.pnCategoryName || '',
+        item.manHourPros || 0,
+        item.manHourPack || 0,
+        item.rendemen || 0,
+        item.dept || '',
+        item.mhtBB || 0,
+        item.mhtBK || 0,
+        item.mhAnalisa || 0,
+        item.kwhMesin || 0,
+        getSourceData(item)
+      ]);
+      
+      // Create CSV content
+      const csvContent = [
+        csvHeaders.join(','),
+        ...csvRows.map(row => row.map(cell => 
+          typeof cell === 'string' && cell.includes(',') 
+            ? `"${cell.replace(/"/g, '""')}"` 
+            : cell
+        ).join(','))
+      ].join('\n');
+      
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `ProductGroup_AllData_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      setError('Failed to export data. Please try again.');
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  // Export Generik functionality - only exports Generik products with editable fields
+  const handleExportGenerik = async () => {
+    try {
+      setSubmitLoading(true);
+      
+      // Filter only Generik products
+      const generikData = groupData.filter(item => item.pnCategoryName === 'Produk Generik');
+      
+      if (generikData.length === 0) {
+        setError('No Generik products found to export.');
+        return;
+      }
+      
+      // Create CSV content with only editable Generik fields
+      const csvHeaders = [
+        'Product ID',
+        'Product Name',
+        'Category ID', 
+        'Category Name',
+        'MHT BB',
+        'MHT BK',
+        'MH Analisa',
+        'KWH Mesin'
+      ];
+      
+      const csvRows = generikData.map(item => [
+        item.productId || '',
+        item.productName || '',
+        item.pnCategory || '',
+        item.pnCategoryName || '',
+        item.mhtBB || 0,
+        item.mhtBK || 0,
+        item.mhAnalisa || 0,
+        item.kwhMesin || 0
+      ]);
+      
+      // Create CSV content
+      const csvContent = [
+        csvHeaders.join(','),
+        ...csvRows.map(row => row.map(cell => 
+          typeof cell === 'string' && cell.includes(',') 
+            ? `"${cell.replace(/"/g, '""')}"` 
+            : cell
+        ).join(','))
+      ].join('\n');
+      
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `ProductGroup_GenerikData_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+    } catch (error) {
+      console.error('Error exporting Generik data:', error);
+      setError('Failed to export Generik data. Please try again.');
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  // Import Generik functionality
+  const handleImportGenerik = () => {
+    // Create a hidden file input
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.csv,.xlsx,.xls';
+    fileInput.style.display = 'none';
+    
+    fileInput.addEventListener('change', async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      try {
+        setSubmitLoading(true);
+        setError('');
+        
+        // Parse CSV file
+        const csvText = await readFileAsText(file);
+        const parsedData = parseCSV(csvText);
+        
+        if (parsedData.length === 0) {
+          setError('No data found in the uploaded file.');
+          return;
+        }
+        
+        // Validate and transform data
+        const validatedData = validateImportData(parsedData);
+        
+        // Call bulk import API
+        const result = await masterAPI.bulkImportGenerikGroups(validatedData);
+        
+        // Show success message and refresh data
+        console.log('Import successful:', result);
+        await fetchAllData();
+        
+        // Reset any error states
+        setError('');
+        
+        notifier.success(`Import completed successfully! Deleted: ${result.data.deleted} old records, Inserted: ${result.data.inserted} new records`, {
+          durations: { success: 6000 }
+        });
+        
+      } catch (error) {
+        console.error('Error importing data:', error);
+        setError(`Import failed: ${error.message}`);
+      } finally {
+        setSubmitLoading(false);
+      }
+    });
+    
+    // Trigger file dialog
+    document.body.appendChild(fileInput);
+    fileInput.click();
+    document.body.removeChild(fileInput);
+  };
+  
+  // Helper function to read file as text
+  const readFileAsText = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = (e) => reject(new Error('Failed to read file'));
+      reader.readAsText(file);
+    });
+  };
+  
+  // Helper function to parse CSV
+  const parseCSV = (csvText) => {
+    const lines = csvText.split('\n').filter(line => line.trim());
+    if (lines.length <= 1) return [];
+    
+    const headers = lines[0].split(',').map(header => header.trim().replace(/"/g, ''));
+    const expectedHeaders = ['Product ID', 'Product Name', 'Category ID', 'Category Name', 'MHT BB', 'MHT BK', 'MH Analisa', 'KWH Mesin'];
+    
+    // Validate headers
+    const headerMismatch = expectedHeaders.some(expected => 
+      !headers.some(header => header.toLowerCase() === expected.toLowerCase())
+    );
+    
+    if (headerMismatch) {
+      throw new Error(`Invalid CSV format. Expected headers: ${expectedHeaders.join(', ')}`);
+    }
+    
+    // Parse data rows
+    const data = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(value => value.trim().replace(/"/g, ''));
+      if (values.length === headers.length) {
+        const row = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index];
+        });
+        data.push(row);
+      }
+    }
+    
+    return data;
+  };
+  
+  // Helper function to validate import data
+  const validateImportData = (rawData) => {
+    const validatedData = [];
+    
+    for (let i = 0; i < rawData.length; i++) {
+      const row = rawData[i];
+      
+      // Map CSV headers to expected field names
+      const validatedRow = {
+        productId: row['Product ID'],
+        productName: row['Product Name'],
+        pnCategory: parseInt(row['Category ID']) || 0,
+        pnCategoryName: row['Category Name'],
+        mhtBB: parseFloat(row['MHT BB']) || 0,
+        mhtBK: parseFloat(row['MHT BK']) || 0,
+        mhAnalisa: parseFloat(row['MH Analisa']) || 0,
+        kwhMesin: parseFloat(row['KWH Mesin']) || 0
+      };
+      
+      // Validate required fields
+      if (!validatedRow.productId || !validatedRow.productName) {
+        throw new Error(`Row ${i + 2}: Missing Product ID or Product Name`);
+      }
+      
+      // Validate that it's a Generik product
+      if (validatedRow.pnCategoryName !== 'Produk Generik') {
+        throw new Error(`Row ${i + 2}: Only 'Produk Generik' products are allowed. Found: '${validatedRow.pnCategoryName}'`);
+      }
+      
+      validatedData.push(validatedRow);
+    }
+    
+    return validatedData;
+  };
+
   // Helper functions
   const formatNumber = (num) => {
     if (num === null || num === undefined) return '0';
@@ -457,21 +731,55 @@ const ProductGroup = () => {
             {viewMode === 'Standard' ? <ToggleLeft size={20} /> : <ToggleRight size={20} />}
             <span>Switch to {viewMode === 'Standard' ? 'Generik' : 'Standard'}</span>
           </button>
+          <button 
+            className="export-btn"
+            onClick={handleExportAll}
+            disabled={submitLoading}
+            title="Export all product group data to CSV"
+          >
+            <Download size={20} />
+            <span>Export All</span>
+          </button>
         </div>
         
         <div className="filter-controls">
-          <div className="category-filter">
-            <Filter size={18} />
-            <select 
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              title={selectedCategory} // Show full text on hover
-            >
-              {getCategories().map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
-          </div>
+          {viewMode === 'Standard' ? (
+            // Standard mode: Show category filter
+            <div className="category-filter">
+              <Filter size={18} />
+              <select 
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                title={selectedCategory} // Show full text on hover
+              >
+                {getCategories().map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            // Generik mode: Show Import/Export buttons
+            <div className="generik-actions">
+              <button 
+                className="generik-export-btn"
+                onClick={handleExportGenerik}
+                disabled={submitLoading}
+                title="Export Generik products for editing"
+              >
+                <Download size={18} />
+                <span>Export Generik</span>
+              </button>
+              <button 
+                className="generik-import-btn"
+                onClick={handleImportGenerik}
+                disabled={submitLoading}
+                title="Import modified Generik data"
+              >
+                <Upload size={18} />
+                <span>Import Generik</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

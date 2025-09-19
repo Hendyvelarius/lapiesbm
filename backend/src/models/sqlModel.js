@@ -409,6 +409,118 @@ async function deleteGroup(id) {
   }
 }
 
+async function bulkDeleteGenerikGroups(userId = "system") {
+  try {
+    const db = await connect();
+    
+    // Delete all Generik groups from manual table
+    const deleteQuery = `
+      DELETE FROM M_COGS_PRODUCT_GROUP_MANUAL 
+      WHERE Group_PNCategoryName = 'Produk Generik'
+    `;
+    
+    const result = await db.request().query(deleteQuery);
+    
+    console.log(`Bulk delete completed: ${result.rowsAffected[0]} Generik groups removed`);
+    
+    return {
+      success: true,
+      rowsAffected: result.rowsAffected[0],
+      operation: 'bulk_delete_generik',
+      userId: userId
+    };
+  } catch (error) {
+    console.error('Error executing bulkDeleteGenerikGroups query:', error);
+    throw error;
+  }
+}
+
+async function bulkInsertGenerikGroups(generikData, userId = "system") {
+  try {
+    const db = await connect();
+    
+    if (!generikData || generikData.length === 0) {
+      return {
+        success: true,
+        rowsAffected: 0,
+        message: 'No data to insert'
+      };
+    }
+    
+    // Build bulk insert query - using correct column names from database
+    const insertQuery = `
+      INSERT INTO M_COGS_PRODUCT_GROUP_MANUAL (
+        Group_ProductID, 
+        Group_PNCategory, 
+        Group_PNCategoryName, 
+        Group_ManHourPros, 
+        Group_ManHourPack, 
+        Group_Rendemen, 
+        Group_Dept, 
+        Group_MHT_BB, 
+        Group_MHT_BK, 
+        Group_MH_Analisa, 
+        Group_KWH_Mesin, 
+        user_id
+      ) VALUES
+    `;
+    
+    // Create value placeholders and parameters
+    const values = [];
+    const request = db.request();
+    
+    for (let i = 0; i < generikData.length; i++) {
+      const item = generikData[i];
+      const paramPrefix = `p${i}`;
+      
+      values.push(`(
+        @${paramPrefix}_productId,
+        @${paramPrefix}_pnCategory,
+        @${paramPrefix}_pnCategoryName,
+        @${paramPrefix}_manHourPros,
+        @${paramPrefix}_manHourPack,
+        @${paramPrefix}_rendemen,
+        @${paramPrefix}_dept,
+        @${paramPrefix}_mhtBB,
+        @${paramPrefix}_mhtBK,
+        @${paramPrefix}_mhAnalisa,
+        @${paramPrefix}_kwhMesin,
+        @${paramPrefix}_userId
+      )`);
+      
+      // Add parameters - Product_Name is removed, handled automatically
+      request.input(`${paramPrefix}_productId`, sql.NVarChar, item.productId);
+      request.input(`${paramPrefix}_pnCategory`, sql.Int, item.pnCategory);
+      request.input(`${paramPrefix}_pnCategoryName`, sql.NVarChar, item.pnCategoryName);
+      request.input(`${paramPrefix}_manHourPros`, sql.Decimal(18, 6), null); // Keep as null
+      request.input(`${paramPrefix}_manHourPack`, sql.Decimal(18, 6), null); // Keep as null
+      request.input(`${paramPrefix}_rendemen`, sql.Decimal(18, 6), null); // Keep as null
+      request.input(`${paramPrefix}_dept`, sql.NVarChar, null); // Keep as null
+      request.input(`${paramPrefix}_mhtBB`, sql.Decimal(18, 6), item.mhtBB);
+      request.input(`${paramPrefix}_mhtBK`, sql.Decimal(18, 6), item.mhtBK);
+      request.input(`${paramPrefix}_mhAnalisa`, sql.Decimal(18, 6), item.mhAnalisa);
+      request.input(`${paramPrefix}_kwhMesin`, sql.Decimal(18, 6), item.kwhMesin);
+      request.input(`${paramPrefix}_userId`, sql.NVarChar, userId);
+    }
+    
+    const finalQuery = insertQuery + values.join(',');
+    const result = await request.query(finalQuery);
+    
+    console.log(`Bulk insert completed: ${result.rowsAffected[0]} Generik groups inserted`);
+    
+    return {
+      success: true,
+      rowsAffected: result.rowsAffected[0],
+      operation: 'bulk_insert_generik',
+      processed: generikData.length,
+      userId: userId
+    };
+  } catch (error) {
+    console.error('Error executing bulkInsertGenerikGroups query:', error);
+    throw error;
+  }
+}
+
 async function getProductName() {
   try {
     const db = await connect();
@@ -866,6 +978,8 @@ module.exports = {
   addGroup,
   updateGroup,
   deleteGroup,
+  bulkDeleteGenerikGroups,
+  bulkInsertGenerikGroups,
   getProductName,
   getPembebanan,
   addPembebanan,
