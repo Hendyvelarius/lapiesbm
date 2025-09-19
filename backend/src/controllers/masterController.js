@@ -558,28 +558,6 @@ class MasterController {
                 tollFee
             } = req.body;
 
-            // Debug logging
-            console.log('Received addPembebanan request with data:', {
-                groupPNCategoryID,
-                groupPNCategoryName,
-                groupProductID,
-                groupProsesRate,
-                groupKemasRate,
-                groupGenerikRate,
-                groupAnalisaRate,
-                tollFee
-            });
-            console.log('Data types:', {
-                groupPNCategoryID: typeof groupPNCategoryID,
-                groupPNCategoryName: typeof groupPNCategoryName,
-                groupProductID: typeof groupProductID,
-                groupProsesRate: typeof groupProsesRate,
-                groupKemasRate: typeof groupKemasRate,
-                groupGenerikRate: typeof groupGenerikRate,
-                groupAnalisaRate: typeof groupAnalisaRate,
-                tollFee: typeof tollFee
-            });
-
             // Validate required fields
             if (!groupPNCategoryID || !groupPNCategoryName || 
                 groupProsesRate === undefined || groupKemasRate === undefined) {

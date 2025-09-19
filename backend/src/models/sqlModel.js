@@ -439,36 +439,11 @@ async function addPembebanan(groupPNCategoryID, groupPNCategoryName, groupProduc
     const currentYear = new Date().getFullYear().toString();
     const currentDateTime = new Date().toISOString();
     
-    // Debug logging
-    console.log('addPembebanan SQL function called with parameters:', {
-      groupPNCategoryID,
-      groupPNCategoryName,
-      groupProductID,
-      groupProsesRate,
-      groupKemasRate,
-      groupGenerikRate,
-      groupAnalisaRate,
-      tollFee,
-      userId
-    });
-    
     // Ensure all string parameters are actually strings
     const categoryId = String(groupPNCategoryID || '');
     const categoryName = String(groupPNCategoryName || '');
     const productId = groupProductID ? String(groupProductID) : null;
     const userIdStr = String(userId || 'GWN');
-    
-    console.log('Converted parameters for SQL:', {
-      categoryId,
-      categoryName,
-      productId,
-      userIdStr,
-      prosesRate: groupProsesRate,
-      kemasRate: groupKemasRate,
-      generikRate: groupGenerikRate,
-      analisaRate: groupAnalisaRate,
-      tollFeeRate: tollFee
-    });
     
     const query = `
       INSERT INTO M_COGS_PEMBEBANAN 
@@ -506,37 +481,11 @@ async function updatePembebanan(pkId, groupPNCategoryID, groupPNCategoryName, gr
     const currentYear = new Date().getFullYear().toString();
     const currentDateTime = new Date().toISOString();
     
-    // Debug logging
-    console.log('updatePembebanan SQL function called with parameters:', {
-      pkId,
-      groupPNCategoryID,
-      groupPNCategoryName,
-      groupProductID,
-      groupProsesRate,
-      groupKemasRate,
-      groupGenerikRate,
-      groupAnalisaRate,
-      tollFee,
-      userId
-    });
-    
     // Ensure all string parameters are actually strings
     const categoryId = String(groupPNCategoryID || '');
     const categoryName = String(groupPNCategoryName || '');
     const productId = groupProductID ? String(groupProductID) : null;
     const userIdStr = String(userId || 'GWN');
-    
-    console.log('Converted parameters for SQL update:', {
-      categoryId,
-      categoryName,
-      productId,
-      userIdStr,
-      prosesRate: groupProsesRate,
-      kemasRate: groupKemasRate,
-      generikRate: groupGenerikRate,
-      analisaRate: groupAnalisaRate,
-      tollFeeRate: tollFee
-    });
     
     const query = `
       UPDATE M_COGS_PEMBEBANAN 

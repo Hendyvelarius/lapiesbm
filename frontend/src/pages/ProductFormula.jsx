@@ -342,10 +342,6 @@ const ProductFormula = () => {
     try {
       setLoading(true);
       
-      // Debug log to see the structure
-      console.log('Clone formula data:', formulaData);
-      console.log('Selected product:', selectedProduct);
-      
       // Generate new formula name based on naming rules
       const generateCloneName = (originalSubId) => {
         let baseName;
@@ -390,9 +386,6 @@ const ProductFormula = () => {
         ppiBatchSize: formulaData.batchSize || 1, // Use 1 as default if batchSize is null/undefined
         ingredients: ingredients
       };
-      
-      // Debug log to see what we're sending
-      console.log('Clone data being sent:', cloneData);
       
       // Validate required fields before sending
       if (!cloneData.ppiType) {
