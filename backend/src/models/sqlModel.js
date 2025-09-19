@@ -658,6 +658,128 @@ async function deletePembebanan(pkId) {
   }
 }
 
+// Bulk operations for pembebanan import
+async function bulkDeletePembebanانWithProductID(userId = "system") {
+  try {
+    const db = await connect();
+    
+    // Delete all entries where Group_ProductID is NOT null (keep default rates)
+    const deleteQuery = `
+      DELETE FROM M_COGS_PEMBEBANAN 
+      WHERE Group_ProductID IS NOT NULL
+    `;
+    
+    const result = await db.request().query(deleteQuery);
+    
+    console.log(`Bulk delete completed: ${result.rowsAffected[0]} pembebanan entries with Product ID deleted`);
+    
+    return {
+      success: true,
+      rowsAffected: result.rowsAffected[0],
+      operation: 'bulk_delete_pembebanan_with_product_id',
+      userId: userId
+    };
+  } catch (error) {
+    console.error('Error executing bulkDeletePembebanانWithProductID query:', error);
+    throw error;
+  }
+}
+
+async function bulkInsertPembebanan(pembebanانData, userId = "system") {
+  try {
+    const db = await connect();
+    
+    if (!pembebanانData || pembebanانData.length === 0) {
+      return {
+        success: true,
+        rowsAffected: 0,
+        message: 'No data to insert'
+      };
+    }
+    
+    const currentYear = new Date().getFullYear().toString();
+    const currentDateTime = new Date().toISOString();
+    
+    // Build bulk insert query
+    const insertQuery = `
+      INSERT INTO M_COGS_PEMBEBANAN (
+        Group_Periode,
+        Group_PNCategoryID, 
+        Group_PNCategory_Name, 
+        Group_ProductID, 
+        Group_Proses_Rate, 
+        Group_Kemas_Rate, 
+        Group_Generik_Rate, 
+        Group_Analisa_Rate, 
+        Toll_Fee,
+        user_id,
+        delegated_to,
+        process_date,
+        flag_update,
+        from_update
+      ) VALUES
+    `;
+    
+    // Create value placeholders and parameters
+    const values = [];
+    const request = db.request();
+    
+    for (let i = 0; i < pembebanانData.length; i++) {
+      const item = pembebanانData[i];
+      const paramPrefix = `p${i}`;
+      
+      values.push(`(
+        @${paramPrefix}_periode,
+        @${paramPrefix}_categoryId,
+        @${paramPrefix}_categoryName,
+        @${paramPrefix}_productId,
+        @${paramPrefix}_prosesRate,
+        @${paramPrefix}_kemasRate,
+        @${paramPrefix}_generikRate,
+        @${paramPrefix}_analisaRate,
+        @${paramPrefix}_tollFee,
+        @${paramPrefix}_userId,
+        @${paramPrefix}_delegatedTo,
+        @${paramPrefix}_processDate,
+        @${paramPrefix}_flagUpdate,
+        @${paramPrefix}_fromUpdate
+      )`);
+      
+      // Add parameters
+      request.input(`${paramPrefix}_periode`, sql.VarChar, currentYear);
+      request.input(`${paramPrefix}_categoryId`, sql.VarChar, String(item.groupPNCategoryID || ''));
+      request.input(`${paramPrefix}_categoryName`, sql.VarChar, String(item.groupPNCategoryName || ''));
+      request.input(`${paramPrefix}_productId`, sql.VarChar, String(item.groupProductID));
+      request.input(`${paramPrefix}_prosesRate`, sql.Decimal(18, 2), item.groupProsesRate);
+      request.input(`${paramPrefix}_kemasRate`, sql.Decimal(18, 2), item.groupKemasRate);
+      request.input(`${paramPrefix}_generikRate`, sql.Decimal(18, 2), item.groupGenerikRate);
+      request.input(`${paramPrefix}_analisaRate`, sql.Decimal(18, 2), item.groupAnalisaRate);
+      request.input(`${paramPrefix}_tollFee`, sql.Decimal(18, 2), item.tollFee);
+      request.input(`${paramPrefix}_userId`, sql.VarChar, String(userId));
+      request.input(`${paramPrefix}_delegatedTo`, sql.VarChar, String(userId));
+      request.input(`${paramPrefix}_processDate`, sql.DateTime, currentDateTime);
+      request.input(`${paramPrefix}_flagUpdate`, sql.VarChar, null);
+      request.input(`${paramPrefix}_fromUpdate`, sql.VarChar, null);
+    }
+    
+    const finalQuery = insertQuery + values.join(',');
+    const result = await request.query(finalQuery);
+    
+    console.log(`Bulk insert completed: ${result.rowsAffected[0]} pembebanan entries inserted`);
+    
+    return {
+      success: true,
+      rowsAffected: result.rowsAffected[0],
+      operation: 'bulk_insert_pembebanan',
+      processed: pembebanانData.length,
+      userId: userId
+    };
+  } catch (error) {
+    console.error('Error executing bulkInsertPembebanan query:', error);
+    throw error;
+  }
+}
+
 async function getMaterial() {
   try {
     const db = await connect();
@@ -985,6 +1107,8 @@ module.exports = {
   addPembebanan,
   updatePembebanan,
   deletePembebanan,
+  bulkDeletePembebanانWithProductID,
+  bulkInsertPembebanan,
   getMaterial,
   getMaterialUsage,
   exportAllFormulaDetail,

@@ -324,6 +324,12 @@ export const masterAPI = {
     method: 'DELETE',
   }),
   
+  // Bulk import pembebanan
+  bulkImportPembebanan: (pembebanانData) => apiRequest('/master/pembebanan/bulk-import', {
+    method: 'POST',
+    body: JSON.stringify({ pembebanانData }),
+  }),
+  
   // Get material data
   getMaterial: () => apiRequest('/master/material'),
   

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { masterAPI } from '../services/api';
 import '../styles/Pembebanan.css';
-import { Search, Filter, Users, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, Edit, Trash2, X, Check } from 'lucide-react';
+import { Search, Filter, Users, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, Edit, Trash2, X, Check, Download, Upload } from 'lucide-react';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
+import * as XLSX from 'xlsx';
+import ImportWarningModal from '../components/ImportWarningModal';
 
 // Initialize awesome-notifications
 const notifier = new AWN({
@@ -53,6 +55,9 @@ const Pembebanan = () => {
     groupAnalisaRate: '',
     tollFee: ''
   });
+  
+  // Import warning modal state
+  const [showImportWarning, setShowImportWarning] = useState(false);
   
   // Dropdown states for Add modal
   const [availableGroups, setAvailableGroups] = useState([]);
@@ -515,6 +520,258 @@ const Pembebanan = () => {
     setDeletingItem(null);
   };
 
+  // Export function - exports all products except "Default Rate" ones
+  const handleExportCostAllocation = () => {
+    try {
+      // Filter out default rate entries and get only the required columns
+      const exportData = processedData
+        .filter(item => !item.isDefaultRate) // Exclude "Default Rate" entries
+        .map(item => ({
+          'Product ID': item.productId,
+          'Rate Proses': item.rateProses || 0,
+          'Rate Kemas': item.rateKemas || 0,
+          'Rate Generik': item.rateGenerik || 0,
+          'Rate Reagen': item.rateAnalisa || 0, // Assuming rateAnalisa is rateReagen
+          'Toll Fee': item.tollFee || 0
+        }));
+
+      if (exportData.length === 0) {
+        notifier.alert('No cost allocation data available for export (excluding default rates)');
+        return;
+      }
+
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+      // Set column widths for better display
+      const columnWidths = [
+        { wch: 15 }, // Product ID
+        { wch: 12 }, // Rate Proses
+        { wch: 12 }, // Rate Kemas
+        { wch: 12 }, // Rate Generik
+        { wch: 12 }, // Rate Reagen
+        { wch: 12 }  // Toll Fee
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      // Format Product ID column as text to ensure consistent alignment
+      const range = XLSX.utils.decode_range(worksheet['!ref']);
+      for (let row = range.s.r; row <= range.e.r; row++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: row, c: 0 }); // Column A (Product ID)
+        if (worksheet[cellAddress]) {
+          worksheet[cellAddress].t = 's'; // Set cell type to string
+          worksheet[cellAddress].z = '@'; // Set number format to text
+        }
+      }
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Cost Allocation');
+
+      // Generate filename with current date
+      const filename = `cost_allocation_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+      // Write and download the file
+      XLSX.writeFile(workbook, filename);
+
+      notifier.success(`Successfully exported ${exportData.length} cost allocation records to Excel`);
+    } catch (error) {
+      console.error('Error exporting cost allocation data:', error);
+      notifier.alert('Failed to export cost allocation data. Please try again.');
+    }
+  };
+
+  // Import function - shows warning modal first
+  const handleImportCostAllocation = () => {
+    setShowImportWarning(true);
+  };
+
+  // Handle import confirmation from modal
+  const handleImportConfirm = () => {
+    proceedWithImport();
+  };
+
+  // Actual import function after confirmation
+  const proceedWithImport = () => {
+    // Create file input element
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv,.xlsx,.xls';
+    input.style.display = 'none';
+
+    input.onchange = async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      try {
+        setLoading(true);
+
+        // Read and parse the file
+        let importedData = [];
+        
+        if (file.name.endsWith('.csv')) {
+          // Handle CSV file
+          const text = await readFileAsText(file);
+          importedData = parseCSV(text);
+        } else {
+          // Handle Excel file
+          const buffer = await file.arrayBuffer();
+          const workbook = XLSX.read(buffer, { type: 'buffer' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          importedData = XLSX.utils.sheet_to_json(worksheet);
+        }
+
+        if (importedData.length === 0) {
+          notifier.alert('No data found in the uploaded file.');
+          return;
+        }
+
+        // Validate and map the imported data
+        const validatedData = await validateAndMapImportData(importedData);
+        
+        if (validatedData.length === 0) {
+          notifier.alert('No valid data found after validation. Please check your file format and data.');
+          return;
+        }
+
+        // Call bulk import API
+        const result = await masterAPI.bulkImportPembebanan(validatedData);
+
+        // Show success message and refresh data
+        console.log('Import successful:', result);
+        await fetchAllData();
+
+        notifier.success(`Import completed successfully! Deleted: ${result.data.deleted} old records, Inserted: ${result.data.inserted} new records`, {
+          durations: { success: 6000 }
+        });
+
+      } catch (error) {
+        console.error('Error importing data:', error);
+        notifier.alert(`Failed to import data: ${error.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Trigger file selection
+    document.body.appendChild(input);
+    input.click();
+    document.body.removeChild(input);
+  };
+
+  // Helper function to read file as text
+  const readFileAsText = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = (e) => reject(e);
+      reader.readAsText(file);
+    });
+  };
+
+  // Helper function to parse CSV
+  const parseCSV = (text) => {
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return [];
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const data = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+      const row = {};
+      headers.forEach((header, index) => {
+        row[header] = values[index] || '';
+      });
+      data.push(row);
+    }
+
+    return data;
+  };
+
+  // Validate and map imported data against existing products
+  const validateAndMapImportData = async (importedData) => {
+    const validatedData = [];
+    const errors = [];
+
+    for (let i = 0; i < importedData.length; i++) {
+      const row = importedData[i];
+      const rowIndex = i + 2; // +2 because header is row 1
+
+      // Get the product ID from various possible column names
+      const productId = row['Product ID'] || row['ProductID'] || row['productId'] || row['Product_ID'];
+
+      if (!productId) {
+        errors.push(`Row ${rowIndex}: Product ID is required`);
+        continue;
+      }
+
+      // Find the product in our existing group data
+      const productDetails = groupData.find(group => 
+        String(group.Group_ProductID).toLowerCase() === String(productId).toLowerCase()
+      );
+
+      if (!productDetails) {
+        errors.push(`Row ${rowIndex}: Product ID "${productId}" not found in system`);
+        continue;
+      }
+
+      // Validate and extract numeric values
+      const numericFields = {
+        rateProses: row['Rate Proses'] || row['RateProses'] || row['Rate_Proses'] || 0,
+        rateKemas: row['Rate Kemas'] || row['RateKemas'] || row['Rate_Kemas'] || 0,
+        rateGenerik: row['Rate Generik'] || row['RateGenerik'] || row['Rate_Generik'] || 0,
+        rateReagen: row['Rate Reagen'] || row['RateReagen'] || row['Rate_Reagen'] || 0,
+        tollFee: row['Toll Fee'] || row['TollFee'] || row['Toll_Fee'] || 0
+      };
+
+      let validRow = true;
+      const processedRow = {
+        groupProductID: productDetails.Group_ProductID,
+        groupPNCategoryID: productDetails.Group_PNCategory,
+        groupPNCategoryName: productDetails.Group_PNCategoryName
+      };
+
+      // Validate and convert numeric fields
+      for (const [key, value] of Object.entries(numericFields)) {
+        if (value !== null && value !== undefined && value !== '') {
+          const numValue = Number(value);
+          if (isNaN(numValue)) {
+            errors.push(`Row ${rowIndex}: ${key} must be a valid number`);
+            validRow = false;
+          } else {
+            // Map field names to match backend expectations
+            if (key === 'rateProses') processedRow.groupProsesRate = numValue;
+            else if (key === 'rateKemas') processedRow.groupKemasRate = numValue;
+            else if (key === 'rateGenerik') processedRow.groupGenerikRate = numValue;
+            else if (key === 'rateReagen') processedRow.groupAnalisaRate = numValue; // Map rateReagen to rateAnalisa
+            else if (key === 'tollFee') processedRow.tollFee = numValue;
+          }
+        } else {
+          // Set default values for empty fields
+          if (key === 'rateProses') processedRow.groupProsesRate = 0;
+          else if (key === 'rateKemas') processedRow.groupKemasRate = 0;
+          else if (key === 'rateGenerik') processedRow.groupGenerikRate = 0;
+          else if (key === 'rateReagen') processedRow.groupAnalisaRate = 0;
+          else if (key === 'tollFee') processedRow.tollFee = 0;
+        }
+      }
+
+      if (validRow) {
+        validatedData.push(processedRow);
+      }
+    }
+
+    // Show errors if any
+    if (errors.length > 0) {
+      const errorMessage = `Import validation errors:\n${errors.slice(0, 10).join('\n')}${errors.length > 10 ? `\n... and ${errors.length - 10} more errors` : ''}`;
+      notifier.alert(errorMessage);
+    }
+
+    return validatedData;
+  };
+
   if (loading) {
     return (
       <div className="loading-spinner">
@@ -562,6 +819,16 @@ const Pembebanan = () => {
               ))}
             </select>
           </div>
+          
+          <button className="export-btn" onClick={handleExportCostAllocation}>
+            <Download size={20} />
+            Export
+          </button>
+          
+          <button className="import-btn" onClick={handleImportCostAllocation}>
+            <Upload size={20} />
+            Import
+          </button>
           
           <button className="add-btn" onClick={() => setShowAddModal(true)}>
             <Plus size={20} />
@@ -1080,6 +1347,15 @@ const Pembebanan = () => {
           </div>
         </div>
       )}
+
+      {/* Import Warning Modal */}
+      <ImportWarningModal
+        isOpen={showImportWarning}
+        onClose={() => setShowImportWarning(false)}
+        onConfirm={handleImportConfirm}
+        title="Cost Allocation Import"
+        dataType="cost allocation entries"
+      />
     </div>
   );
 };

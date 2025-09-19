@@ -1,4 +1,4 @@
-const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, bulkDeleteGenerikGroups, bulkInsertGenerikGroups, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, getMaterial, getMaterialUsage, exportAllFormulaDetail, exportAllFormulaDetailSumPerSubID, addFormulaManual, addBatchFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
+const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, bulkDeleteGenerikGroups, bulkInsertGenerikGroups, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, bulkDeletePembebanانWithProductID, bulkInsertPembebanan, getMaterial, getMaterialUsage, exportAllFormulaDetail, exportAllFormulaDetailSumPerSubID, addFormulaManual, addBatchFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
 
 class MasterController {
     static async getCurrency(req, res) {
@@ -773,6 +773,80 @@ class MasterController {
             res.status(500).json({
                 success: false,
                 message: 'Failed to delete pembebanan',
+                error: error.message
+            });
+        }
+    }
+
+    static async bulkImportPembebanan(req, res) {
+        try {
+            const { pembebanانData, userId = "system" } = req.body;
+            
+            // Validate required fields
+            if (!pembebanانData || !Array.isArray(pembebanانData) || pembebanانData.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required field: pembebanانData must be a non-empty array'
+                });
+            }
+
+            // Validate each row in the data
+            for (let i = 0; i < pembebanانData.length; i++) {
+                const row = pembebanانData[i];
+                
+                // Check required fields
+                if (!row.groupProductID || !row.groupPNCategoryID || !row.groupPNCategoryName) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Row ${i + 1}: Missing required fields (groupProductID, groupPNCategoryID, groupPNCategoryName)`
+                    });
+                }
+                
+                // Validate numeric fields
+                const numericFields = ['groupProsesRate', 'groupKemasRate', 'groupGenerikRate', 'groupAnalisaRate', 'tollFee'];
+                for (const field of numericFields) {
+                    if (row[field] !== null && row[field] !== undefined && isNaN(parseFloat(row[field]))) {
+                        return res.status(400).json({
+                            success: false,
+                            message: `Row ${i + 1}: Invalid numeric value for field ${field}`
+                        });
+                    }
+                }
+            }
+            
+            // Perform bulk delete first (only entries with Product ID), then bulk insert
+            const deleteResult = await bulkDeletePembebanانWithProductID(userId);
+            console.log(`Deleted ${deleteResult.rowsAffected} existing pembebanan entries with Product ID`);
+            
+            // Transform data for bulk insert
+            const insertData = pembebanانData.map(row => ({
+                groupPNCategoryID: String(row.groupPNCategoryID),
+                groupPNCategoryName: String(row.groupPNCategoryName),
+                groupProductID: String(row.groupProductID),
+                groupProsesRate: parseFloat(row.groupProsesRate) || 0,
+                groupKemasRate: parseFloat(row.groupKemasRate) || 0,
+                groupGenerikRate: parseFloat(row.groupGenerikRate) || 0,
+                groupAnalisaRate: parseFloat(row.groupAnalisaRate) || 0,
+                tollFee: parseFloat(row.tollFee) || 0
+            }));
+            
+            const insertResult = await bulkInsertPembebanan(insertData, userId);
+            
+            res.status(200).json({
+                success: true,
+                message: `Bulk import completed successfully. Deleted ${deleteResult.rowsAffected} old records (excluding default rates), inserted ${insertResult.rowsAffected} new records.`,
+                data: {
+                    deleted: deleteResult.rowsAffected,
+                    inserted: insertResult.rowsAffected,
+                    processed: pembebanانData.length
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error in bulkImportPembebanan endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to perform bulk import',
                 error: error.message
             });
         }

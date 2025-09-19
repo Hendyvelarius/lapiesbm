@@ -4,6 +4,7 @@ import '../styles/ProductGroup.css';
 import { Search, Filter, Edit, Trash2, Users, ChevronLeft, ChevronRight, X, Check, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, Download, Upload } from 'lucide-react';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
+import ImportWarningModal from '../components/ImportWarningModal';
 
 // Initialize awesome-notifications
 const notifier = new AWN({
@@ -43,6 +44,9 @@ const ProductGroup = () => {
   // Delete modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingItem, setDeletingItem] = useState(null);
+
+  // Import warning modal state
+  const [showImportWarning, setShowImportWarning] = useState(false);
 
   // Dropdown options
   const [categoryOptions, setCategoryOptions] = useState([]);
@@ -533,6 +537,16 @@ const ProductGroup = () => {
 
   // Import Generik functionality
   const handleImportGenerik = () => {
+    setShowImportWarning(true);
+  };
+
+  // Handle import confirmation from modal
+  const handleImportConfirm = () => {
+    proceedWithGenerikImport();
+  };
+
+  // Actual import function after confirmation
+  const proceedWithGenerikImport = () => {
     // Create a hidden file input
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
@@ -581,7 +595,7 @@ const ProductGroup = () => {
       }
     });
     
-    // Trigger file dialog
+    // Append to body, click, and remove
     document.body.appendChild(fileInput);
     fileInput.click();
     document.body.removeChild(fileInput);
@@ -1148,6 +1162,15 @@ const ProductGroup = () => {
           </div>
         </div>
       )}
+
+      {/* Import Warning Modal */}
+      <ImportWarningModal
+        isOpen={showImportWarning}
+        onClose={() => setShowImportWarning(false)}
+        onConfirm={handleImportConfirm}
+        title="Generik Product Import"
+        dataType="Generik product groups"
+      />
     </div>
   );
 };

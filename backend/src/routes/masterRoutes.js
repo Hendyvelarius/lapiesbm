@@ -23,6 +23,7 @@ router.get('/pembebanan', MasterController.getPembebanan);
 router.post('/pembebanan', MasterController.addPembebanan);
 router.put('/pembebanan/:id', MasterController.updatePembebanan);
 router.delete('/pembebanan/:id', MasterController.deletePembebanan);
+router.post('/pembebanan/bulk-import', MasterController.bulkImportPembebanan);
 router.get('/material', MasterController.getMaterial);
 router.get('/materialUsage', MasterController.getMaterialUsage);
 
