@@ -3,7 +3,7 @@ import { masterAPI } from '../services/api';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import '../styles/HargaBahan.css';
-import { Plus, Search, Filter, Edit, Trash2, Package, ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Package, ChevronLeft, ChevronRight, X, Check, Upload } from 'lucide-react';
 
 // Initialize awesome-notifications
 const notifier = new AWN({
@@ -261,7 +261,6 @@ const HargaBahan = () => {
       
       // Filter out items that already have prices
       const availableForPricing = allItems.filter(item => !existingItemIds.has(item.Item_ID));
-      console.log('Available for pricing:', availableForPricing); // Keep this debug log
       
       setAvailableItems(availableForPricing);
       
@@ -276,6 +275,12 @@ const HargaBahan = () => {
     } finally {
       setModalLoading(false);
     }
+  };
+
+  const handleImportMaterial = () => {
+    // Placeholder for import functionality
+    // Will be implemented with full import system
+    notifier.info('Import functionality will be implemented soon');
   };
 
   const handleModalClose = () => {
@@ -594,20 +599,6 @@ const HargaBahan = () => {
 
   return (
     <div className="harga-bahan-container">
-      <div className="page-header">
-        <div className="header-left">
-          <Package size={24} />
-          <div>
-            <h1>Harga Bahan</h1>
-            <p>Manage ingredient prices and information</p>
-          </div>
-        </div>
-        <button className="add-btn" onClick={handleAddMaterial}>
-          <Plus size={20} />
-          Tambah Bahan
-        </button>
-      </div>
-
       <div className="controls-section">
         <div className="search-box">
           <Search size={20} />
@@ -631,6 +622,16 @@ const HargaBahan = () => {
               ))}
             </select>
           </div>
+          
+          <button className="import-btn" onClick={handleImportMaterial}>
+            <Upload size={20} />
+            Import
+          </button>
+          
+          <button className="add-btn" onClick={handleAddMaterial}>
+            <Plus size={20} />
+            Tambah Bahan
+          </button>
         </div>
       </div>
 
