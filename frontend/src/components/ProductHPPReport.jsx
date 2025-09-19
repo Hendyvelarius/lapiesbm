@@ -180,7 +180,8 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
     // Calculate overhead costs based on product type
     if (productType === 'Ethical') {
       totalOverheadCost = ((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) +
-                          ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0));
+                          ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) +
+                          (product.Beban_Sisa_Bahan_Exp || 0);
     } else if (productType === 'Generic1') {
       totalOverheadCost = ((product.MH_Timbang_BB || 0) * (product.Biaya_Generik || 0)) +
                           ((product.MH_Timbang_BK || 0) * (product.Biaya_Generik || 0)) +
@@ -188,19 +189,21 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                           ((product.MH_Kemas_Std || 0) * (product.Biaya_Generik || 0)) +
                           ((product.MH_Analisa_Std || 0) * (product.Biaya_Generik || 0)) +
                           ((product.MH_Mesin_Std || 0) * (product.Rate_PLN || 0)) +
-                          (product.Biaya_Analisa || 0);
+                          (product.Biaya_Analisa || 0) +
+                          (product.Beban_Sisa_Bahan_Exp || 0);
     } else { // Generic2
       totalOverheadCost = ((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) +
                           ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) +
                           ((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)) +
-                          ((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0));
+                          ((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0)) +
+                          (product.Beban_Sisa_Bahan_Exp || 0);
                           // Note: Depreciation (Depresiasi) removed as it's no longer used for Generic Type 2
     }
 
     totalOverheadPerPack = totalOverheadCost / batchSizeActual;
 
-    // Calculate total HPP per pack
-    totalHPPPerPack = totalBBPerPack + totalBKPerPack + totalOverheadPerPack + expiryPerPack;
+    // Calculate total HPP per pack (expiry cost is already included in totalOverheadCost for all product types)
+    totalHPPPerPack = totalBBPerPack + totalBKPerPack + totalOverheadPerPack;
   }
 
   const handleExportToExcel = async () => {
@@ -277,9 +280,10 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
           ['Overhead', '', '', '', '', '', ''],
           ['1', 'PENGOLAHAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Biaya_Proses || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)],
           ['2', 'PENGEMASAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Biaya_Kemas || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)],
+          ['3', 'EXPIRY COST', '-', '-', '-', formatNumber(product.Beban_Sisa_Bahan_Exp || 0), formatNumber(product.Beban_Sisa_Bahan_Exp || 0), formatNumber((product.Beban_Sisa_Bahan_Exp || 0) / batchSizeActual)],
           ['', '', 'Total Hours', formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0)), 'Total Cost', formatNumber(totalOverheadCost), formatNumber(totalOverheadPerPack)]
         ], { origin: `A${currentRow}` });
-        currentRow += 6;
+        currentRow += 7;
       } else if (productType === 'Generic1') {
         XLSX.utils.sheet_add_aoa(ws, [
           ['Resource Scheduling', 'Nama Material', 'Qty', 'Mhrs/machine hours', 'Cost/unit', 'Extended Cost', 'Per pack'],
@@ -325,7 +329,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
       // Final total
       XLSX.utils.sheet_add_aoa(ws, [
         ['', '', '', '', '', '', ''],
-        ['Total COGS Estimasi', '', '', '', 'Total HPP', formatNumber(totalBB + totalBK + totalOverheadCost + (product.Beban_Sisa_Bahan_Exp || 0)), formatNumber(totalHPPPerPack)]
+        ['Total COGS Estimasi', '', '', '', 'Total HPP', formatNumber(totalBB + totalBK + totalOverheadCost), formatNumber(totalHPPPerPack)]
       ], { origin: `A${currentRow}` });
 
       // Apply some basic formatting
@@ -510,7 +514,8 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
         const overheadData = [
           ['1 PENGOLAHAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Biaya_Proses || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)],
           ['2 PENGEMASAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Biaya_Kemas || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)],
-          ['Total Hours: ' + formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0)), 'Total Cost', '', '', '', formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0))), formatNumber((((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0))) / batchSizeActual)]
+          ['3 EXPIRY COST', '-', '-', '-', formatNumber(product.Beban_Sisa_Bahan_Exp || 0), formatNumber(product.Beban_Sisa_Bahan_Exp || 0), formatNumber((product.Beban_Sisa_Bahan_Exp || 0) / batchSizeActual)],
+          ['Total Hours: ' + formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0)), 'Total Cost', '', '', '', formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Beban_Sisa_Bahan_Exp || 0)), formatNumber((((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Beban_Sisa_Bahan_Exp || 0)) / batchSizeActual)]
         ];
 
         autoTable(doc, {
@@ -686,7 +691,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       
-      const finalTotal = totalBB + totalBK + totalOverheadCost + (product.Beban_Sisa_Bahan_Exp || 0);
+      const finalTotal = totalBB + totalBK + totalOverheadCost;
       
       autoTable(doc, {
         startY: yPosition,
@@ -941,17 +946,17 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                         <td>-</td>
                         <td className="number">-</td>
                         <td>-</td>
-                        <td className="number">{formatNumber(product.Biaya_Exp || 0)}</td>
-                        <td className="number">{formatNumber(product.Biaya_Exp || 0)}</td>
-                        <td className="number">{formatNumber((product.Biaya_Exp || 0) / batchSizeActual)}</td>
+                        <td className="number">{formatNumber(product.Beban_Sisa_Bahan_Exp || 0)}</td>
+                        <td className="number">{formatNumber(product.Beban_Sisa_Bahan_Exp || 0)}</td>
+                        <td className="number">{formatNumber((product.Beban_Sisa_Bahan_Exp || 0) / batchSizeActual)}</td>
                       </tr>
                       <tr className="total-row">
                         <td colSpan="2"><strong>Total Hours</strong></td>
                         <td className="number"><strong>{formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0))}</strong></td>
                         <td><strong>Total Cost</strong></td>
                         <td></td>
-                        <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Biaya_Exp || 0))}</strong></td>
-                        <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Biaya_Exp || 0)) / batchSizeActual)}</strong></td>
+                        <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Beban_Sisa_Bahan_Exp || 0))}</strong></td>
+                        <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Beban_Sisa_Bahan_Exp || 0)) / batchSizeActual)}</strong></td>
                       </tr>
                     </tbody>
                   </table>
@@ -1204,7 +1209,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                       <td><strong>Total COGS Estimasi</strong></td>
                       <td colSpan="3"></td>
                       <td><strong>Total HPP</strong></td>
-                      <td className="number final"><strong>{formatNumber(totalBB + totalBK + totalOverheadCost + (product.Beban_Sisa_Bahan_Exp || 0))}</strong></td>
+                      <td className="number final"><strong>{formatNumber(totalBB + totalBK + totalOverheadCost)}</strong></td>
                       <td className="number final"><strong>{formatNumber(totalHPPPerPack)}</strong></td>
                     </tr>
                   </tbody>
