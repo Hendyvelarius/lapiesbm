@@ -246,6 +246,9 @@ export const masterAPI = {
   // Get unit data
   getUnit: () => apiRequest('/master/unit'),
   
+  // Get manufacturing items data
+  getManufacturingItems: () => apiRequest('/master/manufacturingItems'),
+  
   // Add new harga bahan
   addHargaBahan: (data) => apiRequest('/master/hargaBahan', {
     method: 'POST',
@@ -261,6 +264,12 @@ export const masterAPI = {
   // Delete harga bahan
   deleteHargaBahan: (id) => apiRequest(`/master/hargaBahan/${id}`, {
     method: 'DELETE',
+  }),
+  
+  // Bulk import bahan baku
+  bulkImportBahanBaku: (items) => apiRequest('/master/hargaBahan/bulk-import-bahan-baku', {
+    method: 'POST',
+    body: JSON.stringify({ items }),
   }),
   
   // Get parameters

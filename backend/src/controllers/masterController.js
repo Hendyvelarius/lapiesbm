@@ -1,4 +1,4 @@
-const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, getUnit, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, bulkDeleteGenerikGroups, bulkInsertGenerikGroups, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, bulkDeletePembebanانWithProductID, bulkInsertPembebanan, getMaterial, getMaterialUsage, exportAllFormulaDetail, exportAllFormulaDetailSumPerSubID, addFormulaManual, addBatchFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
+const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, bulkDeleteBBHargaBahan, bulkInsertHargaBahan, getUnit, getManufacturingItems, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, bulkDeleteGenerikGroups, bulkInsertGenerikGroups, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, bulkDeletePembebanانWithProductID, bulkInsertPembebanan, getMaterial, getMaterialUsage, exportAllFormulaDetail, exportAllFormulaDetailSumPerSubID, addFormulaManual, addBatchFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
 
 class MasterController {
     static async getCurrency(req, res) {
@@ -38,6 +38,20 @@ class MasterController {
             res.status(500).json({
                 success: false,
                 message: 'Failed to retrieve unit data',
+                error: error.message
+            });
+        }
+    }
+
+    static async getManufacturingItems(req, res) {
+        try {
+            const manufacturingData = await getManufacturingItems();
+            res.status(200).json(manufacturingData);
+        } catch (error) {
+            console.error('Error in manufacturing items endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve manufacturing items data',
                 error: error.message
             });
         }
@@ -181,6 +195,102 @@ class MasterController {
             res.status(500).json({
                 success: false,
                 message: 'Failed to delete harga bahan',
+                error: error.message
+            });
+        }
+    }
+
+    static async bulkImportBahanBaku(req, res) {
+        try {
+            const { items } = req.body;
+            
+            // Debug: Log the received request body
+            console.log('=== BULK IMPORT DEBUG ===');
+            console.log('Request body structure:', {
+                hasItems: !!items,
+                itemsType: Array.isArray(items) ? 'array' : typeof items,
+                itemsLength: Array.isArray(items) ? items.length : 'N/A'
+            });
+            
+            if (items && Array.isArray(items) && items.length > 0) {
+                console.log('First 3 items sample:', JSON.stringify(items.slice(0, 3), null, 2));
+            }
+            
+            // Validate required fields
+            if (!items || !Array.isArray(items) || items.length === 0) {
+                console.log('Validation failed: Invalid items array');
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing or invalid items array'
+                });
+            }
+
+            // Validate each item - only check for ITEM_ID and that ITEM_TYPE is 'BB'
+            const validationErrors = [];
+            items.forEach((item, index) => {
+                console.log(`Validating item ${index + 1}:`, {
+                    ITEM_ID: item.ITEM_ID,
+                    ITEM_TYPE: item.ITEM_TYPE,
+                    ITEM_PURCHASE_UNIT: item.ITEM_PURCHASE_UNIT,
+                    ITEM_PURCHASE_STD_PRICE: item.ITEM_PURCHASE_STD_PRICE,
+                    ITEM_CURRENCY: item.ITEM_CURRENCY,
+                    ITEM_PRC_ID: item.ITEM_PRC_ID
+                });
+                
+                // Only validate essential fields
+                if (!item.ITEM_ID) {
+                    validationErrors.push(`Item ${index + 1}: Missing ITEM_ID`);
+                    console.log(`Item ${index + 1}: ITEM_ID is missing or empty`);
+                }
+                if (item.ITEM_TYPE !== 'BB') {
+                    validationErrors.push(`Item ${index + 1}: ITEM_TYPE must be 'BB', got: ${item.ITEM_TYPE}`);
+                    console.log(`Item ${index + 1}: ITEM_TYPE is not 'BB':`, item.ITEM_TYPE);
+                }
+                
+                // Optional fields - just log for debugging but don't validate
+                console.log(`Item ${index + 1} optional fields:`, {
+                    hasPurchaseUnit: !!item.ITEM_PURCHASE_UNIT,
+                    hasPrice: item.ITEM_PURCHASE_STD_PRICE !== null && item.ITEM_PURCHASE_STD_PRICE !== undefined,
+                    hasCurrency: !!item.ITEM_CURRENCY,
+                    hasPrcId: !!item.ITEM_PRC_ID
+                });
+            });
+
+            if (validationErrors.length > 0) {
+                console.log('=== VALIDATION ERRORS ===');
+                console.log('Total errors:', validationErrors.length);
+                validationErrors.forEach(error => console.log('- ' + error));
+                console.log('========================');
+                
+                return res.status(400).json({
+                    success: false,
+                    message: 'Validation errors',
+                    errors: validationErrors
+                });
+            }
+
+            // Step 1: Bulk delete existing BB records
+            console.log('Starting bulk delete of BB records...');
+            const deleteResult = await bulkDeleteBBHargaBahan();
+            
+            // Step 2: Bulk insert new records
+            console.log('Starting bulk insert of new records...');
+            const insertResult = await bulkInsertHargaBahan(items);
+            
+            res.status(200).json({
+                success: true,
+                message: `Successfully imported ${insertResult.rowsInserted} Bahan Baku items`,
+                data: {
+                    deletedRecords: deleteResult.rowsAffected,
+                    insertedRecords: insertResult.rowsInserted
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error in bulkImportBahanBaku endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to import Bahan Baku data',
                 error: error.message
             });
         }

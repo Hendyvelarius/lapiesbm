@@ -40,6 +40,17 @@ async function getBahan() {
   }
 }
 
+async function getManufacturingItems() {
+  try {
+    const db = await connect();
+    const result = await db.request().query('SELECT mim.Item_ID, mim.Item_Name, mim.Item_Type, mim.Item_Unit, mim.Item_BJ FROM m_Item_Manufacturing mim');
+    return result.recordset;
+  } catch (error) {
+    console.error('Error executing getManufacturingItems query:', error);
+    throw error;
+  }
+}
+
 async function getHargaBahan() {
   try {
     const db = await connect();
@@ -183,6 +194,110 @@ async function deleteHargaBahan(pkId) {
     };
   } catch (error) {
     console.error('Error executing deleteHargaBahan query:', error);
+    throw error;
+  }
+}
+
+async function bulkDeleteBBHargaBahan() {
+  try {
+    const db = await connect();
+    const deleteQuery = 'DELETE FROM M_COGS_STD_HRG_BAHAN WHERE ITEM_TYPE = @itemType';
+    const result = await db.request()
+      .input('itemType', 'BB')
+      .query(deleteQuery);
+      
+    console.log(`Bulk deleted ${result.rowsAffected[0]} BB records`);
+    return {
+      success: true,
+      rowsAffected: result.rowsAffected[0]
+    };
+  } catch (error) {
+    console.error('Error executing bulkDeleteBBHargaBahan query:', error);
+    throw error;
+  }
+}
+
+async function bulkInsertHargaBahan(dataArray) {
+  try {
+    const db = await connect();
+    
+    if (!dataArray || dataArray.length === 0) {
+      return { success: true, rowsInserted: 0 };
+    }
+    
+    console.log(`Starting bulk insert of ${dataArray.length} records in batches...`);
+    
+    // SQL Server has a limit of 2100 parameters per query
+    // With 11 columns per record, we can insert max ~190 records per batch
+    const BATCH_SIZE = 180; // Safe batch size
+    const totalRecords = dataArray.length;
+    let totalInserted = 0;
+    
+    // Process in batches
+    for (let i = 0; i < totalRecords; i += BATCH_SIZE) {
+      const batch = dataArray.slice(i, i + BATCH_SIZE);
+      const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(totalRecords / BATCH_SIZE);
+      
+      console.log(`Processing batch ${batchNumber}/${totalBatches} - ${batch.length} records`);
+      
+      // Build bulk insert query for this batch
+      const columns = [
+        'ITEM_ID', 'ITEM_TYPE', 'ITEM_PURCHASE_UNIT', 'ITEM_PURCHASE_STD_PRICE', 
+        'ITEM_CURRENCY', 'ITEM_PRC_ID', 'user_id', 'delegated_to', 
+        'process_date', 'createdAt', 'updatedAt'
+      ];
+      
+      const valuePlaceholders = batch.map((_, index) => 
+        `(${columns.map((_, colIndex) => `@param${index}_${colIndex}`).join(', ')})`
+      ).join(', ');
+      
+      const insertQuery = `
+        INSERT INTO M_COGS_STD_HRG_BAHAN (${columns.join(', ')}) 
+        VALUES ${valuePlaceholders}
+      `;
+      
+      const request = db.request();
+      
+      // Add parameters for each row in this batch
+      batch.forEach((item, rowIndex) => {
+        const currentDate = new Date();
+        
+        // Handle null/undefined values properly
+        const price = item.ITEM_PURCHASE_STD_PRICE !== null && 
+                     item.ITEM_PURCHASE_STD_PRICE !== undefined && 
+                     !isNaN(parseFloat(item.ITEM_PURCHASE_STD_PRICE)) 
+                     ? parseFloat(item.ITEM_PURCHASE_STD_PRICE) 
+                     : null;
+        
+        request.input(`param${rowIndex}_0`, sql.VarChar, item.ITEM_ID || null);
+        request.input(`param${rowIndex}_1`, sql.VarChar, item.ITEM_TYPE || null);
+        request.input(`param${rowIndex}_2`, sql.VarChar, item.ITEM_PURCHASE_UNIT || null);
+        request.input(`param${rowIndex}_3`, sql.Decimal(18, 2), price);
+        request.input(`param${rowIndex}_4`, sql.VarChar, item.ITEM_CURRENCY || null);
+        request.input(`param${rowIndex}_5`, sql.VarChar, item.ITEM_PRC_ID || null);
+        request.input(`param${rowIndex}_6`, sql.VarChar, item.user_id || 'SYSTEM');
+        request.input(`param${rowIndex}_7`, sql.VarChar, item.delegated_to || 'SYSTEM');
+        request.input(`param${rowIndex}_8`, sql.DateTime2, item.process_date || currentDate);
+        request.input(`param${rowIndex}_9`, sql.DateTime2, currentDate);
+        request.input(`param${rowIndex}_10`, sql.DateTime2, currentDate);
+      });
+      
+      const result = await request.query(insertQuery);
+      const batchInserted = result.rowsAffected[0] || 0;
+      totalInserted += batchInserted;
+      
+      console.log(`Batch ${batchNumber} completed: ${batchInserted} records inserted`);
+    }
+    
+    console.log(`Bulk insert completed: ${totalInserted} total records inserted`);
+    return {
+      success: true,
+      rowsInserted: totalInserted
+    };
+    
+  } catch (error) {
+    console.error('Error executing bulkInsertHargaBahan query:', error);
     throw error;
   }
 }
@@ -1088,10 +1203,13 @@ async function deleteEntireFormulaManual(ppiType, ppiSubId, ppiProductId) {
 module.exports = { 
   getCurrencyList,
   getBahan,
+  getManufacturingItems,
   getHargaBahan,
   addHargaBahan,
   updateHargaBahan,
   deleteHargaBahan,
+  bulkDeleteBBHargaBahan,
+  bulkInsertHargaBahan,
   getUnit,
   getParameter,
   updateParameter,

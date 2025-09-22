@@ -53,6 +53,10 @@ const HargaBahan = () => {
   const [importPreviewData, setImportPreviewData] = useState([]);
   const [showImportPreview, setShowImportPreview] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
+  
+  // Import pagination states
+  const [importCurrentPage, setImportCurrentPage] = useState(1);
+  const [importItemsPerPage] = useState(20); // Fixed at 20 items per page
 
   // Memoized filtered results (more performant than useEffect)
   const filteredItemIds = useMemo(() => {
@@ -360,7 +364,8 @@ const HargaBahan = () => {
       kode: ['kode'],
       unitTerakhirPo: ['unit terakhir po', 'unit terakhir po idr'],
       kurs: ['kurs'],
-      estimasiHarga: ['estimasi harga']
+      estimasiHarga: ['estimasi harga'],
+      kodePrinciple: ['kode principle']
     };
     
     // Find column indices
@@ -370,8 +375,16 @@ const HargaBahan = () => {
         
         Object.keys(requiredColumns).forEach(key => {
           requiredColumns[key].forEach(searchTerm => {
-            if (headerLower.includes(searchTerm.toLowerCase())) {
-              columnMap[key] = index;
+            // Use exact match for "kode" to avoid matching "Kode Principle"
+            if (key === 'kode') {
+              if (headerLower === searchTerm.toLowerCase()) {
+                columnMap[key] = index;
+              }
+            } else {
+              // Use includes for other columns
+              if (headerLower.includes(searchTerm.toLowerCase())) {
+                columnMap[key] = index;
+              }
             }
           });
         });
@@ -399,6 +412,7 @@ const HargaBahan = () => {
         unitTerakhirPo: row[columnMap.unitTerakhirPo] || '',
         kurs: row[columnMap.kurs] || '',
         estimasiHarga: row[columnMap.estimasiHarga] || '',
+        kodePrinciple: row[columnMap.kodePrinciple] || '',
         rowNumber: i + 1
       };
       
@@ -410,6 +424,357 @@ const HargaBahan = () => {
     
     console.log('Extracted data:', extractedData);
     return extractedData;
+  };
+
+  const handleProcessImport = async () => {
+    setImportLoading(true);
+    
+    try {
+      // Step 1: Fetch manufacturing items and currency data
+      const [manufacturingItems, currencyData] = await Promise.all([
+        masterAPI.getManufacturingItems(),
+        masterAPI.getCurrency()
+      ]);
+      
+      // Filter currency data for current year (2025)
+      const currentYear = new Date().getFullYear().toString();
+      const currentYearCurrency = currencyData.filter(curr => curr.Periode === currentYear);
+      
+      console.log('Manufacturing items:', manufacturingItems);
+      console.log('Current year currency:', currentYearCurrency);
+      
+      // Step 2: Process import data with duplicate detection and price calculation
+      const processedData = await processImportData(importPreviewData, manufacturingItems, currentYearCurrency);
+      
+      console.log('Processed data:', processedData);
+      
+      // Step 3: Validate all items are BB (Bahan Baku) type
+      const nonBBItems = processedData.filter(item => item.itemType !== 'BB');
+      if (nonBBItems.length > 0) {
+        console.warn('Non-BB items found:', nonBBItems);
+        notifier.alert(`Import failed: Found ${nonBBItems.length} items that are not Bahan Baku (BB). Only BB items can be imported.`);
+        return;
+      }
+      
+      // Step 4: Update the preview table with processed data and reset pagination
+      setImportPreviewData(processedData);
+      setImportCurrentPage(1); // Reset to first page
+      notifier.success(`Processing completed! ${processedData.length} Bahan Baku items ready for import.`);
+      
+    } catch (error) {
+      console.error('Error processing import:', error);
+      notifier.alert('Error processing import data: ' + error.message);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleFinalImport = async () => {
+    setImportLoading(true);
+    
+    try {
+      // Map the processed data to the required format
+      const mappedData = importPreviewData.map((item, index) => {
+        // Handle price conversion - only parse if not empty/null
+        let price = null;
+        if (item.finalPrice !== null && item.finalPrice !== undefined && item.finalPrice !== '') {
+          price = parseFloat(item.finalPrice);
+        } else if (item.estimasiHarga !== null && item.estimasiHarga !== undefined && item.estimasiHarga !== '') {
+          price = parseFloat(item.estimasiHarga);
+        }
+        
+        const mapped = {
+          ITEM_ID: item.kode,
+          ITEM_TYPE: 'BB', // Fixed: should be 'BB' not item.itemType
+          ITEM_PURCHASE_UNIT: item.finalUnit || item.unitTerakhirPo || null,
+          ITEM_PURCHASE_STD_PRICE: price,
+          ITEM_CURRENCY: item.finalCurrency || item.kurs || null,
+          ITEM_PRC_ID: item.kodePrinciple || null,
+          user_id: 'SYSTEM',
+          delegated_to: 'SYSTEM'
+        };
+        
+        // Debug each item mapping
+        console.log(`=== MAPPING DEBUG - Item ${index + 1} ===`);
+        console.log('Original item:', {
+          kode: item.kode,
+          itemType: item.itemType,
+          unitTerakhirPo: item.unitTerakhirPo,
+          finalUnit: item.finalUnit,
+          estimasiHarga: item.estimasiHarga,
+          finalPrice: item.finalPrice,
+          kurs: item.kurs,
+          finalCurrency: item.finalCurrency,
+          kodePrinciple: item.kodePrinciple
+        });
+        console.log('Mapped item:', mapped);
+        console.log('Validation check:', {
+          hasItemId: !!mapped.ITEM_ID,
+          isItemTypeBB: mapped.ITEM_TYPE === 'BB',
+          priceValue: mapped.ITEM_PURCHASE_STD_PRICE,
+          priceType: typeof mapped.ITEM_PURCHASE_STD_PRICE,
+          currencyValue: mapped.ITEM_CURRENCY,
+          unitValue: mapped.ITEM_PURCHASE_UNIT
+        });
+        
+        return mapped;
+      });
+      
+      console.log('=== FINAL MAPPED DATA SUMMARY ===');
+      console.log('Total items:', mappedData.length);
+      console.log('First 3 items:', mappedData.slice(0, 3));
+      console.log('Items with validation issues (missing ITEM_ID or wrong ITEM_TYPE):', mappedData.filter(item => 
+        !item.ITEM_ID || item.ITEM_TYPE !== 'BB'
+      ));
+      console.log('Items with empty optional fields:', mappedData.filter(item => 
+        !item.ITEM_PURCHASE_UNIT || 
+        item.ITEM_PURCHASE_STD_PRICE === null || 
+        item.ITEM_PURCHASE_STD_PRICE === undefined ||
+        !item.ITEM_CURRENCY
+      ));
+      console.log('================================');
+      
+      // Call the bulk import API
+      const result = await masterAPI.bulkImportBahanBaku(mappedData);
+      
+      console.log('Import result:', result);
+      
+      // Show success message and close modal
+      notifier.success(`Successfully imported ${result.data.insertedRecords} Bahan Baku items!`);
+      setShowImportPreview(false);
+      
+      // Refresh the main table data
+      await loadHargaBahan();
+      
+    } catch (error) {
+      console.error('Error during final import:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      // Show more detailed error message
+      let errorMessage = 'Error importing data';
+      if (error.response?.data?.errors) {
+        errorMessage += ':\n' + error.response.data.errors.join('\n');
+      } else if (error.response?.data?.message) {
+        errorMessage += ': ' + error.response.data.message;
+      } else {
+        errorMessage += ': ' + error.message;
+      }
+      
+      notifier.alert(errorMessage);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const processImportData = async (importData, manufacturingItems, currencyData) => {
+    console.log('=== Starting processImportData ===');
+    console.log('Import data sample (first 3 items):', importData.slice(0, 3));
+    console.log('Manufacturing items sample (first 5 items):', manufacturingItems.slice(0, 5));
+    
+    // Step 1: Normalize codes (remove .000 endings)
+    const normalizedData = importData.map(item => {
+      const normalized = normalizeKode(item.kode);
+      console.log(`Normalizing: "${item.kode}" → "${normalized}"`);
+      return {
+        ...item,
+        originalKode: item.kode,
+        kode: normalized
+      };
+    });
+    
+    // Step 2: Group by normalized kode to find duplicates
+    const groupedData = {};
+    normalizedData.forEach(item => {
+      if (!groupedData[item.kode]) {
+        groupedData[item.kode] = [];
+      }
+      groupedData[item.kode].push(item);
+    });
+    
+    console.log('Grouped data keys:', Object.keys(groupedData));
+    
+    // Step 3: Process each group
+    const processedGroups = [];
+    
+    for (const [kode, items] of Object.entries(groupedData)) {
+      if (items.length === 1) {
+        // Single item, just process normally
+        const processedItem = await processSingleItem(items[0], manufacturingItems, currencyData);
+        if (processedItem) {
+          processedGroups.push(processedItem);
+        }
+      } else {
+        // Multiple items, need to find the highest priced one
+        console.log(`Found ${items.length} duplicates for kode: ${kode}`);
+        const highestPricedItem = await findHighestPricedItem(items, manufacturingItems, currencyData);
+        if (highestPricedItem) {
+          processedGroups.push(highestPricedItem);
+        }
+      }
+    }
+    
+    // Sort results: duplicates first, then singles
+    const sortedResults = processedGroups.sort((a, b) => {
+      // Duplicates (isDuplicate: true) should come first
+      if (a.isDuplicate && !b.isDuplicate) return -1;
+      if (!a.isDuplicate && b.isDuplicate) return 1;
+      // Within same type, sort by kode alphabetically
+      return a.kode.localeCompare(b.kode);
+    });
+    
+    console.log('Sorted results (duplicates first):', sortedResults.length);
+    return sortedResults;
+  };
+
+  const normalizeKode = (kode) => {
+    // Remove .### pattern from the end (dot followed by 3 numbers)
+    return kode.toString().replace(/\.\d{3}$/, '');
+  };
+
+  const processSingleItem = async (item, manufacturingItems, currencyData) => {
+    console.log(`\n=== Processing single item ===`);
+    console.log(`Looking for kode: "${item.kode}"`);
+    console.log(`Original kode was: "${item.originalKode}"`);
+    
+    // Show available Item_IDs for comparison
+    const availableItemIds = manufacturingItems.map(mi => mi.Item_ID).slice(0, 10);
+    console.log('Available Item_IDs (first 10):', availableItemIds);
+    
+    // Find matching manufacturing item
+    const manufacturingItem = manufacturingItems.find(mi => mi.Item_ID === item.kode);
+    
+    if (!manufacturingItem) {
+      console.warn(`❌ Manufacturing item not found for kode: "${item.kode}"`);
+      
+      // Let's check if any Item_ID contains our kode
+      const partialMatches = manufacturingItems.filter(mi => 
+        mi.Item_ID && mi.Item_ID.includes(item.kode)
+      );
+      console.log('Partial matches found:', partialMatches.length > 0 ? partialMatches : 'None');
+      
+      // Check for exact matches with different case
+      const caseMatches = manufacturingItems.filter(mi => 
+        mi.Item_ID && mi.Item_ID.toLowerCase() === item.kode.toLowerCase()
+      );
+      console.log('Case-insensitive matches:', caseMatches.length > 0 ? caseMatches : 'None');
+      
+      return null;
+    }
+    
+    console.log(`✅ Found manufacturing item:`, manufacturingItem);
+    
+    return {
+      ...item,
+      itemName: manufacturingItem.Item_Name,
+      itemType: manufacturingItem.Item_Type, // BB or BK
+      manufacturingUnit: manufacturingItem.Item_Unit,
+      itemBJ: manufacturingItem.Item_BJ,
+      finalPrice: parseFloat(item.estimasiHarga) || 0,
+      finalUnit: item.unitTerakhirPo,
+      finalCurrency: item.kurs,
+      isDuplicate: false
+    };
+  };
+
+  const findHighestPricedItem = async (items, manufacturingItems, currencyData) => {
+    const processedItems = [];
+    
+    for (const item of items) {
+      const manufacturingItem = manufacturingItems.find(mi => mi.Item_ID === item.kode);
+      
+      if (!manufacturingItem) {
+        console.warn(`Manufacturing item not found for kode: ${item.kode}`);
+        continue;
+      }
+      
+      // Calculate normalized price for comparison
+      const normalizedPrice = await calculateNormalizedPrice(
+        item, 
+        manufacturingItem, 
+        currencyData
+      );
+      
+      processedItems.push({
+        ...item,
+        itemName: manufacturingItem.Item_Name,
+        itemType: manufacturingItem.Item_Type,
+        manufacturingUnit: manufacturingItem.Item_Unit,
+        itemBJ: manufacturingItem.Item_BJ,
+        originalPrice: parseFloat(item.estimasiHarga) || 0,
+        normalizedPrice: normalizedPrice,
+        finalUnit: item.unitTerakhirPo,
+        finalCurrency: item.kurs,
+        isDuplicate: true
+      });
+    }
+    
+    // Find the item with the highest normalized price
+    if (processedItems.length === 0) return null;
+    
+    const highestPricedItem = processedItems.reduce((highest, current) => {
+      return current.normalizedPrice > highest.normalizedPrice ? current : highest;
+    });
+    
+    console.log(`Selected highest priced item for ${items[0].kode}: ${highestPricedItem.normalizedPrice} (original: ${highestPricedItem.originalPrice})`);
+    
+    return {
+      ...highestPricedItem,
+      finalPrice: highestPricedItem.originalPrice
+    };
+  };
+
+  const calculateNormalizedPrice = async (item, manufacturingItem, currencyData) => {
+    let price = parseFloat(item.estimasiHarga) || 0;
+    const currency = item.kurs;
+    const unit = item.unitTerakhirPo;
+    const itemBJ = parseFloat(manufacturingItem.Item_BJ) || 1;
+    
+    // Step 1: Convert currency to IDR
+    if (currency && currency.toUpperCase() !== 'IDR') {
+      const currencyRate = currencyData.find(c => c.Curr_Code.toUpperCase() === currency.toUpperCase());
+      if (currencyRate) {
+        price = price * parseFloat(currencyRate.Kurs);
+        console.log(`Currency conversion: ${item.estimasiHarga} ${currency} = ${price} IDR`);
+      }
+    }
+    
+    // Step 2: Convert unit to standard (kg for weight, l for volume)
+    if (unit) {
+      const unitLower = unit.toLowerCase();
+      
+      // Convert grams to kg
+      if (unitLower === 'g' || unitLower === 'gram' || unitLower === 'grams') {
+        price = price * 1000; // Price per kg
+        console.log(`Unit conversion: g to kg, adjusted price: ${price}`);
+      }
+      // Convert ml to l
+      else if (unitLower === 'ml' || unitLower === 'mililiter') {
+        price = price * 1000; // Price per liter
+        console.log(`Unit conversion: ml to l, adjusted price: ${price}`);
+      }
+    }
+    
+    // Step 3: Handle different unit compositions (kg vs l using specific gravity)
+    if (unit) {
+      const unitLower = unit.toLowerCase();
+      const manufacturingUnitLower = manufacturingItem.Item_Unit ? manufacturingItem.Item_Unit.toLowerCase() : '';
+      
+      // If item is sold in liters but manufacturing unit is kg (or vice versa)
+      if ((unitLower.includes('l') && manufacturingUnitLower.includes('kg')) ||
+          (unitLower.includes('liter') && manufacturingUnitLower.includes('kg'))) {
+        
+        if (itemBJ && itemBJ !== 0) {
+          price = price / itemBJ;
+          console.log(`Specific gravity conversion: ${price} / ${itemBJ} = ${price / itemBJ}`);
+        }
+      }
+    }
+    
+    return price;
   };
 
   const handleModalClose = () => {
@@ -754,7 +1119,7 @@ const HargaBahan = () => {
           
           <button className="import-btn" onClick={handleImportMaterial}>
             <Upload size={20} />
-            Import
+            Import Bahan Baku
           </button>
           
           <button className="add-btn" onClick={handleAddMaterial}>
@@ -1215,40 +1580,114 @@ const HargaBahan = () => {
             <div className="modal-body">
               <div className="import-preview-info">
                 <p><strong>Records found:</strong> {importPreviewData.length}</p>
-                <p><strong>Columns extracted:</strong> Kode, Unit Terakhir PO, Kurs, Estimasi Harga</p>
+                <p><strong>Processed columns:</strong> Kode, Item Name, Type, Unit, Currency, Price</p>
+                {importPreviewData.some(item => item.isDuplicate) && (
+                  <p style={{color: '#f59e0b'}}><strong>Note:</strong> Duplicates detected and resolved by selecting highest priced items</p>
+                )}
               </div>
               
-              {importPreviewData.length > 0 && (
-                <div className="preview-table-container">
-                  <table className="preview-table">
-                    <thead>
-                      <tr>
-                        <th>Row #</th>
-                        <th>Kode</th>
-                        <th>Unit Terakhir PO</th>
-                        <th>Kurs</th>
-                        <th>Estimasi Harga</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {importPreviewData.slice(0, 50).map((row, index) => (
-                        <tr key={index}>
-                          <td>{row.rowNumber}</td>
-                          <td>{row.kode}</td>
-                          <td>{row.unitTerakhirPo}</td>
-                          <td>{row.kurs}</td>
-                          <td>{row.estimasiHarga}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {importPreviewData.length > 50 && (
-                    <p className="preview-note">
-                      Showing first 50 records. Total records: {importPreviewData.length}
-                    </p>
-                  )}
-                </div>
-              )}
+              {importPreviewData.length > 0 && (() => {
+                // Calculate pagination
+                const totalPages = Math.ceil(importPreviewData.length / importItemsPerPage);
+                const startIndex = (importCurrentPage - 1) * importItemsPerPage;
+                const endIndex = startIndex + importItemsPerPage;
+                const currentPageData = importPreviewData.slice(startIndex, endIndex);
+                
+                return (
+                  <>
+                    <div className="pagination-info">
+                      <p>Showing {startIndex + 1} to {Math.min(endIndex, importPreviewData.length)} of {importPreviewData.length} items (Page {importCurrentPage} of {totalPages})</p>
+                      {importPreviewData.filter(item => item.isDuplicate).length > 0 && (
+                        <p style={{color: '#f59e0b', fontSize: '0.9em', marginTop: '0.5rem'}}>
+                          🔄 Duplicates are shown first
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div className="preview-table-container">
+                      <table className="preview-table">
+                        <thead>
+                          <tr>
+                            <th>Row #</th>
+                            <th>Kode</th>
+                            <th>Item Name</th>
+                            <th>Type</th>
+                            <th>Unit</th>
+                            <th>Currency</th>
+                            <th>Price</th>
+                            <th>Principle</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {currentPageData.map((row, index) => (
+                            <tr key={startIndex + index}>
+                              <td>{row.rowNumber}</td>
+                              <td>{row.kode}</td>
+                              <td>{row.itemName || 'N/A'}</td>
+                              <td>{row.itemType || 'N/A'}</td>
+                              <td>{row.finalUnit || row.unitTerakhirPo}</td>
+                              <td>{row.finalCurrency || row.kurs}</td>
+                              <td>{row.finalPrice || row.estimasiHarga}</td>
+                              <td>{row.kodePrinciple || 'N/A'}</td>
+                              <td>
+                                {row.isDuplicate ? (
+                                  <span style={{color: '#f59e0b', fontWeight: 'bold'}}>
+                                    🔄 Duplicate (Selected)
+                                  </span>
+                                ) : (
+                                  <span style={{color: '#10b981', fontWeight: 'bold'}}>
+                                    ✓ Single
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="import-pagination">
+                        <button 
+                          onClick={() => setImportCurrentPage(1)}
+                          disabled={importCurrentPage === 1}
+                          className="pagination-btn"
+                        >
+                          First
+                        </button>
+                        <button 
+                          onClick={() => setImportCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={importCurrentPage === 1}
+                          className="pagination-btn"
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        
+                        <span className="pagination-info-text">
+                          Page {importCurrentPage} of {totalPages}
+                        </span>
+                        
+                        <button 
+                          onClick={() => setImportCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          disabled={importCurrentPage === totalPages}
+                          className="pagination-btn"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                        <button 
+                          onClick={() => setImportCurrentPage(totalPages)}
+                          disabled={importCurrentPage === totalPages}
+                          className="pagination-btn"
+                        >
+                          Last
+                        </button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div className="modal-footer">
               <button 
@@ -1257,15 +1696,24 @@ const HargaBahan = () => {
               >
                 Close Preview
               </button>
-              <button 
-                className="btn-primary"
-                onClick={() => {
-                  // This will be implemented in the next step
-                  notifier.info('Import processing will be implemented next');
-                }}
-              >
-                Process Import
-              </button>
+              {importPreviewData.length > 0 && importPreviewData[0].itemName && (
+                <button 
+                  className="btn-primary"
+                  onClick={handleFinalImport}
+                  disabled={importLoading}
+                >
+                  {importLoading ? 'Importing...' : 'Import to Database'}
+                </button>
+              )}
+              {(!importPreviewData.length || !importPreviewData[0].itemName) && (
+                <button 
+                  className="btn-primary"
+                  onClick={handleProcessImport}
+                  disabled={importLoading}
+                >
+                  {importLoading ? 'Processing...' : 'Process Import'}
+                </button>
+              )}
             </div>
           </div>
         </div>
