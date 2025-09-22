@@ -4,6 +4,7 @@ import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import '../styles/HargaBahan.css';
 import { Plus, Search, Filter, Edit, Trash2, Package, ChevronLeft, ChevronRight, X, Check, Upload } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 // Initialize awesome-notifications
 const notifier = new AWN({
@@ -47,6 +48,11 @@ const HargaBahan = () => {
   // Refs for click outside detection
   const itemIdRef = useRef(null);
   const itemNameRef = useRef(null);
+
+  // Import states
+  const [importPreviewData, setImportPreviewData] = useState([]);
+  const [showImportPreview, setShowImportPreview] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
 
   // Memoized filtered results (more performant than useEffect)
   const filteredItemIds = useMemo(() => {
@@ -278,9 +284,132 @@ const HargaBahan = () => {
   };
 
   const handleImportMaterial = () => {
-    // Placeholder for import functionality
-    // Will be implemented with full import system
-    notifier.info('Import functionality will be implemented soon');
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xls,.xlsx';
+    input.onchange = handleFileUpload;
+    input.click();
+  };
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setImportLoading(true);
+    
+    try {
+      const data = await readExcelFile(file);
+      const extractedData = extractRequiredColumns(data);
+      
+      if (extractedData.length === 0) {
+        notifier.alert('No valid data found in the Excel file');
+        return;
+      }
+      
+      setImportPreviewData(extractedData);
+      setShowImportPreview(true);
+      notifier.success(`Successfully extracted ${extractedData.length} records from Excel file`);
+      
+    } catch (error) {
+      console.error('Error processing Excel file:', error);
+      notifier.alert('Error processing Excel file. Please check the file format.');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const readExcelFile = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          
+          // Get the first worksheet
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          
+          // Convert to JSON
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          resolve(jsonData);
+          
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
+  const extractRequiredColumns = (data) => {
+    if (!data || data.length === 0) return [];
+    
+    // Get the header row (first row)
+    const headers = data[0];
+    console.log('Headers found:', headers);
+    
+    // Find the column indices for the required columns
+    const columnMap = {};
+    
+    // Define the column names to look for (case insensitive)
+    const requiredColumns = {
+      kode: ['kode'],
+      unitTerakhirPo: ['unit terakhir po', 'unit terakhir po idr'],
+      kurs: ['kurs'],
+      estimasiHarga: ['estimasi harga']
+    };
+    
+    // Find column indices
+    headers.forEach((header, index) => {
+      if (header) {
+        const headerLower = header.toString().toLowerCase().trim();
+        
+        Object.keys(requiredColumns).forEach(key => {
+          requiredColumns[key].forEach(searchTerm => {
+            if (headerLower.includes(searchTerm.toLowerCase())) {
+              columnMap[key] = index;
+            }
+          });
+        });
+      }
+    });
+    
+    console.log('Column mapping:', columnMap);
+    
+    // Check if we found all required columns
+    const missingColumns = Object.keys(requiredColumns).filter(key => !(key in columnMap));
+    if (missingColumns.length > 0) {
+      notifier.alert(`Missing required columns: ${missingColumns.join(', ')}`);
+      return [];
+    }
+    
+    // Extract data from rows (skip header row)
+    const extractedData = [];
+    
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (!row || row.length === 0) continue;
+      
+      const rowData = {
+        kode: row[columnMap.kode] || '',
+        unitTerakhirPo: row[columnMap.unitTerakhirPo] || '',
+        kurs: row[columnMap.kurs] || '',
+        estimasiHarga: row[columnMap.estimasiHarga] || '',
+        rowNumber: i + 1
+      };
+      
+      // Only add row if at least kode is not empty
+      if (rowData.kode && rowData.kode.toString().trim() !== '') {
+        extractedData.push(rowData);
+      }
+    }
+    
+    console.log('Extracted data:', extractedData);
+    return extractedData;
   };
 
   const handleModalClose = () => {
@@ -1065,6 +1194,78 @@ const HargaBahan = () => {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Preview Modal */}
+      {showImportPreview && (
+        <div className="modal-overlay">
+          <div className="modal-content large-modal">
+            <div className="modal-header">
+              <h3>Import Preview - Material Prices</h3>
+              <button 
+                className="close-btn" 
+                onClick={() => setShowImportPreview(false)}
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="import-preview-info">
+                <p><strong>Records found:</strong> {importPreviewData.length}</p>
+                <p><strong>Columns extracted:</strong> Kode, Unit Terakhir PO, Kurs, Estimasi Harga</p>
+              </div>
+              
+              {importPreviewData.length > 0 && (
+                <div className="preview-table-container">
+                  <table className="preview-table">
+                    <thead>
+                      <tr>
+                        <th>Row #</th>
+                        <th>Kode</th>
+                        <th>Unit Terakhir PO</th>
+                        <th>Kurs</th>
+                        <th>Estimasi Harga</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importPreviewData.slice(0, 50).map((row, index) => (
+                        <tr key={index}>
+                          <td>{row.rowNumber}</td>
+                          <td>{row.kode}</td>
+                          <td>{row.unitTerakhirPo}</td>
+                          <td>{row.kurs}</td>
+                          <td>{row.estimasiHarga}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {importPreviewData.length > 50 && (
+                    <p className="preview-note">
+                      Showing first 50 records. Total records: {importPreviewData.length}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="btn-secondary" 
+                onClick={() => setShowImportPreview(false)}
+              >
+                Close Preview
+              </button>
+              <button 
+                className="btn-primary"
+                onClick={() => {
+                  // This will be implemented in the next step
+                  notifier.info('Import processing will be implemented next');
+                }}
+              >
+                Process Import
+              </button>
             </div>
           </div>
         </div>
