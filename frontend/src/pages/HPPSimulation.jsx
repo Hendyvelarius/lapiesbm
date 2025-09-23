@@ -78,6 +78,18 @@ export default function HPPSimulation() {
   const [materialData, setMaterialData] = useState([]);
   const [materialMap, setMaterialMap] = useState({});
 
+  // Price change simulation state variables
+  const [priceMaterials, setPriceMaterials] = useState([]);
+  const [selectedMaterials, setSelectedMaterials] = useState([]);
+  const [priceChangeStep, setPriceChangeStep] = useState(1);
+  const [loadingPriceMaterials, setLoadingPriceMaterials] = useState(false);
+  
+  // Material selection pagination and search
+  const [materialSearchTerm, setMaterialSearchTerm] = useState('');
+  const [filteredMaterials, setFilteredMaterials] = useState([]);
+  const [currentMaterialPage, setCurrentMaterialPage] = useState(1);
+  const [materialsPerPage] = useState(20); // Show 20 materials per page
+
   // Simulation results
   const [simulationResults, setSimulationResults] = useState(null);
   const [showDetailedReport, setShowDetailedReport] = useState(false);
@@ -406,6 +418,183 @@ export default function HPPSimulation() {
     });
   };
 
+  // Initialize price change simulation
+  const initializePriceChangeSimulation = () => {
+    setSelectedMaterials([]); // Reset selected materials for price changes
+    setPriceChangeStep(1); // Start with material selection
+    setMaterialSearchTerm(''); // Reset search
+    setCurrentMaterialPage(1); // Reset pagination
+    
+    // Reset other simulation states
+    setSimulationResults(null);
+    setEditableMaterialData([]);
+    setSimulationDetailBahan([]);
+    setSimulationHeader(null);
+    setLoadingDetails(false);
+    setError('');
+    
+    // Load materials with prices for price change selection
+    loadPriceMaterials();
+  };
+
+  // Load materials with price data from hargaBahan API
+  const loadPriceMaterials = async () => {
+    setLoadingPriceMaterials(true);
+    setError('');
+    
+    try {
+      // Fetch both APIs in parallel
+      const [priceResponse, materialResponse] = await Promise.all([
+        masterAPI.getHargaBahan(),
+        masterAPI.getMaterial()
+      ]);
+      
+      const priceData = priceResponse.data || priceResponse;
+      const materialData = materialResponse.data || materialResponse;
+      
+      console.log('Loaded price data:', priceData.length, 'items');
+      console.log('Loaded material data:', materialData.length, 'items');
+      
+      // Create a map of material names for quick lookup
+      const materialNameMap = {};
+      materialData.forEach(material => {
+        materialNameMap[material.ITEM_ID] = material.Item_Name;
+      });
+      
+      // Merge price data with material names
+      const mergedMaterials = priceData.map(priceItem => ({
+        ...priceItem,
+        ITEM_NAME: materialNameMap[priceItem.ITEM_ID] || `Unknown Material (${priceItem.ITEM_ID})`, // Fallback with clear indication
+        ITEM_TYP: priceItem.ITEM_TYPE || 'N/A', // Use correct field mapping with fallback
+        UNIT: priceItem.ITEM_PURCHASE_UNIT || 'unit', // Add purchase unit with fallback
+        CURRENCY: priceItem.ITEM_CURRENCY || 'IDR' // Add currency with fallback
+      }));
+      
+      console.log('Merged materials:', mergedMaterials.length, 'items with names');
+      // Log sample for debugging
+      console.log('Sample merged material:', mergedMaterials[0]);
+      setPriceMaterials(mergedMaterials);
+      setFilteredMaterials(mergedMaterials); // Initialize filtered materials
+      setCurrentMaterialPage(1); // Reset pagination
+    } catch (error) {
+      console.error('Error loading price materials:', error);
+      setError('Failed to load material price data. Please try again.');
+    } finally {
+      setLoadingPriceMaterials(false);
+    }
+  };
+
+  // Handle material selection for price change
+  const handleMaterialSelection = (material, selected) => {
+    if (selected) {
+      // Add material to selected list with current price as new price
+      const materialWithNewPrice = {
+        ...material,
+        originalPrice: material.ITEM_PURCHASE_STD_PRICE,
+        newPrice: material.ITEM_PURCHASE_STD_PRICE, // Start with current price
+        priceChange: 0,
+        priceChangePercent: 0
+      };
+      setSelectedMaterials(prev => [...prev, materialWithNewPrice]);
+    } else {
+      // Remove material from selected list
+      setSelectedMaterials(prev => prev.filter(m => m.ITEM_ID !== material.ITEM_ID));
+    }
+  };
+
+  // Update new price for selected material
+  const handlePriceChange = (materialId, newPrice) => {
+    setSelectedMaterials(prev => prev.map(material => {
+      if (material.ITEM_ID === materialId) {
+        const originalPrice = material.originalPrice;
+        const priceChange = newPrice - originalPrice;
+        const priceChangePercent = originalPrice !== 0 ? (priceChange / originalPrice) * 100 : 0;
+        
+        return {
+          ...material,
+          newPrice: parseFloat(newPrice) || 0,
+          priceChange,
+          priceChangePercent
+        };
+      }
+      return material;
+    }));
+  };
+
+  // Proceed to next step in price change simulation
+  const handleProceedToPriceChange = () => {
+    // Navigate to material selection step
+    setPriceChangeStep(2);
+    setError('');
+  };
+
+  // Continue to impact analysis after material selection
+  const handleContinueToImpactAnalysis = () => {
+    if (selectedMaterials.length === 0) {
+      setError('Please select at least one material for price change simulation.');
+      return;
+    }
+    // TODO: Navigate to next step (find affected products)
+    setNotificationInfo('Finding affected products and calculating cost impact...');
+    setError('');
+  };
+
+  // Handle material search
+  const handleMaterialSearch = (searchTerm) => {
+    setMaterialSearchTerm(searchTerm);
+    setCurrentMaterialPage(1); // Reset to first page when searching
+    
+    if (!searchTerm.trim()) {
+      setFilteredMaterials(priceMaterials);
+    } else {
+      const filtered = priceMaterials.filter(material => 
+        material.ITEM_NAME?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        material.ITEM_ID?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        material.ITEM_TYP?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        material.UNIT?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        material.CURRENCY?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredMaterials(filtered);
+    }
+  };
+
+  // Get paginated materials
+  const getPaginatedMaterials = () => {
+    const materialsToShow = filteredMaterials.length > 0 ? filteredMaterials : priceMaterials;
+    const startIndex = (currentMaterialPage - 1) * materialsPerPage;
+    const endIndex = startIndex + materialsPerPage;
+    return materialsToShow.slice(startIndex, endIndex);
+  };
+
+  // Get total pages for materials
+  const getTotalMaterialPages = () => {
+    const materialsToShow = filteredMaterials.length > 0 ? filteredMaterials : priceMaterials;
+    return Math.ceil(materialsToShow.length / materialsPerPage);
+  };
+
+  // Format price with currency symbol
+  const formatPriceWithCurrency = (price, currency) => {
+    if (!price && price !== 0) return 'Not Set';
+    
+    const formattedPrice = parseFloat(price).toLocaleString();
+    
+    // Map common currencies to their symbols
+    const currencySymbols = {
+      'IDR': 'Rp ',
+      'USD': '$ ',
+      'EUR': '€ ',
+      'RMB': '¥ ',
+      'CNY': '¥ ',
+      'JPY': '¥ ',
+      'SGD': 'S$ ',
+      'MYR': 'RM ',
+      'THB': '฿ '
+    };
+    
+    const symbol = currencySymbols[currency] || `${currency} `;
+    return `${symbol}${formattedPrice}`;
+  };
+
   // Load existing simulation for editing
   const handleEditSimulation = async (simulation) => {
     try {
@@ -646,6 +835,12 @@ export default function HPPSimulation() {
       setIsEditMode(false); // This is a new custom simulation
       // Initialize empty custom formula simulation
       initializeCustomFormula();
+    } else if (type === 'price-change') {
+      // Move to price change configuration step
+      setStep(5); // New step for price change simulation
+      setIsEditMode(false); // This is a new price change simulation
+      // Initialize price change simulation
+      initializePriceChangeSimulation();
     } else {
       setError('Unknown simulation type selected.');
     }
@@ -1550,7 +1745,7 @@ export default function HPPSimulation() {
         <p>Guided step-by-step process to simulate Cost of Goods Sold (COGS) for products</p>
       </div>
 
-      <div className="hpp-simulation-card">
+      <div className={`hpp-simulation-card ${step === 5 && simulationType === 'price-change' ? 'price-change-no-card' : ''}`}>
         {error && (
           <div className="error-message">
             {error}
@@ -1820,6 +2015,21 @@ export default function HPPSimulation() {
                   <span>✓ Custom ingredients</span>
                   <span>✓ Flexible parameters</span>
                   <span>✓ What-if scenarios</span>
+                </div>
+              </div>
+
+              <div 
+                className={`simulation-option ${simulationType === 'price-change' ? 'selected' : ''}`}
+                onClick={() => handleSimulationTypeSelect('price-change')}
+              >
+                <div className="option-icon">📊</div>
+                <h3>Price Change Simulation</h3>
+                <p>Simulate the impact of material price changes on existing products. Automatically identifies and processes affected products.</p>
+                <div className="option-features">
+                  <span>✓ Price impact analysis</span>
+                  <span>✓ Multi-product simulation</span>
+                  <span>✓ Automatic product detection</span>
+                  <span>✓ Before/after comparison</span>
                 </div>
               </div>
             </div>
@@ -3512,6 +3722,274 @@ export default function HPPSimulation() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step 5: Price Change Simulation */}
+      {step === 5 && simulationType === 'price-change' && (
+        <div className="simulation-step">
+          <div className="step-header">
+            <button 
+              className="back-btn"
+              onClick={handleBackToList}
+            >
+              ← Back to List
+            </button>
+            <h2>Price Change Simulation</h2>
+          </div>
+          
+          <div className="price-change-simulation-content">
+            <div className="simulation-description">
+              <p>
+                Simulate the impact of material price changes on existing products. 
+                Select materials that will have price changes, and the system will automatically identify 
+                all products that use these materials and calculate the new cost structure.
+              </p>
+            </div>
+
+            <div className="price-change-workflow">
+              <div className="workflow-steps">
+                <div className="workflow-step">
+                  <div className="step-number">1</div>
+                  <div className="step-content">
+                    <h4>Select Materials</h4>
+                    <p>Choose materials that will have price changes</p>
+                  </div>
+                </div>
+                <div className="workflow-arrow">→</div>
+                
+                <div className="workflow-step">
+                  <div className="step-number">2</div>
+                  <div className="step-content">
+                    <h4>Set New Prices</h4>
+                    <p>Define the new unit prices for selected materials</p>
+                  </div>
+                </div>
+                <div className="workflow-arrow">→</div>
+                
+                <div className="workflow-step">
+                  <div className="step-number">3</div>
+                  <div className="step-content">
+                    <h4>Find Products</h4>
+                    <p>System identifies all products using these materials</p>
+                  </div>
+                </div>
+                <div className="workflow-arrow">→</div>
+                
+                <div className="workflow-step">
+                  <div className="step-number">4</div>
+                  <div className="step-content">
+                    <h4>Calculate Impact</h4>
+                    <p>Generate before/after cost comparison for affected products</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {priceChangeStep === 1 ? (
+              <>
+                <div className="price-change-features">
+                  <h3>What you'll get:</h3>
+                  <div className="features-grid">
+                    <div className="feature-item">
+                      <div className="feature-icon">📊</div>
+                      <h4>Cost Impact Analysis</h4>
+                      <p>See exactly how price changes affect each product's total cost</p>
+                    </div>
+                    
+                    <div className="feature-item">
+                      <div className="feature-icon">🔍</div>
+                      <h4>Automatic Product Discovery</h4>
+                      <p>System finds all products that use the selected materials</p>
+                    </div>
+                    
+                    <div className="feature-item">
+                      <div className="feature-icon">⚖️</div>
+                      <h4>Before/After Comparison</h4>
+                      <p>Clear comparison showing old vs new costs and percentage changes</p>
+                    </div>
+                    
+                    <div className="feature-item">
+                      <div className="feature-icon">📈</div>
+                      <h4>Multi-Product Simulation</h4>
+                      <p>Process multiple affected products in a single simulation run</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="price-change-actions">
+                  <div className="action-buttons">
+                    <button 
+                      className="secondary-btn"
+                      onClick={() => setStep(1)}
+                      disabled={loading}
+                    >
+                      ← Choose Different Type
+                    </button>
+                    
+                    <button 
+                      className="primary-btn"
+                      onClick={handleProceedToPriceChange}
+                      disabled={loadingPriceMaterials}
+                    >
+                      {loadingPriceMaterials ? 'Loading Materials & Names...' : 'Start Price Change Simulation →'}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="material-selection-container">
+                <div className="material-selection-header">
+                  <button 
+                    className="back-button"
+                    onClick={() => setPriceChangeStep(1)}
+                  >
+                    ← Back to Overview
+                  </button>
+                  <h3>Select Materials for Price Change</h3>
+                </div>
+
+                <div className="material-search-section">
+                  <div className="search-controls">
+                    <input
+                      type="text"
+                      placeholder="Search materials by name, code, type, unit, or currency..."
+                      value={materialSearchTerm}
+                      onChange={(e) => handleMaterialSearch(e.target.value)}
+                      className="material-search-input"
+                    />
+                    <div className="material-stats">
+                      {filteredMaterials.length > 0 ? (
+                        <span>Showing {getPaginatedMaterials().length} of {filteredMaterials.length} materials</span>
+                      ) : (
+                        <span>Showing {getPaginatedMaterials().length} of {priceMaterials.length} materials</span>
+                      )}
+                      {selectedMaterials.length > 0 && (
+                        <span className="selected-count"> | Selected: {selectedMaterials.length}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {priceMaterials.length > 0 ? (
+                  <>
+                    <div className="materials-list">
+                      {getPaginatedMaterials().map((material) => {
+                        const isSelected = selectedMaterials.some(m => m.ITEM_ID === material.ITEM_ID);
+                        const selectedMaterial = selectedMaterials.find(m => m.ITEM_ID === material.ITEM_ID);
+                        
+                        return (
+                          <div key={material.ITEM_ID} className={`material-item ${isSelected ? 'selected' : ''}`}>
+                            <div className="material-checkbox">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => handleMaterialSelection(material, e.target.checked)}
+                              />
+                            </div>
+                            <div className="material-info">
+                              <div className="material-name">{material.ITEM_NAME}</div>
+                              <div className="material-details">
+                                Code: {material.ITEM_ID} | Type: {material.ITEM_TYP} | Unit: {material.UNIT} | 
+                                Current Price: {formatPriceWithCurrency(material.ITEM_PURCHASE_STD_PRICE, material.CURRENCY)} per {material.UNIT}
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <div className="material-price-input">
+                                <label>New Price ({material.CURRENCY} per {material.UNIT}):</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={selectedMaterial?.newPrice || ''}
+                                  onChange={(e) => handlePriceChange(material.ITEM_ID, e.target.value)}
+                                  placeholder={`Enter new price in ${material.CURRENCY}`}
+                                />
+                                {selectedMaterial?.priceChangePercent !== 0 && (
+                                  <div className={`price-change-indicator ${selectedMaterial?.priceChange > 0 ? 'increase' : 'decrease'}`}>
+                                    {selectedMaterial?.priceChange > 0 ? '+' : ''}{selectedMaterial?.priceChangePercent?.toFixed(2)}%
+                                    <span className="price-change-amount">
+                                      ({formatPriceWithCurrency(selectedMaterial?.priceChange, material.CURRENCY)})
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {getTotalMaterialPages() > 1 && (
+                      <div className="material-pagination">
+                        <button 
+                          className="pagination-btn"
+                          onClick={() => setCurrentMaterialPage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentMaterialPage === 1}
+                        >
+                          ← Previous
+                        </button>
+                        
+                        <div className="pagination-info">
+                          Page {currentMaterialPage} of {getTotalMaterialPages()}
+                        </div>
+                        
+                        <button 
+                          className="pagination-btn"
+                          onClick={() => setCurrentMaterialPage(prev => Math.min(prev + 1, getTotalMaterialPages()))}
+                          disabled={currentMaterialPage === getTotalMaterialPages()}
+                        >
+                          Next →
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="selection-actions">
+                      <button 
+                        className="action-button secondary-button"
+                        onClick={() => {
+                          setSelectedMaterials([]);
+                          setError('');
+                        }}
+                      >
+                        Clear All
+                      </button>
+                      <button 
+                        className="action-button primary-button"
+                        onClick={handleContinueToImpactAnalysis}
+                        disabled={selectedMaterials.length === 0}
+                      >
+                        Continue to Impact Analysis ({selectedMaterials.length}) →
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="no-materials">
+                    <p>No materials available for price change simulation.</p>
+                    <button 
+                      className="action-button"
+                      onClick={() => setPriceChangeStep(1)}
+                    >
+                      Back to Overview
+                    </button>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="error-message">
+                    {error}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="price-change-note">
+              <div className="note-content">
+                <strong>Note:</strong> This simulation will create temporary calculations without affecting your actual product formulas or pricing data. 
+                You can review all changes before deciding to implement them.
               </div>
             </div>
           </div>
