@@ -544,7 +544,7 @@ const HargaBahan = () => {
       setShowImportPreview(false);
       
       // Refresh the main table data
-      await loadHargaBahan();
+      await fetchAllData();
       
     } catch (error) {
       console.error('Error during final import:', error);
