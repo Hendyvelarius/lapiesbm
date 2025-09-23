@@ -15,7 +15,9 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronsUpDown,
+  BarChart3,
 } from "lucide-react";
+import AffectedProductsModal from "../components/AffectedProductsModal";
 
 // Initialize awesome-notifications
 const notifier = new AWN({
@@ -71,6 +73,12 @@ export default function HPPSimulation() {
   // Price Change grouping state
   const [expandedGroups, setExpandedGroups] = useState(new Set()); // Track which price change groups are expanded
   const [groupedSimulations, setGroupedSimulations] = useState({}); // Store grouped simulations
+
+  // Affected Products Modal state
+  const [affectedProductsModalOpen, setAffectedProductsModalOpen] =
+    useState(false);
+  const [selectedPriceChangeDescription, setSelectedPriceChangeDescription] =
+    useState("");
 
   // Available products with formulas (intersection of productName and chosenFormula)
   const [availableProducts, setAvailableProducts] = useState([]);
@@ -407,6 +415,19 @@ export default function HPPSimulation() {
       newExpanded.add(groupKey);
     }
     setExpandedGroups(newExpanded);
+  };
+
+  // Open affected products modal for price changes
+  const handleShowAffectedProducts = (description, event) => {
+    event.stopPropagation(); // Prevent group toggle when clicking the button
+    setSelectedPriceChangeDescription(description);
+    setAffectedProductsModalOpen(true);
+  };
+
+  // Close affected products modal
+  const handleCloseAffectedProductsModal = () => {
+    setAffectedProductsModalOpen(false);
+    setSelectedPriceChangeDescription("");
   };
 
   // Load simulation list from API
@@ -2382,6 +2403,21 @@ export default function HPPSimulation() {
                                     <span className="group-count">
                                       ({item.count} products)
                                     </span>
+                                  </div>
+                                  <div className="group-actions">
+                                    <button
+                                      className="affected-products-btn"
+                                      onClick={(e) =>
+                                        handleShowAffectedProducts(
+                                          item.description,
+                                          e
+                                        )
+                                      }
+                                      title="View products affected by this price change"
+                                    >
+                                      <BarChart3 size={16} />
+                                      <span>Affected Products</span>
+                                    </button>
                                   </div>
                                   <div className="group-date">
                                     {new Date(item.date).toLocaleDateString(
@@ -5765,6 +5801,13 @@ export default function HPPSimulation() {
           </div>
         </div>
       )}
+
+      {/* Affected Products Modal */}
+      <AffectedProductsModal
+        isOpen={affectedProductsModalOpen}
+        onClose={handleCloseAffectedProductsModal}
+        priceChangeDescription={selectedPriceChangeDescription}
+      />
     </div>
   );
 }
