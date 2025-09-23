@@ -217,6 +217,25 @@ async function bulkDeleteBBHargaBahan() {
   }
 }
 
+async function bulkDeleteBKHargaBahan() {
+  try {
+    const db = await connect();
+    const deleteQuery = 'DELETE FROM M_COGS_STD_HRG_BAHAN WHERE ITEM_TYPE = @itemType';
+    const result = await db.request()
+      .input('itemType', 'BK')
+      .query(deleteQuery);
+      
+    console.log(`Bulk deleted ${result.rowsAffected[0]} BK records`);
+    return {
+      success: true,
+      rowsAffected: result.rowsAffected[0]
+    };
+  } catch (error) {
+    console.error('Error executing bulkDeleteBKHargaBahan query:', error);
+    throw error;
+  }
+}
+
 async function bulkInsertHargaBahan(dataArray) {
   try {
     const db = await connect();
@@ -1209,6 +1228,7 @@ module.exports = {
   updateHargaBahan,
   deleteHargaBahan,
   bulkDeleteBBHargaBahan,
+  bulkDeleteBKHargaBahan,
   bulkInsertHargaBahan,
   getUnit,
   getParameter,

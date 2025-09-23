@@ -272,6 +272,12 @@ export const masterAPI = {
     body: JSON.stringify({ items }),
   }),
   
+  // Bulk import bahan kemas
+  bulkImportBahanKemas: (items) => apiRequest('/master/hargaBahan/bulk-import-bahan-kemas', {
+    method: 'POST',
+    body: JSON.stringify({ items }),
+  }),
+  
   // Get parameters
   getParameter: () => apiRequest('/master/parameter'),
   

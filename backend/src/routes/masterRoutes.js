@@ -12,6 +12,7 @@ router.post('/hargaBahan', MasterController.addHargaBahan);
 router.put('/hargaBahan/:id', MasterController.updateHargaBahan);
 router.delete('/hargaBahan/:id', MasterController.deleteHargaBahan);
 router.post('/hargaBahan/bulk-import-bahan-baku', MasterController.bulkImportBahanBaku);
+router.post('/hargaBahan/bulk-import-bahan-kemas', MasterController.bulkImportBahanKemas);
 router.get('/parameter', MasterController.getParameter);
 router.put('/parameter', MasterController.updateParameter);
 router.get('/group', MasterController.getGroup);

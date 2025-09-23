@@ -53,10 +53,12 @@ const HargaBahan = () => {
   const [importPreviewData, setImportPreviewData] = useState([]);
   const [showImportPreview, setShowImportPreview] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
+  const [showFormatModal, setShowFormatModal] = useState(false); // New state for format modal
   
   // Import pagination states
   const [importCurrentPage, setImportCurrentPage] = useState(1);
   const [importItemsPerPage] = useState(20); // Fixed at 20 items per page
+  const [importType, setImportType] = useState(''); // 'bahan-baku' or 'bahan-kemas'
 
   // Memoized filtered results (more performant than useEffect)
   const filteredItemIds = useMemo(() => {
@@ -295,11 +297,139 @@ const HargaBahan = () => {
     input.click();
   };
 
+  const handleImportBahanKemas = () => {
+    // Show format information modal first
+    setShowFormatModal(true);
+  };
+
+  const proceedWithBahanKemasImport = () => {
+    setShowFormatModal(false);
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xls,.xlsx';
+    input.onchange = handleBahanKemasFileUpload;
+    input.click();
+  };
+
+  const handleBahanKemasFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setImportLoading(true);
+    setImportType('bahan-kemas'); // Set import type for Bahan Kemas
+    
+    try {
+      // Step 1: Read and extract data from Excel
+      const data = await readExcelFile(file);
+      const extractedData = extractBahanKemasColumns(data);
+      
+      if (extractedData.length === 0) {
+        notifier.alert('No valid Bahan Kemas data found in the Excel file');
+        return;
+      }
+      
+      console.log('=== BAHAN KEMAS AUTO-PROCESSING ===');
+      notifier.info(`Extracted ${extractedData.length} records. Processing duplicates...`);
+      
+      // Step 2: Automatically process the data (normalize codes, handle duplicates)
+      const currencyData = await masterAPI.getCurrency();
+      const currentYear = new Date().getFullYear().toString();
+      const currentYearCurrency = currencyData.filter(curr => curr.Periode === currentYear);
+      
+      const processedData = await processBahanKemasData(extractedData, currentYearCurrency);
+      
+      // Step 3: Show processed results
+      setImportPreviewData(processedData);
+      setImportCurrentPage(1); // Reset to first page
+      setShowImportPreview(true);
+      
+      const duplicateCount = processedData.filter(item => item.isDuplicate).length;
+      const totalRemoved = extractedData.length - processedData.length;
+      
+      if (duplicateCount > 0) {
+        notifier.success(`Processing completed! ${processedData.length} items ready for import (${duplicateCount} duplicates resolved, ${totalRemoved} lower-priced items removed)`);
+      } else {
+        notifier.success(`Processing completed! ${processedData.length} Bahan Kemas items ready for import (no duplicates found)`);
+      }
+      
+    } catch (error) {
+      console.error('Error processing Bahan Kemas Excel file:', error);
+      notifier.alert('Error processing Excel file. Please check the file format and ensure it follows the required structure.');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const extractBahanKemasColumns = (data) => {
+    if (!data || data.length === 0) return [];
+    
+    console.log('=== BAHAN KEMAS IMPORT STRUCTURE ===');
+    console.log('Required Excel format (starting from row 2):');
+    console.log('Column A: Item Type (must be "Bahan Kemas")');
+    console.log('Column B: Item Code/ID'); 
+    console.log('Column D: Item Name (display only)');
+    console.log('Column E: Principle/PRC ID');
+    console.log('Column L: Purchase Unit');
+    console.log('Column AD: Purchase Price');
+    console.log('Column AE: Currency');
+    console.log('=====================================');
+    
+    // Skip header row (row 1), start from row 2 (index 1)
+    const extractedData = [];
+    
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (!row || row.length === 0) continue;
+      
+      // Extract data from specific columns
+      const itemType = row[0] ? row[0].toString().trim() : ''; // Column A
+      const itemCode = row[1] ? row[1].toString().trim() : ''; // Column B  
+      const itemName = row[3] ? row[3].toString().trim() : ''; // Column D
+      const principle = row[4] ? row[4].toString().trim() : ''; // Column E
+      const unit = row[11] ? row[11].toString().trim() : ''; // Column L (index 11)
+      const price = row[29] ? row[29] : ''; // Column AD (index 29)
+      const currency = row[30] ? row[30].toString().trim() : ''; // Column AE (index 30)
+      
+      // Only validate Item Code and Item Type - skip empty or invalid entries
+      if (!itemCode) continue;
+      
+      // Validate that Item Type is "Bahan Kemas" (case insensitive)
+      if (itemType.toLowerCase() !== 'bahan kemas') {
+        console.warn(`Row ${i + 1}: Invalid item type "${itemType}" - expected "Bahan Kemas". Skipping row.`);
+        continue;
+      }
+      
+      const rowData = {
+        rowNumber: i + 1,
+        itemType: itemType,
+        itemCode: itemCode,
+        itemName: itemName,
+        principle: principle,
+        unit: unit,
+        price: price,
+        currency: currency,
+        // Derived fields for database insertion
+        ITEM_ID: itemCode,
+        ITEM_TYPE: 'BK', // Convert "Bahan Kemas" to "BK"
+        ITEM_PURCHASE_UNIT: unit,
+        ITEM_PURCHASE_STD_PRICE: price ? parseFloat(price) : null,
+        ITEM_CURRENCY: currency,
+        ITEM_PRC_ID: principle
+      };
+      
+      extractedData.push(rowData);
+    }
+    
+    console.log(`Extracted ${extractedData.length} valid Bahan Kemas records`);
+    return extractedData;
+  };
+
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
     setImportLoading(true);
+    setImportType('bahan-baku'); // Set import type for Bahan Baku
     
     try {
       const data = await readExcelFile(file);
@@ -568,6 +698,168 @@ const HargaBahan = () => {
     } finally {
       setImportLoading(false);
     }
+  };
+
+  const handleBahanKemasFinalImport = async () => {
+    setImportLoading(true);
+    
+    try {
+      // Map processed Bahan Kemas data to database format
+      const mappedData = importPreviewData.map((item) => {
+        const currentDateTime = new Date().toISOString();
+        
+        return {
+          ITEM_ID: item.ITEM_ID,
+          ITEM_TYPE: 'BK', // Always BK for Bahan Kemas
+          ITEM_PURCHASE_UNIT: item.ITEM_PURCHASE_UNIT || item.unit || null,
+          ITEM_PURCHASE_STD_PRICE: item.ITEM_PURCHASE_STD_PRICE || item.finalPrice || parseFloat(item.price) || null,
+          ITEM_CURRENCY: item.ITEM_CURRENCY || item.finalCurrency || item.currency || 'IDR',
+          ITEM_PRC_ID: item.ITEM_PRC_ID || item.principle || null,
+          user_id: 'SYSTEM',
+          delegated_to: 'SYSTEM', 
+          process_date: currentDateTime
+        };
+      });
+      
+      console.log('=== BAHAN KEMAS FINAL IMPORT ===');
+      console.log('Total items to import:', mappedData.length);
+      console.log('Sample mapped data:', mappedData.slice(0, 3));
+      console.log('==================================');
+      
+      // Call the bulk import API
+      const result = await masterAPI.bulkImportBahanKemas(mappedData);
+      
+      if (result.success) {
+        notifier.success(`Successfully imported ${result.data.insertedRecords} Bahan Kemas items!`);
+        setShowImportPreview(false);
+        await fetchAllData(); // Refresh the main table
+      } else {
+        throw new Error(result.message || 'Import failed');
+      }
+      
+    } catch (error) {
+      console.error('Error during Bahan Kemas final import:', error);
+      notifier.alert('Error importing Bahan Kemas data: ' + error.message);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const processBahanKemasData = async (importData, currencyData) => {
+    console.log('=== Starting Bahan Kemas Processing ===');
+    console.log('Import data sample (first 3 items):', importData.slice(0, 3));
+    
+    // Step 1: Normalize item codes (remove .xxx endings)
+    const normalizedData = importData.map(item => {
+      const normalized = normalizeKode(item.itemCode);
+      console.log(`Normalizing: "${item.itemCode}" → "${normalized}"`);
+      return {
+        ...item,
+        originalCode: item.itemCode,
+        itemCode: normalized,
+        ITEM_ID: normalized // Update the database field too
+      };
+    });
+    
+    // Step 2: Group by normalized code to find duplicates
+    const groupedData = {};
+    normalizedData.forEach(item => {
+      if (!groupedData[item.itemCode]) {
+        groupedData[item.itemCode] = [];
+      }
+      groupedData[item.itemCode].push(item);
+    });
+    
+    console.log('Grouped data keys:', Object.keys(groupedData));
+    console.log('Groups with duplicates:', Object.keys(groupedData).filter(key => groupedData[key].length > 1));
+    
+    // Step 3: Process each group
+    const processedGroups = [];
+    
+    for (const [code, items] of Object.entries(groupedData)) {
+      if (items.length === 1) {
+        // Single item - mark as processed
+        const processedItem = {
+          ...items[0],
+          isDuplicate: false,
+          finalPrice: parseFloat(items[0].price) || 0,
+          finalCurrency: items[0].currency,
+          finalUnit: items[0].unit
+        };
+        processedGroups.push(processedItem);
+      } else {
+        // Multiple items - find highest priced item
+        console.log(`Processing ${items.length} duplicates for code: ${code}`);
+        const highestPricedItem = await findHighestPricedBahanKemas(items, currencyData);
+        if (highestPricedItem) {
+          processedGroups.push(highestPricedItem);
+        }
+      }
+    }
+    
+    // Sort results: duplicates first, then singles
+    const sortedResults = processedGroups.sort((a, b) => {
+      // Duplicates (isDuplicate: true) should come first
+      if (a.isDuplicate && !b.isDuplicate) return -1;
+      if (!a.isDuplicate && b.isDuplicate) return 1;
+      // Within same type, sort by code alphabetically
+      return a.itemCode.localeCompare(b.itemCode);
+    });
+    
+    console.log('Sorted results (duplicates first):', sortedResults.length);
+    return sortedResults;
+  };
+
+  const findHighestPricedBahanKemas = async (items, currencyData) => {
+    const processedItems = [];
+    
+    for (const item of items) {
+      // Calculate normalized price for comparison (convert to IDR)
+      const normalizedPrice = await calculateBahanKemasNormalizedPrice(item, currencyData);
+      
+      processedItems.push({
+        ...item,
+        originalPrice: parseFloat(item.price) || 0,
+        normalizedPrice: normalizedPrice,
+        finalUnit: item.unit,
+        finalCurrency: item.currency,
+        isDuplicate: true
+      });
+    }
+    
+    // Find the item with the highest normalized price
+    if (processedItems.length === 0) return null;
+    
+    const highestPricedItem = processedItems.reduce((highest, current) => {
+      return current.normalizedPrice > highest.normalizedPrice ? current : highest;
+    });
+    
+    console.log(`Selected highest priced item for ${items[0].itemCode}: ${highestPricedItem.normalizedPrice} IDR (original: ${highestPricedItem.originalPrice} ${highestPricedItem.currency})`);
+    
+    return {
+      ...highestPricedItem,
+      finalPrice: highestPricedItem.originalPrice
+    };
+  };
+
+  const calculateBahanKemasNormalizedPrice = async (item, currencyData) => {
+    let price = parseFloat(item.price) || 0;
+    const currency = item.currency;
+    
+    console.log(`Calculating normalized price for: ${price} ${currency}`);
+    
+    // Convert currency to IDR for comparison
+    if (currency && currency.toUpperCase() !== 'IDR') {
+      const currencyRate = currencyData.find(c => c.Curr_Code.toUpperCase() === currency.toUpperCase());
+      if (currencyRate) {
+        price = price * parseFloat(currencyRate.Kurs);
+        console.log(`Currency conversion: ${item.price} ${currency} = ${price} IDR (rate: ${currencyRate.Kurs})`);
+      } else {
+        console.warn(`Currency rate not found for: ${currency}, using original price`);
+      }
+    }
+    
+    return price;
   };
 
   const processImportData = async (importData, manufacturingItems, currencyData) => {
@@ -1117,6 +1409,11 @@ const HargaBahan = () => {
             </select>
           </div>
           
+          <button className="import-btn" onClick={handleImportBahanKemas}>
+            <Upload size={20} />
+            Import Bahan Kemas
+          </button>
+          
           <button className="import-btn" onClick={handleImportMaterial}>
             <Upload size={20} />
             Import Bahan Baku
@@ -1569,7 +1866,7 @@ const HargaBahan = () => {
         <div className="modal-overlay">
           <div className="modal-content large-modal">
             <div className="modal-header">
-              <h3>Import Preview - Material Prices</h3>
+              <h3>Import Preview - {importType === 'bahan-kemas' ? 'Bahan Kemas' : 'Material Prices'}</h3>
               <button 
                 className="close-btn" 
                 onClick={() => setShowImportPreview(false)}
@@ -1580,9 +1877,23 @@ const HargaBahan = () => {
             <div className="modal-body">
               <div className="import-preview-info">
                 <p><strong>Records found:</strong> {importPreviewData.length}</p>
-                <p><strong>Processed columns:</strong> Kode, Item Name, Type, Unit, Currency, Price</p>
-                {importPreviewData.some(item => item.isDuplicate) && (
-                  <p style={{color: '#f59e0b'}}><strong>Note:</strong> Duplicates detected and resolved by selecting highest priced items</p>
+                {importType === 'bahan-kemas' ? (
+                  <>
+                    <p><strong>Import Type:</strong> Bahan Kemas (BK)</p>
+                    <p><strong>Columns Read:</strong> Item Type (A), Item Code (B), Item Name (D), Principle (E), Unit (L), Price (AD), Currency (AE)</p>
+                    {importPreviewData.some(item => item.isDuplicate) ? (
+                      <p style={{color: '#f59e0b'}}><strong>Status:</strong> Auto-processed - Duplicates resolved by highest price selection</p>
+                    ) : (
+                      <p style={{color: '#10b981'}}><strong>Status:</strong> Auto-processed - No duplicates found, ready for import</p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p><strong>Processed columns:</strong> Kode, Item Name, Type, Unit, Currency, Price</p>
+                    {importPreviewData.some(item => item.isDuplicate) && (
+                      <p style={{color: '#f59e0b'}}><strong>Note:</strong> Duplicates detected and resolved by selecting highest priced items</p>
+                    )}
+                  </>
                 )}
               </div>
               
@@ -1599,7 +1910,7 @@ const HargaBahan = () => {
                       <p>Showing {startIndex + 1} to {Math.min(endIndex, importPreviewData.length)} of {importPreviewData.length} items (Page {importCurrentPage} of {totalPages})</p>
                       {importPreviewData.filter(item => item.isDuplicate).length > 0 && (
                         <p style={{color: '#f59e0b', fontSize: '0.9em', marginTop: '0.5rem'}}>
-                          🔄 Duplicates are shown first
+                          🔄 {importType === 'bahan-kemas' ? 'Duplicates processed - highest priced items selected' : 'Duplicates are shown first'}
                         </p>
                       )}
                     </div>
@@ -1623,13 +1934,13 @@ const HargaBahan = () => {
                           {currentPageData.map((row, index) => (
                             <tr key={startIndex + index}>
                               <td>{row.rowNumber}</td>
-                              <td>{row.kode}</td>
+                              <td>{row.kode || row.itemCode}</td>
                               <td>{row.itemName || 'N/A'}</td>
                               <td>{row.itemType || 'N/A'}</td>
-                              <td>{row.finalUnit || row.unitTerakhirPo}</td>
-                              <td>{row.finalCurrency || row.kurs}</td>
-                              <td>{row.finalPrice || row.estimasiHarga}</td>
-                              <td>{row.kodePrinciple || 'N/A'}</td>
+                              <td>{row.finalUnit || row.unitTerakhirPo || row.unit}</td>
+                              <td>{row.finalCurrency || row.kurs || row.currency}</td>
+                              <td>{row.finalPrice || row.estimasiHarga || row.price}</td>
+                              <td>{row.kodePrinciple || row.principle || 'N/A'}</td>
                               <td>
                                 {row.isDuplicate ? (
                                   <span style={{color: '#f59e0b', fontWeight: 'bold'}}>
@@ -1637,7 +1948,7 @@ const HargaBahan = () => {
                                   </span>
                                 ) : (
                                   <span style={{color: '#10b981', fontWeight: 'bold'}}>
-                                    ✓ Single
+                                    ✓ {importType === 'bahan-kemas' ? 'Valid' : 'Single'}
                                   </span>
                                 )}
                               </td>
@@ -1696,7 +2007,20 @@ const HargaBahan = () => {
               >
                 Close Preview
               </button>
-              {importPreviewData.length > 0 && importPreviewData[0].itemName && (
+              
+              {/* Bahan Kemas Import - Data is already processed, ready for DB import */}
+              {importType === 'bahan-kemas' && importPreviewData.length > 0 && (
+                <button 
+                  className="btn-primary"
+                  onClick={handleBahanKemasFinalImport}
+                  disabled={importLoading}
+                >
+                  {importLoading ? 'Importing...' : 'Import to Database'}
+                </button>
+              )}
+              
+              {/* Bahan Baku Import - Standard flow */}
+              {importType === 'bahan-baku' && importPreviewData.length > 0 && importPreviewData[0].itemName && (
                 <button 
                   className="btn-primary"
                   onClick={handleFinalImport}
@@ -1705,7 +2029,7 @@ const HargaBahan = () => {
                   {importLoading ? 'Importing...' : 'Import to Database'}
                 </button>
               )}
-              {(!importPreviewData.length || !importPreviewData[0].itemName) && (
+              {importType === 'bahan-baku' && (!importPreviewData.length || !importPreviewData[0].itemName) && (
                 <button 
                   className="btn-primary"
                   onClick={handleProcessImport}
@@ -1714,6 +2038,120 @@ const HargaBahan = () => {
                   {importLoading ? 'Processing...' : 'Process Import'}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bahan Kemas Format Information Modal */}
+      {showFormatModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Bahan Kemas Import Format Guide</h2>
+              <button className="modal-close" onClick={() => setShowFormatModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="format-guide">
+                <h3>📋 Required Excel Format</h3>
+                <p>Your Excel file must follow this exact column structure:</p>
+                
+                <div className="format-table-container" style={{ marginBottom: '20px' }}>
+                  <table className="format-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f3f4f6' }}>
+                        <th style={{ border: '1px solid #d1d5db', padding: '8px', textAlign: 'left' }}>Column</th>
+                        <th style={{ border: '1px solid #d1d5db', padding: '8px', textAlign: 'left' }}>Field Name</th>
+                        <th style={{ border: '1px solid #d1d5db', padding: '8px', textAlign: 'left' }}>Description</th>
+                        <th style={{ border: '1px solid #d1d5db', padding: '8px', textAlign: 'left' }}>Required</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>A</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Item Type</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Must be "Bahan Kemas" exactly</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#dc2626' }}>Yes</td>
+                      </tr>
+                      <tr style={{ backgroundColor: '#f9fafb' }}>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>B</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Item Code/ID</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Unique identifier for the item</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#dc2626' }}>Yes</td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>D</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Item Name</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Display name (for reference only)</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#059669' }}>No</td>
+                      </tr>
+                      <tr style={{ backgroundColor: '#f9fafb' }}>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>E</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Principle/PRC ID</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Principle code reference</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#059669' }}>No</td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>L</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Purchase Unit</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Unit of measurement (kg, pcs, etc.)</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#059669' }}>No</td>
+                      </tr>
+                      <tr style={{ backgroundColor: '#f9fafb' }}>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>AD</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Purchase Price</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Standard purchase price</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#059669' }}>No</td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>AE</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Currency</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Currency code (IDR, USD, etc.)</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#059669' }}>No</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="format-notes">
+                  <h4>⚠️ Important Notes:</h4>
+                  <ul style={{ paddingLeft: '20px', lineHeight: '1.6' }}>
+                    <li><strong>Row 1:</strong> Must contain headers (will be skipped)</li>
+                    <li><strong>Data starts from Row 2</strong></li>
+                    <li><strong>Item Type validation:</strong> Only "Bahan Kemas" entries will be processed</li>
+                    <li><strong>Duplicate handling:</strong> Items with same code will be automatically deduplicated by highest price</li>
+                    <li><strong>Currency conversion:</strong> All prices will be normalized to IDR for comparison</li>
+                    <li><strong>Code normalization:</strong> Codes ending with ".xxx" (e.g., "130.000") will be normalized to "130"</li>
+                  </ul>
+                </div>
+
+                <div className="process-info" style={{ backgroundColor: '#f0f9ff', padding: '15px', borderRadius: '8px', marginTop: '15px' }}>
+                  <h4 style={{ color: '#0369a1', margin: '0 0 10px 0' }}>🚀 Auto-Processing</h4>
+                  <p style={{ margin: '0', color: '#0c4a6e' }}>
+                    After upload, your data will be automatically processed for duplicates and normalized. 
+                    You'll only need to review the results and click "Import to Database".
+                  </p>
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button 
+                  className="modal-btn secondary" 
+                  onClick={() => setShowFormatModal(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="modal-btn primary" 
+                  onClick={proceedWithBahanKemasImport}
+                >
+                  <Upload size={16} />
+                  Continue with Import
+                </button>
+              </div>
             </div>
           </div>
         </div>
