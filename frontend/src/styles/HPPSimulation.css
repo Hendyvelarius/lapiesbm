@@ -21,14 +21,14 @@
   font-weight: 700;
   color: #1f2937;
   margin: 0 0 8px 0;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .hpp-simulation-header p {
   font-size: 16px;
   color: #6b7280;
   margin: 0;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .hpp-simulation-card {
@@ -53,14 +53,14 @@
   font-weight: 600;
   color: #1f2937;
   margin: 0 0 8px 0;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .simulation-step > p {
   font-size: 16px;
   color: #6b7280;
   margin: 0 0 32px 0;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 /* Simulation Type Options */
@@ -103,7 +103,7 @@
   font-weight: 600;
   color: #1f2937;
   margin: 0 0 12px 0;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .simulation-option p {
@@ -111,7 +111,7 @@
   color: #6b7280;
   margin: 0 0 16px 0;
   line-height: 1.5;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .option-features {
@@ -124,7 +124,7 @@
   font-size: 12px;
   color: #059669;
   font-weight: 500;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 /* Product Search Section */
@@ -152,7 +152,7 @@
   color: #1f2937;
   background: #ffffff;
   transition: all 0.2s ease;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   box-sizing: border-box;
 }
 
@@ -169,7 +169,7 @@
   transform: translateY(-50%);
   color: #6b7280;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .product-options {
@@ -208,13 +208,13 @@
   color: #1f2937;
   font-size: 14px;
   margin-bottom: 4px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .product-name {
   color: #6b7280;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   word-wrap: break-word;
   overflow-wrap: break-word;
   line-height: 1.4;
@@ -225,7 +225,7 @@
   text-align: center;
   color: #6b7280;
   font-style: italic;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .selected-product {
@@ -241,13 +241,13 @@
   font-weight: 600;
   color: #1f2937;
   margin: 0 0 8px 0;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .product-details {
   font-size: 14px;
   color: #374151;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   word-wrap: break-word;
   overflow-wrap: break-word;
   line-height: 1.4;
@@ -262,7 +262,7 @@
   font-size: 14px;
   color: #6b7280;
   margin: 0;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 /* Placeholder Content */
@@ -278,7 +278,7 @@
   font-size: 16px;
   color: #374151;
   margin: 0 0 16px 0;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .placeholder-content ul {
@@ -290,7 +290,7 @@
   font-size: 14px;
   color: #6b7280;
   margin-bottom: 8px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 /* Form Actions */
@@ -310,7 +310,7 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .form-actions button[type="button"]:first-child {
@@ -368,7 +368,7 @@
   padding: 40px;
   color: #6b7280;
   font-style: italic;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .no-formulas-message {
@@ -378,7 +378,7 @@
   border: 1px solid #fecaca;
   border-radius: 8px;
   color: #dc2626;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 /* Formula Selection Section */
@@ -404,7 +404,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .formula-type-title.unavailable {
@@ -427,7 +427,7 @@
   font-style: italic;
   text-align: center;
   margin: 0;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 /* Formula Dropdown Section */
@@ -442,7 +442,7 @@
   font-weight: 500;
   color: #374151;
   margin-bottom: 8px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .formula-dropdown {
@@ -453,7 +453,7 @@
   font-size: 14px;
   color: #1f2937;
   background: #ffffff;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   cursor: pointer;
   transition: border-color 0.2s ease;
 }
@@ -494,14 +494,14 @@
   font-weight: 500;
   color: #6b7280;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .info-value {
   font-weight: 500;
   color: #1f2937;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -522,7 +522,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #1f2937;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .table-container {
@@ -538,7 +538,7 @@
   min-width: 800px;
   border-collapse: collapse;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .materials-table th {
@@ -572,7 +572,9 @@
   overflow-wrap: break-word;
 }
 
-.qty-cell, .price-cell, .total-cost-cell {
+.qty-cell,
+.price-cell,
+.total-cost-cell {
   text-align: right;
   font-variant-numeric: tabular-nums;
   min-width: 120px;
@@ -637,7 +639,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #1f2937;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .selected-formulas-summary ul {
@@ -649,7 +651,7 @@
   margin-bottom: 8px;
   font-size: 14px;
   color: #374151;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 /* Error Messages */
@@ -661,7 +663,7 @@
   border-radius: 8px;
   margin-bottom: 24px;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 /* Simulation Results Section */
@@ -682,7 +684,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #1f2937;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .radio-group {
@@ -697,7 +699,7 @@
   cursor: pointer;
   font-size: 14px;
   color: #374151;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .radio-option input[type="radio"] {
@@ -717,7 +719,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #1f2937;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .summary-grid {
@@ -749,7 +751,7 @@
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   color: #1f2937;
   background: #f9fafb;
   transition: all 0.2s ease;
@@ -785,14 +787,14 @@
   font-weight: 500;
   color: #374151;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .summary-value {
   font-weight: 600;
   color: #1f2937;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .summary-edit-input {
@@ -803,7 +805,7 @@
   font-size: 14px;
   font-weight: 600;
   color: #1f2937;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   text-align: right;
   background: #f9fafb;
   transition: all 0.2s ease;
@@ -824,7 +826,7 @@
   font-size: 14px;
   font-weight: 600;
   color: #1f2937;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   background: #f9fafb;
   transition: all 0.2s ease;
   cursor: pointer;
@@ -853,7 +855,7 @@
   font-weight: 600;
   color: #1f2937;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .cost-breakdown {
@@ -869,14 +871,14 @@
   font-size: 16px;
   font-weight: 600;
   color: #1f2937;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .cost-table table {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .cost-table th,
@@ -922,7 +924,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #1f2937;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .labor-grid {
@@ -945,14 +947,14 @@
   font-weight: 500;
   color: #374151;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .labor-value {
   font-weight: 600;
   color: #1f2937;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .selected-formulas-final {
@@ -968,7 +970,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #1f2937;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .formulas-grid {
@@ -991,14 +993,14 @@
   font-weight: 600;
   color: #374151;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .formula-id {
   font-weight: 500;
   color: #1f2937;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 /* Responsive Design */
@@ -1006,41 +1008,41 @@
   .hpp-simulation-container {
     padding: 16px;
   }
-  
+
   .hpp-simulation-card {
     padding: 24px 20px;
   }
-  
+
   .hpp-simulation-header h1 {
     font-size: 24px;
   }
-  
+
   .hpp-simulation-header p {
     font-size: 14px;
   }
-  
+
   .simulation-type-options {
     grid-template-columns: 1fr;
     gap: 16px;
   }
-  
+
   .simulation-option {
     padding: 20px;
   }
-  
+
   .option-icon {
     font-size: 36px;
   }
-  
+
   .simulation-option h3 {
     font-size: 18px;
   }
-  
+
   .form-actions {
     flex-direction: column;
     gap: 12px;
   }
-  
+
   .form-actions button {
     width: 100%;
   }
@@ -1050,16 +1052,16 @@
   .hpp-simulation-container {
     padding: 12px;
   }
-  
+
   .hpp-simulation-card {
     padding: 20px 16px;
   }
-  
+
   .product-search-input {
     padding: 14px 16px;
     font-size: 14px;
   }
-  
+
   .product-option {
     padding: 12px 16px;
   }
@@ -1081,7 +1083,7 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .show-detailed-report-btn:hover {
@@ -1096,7 +1098,7 @@
     background: transparent !important;
     padding: 0 !important;
   }
-  
+
   .product-hpp-modal {
     box-shadow: none !important;
     border: none !important;
@@ -1105,73 +1107,73 @@
     height: auto !important;
     overflow: visible !important;
   }
-  
+
   .product-hpp-modal-header {
     border-bottom: 1px solid #ddd !important;
     padding-bottom: 20px !important;
     margin-bottom: 20px !important;
   }
-  
+
   .product-hpp-modal-actions {
     display: none !important;
   }
-  
+
   .product-hpp-modal-content {
     padding: 0 !important;
   }
-  
+
   .document-header {
     border-bottom: 1px solid #ddd !important;
     padding-bottom: 20px !important;
     margin-bottom: 30px !important;
   }
-  
+
   .excel-table {
     border-collapse: collapse !important;
     width: 100% !important;
     font-size: 11px !important;
     margin-bottom: 20px !important;
   }
-  
+
   .excel-table th,
   .excel-table td {
     border: 1px solid #ddd !important;
     padding: 8px 6px !important;
     page-break-inside: avoid !important;
   }
-  
+
   .excel-table th {
     background: #f5f5f5 !important;
     font-weight: bold !important;
   }
-  
+
   .section-title {
     page-break-after: avoid !important;
     margin-top: 30px !important;
     margin-bottom: 10px !important;
   }
-  
+
   .material-section {
     page-break-inside: avoid !important;
     margin-bottom: 30px !important;
   }
-  
+
   .final-total-section {
     page-break-inside: avoid !important;
     margin-top: 30px !important;
   }
-  
+
   .final-total {
     background: #ffef99 !important;
     font-weight: bold !important;
     font-size: 12px !important;
   }
-  
+
   .total-row {
     background: #f8f8f8 !important;
     font-weight: bold !important;
   }
-  
+
   body {
     margin: 20px !important;
   }
@@ -1197,8 +1199,12 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-detailed-data p {
@@ -1275,14 +1281,30 @@
   min-width: 800px;
 }
 
-.material-table th:nth-child(1) { width: 35px; }     /* No */
-.material-table th:nth-child(2) { width: 85px; }    /* Kode Material */
-.material-table th:nth-child(3) { width: 160px; }   /* Nama Material */
-.material-table th:nth-child(4) { width: 70px; }    /* Qty */
-.material-table th:nth-child(5) { width: 45px; }    /* Satuan */
-.material-table th:nth-child(6) { width: 120px; }   /* Cost/Unit */
-.material-table th:nth-child(7) { width: 150px; }   /* Extended Cost */
-.material-table th:nth-child(8) { width: 55px; }    /* Actions */
+.material-table th:nth-child(1) {
+  width: 35px;
+} /* No */
+.material-table th:nth-child(2) {
+  width: 85px;
+} /* Kode Material */
+.material-table th:nth-child(3) {
+  width: 160px;
+} /* Nama Material */
+.material-table th:nth-child(4) {
+  width: 70px;
+} /* Qty */
+.material-table th:nth-child(5) {
+  width: 45px;
+} /* Satuan */
+.material-table th:nth-child(6) {
+  width: 120px;
+} /* Cost/Unit */
+.material-table th:nth-child(7) {
+  width: 150px;
+} /* Extended Cost */
+.material-table th:nth-child(8) {
+  width: 55px;
+} /* Actions */
 
 .material-table th {
   background: linear-gradient(135deg, #10b981, #059669);
@@ -1868,14 +1890,17 @@
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
+  overflow: auto; /* Enable horizontal scrolling if needed */
   border: 1px solid #e5e7eb;
+  max-width: 100%;
 }
 
 .simulation-list-table {
   width: 100%;
+  min-width: 800px; /* Ensure minimum width for proper column display */
   border-collapse: collapse;
   font-size: 14px;
+  table-layout: fixed; /* Fixed table layout for consistent column widths */
 }
 
 .simulation-list-table th {
@@ -1888,7 +1913,72 @@
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
+/* Fixed column widths for consistency */
+.simulation-list-table th:nth-child(1) {
+  width: 8%;
+} /* ID */
+.simulation-list-table th:nth-child(2) {
+  width: 12%;
+} /* Type */
+.simulation-list-table th:nth-child(3) {
+  width: 12%;
+} /* Product ID */
+.simulation-list-table th:nth-child(4) {
+  width: 20%;
+} /* Product Name */
+.simulation-list-table th:nth-child(5) {
+  width: 15%;
+} /* Formula */
+.simulation-list-table th:nth-child(6) {
+  width: 20%;
+} /* Description */
+.simulation-list-table th:nth-child(7) {
+  width: 10%;
+} /* Date */
+.simulation-list-table th:nth-child(8) {
+  width: 13%;
+} /* Actions */
+
+.simulation-list-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #374151;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Apply same widths to table data cells */
+.simulation-list-table td:nth-child(1) {
+  width: 8%;
+} /* ID */
+.simulation-list-table td:nth-child(2) {
+  width: 12%;
+} /* Type */
+.simulation-list-table td:nth-child(3) {
+  width: 12%;
+} /* Product ID */
+.simulation-list-table td:nth-child(4) {
+  width: 20%;
+} /* Product Name */
+.simulation-list-table td:nth-child(5) {
+  width: 15%;
+} /* Formula */
+.simulation-list-table td:nth-child(6) {
+  width: 20%;
+} /* Description */
+.simulation-list-table td:nth-child(7) {
+  width: 10%;
+} /* Date */
+.simulation-list-table td:nth-child(8) {
+  width: 13%;
+} /* Actions */
 
 /* Sortable header styles */
 .sortable-header {
@@ -1924,13 +2014,6 @@
   opacity: 0.8;
 }
 
-.simulation-list-table td {
-  padding: 14px 12px;
-  border-bottom: 1px solid #f3f4f6;
-  color: #374151;
-  vertical-align: middle;
-}
-
 .simulation-list-table tbody tr:hover {
   background: #f8fafc;
 }
@@ -1949,7 +2032,7 @@
 }
 
 .formula-cell {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
   font-size: 12px;
   background: #f3f4f6;
   padding: 4px 8px;
@@ -1976,7 +2059,8 @@
   width: 100px;
 }
 
-.edit-btn, .delete-btn {
+.edit-btn,
+.delete-btn {
   background: none;
   border: none;
   padding: 8px;
@@ -2009,7 +2093,8 @@
 }
 
 /* Lucide icon styling */
-.edit-btn svg, .delete-btn svg {
+.edit-btn svg,
+.delete-btn svg {
   width: 16px;
   height: 16px;
 }
@@ -2084,7 +2169,7 @@
 }
 
 .custom-material-divider::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 50%;
   left: 0;
@@ -2259,14 +2344,14 @@
   .pagination-container {
     gap: 12px;
   }
-  
+
   .pagination-controls {
-    flex-wrap: wrap;    
+    flex-wrap: wrap;
   }
 
-  .pagination-btn {     
-    padding: 6px 12px;  
-    font-size: 13px;    
+  .pagination-btn {
+    padding: 6px 12px;
+    font-size: 13px;
   }
 
   .page-number {
@@ -2314,7 +2399,8 @@
   margin-bottom: 6px;
 }
 
-.custom-input-field, .custom-select-field {
+.custom-input-field,
+.custom-select-field {
   padding: 8px 12px;
   border: 1px solid #ced4da;
   border-radius: 4px;
@@ -2323,7 +2409,8 @@
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
-.custom-input-field:focus, .custom-select-field:focus {
+.custom-input-field:focus,
+.custom-select-field:focus {
   border-color: #80bdff;
   outline: 0;
   box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
@@ -2340,17 +2427,17 @@
     width: 95%;
     max-height: 85vh;
   }
-  
+
   .add-material-modal-content {
     padding: 20px;
   }
-  
+
   .material-selection-table th,
   .material-selection-table td {
     padding: 10px 8px;
     font-size: 14px;
   }
-  
+
   .add-custom-material-btn {
     padding: 10px 20px;
     max-width: 250px;
@@ -2364,29 +2451,29 @@
     max-height: 90vh;
     margin: 20px auto;
   }
-  
+
   .add-material-modal-header {
     padding: 16px 20px;
   }
-  
+
   .add-material-modal-header h3 {
     font-size: 16px;
   }
-  
+
   .add-material-modal-content {
     padding: 20px;
   }
-  
+
   .material-selection-table th,
   .material-selection-table td {
     padding: 8px 6px;
     font-size: 13px;
   }
-  
+
   .custom-material-section {
     padding: 16px;
   }
-  
+
   .add-custom-material-btn {
     padding: 10px 20px;
     font-size: 13px;
@@ -2401,48 +2488,48 @@
     max-height: 85vh;
     border-radius: 8px;
   }
-  
+
   .add-material-modal-header {
     padding: 12px 16px;
   }
-  
+
   .add-material-modal-header h3 {
     font-size: 15px;
   }
-  
+
   .add-material-modal-content {
     padding: 16px;
   }
-  
+
   .material-search-input {
     padding: 8px 10px;
     font-size: 13px;
   }
-  
+
   .material-selection-table {
     font-size: 12px;
   }
-  
+
   .material-selection-table th,
   .material-selection-table td {
     padding: 6px 4px;
     font-size: 12px;
   }
-  
+
   .select-material-btn {
     padding: 4px 8px;
     font-size: 11px;
   }
-  
+
   .custom-material-section {
     padding: 12px;
   }
-  
+
   .add-custom-material-btn {
     padding: 8px 16px;
     font-size: 12px;
   }
-  
+
   .custom-material-hint {
     font-size: 11px;
   }
@@ -2453,15 +2540,15 @@
   .add-material-modal {
     max-height: 95vh;
   }
-  
+
   .add-material-modal-content {
     padding: 16px;
   }
-  
+
   .material-list-container {
     min-height: 150px;
   }
-  
+
   .custom-material-section {
     padding: 12px;
   }
@@ -2471,35 +2558,35 @@
   .add-material-modal {
     max-height: 98vh;
   }
-  
+
   .add-material-modal-header {
     padding: 12px 16px;
   }
-  
+
   .add-material-modal-content {
     padding: 12px;
   }
-  
+
   .material-list-container {
     min-height: 120px;
   }
-  
+
   .material-search-section {
     margin-bottom: 12px;
   }
-  
+
   .material-list-section {
     margin-bottom: 12px;
   }
-  
+
   .custom-material-section {
     padding: 8px;
   }
-  
+
   .custom-material-divider {
     margin-bottom: 8px;
   }
-  
+
   .add-custom-material-btn {
     padding: 6px 12px;
     font-size: 12px;
@@ -2719,28 +2806,28 @@
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .workflow-arrow {
     transform: rotate(90deg);
     margin: 0.5rem 0;
   }
-  
+
   .features-grid {
     grid-template-columns: 1fr;
     gap: 1rem;
   }
-  
+
   .action-buttons {
     flex-direction: column;
     width: 100%;
   }
-  
+
   .secondary-btn,
   .primary-btn {
     width: 100%;
     text-align: center;
   }
-  
+
   .price-change-simulation-content {
     gap: 1.5rem;
   }
@@ -2939,33 +3026,33 @@
     padding: 1rem;
     margin: 1rem 0;
   }
-  
+
   .price-change-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
   }
-  
+
   .material-item {
     flex-direction: column;
     gap: 0.75rem;
   }
-  
+
   .material-price-input {
     align-items: flex-start;
     min-width: auto;
     width: 100%;
   }
-  
+
   .material-price-input input {
     width: 100%;
     max-width: 200px;
   }
-  
+
   .selection-actions {
     flex-direction: column;
   }
-  
+
   .materials-list {
     max-height: 400px;
   }
@@ -3092,29 +3179,182 @@
     padding: 1rem;
     margin: 0.5rem 0;
   }
-  
+
   .material-selection-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
   }
-  
+
   .search-controls {
     flex-direction: column;
     align-items: stretch;
     gap: 0.5rem;
   }
-  
+
   .material-stats {
     text-align: center;
   }
-  
+
   .material-pagination {
     flex-direction: column;
     gap: 0.5rem;
   }
-  
+
   .pagination-info {
     order: -1;
   }
+}
+
+/* Responsive table adjustments */
+@media (max-width: 1200px) {
+  .simulation-list-table {
+    min-width: 900px; /* Reduce minimum width on smaller screens */
+  }
+}
+
+@media (max-width: 768px) {
+  .simulation-table-container {
+    margin: 0 -10px; /* Allow table to use more screen width on mobile */
+    border-radius: 8px;
+  }
+
+  .simulation-list-table {
+    min-width: 700px; /* Further reduce for mobile */
+    font-size: 12px;
+  }
+
+  .simulation-list-table th,
+  .simulation-list-table td {
+    padding: 8px 6px; /* Reduce padding on mobile */
+  }
+
+  .group-header {
+    padding: 8px 12px !important;
+  }
+
+  .group-header-content {
+    gap: 8px;
+  }
+}
+
+/* Grouped Price Changes Styles */
+.price-changes-group {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
+  border-left: 4px solid #3b82f6 !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.price-changes-group:hover {
+  background: linear-gradient(135deg, #f1f5f9 0%, #ddd6fe 100%) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+.price-changes-group:hover .group-toggle {
+  background: #2563eb;
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+
+.group-header {
+  padding: 12px 16px !important;
+  transition: all 0.3s ease;
+  position: relative;
+  width: 100% !important; /* Ensure full width */
+  display: table-cell !important; /* Maintain table cell behavior */
+}
+
+.group-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  min-width: 0; /* Allow flex items to shrink */
+}
+
+.group-toggle {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.group-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.group-type {
+  background: #3b82f6;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.group-description {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 1rem;
+  flex: 1;
+}
+
+.group-count {
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: rgba(107, 114, 128, 0.1);
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+.group-date {
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 4px 8px;
+  background: rgba(55, 65, 81, 0.05);
+  border-radius: 6px;
+}
+
+/* Group child styling */
+.group-child {
+  background-color: #f8fafc !important;
+  border-left: 4px solid #3b82f6 !important;
+}
+
+.group-child td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Animation for group expansion */
+@keyframes expandGroup {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.group-child {
+  animation: expandGroup 0.3s ease-out;
 }

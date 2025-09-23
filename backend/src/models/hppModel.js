@@ -1,40 +1,38 @@
-const { connect } = require('../../config/sqlserver');
-const sql = require('mssql');
+const { connect } = require("../../config/sqlserver");
+const sql = require("mssql");
 
 async function getHPP() {
   try {
     const db = await connect();
     const result = await db.request().query(`exec sp_COGS_HPP_List`);
-    
+
     // The stored procedure returns multiple result sets
     return {
       ethical: result.recordsets[0] || [],
       generik1: result.recordsets[1] || [],
-      generik2: result.recordsets[2] || []
+      generik2: result.recordsets[2] || [],
     };
   } catch (error) {
-    console.error('Error executing getHPP query:', error);
+    console.error("Error executing getHPP query:", error);
     throw error;
   }
 }
 
 // Generate HPP calculation using stored procedure
-async function generateHPPCalculation(periode = '2025') {
+async function generateHPPCalculation(periode = "2025") {
   try {
     const db = await connect();
     // Hardcoded parameters: ethical = '0', generik = '1'
     const query = `exec sp_COGS_GenerateHPP @periode, '0', '1'`;
-    
-    await db.request()
-      .input('periode', sql.VarChar(4), periode)
-      .query(query);
-    
-    return { 
-      success: true, 
-      message: `HPP calculation completed for period ${periode}` 
+
+    await db.request().input("periode", sql.VarChar(4), periode).query(query);
+
+    return {
+      success: true,
+      message: `HPP calculation completed for period ${periode}`,
     };
   } catch (error) {
-    console.error('Error executing HPP calculation:', error);
+    console.error("Error executing HPP calculation:", error);
     throw error;
   }
 }
@@ -44,16 +42,17 @@ async function generateHPPSimulation(productId, formulaString) {
   try {
     const db = await connect();
     const query = `exec sp_generate_simulasi_cogs_product_existing @productId, @formulaString`;
-    
-    const result = await db.request()
-      .input('productId', sql.VarChar(10), productId)
-      .input('formulaString', sql.VarChar(50), formulaString)
+
+    const result = await db
+      .request()
+      .input("productId", sql.VarChar(10), productId)
+      .input("formulaString", sql.VarChar(50), formulaString)
       .query(query);
-    
+
     // Return the first recordset from the stored procedure
     return result.recordset || [];
   } catch (error) {
-    console.error('Error executing HPP simulation:', error);
+    console.error("Error executing HPP simulation:", error);
     throw error;
   }
 }
@@ -63,31 +62,33 @@ async function getSimulationHeader(simulasiId) {
   try {
     const db = await connect();
     const query = `SELECT * FROM t_COGS_HPP_Product_Header_Simulasi WHERE Simulasi_ID = @simulasiId`;
-    
-    const result = await db.request()
-      .input('simulasiId', sql.VarChar(20), simulasiId)
+
+    const result = await db
+      .request()
+      .input("simulasiId", sql.VarChar(20), simulasiId)
       .query(query);
-    
+
     return result.recordset || [];
   } catch (error) {
-    console.error('Error fetching simulation header:', error);
+    console.error("Error fetching simulation header:", error);
     throw error;
   }
 }
 
-// Get simulation detail materials by Simulasi_ID  
+// Get simulation detail materials by Simulasi_ID
 async function getSimulationDetailBahan(simulasiId) {
   try {
     const db = await connect();
     const query = `SELECT * FROM dbo.t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan WHERE Simulasi_ID = @simulasiId`;
-    
-    const result = await db.request()
-      .input('simulasiId', sql.VarChar(20), simulasiId)
+
+    const result = await db
+      .request()
+      .input("simulasiId", sql.VarChar(20), simulasiId)
       .query(query);
-    
+
     return result.recordset || [];
   } catch (error) {
-    console.error('Error fetching simulation detail bahan:', error);
+    console.error("Error fetching simulation detail bahan:", error);
     throw error;
   }
 }
@@ -96,7 +97,7 @@ async function getSimulationDetailBahan(simulasiId) {
 async function updateSimulationHeader(simulasiId, headerData) {
   try {
     const db = await connect();
-    
+
     const query = `
       UPDATE t_COGS_HPP_Product_Header_Simulasi 
       SET 
@@ -123,35 +124,56 @@ async function updateSimulationHeader(simulasiId, headerData) {
         Beban_Sisa_Bahan_Exp = @BebanSisaBahanExp
       WHERE Simulasi_ID = @SimulasiId
     `;
-    
-    const result = await db.request()
-      .input('SimulasiId', sql.Int, simulasiId)
-      .input('SimulasiDeskripsi', sql.VarChar(255), headerData.Simulasi_Deskripsi || '')
-      .input('GroupRendemen', sql.Decimal(10, 2), headerData.Group_Rendemen || 100)
-      .input('BatchSize', sql.Int, headerData.Batch_Size || 1)
-      .input('LOB', sql.VarChar(20), headerData.LOB || 'ETHICAL')
-      .input('Versi', sql.VarChar(10), headerData.Versi || '1')
-      .input('MHProsesStd', sql.Decimal(10, 2), headerData.MH_Proses_Std || 0)
-      .input('MHKemasStd', sql.Decimal(10, 2), headerData.MH_Kemas_Std || 0)
-      .input('MHAnalisaStd', sql.Decimal(10, 2), headerData.MH_Analisa_Std || 0)
-      .input('MHTimbangBB', sql.Decimal(10, 2), headerData.MH_Timbang_BB || 0)
-      .input('MHTimbangBK', sql.Decimal(10, 2), headerData.MH_Timbang_BK || 0)
-      .input('MHMesinStd', sql.Decimal(10, 2), headerData.MH_Mesin_Std || 0)
-      .input('BiayaProses', sql.Decimal(18, 2), headerData.Biaya_Proses || 0)
-      .input('BiayaKemas', sql.Decimal(18, 2), headerData.Biaya_Kemas || 0)
-      .input('BiayaGenerik', sql.Decimal(18, 2), headerData.Biaya_Generik || null)
-      .input('BiayaReagen', sql.Decimal(18, 2), headerData.Biaya_Reagen || null)
-      .input('TollFee', sql.Decimal(18, 2), headerData.Toll_Fee || null)
-      .input('RatePLN', sql.Decimal(18, 2), headerData.Rate_PLN || 0)
-      .input('DirectLabor', sql.Decimal(18, 2), headerData.Direct_Labor || 0)
-      .input('FactoryOverHead', sql.Decimal(18, 2), headerData.Factory_Over_Head || 0)
-      .input('Depresiasi', sql.Decimal(18, 2), headerData.Depresiasi || 0)
-      .input('BebanSisaBahanExp', sql.Decimal(18, 2), headerData.Beban_Sisa_Bahan_Exp || null)
+
+    const result = await db
+      .request()
+      .input("SimulasiId", sql.Int, simulasiId)
+      .input(
+        "SimulasiDeskripsi",
+        sql.VarChar(255),
+        headerData.Simulasi_Deskripsi || ""
+      )
+      .input(
+        "GroupRendemen",
+        sql.Decimal(10, 2),
+        headerData.Group_Rendemen || 100
+      )
+      .input("BatchSize", sql.Int, headerData.Batch_Size || 1)
+      .input("LOB", sql.VarChar(20), headerData.LOB || "ETHICAL")
+      .input("Versi", sql.VarChar(10), headerData.Versi || "1")
+      .input("MHProsesStd", sql.Decimal(10, 2), headerData.MH_Proses_Std || 0)
+      .input("MHKemasStd", sql.Decimal(10, 2), headerData.MH_Kemas_Std || 0)
+      .input("MHAnalisaStd", sql.Decimal(10, 2), headerData.MH_Analisa_Std || 0)
+      .input("MHTimbangBB", sql.Decimal(10, 2), headerData.MH_Timbang_BB || 0)
+      .input("MHTimbangBK", sql.Decimal(10, 2), headerData.MH_Timbang_BK || 0)
+      .input("MHMesinStd", sql.Decimal(10, 2), headerData.MH_Mesin_Std || 0)
+      .input("BiayaProses", sql.Decimal(18, 2), headerData.Biaya_Proses || 0)
+      .input("BiayaKemas", sql.Decimal(18, 2), headerData.Biaya_Kemas || 0)
+      .input(
+        "BiayaGenerik",
+        sql.Decimal(18, 2),
+        headerData.Biaya_Generik || null
+      )
+      .input("BiayaReagen", sql.Decimal(18, 2), headerData.Biaya_Reagen || null)
+      .input("TollFee", sql.Decimal(18, 2), headerData.Toll_Fee || null)
+      .input("RatePLN", sql.Decimal(18, 2), headerData.Rate_PLN || 0)
+      .input("DirectLabor", sql.Decimal(18, 2), headerData.Direct_Labor || 0)
+      .input(
+        "FactoryOverHead",
+        sql.Decimal(18, 2),
+        headerData.Factory_Over_Head || 0
+      )
+      .input("Depresiasi", sql.Decimal(18, 2), headerData.Depresiasi || 0)
+      .input(
+        "BebanSisaBahanExp",
+        sql.Decimal(18, 2),
+        headerData.Beban_Sisa_Bahan_Exp || null
+      )
       .query(query);
-    
+
     return result.rowsAffected[0];
   } catch (error) {
-    console.error('Error updating simulation header:', error);
+    console.error("Error updating simulation header:", error);
     throw error;
   }
 }
@@ -160,12 +182,12 @@ async function updateSimulationHeader(simulasiId, headerData) {
 async function createSimulationHeader(headerData) {
   try {
     const db = await connect();
-    
+
     // First, get the next Simulasi_ID
     const maxIdQuery = `SELECT ISNULL(MAX(Simulasi_ID), 0) + 1 as NextId FROM t_COGS_HPP_Product_Header_Simulasi`;
     const maxIdResult = await db.request().query(maxIdQuery);
     const nextSimulasiId = maxIdResult.recordset[0].NextId;
-    
+
     const query = `
       INSERT INTO t_COGS_HPP_Product_Header_Simulasi (
         Simulasi_ID, Product_ID, Product_Name, Formula, Group_PNCategory, Group_PNCategory_Dept, Periode,
@@ -182,43 +204,72 @@ async function createSimulationHeader(headerData) {
         @DirectLabor, @FactoryOverHead, @Depresiasi, @BebanSisaBahanExp
       )
     `;
-    
-    await db.request()
-      .input('SimulasiID', sql.Int, nextSimulasiId)
-      .input('ProductID', sql.VarChar(10), headerData.Product_ID || null)
-      .input('ProductName', sql.VarChar(100), headerData.Product_Name || '')
-      .input('Formula', sql.VarChar(100), headerData.Formula || '')
-      .input('GroupPNCategory', sql.VarChar(10), headerData.Group_PNCategory || null)
-      .input('GroupPNCategoryDept', sql.VarChar(50), headerData.Group_PNCategory_Dept || '')
-      .input('Periode', sql.VarChar(4), headerData.Periode || '2025')
-      .input('SimulasiDeskripsi', sql.VarChar(255), headerData.Simulasi_Deskripsi || '')
-      .input('SimulasiDate', sql.DateTime, new Date())
-      .input('SimulasiType', sql.VarChar(50), 'Custom Formula')
-      .input('GroupRendemen', sql.Decimal(10, 2), headerData.Group_Rendemen || 100)
-      .input('BatchSize', sql.Int, headerData.Batch_Size || 1)
-      .input('LOB', sql.VarChar(20), headerData.LOB || 'ETHICAL')
-      .input('Versi', sql.VarChar(10), headerData.Versi || '1')
-      .input('MHProsesStd', sql.Decimal(10, 2), headerData.MH_Proses_Std || 0)
-      .input('MHKemasStd', sql.Decimal(10, 2), headerData.MH_Kemas_Std || 0)
-      .input('MHAnalisaStd', sql.Decimal(10, 2), headerData.MH_Analisa_Std || 0)
-      .input('MHTimbangBB', sql.Decimal(10, 2), headerData.MH_Timbang_BB || 0)
-      .input('MHTimbangBK', sql.Decimal(10, 2), headerData.MH_Timbang_BK || 0)
-      .input('MHMesinStd', sql.Decimal(10, 2), headerData.MH_Mesin_Std || 0)
-      .input('BiayaProses', sql.Decimal(18, 2), headerData.Biaya_Proses || 0)
-      .input('BiayaKemas', sql.Decimal(18, 2), headerData.Biaya_Kemas || 0)
-      .input('BiayaGenerik', sql.Decimal(18, 2), headerData.Biaya_Generik || null)
-      .input('BiayaReagen', sql.Decimal(18, 2), headerData.Biaya_Reagen || null)
-      .input('TollFee', sql.Decimal(18, 2), headerData.Toll_Fee || null)
-      .input('RatePLN', sql.Decimal(18, 2), headerData.Rate_PLN || 0)
-      .input('DirectLabor', sql.Decimal(18, 2), headerData.Direct_Labor || 0)
-      .input('FactoryOverHead', sql.Decimal(18, 2), headerData.Factory_Over_Head || 0)
-      .input('Depresiasi', sql.Decimal(18, 2), headerData.Depresiasi || 0)
-      .input('BebanSisaBahanExp', sql.Decimal(18, 2), headerData.Beban_Sisa_Bahan_Exp || null)
+
+    await db
+      .request()
+      .input("SimulasiID", sql.Int, nextSimulasiId)
+      .input("ProductID", sql.VarChar(10), headerData.Product_ID || null)
+      .input("ProductName", sql.VarChar(100), headerData.Product_Name || "")
+      .input("Formula", sql.VarChar(100), headerData.Formula || "")
+      .input(
+        "GroupPNCategory",
+        sql.VarChar(10),
+        headerData.Group_PNCategory || null
+      )
+      .input(
+        "GroupPNCategoryDept",
+        sql.VarChar(50),
+        headerData.Group_PNCategory_Dept || ""
+      )
+      .input("Periode", sql.VarChar(4), headerData.Periode || "2025")
+      .input(
+        "SimulasiDeskripsi",
+        sql.VarChar(255),
+        headerData.Simulasi_Deskripsi || ""
+      )
+      .input("SimulasiDate", sql.DateTime, new Date())
+      .input("SimulasiType", sql.VarChar(50), "Custom Formula")
+      .input(
+        "GroupRendemen",
+        sql.Decimal(10, 2),
+        headerData.Group_Rendemen || 100
+      )
+      .input("BatchSize", sql.Int, headerData.Batch_Size || 1)
+      .input("LOB", sql.VarChar(20), headerData.LOB || "ETHICAL")
+      .input("Versi", sql.VarChar(10), headerData.Versi || "1")
+      .input("MHProsesStd", sql.Decimal(10, 2), headerData.MH_Proses_Std || 0)
+      .input("MHKemasStd", sql.Decimal(10, 2), headerData.MH_Kemas_Std || 0)
+      .input("MHAnalisaStd", sql.Decimal(10, 2), headerData.MH_Analisa_Std || 0)
+      .input("MHTimbangBB", sql.Decimal(10, 2), headerData.MH_Timbang_BB || 0)
+      .input("MHTimbangBK", sql.Decimal(10, 2), headerData.MH_Timbang_BK || 0)
+      .input("MHMesinStd", sql.Decimal(10, 2), headerData.MH_Mesin_Std || 0)
+      .input("BiayaProses", sql.Decimal(18, 2), headerData.Biaya_Proses || 0)
+      .input("BiayaKemas", sql.Decimal(18, 2), headerData.Biaya_Kemas || 0)
+      .input(
+        "BiayaGenerik",
+        sql.Decimal(18, 2),
+        headerData.Biaya_Generik || null
+      )
+      .input("BiayaReagen", sql.Decimal(18, 2), headerData.Biaya_Reagen || null)
+      .input("TollFee", sql.Decimal(18, 2), headerData.Toll_Fee || null)
+      .input("RatePLN", sql.Decimal(18, 2), headerData.Rate_PLN || 0)
+      .input("DirectLabor", sql.Decimal(18, 2), headerData.Direct_Labor || 0)
+      .input(
+        "FactoryOverHead",
+        sql.Decimal(18, 2),
+        headerData.Factory_Over_Head || 0
+      )
+      .input("Depresiasi", sql.Decimal(18, 2), headerData.Depresiasi || 0)
+      .input(
+        "BebanSisaBahanExp",
+        sql.Decimal(18, 2),
+        headerData.Beban_Sisa_Bahan_Exp || null
+      )
       .query(query);
-    
+
     return nextSimulasiId;
   } catch (error) {
-    console.error('Error creating simulation header:', error);
+    console.error("Error creating simulation header:", error);
     throw error;
   }
 }
@@ -228,52 +279,58 @@ async function deleteSimulationMaterials(simulasiId) {
   try {
     const db = await connect();
     const query = `DELETE FROM t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan WHERE Simulasi_ID = @SimulasiId`;
-    
-    const result = await db.request()
-      .input('SimulasiId', sql.Int, simulasiId)
+
+    const result = await db
+      .request()
+      .input("SimulasiId", sql.Int, simulasiId)
       .query(query);
-    
+
     return result.rowsAffected[0];
   } catch (error) {
-    console.error('Error deleting simulation materials:', error);
+    console.error("Error deleting simulation materials:", error);
     throw error;
   }
 }
 
 // Bulk insert materials for a simulation
-async function insertSimulationMaterials(simulasiId, materials, periode = '2025') {
+async function insertSimulationMaterials(
+  simulasiId,
+  materials,
+  periode = "2025"
+) {
   try {
     const db = await connect();
-    
+
     if (!materials || materials.length === 0) {
       return 0;
     }
-    
+
     // Use parameterized queries to prevent SQL injection
     const insertPromises = materials.map((material, index) => {
-      return db.request()
-        .input('periode', sql.VarChar(4), periode)
-        .input('simulasiId', sql.Int, simulasiId)
-        .input('seqId', sql.Int, index + 1)
-        .input('tipeBahan', sql.VarChar(10), material.Tipe_Bahan)
-        .input('itemId', sql.VarChar(20), material.Item_ID)
-        .input('itemName', sql.VarChar(255), material.Item_Name)
-        .input('itemQty', sql.Decimal(18, 4), material.Item_QTY)
-        .input('itemUnit', sql.VarChar(10), material.Item_Unit)
-        .input('itemUnitPrice', sql.Decimal(18, 4), material.Item_Unit_Price)
+      return db
+        .request()
+        .input("periode", sql.VarChar(4), periode)
+        .input("simulasiId", sql.Int, simulasiId)
+        .input("seqId", sql.Int, index + 1)
+        .input("tipeBahan", sql.VarChar(10), material.Tipe_Bahan)
+        .input("itemId", sql.VarChar(20), material.Item_ID)
+        .input("itemName", sql.VarChar(255), material.Item_Name)
+        .input("itemQty", sql.Decimal(18, 4), material.Item_QTY)
+        .input("itemUnit", sql.VarChar(10), material.Item_Unit)
+        .input("itemUnitPrice", sql.Decimal(18, 4), material.Item_Unit_Price)
         .query(`
           INSERT INTO t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan 
           (Periode, Simulasi_ID, Seq_ID, Tipe_Bahan, Item_ID, Item_Name, Item_QTY, Item_Unit, Item_Unit_Price) 
           VALUES (@periode, @simulasiId, @seqId, @tipeBahan, @itemId, @itemName, @itemQty, @itemUnit, @itemUnitPrice)
         `);
     });
-    
+
     // Execute all insert operations
     await Promise.all(insertPromises);
-    
+
     return materials.length;
   } catch (error) {
-    console.error('Error inserting simulation materials:', error);
+    console.error("Error inserting simulation materials:", error);
     throw error;
   }
 }
@@ -286,11 +343,11 @@ async function getSimulationList() {
       SELECT *
       FROM t_COGS_HPP_Product_Header_Simulasi 
     `;
-    
+
     const result = await db.request().query(query);
     return result.recordset;
   } catch (error) {
-    console.error('Error executing getSimulationList query:', error);
+    console.error("Error executing getSimulationList query:", error);
     throw error;
   }
 }
@@ -299,25 +356,27 @@ async function getSimulationList() {
 async function deleteSimulation(simulasiId) {
   try {
     const db = await connect();
-    
+
     // First delete related materials
     const deleteMaterialsQuery = `DELETE FROM t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan WHERE Simulasi_ID = @SimulasiId`;
-    const materialsResult = await db.request()
-      .input('SimulasiId', sql.Int, simulasiId)
+    const materialsResult = await db
+      .request()
+      .input("SimulasiId", sql.Int, simulasiId)
       .query(deleteMaterialsQuery);
-    
+
     // Then delete the header
     const deleteHeaderQuery = `DELETE FROM t_COGS_HPP_Product_Header_Simulasi WHERE Simulasi_ID = @SimulasiId`;
-    const headerResult = await db.request()
-      .input('SimulasiId', sql.Int, simulasiId)
+    const headerResult = await db
+      .request()
+      .input("SimulasiId", sql.Int, simulasiId)
       .query(deleteHeaderQuery);
-    
+
     return {
       materialsDeleted: materialsResult.rowsAffected[0] || 0,
-      headerDeleted: headerResult.rowsAffected[0] || 0
+      headerDeleted: headerResult.rowsAffected[0] || 0,
     };
   } catch (error) {
-    console.error('Error executing deleteSimulation query:', error);
+    console.error("Error executing deleteSimulation query:", error);
     throw error;
   }
 }
@@ -325,75 +384,107 @@ async function deleteSimulation(simulasiId) {
 // Generate price change simulation using stored procedure
 async function generatePriceChangeSimulation(parameterString) {
   try {
-    console.log('=== Price Change Simulation Debug ===');
-    console.log('Parameter string:', parameterString);
-    
+    console.log("=== Price Change Simulation Debug ===");
+    console.log("Parameter string:", parameterString);
+
     const db = await connect();
-    
+
     // First, let's check the connection context and settings
     const contextResult = await db.request().query(`
       SELECT 
         DB_NAME() as current_database,
-        SYSTEM_USER as current_user,
+        SYSTEM_USER as [current_user],
         @@SPID as session_id,
         @@TRANCOUNT as transaction_count
     `);
-    console.log('Connection context:', contextResult.recordset[0]);
-    
+    console.log("Connection context:", contextResult.recordset[0]);
+
     // Check if the material exists
-    const materialId = parameterString.split(':')[0];
-    const newPrice = parameterString.split(':')[1];
-    
+    const materialId = parameterString.split(":")[0];
+    const newPrice = parameterString.split(":")[1];
+
     const materialCheck = await db.request().query(`
       SELECT 
-        ITEM_ID,
-        ITEM_NAME,
-        STD_HRG_BAHAN,
-        CURRENCY
-      FROM M_COGS_STD_HRG_BAHAN 
-      WHERE ITEM_ID = '${materialId}'
+        h.ITEM_ID,
+        m.Item_Name,
+        h.ITEM_PURCHASE_STD_PRICE,
+        h.ITEM_CURRENCY,
+        h.ITEM_PURCHASE_UNIT,
+        m.Item_Unit,
+        dbo.fnConvertBJ(h.ITEM_ID, 1, h.ITEM_PURCHASE_UNIT, m.Item_Unit) as conversion_factor,
+        dbo.fnConvertBJ(h.ITEM_ID, 1, h.ITEM_PURCHASE_UNIT, m.Item_Unit) * h.ITEM_PURCHASE_STD_PRICE as calculated_unit_price
+      FROM M_COGS_STD_HRG_BAHAN h
+      INNER JOIN m_item_Manufacturing m ON h.ITEM_ID = m.Item_ID
+      WHERE h.ITEM_ID = '${materialId}'
     `);
-    console.log('Material exists:', materialCheck.recordset);
-    console.log('New price to set:', newPrice);
-    
+    console.log("Material exists:", materialCheck.recordset);
+    console.log("New price to set:", newPrice);
+
+    // Check if we have valid unit conversion data
+    if (materialCheck.recordset.length > 0) {
+      const material = materialCheck.recordset[0];
+      console.log("=== Material Unit Conversion Analysis ===");
+      console.log("Purchase Unit:", material.ITEM_PURCHASE_UNIT);
+      console.log("Manufacturing Unit:", material.Item_Unit);
+      console.log("Conversion Factor:", material.conversion_factor);
+      console.log(
+        "Current Calculated Unit Price:",
+        material.calculated_unit_price
+      );
+      console.log("New Price (raw):", newPrice);
+      console.log(
+        "Expected New Unit Price:",
+        parseFloat(newPrice) * (material.conversion_factor || 1)
+      );
+    }
+
     // Now try the stored procedure
-    console.log('Executing stored procedure...');
+    console.log("Executing stored procedure...");
+
+    // Try different parameter formats - the stored procedure might expect different input
+    console.log("=== Testing Different Parameter Formats ===");
+
+    // Option 1: Original format
     const directQuery = `exec sp_generate_simulasi_cogs_price_changes '${parameterString}'`;
-    console.log('SQL:', directQuery);
-    
+    console.log("SQL:", directQuery);
+
     const result = await db.request().query(directQuery);
-    
-    console.log('SUCCESS! Stored procedure executed');
-    console.log('Recordsets:', result.recordsets?.length || 0);
-    console.log('Rows affected:', result.rowsAffected);
-    
+
+    console.log("SUCCESS! Stored procedure executed");
+    console.log("Recordsets:", result.recordsets?.length || 0);
+    console.log("Rows affected:", result.rowsAffected);
+
     return {
       recordsets: result.recordsets,
       rowsAffected: result.rowsAffected,
-      returnValue: result.returnValue
+      returnValue: result.returnValue,
     };
-    
   } catch (error) {
-    console.error('=== Stored Procedure Error Details ===');
-    console.error('Error message:', error.message);
-    console.error('Error number:', error.number);
-    console.error('Line number:', error.lineNumber);
-    console.error('Procedure name:', error.procName);
-    
+    console.error("=== Stored Procedure Error Details ===");
+    console.error("Error message:", error.message);
+    console.error("Error number:", error.number);
+    console.error("Line number:", error.lineNumber);
+    console.error("Procedure name:", error.procName);
+
     // The error suggests the SP is trying to insert NULL into Item_Unit_Price
     // Let's provide more context about what this means
-    console.error('=== Analysis ===');
-    console.error('The stored procedure is trying to insert NULL values into Item_Unit_Price column.');
-    console.error('This suggests either:');
-    console.error('1. The parameter format is not being parsed correctly by the SP');
-    console.error('2. The SP has a bug in how it processes the parameter');
-    console.error('3. There are missing required parameters or context');
-    console.error('Parameter we sent:', parameterString);
+    console.error("=== Analysis ===");
+    console.error(
+      "The stored procedure is trying to insert NULL values into Item_Unit_Price column."
+    );
+    console.error("This suggests either:");
+    console.error(
+      "1. The parameter format is not being parsed correctly by the SP"
+    );
+    console.error("2. The SP has a bug in how it processes the parameter");
+    console.error("3. There are missing required parameters or context");
+    console.error("Parameter we sent:", parameterString);
     console.error('Expected format: materialId:newPrice (e.g., "IN 009:25")');
-    
+
     throw error;
   }
-}module.exports = {
+}
+module.exports = {
   getHPP,
   generateHPPCalculation,
   generateHPPSimulation,
