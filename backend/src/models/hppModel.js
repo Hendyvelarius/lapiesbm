@@ -322,7 +322,78 @@ async function deleteSimulation(simulasiId) {
   }
 }
 
-module.exports = {
+// Generate price change simulation using stored procedure
+async function generatePriceChangeSimulation(parameterString) {
+  try {
+    console.log('=== Price Change Simulation Debug ===');
+    console.log('Parameter string:', parameterString);
+    
+    const db = await connect();
+    
+    // First, let's check the connection context and settings
+    const contextResult = await db.request().query(`
+      SELECT 
+        DB_NAME() as current_database,
+        SYSTEM_USER as current_user,
+        @@SPID as session_id,
+        @@TRANCOUNT as transaction_count
+    `);
+    console.log('Connection context:', contextResult.recordset[0]);
+    
+    // Check if the material exists
+    const materialId = parameterString.split(':')[0];
+    const newPrice = parameterString.split(':')[1];
+    
+    const materialCheck = await db.request().query(`
+      SELECT 
+        ITEM_ID,
+        ITEM_NAME,
+        STD_HRG_BAHAN,
+        CURRENCY
+      FROM M_COGS_STD_HRG_BAHAN 
+      WHERE ITEM_ID = '${materialId}'
+    `);
+    console.log('Material exists:', materialCheck.recordset);
+    console.log('New price to set:', newPrice);
+    
+    // Now try the stored procedure
+    console.log('Executing stored procedure...');
+    const directQuery = `exec sp_generate_simulasi_cogs_price_changes '${parameterString}'`;
+    console.log('SQL:', directQuery);
+    
+    const result = await db.request().query(directQuery);
+    
+    console.log('SUCCESS! Stored procedure executed');
+    console.log('Recordsets:', result.recordsets?.length || 0);
+    console.log('Rows affected:', result.rowsAffected);
+    
+    return {
+      recordsets: result.recordsets,
+      rowsAffected: result.rowsAffected,
+      returnValue: result.returnValue
+    };
+    
+  } catch (error) {
+    console.error('=== Stored Procedure Error Details ===');
+    console.error('Error message:', error.message);
+    console.error('Error number:', error.number);
+    console.error('Line number:', error.lineNumber);
+    console.error('Procedure name:', error.procName);
+    
+    // The error suggests the SP is trying to insert NULL into Item_Unit_Price
+    // Let's provide more context about what this means
+    console.error('=== Analysis ===');
+    console.error('The stored procedure is trying to insert NULL values into Item_Unit_Price column.');
+    console.error('This suggests either:');
+    console.error('1. The parameter format is not being parsed correctly by the SP');
+    console.error('2. The SP has a bug in how it processes the parameter');
+    console.error('3. There are missing required parameters or context');
+    console.error('Parameter we sent:', parameterString);
+    console.error('Expected format: materialId:newPrice (e.g., "IN 009:25")');
+    
+    throw error;
+  }
+}module.exports = {
   getHPP,
   generateHPPCalculation,
   generateHPPSimulation,
@@ -334,4 +405,5 @@ module.exports = {
   insertSimulationMaterials,
   getSimulationList,
   deleteSimulation,
+  generatePriceChangeSimulation,
 };

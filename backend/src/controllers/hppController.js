@@ -1,4 +1,4 @@
-const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, deleteSimulation, createSimulationHeader } = require('../models/hppModel');
+const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, deleteSimulation, createSimulationHeader, generatePriceChangeSimulation } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
@@ -277,6 +277,67 @@ class HPPController {
       res.status(500).json({
         success: false,
         message: 'Error creating custom simulation',
+        error: error.message
+      });
+    }
+  }
+
+  // Generate price change simulation using stored procedure
+  static async generatePriceChangeSimulation(req, res) {
+    try {
+      console.log('=== Price Change Simulation Request ===');
+      console.log('Request body:', JSON.stringify(req.body, null, 2));
+      
+      const { materialPriceChanges } = req.body;
+      
+      // Validate input
+      if (!materialPriceChanges || !Array.isArray(materialPriceChanges) || materialPriceChanges.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'materialPriceChanges array is required and must contain at least one item'
+        });
+      }
+
+      console.log('Received materialPriceChanges:', JSON.stringify(materialPriceChanges, null, 2));
+
+      // Validate each material price change
+      for (const change of materialPriceChanges) {
+        console.log('Validating change:', JSON.stringify(change, null, 2));
+        if (!change.materialId || change.newPrice === undefined || change.newPrice === null) {
+          return res.status(400).json({
+            success: false,
+            message: 'Each material price change must have materialId and newPrice'
+          });
+        }
+      }
+
+      // Format the parameter string for stored procedure
+      // Format: 'materialId1:newPrice1#materialId2:newPrice2'
+      const parameterString = materialPriceChanges
+        .map(change => `${change.materialId}:${change.newPrice}`)
+        .join('#');
+
+      console.log('=== Formatted Parameter String ===');
+      console.log('Parameter string for SP:', parameterString);
+      console.log('Parameter string length:', parameterString.length);
+
+      // Execute the stored procedure
+      const result = await generatePriceChangeSimulation(parameterString);
+
+      console.log('=== Stored Procedure Result ===');
+      console.log('SP result:', JSON.stringify(result, null, 2));
+
+      res.status(200).json({
+        success: true,
+        message: 'Price change simulation executed successfully',
+        data: result
+      });
+
+    } catch (error) {
+      console.error('Generate Price Change Simulation Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error generating price change simulation',
         error: error.message
       });
     }

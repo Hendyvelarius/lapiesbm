@@ -177,6 +177,12 @@ export const hppAPI = {
   delete: (id) => apiRequest(`/hpp/${id}`, {
     method: 'DELETE',
   }),
+
+  // Generate price change simulation using stored procedure
+  generatePriceChangeSimulation: (materialPriceChanges) => apiRequest('/hpp/generate-price-change-simulation', {
+    method: 'POST',
+    body: JSON.stringify({ materialPriceChanges }),
+  }),
 };
 
 // Combined service for creating complete HPP records

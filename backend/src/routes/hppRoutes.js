@@ -33,4 +33,8 @@ router.get('/simulation/list', HPPController.getSimulationList);
 // DELETE /api/hpp/simulation/:simulasiId - Delete simulation by ID
 router.delete('/simulation/:simulasiId', HPPController.deleteSimulation);
 
+// POST /api/hpp/generate-price-change-simulation - Generate price change simulation using stored procedure
+// Body: { materialPriceChanges: [{ materialId: "AC 209A", newPrice: 50.4 }, { materialId: "IN 003", newPrice: 45000 }] }
+router.post('/generate-price-change-simulation', HPPController.generatePriceChangeSimulation);
+
 module.exports = router;

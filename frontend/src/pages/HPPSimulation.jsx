@@ -81,8 +81,10 @@ export default function HPPSimulation() {
   // Price change simulation state variables
   const [priceMaterials, setPriceMaterials] = useState([]);
   const [selectedMaterials, setSelectedMaterials] = useState([]);
+  const [selectedMaterialPrices, setSelectedMaterialPrices] = useState({});
   const [priceChangeStep, setPriceChangeStep] = useState(1);
   const [loadingPriceMaterials, setLoadingPriceMaterials] = useState(false);
+  const [loadingImpact, setLoadingImpact] = useState(false);
   
   // Material selection pagination and search
   const [materialSearchTerm, setMaterialSearchTerm] = useState('');
@@ -528,15 +530,61 @@ export default function HPPSimulation() {
     setError('');
   };
 
-  // Continue to impact analysis after material selection
-  const handleContinueToImpactAnalysis = () => {
+  // Generate price change simulation
+  const handleGenerateSimulation = async () => {
+    console.log('handleGenerateSimulation called!');
+    console.log('selectedMaterials:', selectedMaterials);
+    
     if (selectedMaterials.length === 0) {
       setError('Please select at least one material for price change simulation.');
       return;
     }
-    // TODO: Navigate to next step (find affected products)
-    setNotificationInfo('Finding affected products and calculating cost impact...');
+
+    // Validate that all selected materials have new prices
+    const missingPrices = selectedMaterials.filter(material => {
+      const newPrice = material.newPrice;
+      return !newPrice || newPrice <= 0;
+    });
+    
+    console.log('missingPrices:', missingPrices);
+    
+    if (missingPrices.length > 0) {
+      setError('Please enter valid new prices for all selected materials.');
+      return;
+    }
+
+    setLoadingImpact(true);
     setError('');
+
+    try {
+      // Prepare the material price changes array
+      const materialPriceChanges = selectedMaterials.map(material => ({
+        materialId: material.ITEM_ID,
+        newPrice: material.newPrice
+      }));
+
+      console.log('Generating simulation with material price changes:', materialPriceChanges);
+
+      // Call the backend API
+      const result = await hppAPI.generatePriceChangeSimulation(materialPriceChanges);
+
+      console.log('Simulation result:', result);
+
+      // Show success message
+      notifier.success('Price change simulation generated successfully!');
+      
+      // Reset the form
+      setSelectedMaterials([]);
+      setSelectedMaterialPrices({});
+      setPriceChangeStep(1);
+
+    } catch (error) {
+      console.error('Error generating simulation:', error);
+      setError('Failed to generate simulation: ' + error.message);
+      notifier.alert('Failed to generate simulation: ' + error.message);
+    } finally {
+      setLoadingImpact(false);
+    }
   };
 
   // Handle material search
@@ -3959,10 +4007,10 @@ export default function HPPSimulation() {
                       </button>
                       <button 
                         className="action-button primary-button"
-                        onClick={handleContinueToImpactAnalysis}
+                        onClick={handleGenerateSimulation}
                         disabled={selectedMaterials.length === 0}
                       >
-                        Continue to Impact Analysis ({selectedMaterials.length}) →
+                        Generate Simulation ({selectedMaterials.length}) →
                       </button>
                     </div>
                   </>
