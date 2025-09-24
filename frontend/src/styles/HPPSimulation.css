@@ -3268,10 +3268,10 @@
 .group-header-content {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   width: 100%;
   gap: 12px;
   min-width: 0; /* Allow flex items to shrink */
+  overflow: hidden; /* Prevent overflow from breaking layout */
 }
 
 .group-toggle {
@@ -3291,8 +3291,9 @@
 .group-info {
   display: flex;
   align-items: center;
-  gap: 12px;
   flex: 1;
+  min-width: 0; /* Allow flex child to shrink below content size */
+  gap: 16px;
 }
 
 .group-type {
@@ -3304,6 +3305,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  flex-shrink: 0; /* Never shrink the type badge */
 }
 
 .group-description {
@@ -3311,6 +3313,19 @@
   color: #1f2937;
   font-size: 1rem;
   flex: 1;
+  min-width: 0; /* Allow shrinking */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: auto; /* Push meta info to the right */
+}
+
+.group-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0; /* Never shrink the meta info */
+  margin-left: auto; /* Align to the right */
 }
 
 .group-count {
@@ -3320,15 +3335,19 @@
   background: rgba(107, 114, 128, 0.1);
   padding: 2px 8px;
   border-radius: 8px;
+  white-space: nowrap;
 }
 
 .group-date {
-  color: #374151;
-  font-size: 0.875rem;
+  color: #7c3aed;
+  font-size: 0.8rem;
   font-weight: 500;
-  padding: 4px 8px;
-  background: rgba(55, 65, 81, 0.05);
+  padding: 3px 8px;
+  background: rgba(124, 58, 237, 0.1);
   border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  white-space: nowrap;
 }
 
 /* Group actions - Affected Products button */

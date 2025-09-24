@@ -42,6 +42,34 @@ const normalizeLOB = (databaseLOB) => {
   return databaseLOB;
 };
 
+// Create a unique group key for Price Change simulations based on description and date/time
+const createPriceChangeGroupKey = (description, simulasiDate) => {
+  const desc = description || "No Description";
+  // Format date to minute precision for grouping
+  // This ensures simulations with same description but different minutes are in separate groups
+  const date = new Date(simulasiDate);
+  const dateKey = date.toISOString().substring(0, 16); // YYYY-MM-DDTHH:MM format
+  return `${desc}|${dateKey}`;
+};
+
+// Extract description from group key
+const getDescriptionFromGroupKey = (groupKey) => {
+  return groupKey.split('|')[0];
+};
+
+// Extract formatted date from group key for display
+const getDateFromGroupKey = (groupKey) => {
+  const dateStr = groupKey.split('|')[1];
+  const date = new Date(dateStr);
+  return date.toLocaleString('id-ID', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
 export default function HPPSimulation() {
   const [step, setStep] = useState(0); // Start with simulation list view
   const [simulationType, setSimulationType] = useState("");
@@ -288,33 +316,36 @@ export default function HPPSimulation() {
     setPaginatedSimulations(paginated);
   }, [filteredSimulationList, currentPage, itemsPerPage]);
 
-  // Group Price Change simulations by description
+  // Group Price Change simulations by description AND date/time
   useEffect(() => {
     const grouped = {};
 
     filteredSimulationList.forEach((simulation) => {
       if (simulation.Simulasi_Type === "Price Changes") {
         const description = simulation.Simulasi_Deskripsi || "No Description";
+        const groupKey = createPriceChangeGroupKey(description, simulation.Simulasi_Date);
 
-        if (!grouped[description]) {
-          grouped[description] = {
-            groupKey: description,
+        if (!grouped[groupKey]) {
+          grouped[groupKey] = {
+            groupKey: groupKey,
             description: description,
             simulations: [],
             count: 0,
             date: simulation.Simulasi_Date, // Use the first simulation's date for sorting
+            formattedDate: getDateFromGroupKey(groupKey), // For display purposes
           };
         }
 
-        grouped[description].simulations.push(simulation);
-        grouped[description].count = grouped[description].simulations.length;
+        grouped[groupKey].simulations.push(simulation);
+        grouped[groupKey].count = grouped[groupKey].simulations.length;
 
-        // Keep the latest date for the group
+        // Keep the latest date for the group (though they should be very close now)
         if (
           new Date(simulation.Simulasi_Date) >
-          new Date(grouped[description].date)
+          new Date(grouped[groupKey].date)
         ) {
-          grouped[description].date = simulation.Simulasi_Date;
+          grouped[groupKey].date = simulation.Simulasi_Date;
+          grouped[groupKey].formattedDate = getDateFromGroupKey(groupKey);
         }
       }
     });
@@ -331,21 +362,22 @@ export default function HPPSimulation() {
     filteredSimulationList.forEach((simulation) => {
       if (simulation.Simulasi_Type === "Price Changes") {
         const description = simulation.Simulasi_Deskripsi || "No Description";
+        const groupKey = createPriceChangeGroupKey(description, simulation.Simulasi_Date);
 
-        // Only add the group header once per unique description
-        if (!processedPriceChangeGroups.has(description)) {
-          processedPriceChangeGroups.add(description);
+        // Only add the group header once per unique group key (description + date)
+        if (!processedPriceChangeGroups.has(groupKey)) {
+          processedPriceChangeGroups.add(groupKey);
 
           // Add the group header
           displayList.push({
             type: "group",
-            groupKey: description,
-            ...groupedSimulations[description],
+            groupKey: groupKey,
+            ...groupedSimulations[groupKey],
           });
 
           // Add individual simulations if group is expanded
-          if (expandedGroups.has(description)) {
-            groupedSimulations[description]?.simulations?.forEach((sim) => {
+          if (expandedGroups.has(groupKey)) {
+            groupedSimulations[groupKey]?.simulations?.forEach((sim) => {
               displayList.push({
                 type: "simulation",
                 isGroupChild: true,
@@ -386,15 +418,16 @@ export default function HPPSimulation() {
     filteredSimulationList.forEach((simulation) => {
       if (simulation.Simulasi_Type === "Price Changes") {
         const description = simulation.Simulasi_Deskripsi || "No Description";
+        const groupKey = createPriceChangeGroupKey(description, simulation.Simulasi_Date);
 
-        // Count each unique price change group only once
-        if (!processedPriceChangeGroups.has(description)) {
-          processedPriceChangeGroups.add(description);
+        // Count each unique price change group only once (description + date)
+        if (!processedPriceChangeGroups.has(groupKey)) {
+          processedPriceChangeGroups.add(groupKey);
           totalCount++; // Add 1 for the group header
 
           // Add count for expanded children
-          if (expandedGroups.has(description)) {
-            totalCount += groupedSimulations[description]?.count || 0;
+          if (expandedGroups.has(groupKey)) {
+            totalCount += groupedSimulations[groupKey]?.count || 0;
           }
         }
       } else {
@@ -2394,15 +2427,20 @@ export default function HPPSimulation() {
                                     )}
                                   </div>
                                   <div className="group-info">
-                                    <span className="group-type">
-                                      Price Changes
-                                    </span>
-                                    <span className="group-description">
+                                    <span 
+                                      className="group-description"
+                                      title={item.description}
+                                    >
                                       {item.description}
                                     </span>
-                                    <span className="group-count">
-                                      ({item.count} products)
-                                    </span>
+                                    <div className="group-meta">
+                                      <span className="group-date">
+                                        {item.formattedDate}
+                                      </span>
+                                      <span className="group-count">
+                                        ({item.count} products)
+                                      </span>
+                                    </div>
                                   </div>
                                   <div className="group-actions">
                                     <button
