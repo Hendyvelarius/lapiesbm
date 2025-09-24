@@ -470,7 +470,7 @@ const ProductGroup = () => {
     }
   };
 
-  // Export Generik functionality - only exports Generik products with editable fields
+  // Export Generik functionality - exports Generik products in Excel format with proper formatting
   const handleExportGenerik = async () => {
     try {
       setSubmitLoading(true);
@@ -482,50 +482,80 @@ const ProductGroup = () => {
         setError('No Generik products found to export.');
         return;
       }
+
+      // Import xlsx library dynamically
+      const XLSX = await import('xlsx');
       
-      // Create CSV content with only editable Generik fields
-      const csvHeaders = [
-        'Product ID',
-        'Product Name',
-        'Category ID', 
-        'Category Name',
-        'MHT BB',
-        'MHT BK',
-        'MH Analisa',
-        'KWH Mesin'
+      // Prepare data for Excel export with proper structure
+      const excelData = generikData.map(item => ({
+        'Product ID': item.productId || '',
+        'Product Name': item.productName || '',
+        'Category ID': item.pnCategory || '',
+        'Category Name': item.pnCategoryName || '',
+        'MHT BB': parseFloat(item.mhtBB) || 0,
+        'MHT BK': parseFloat(item.mhtBK) || 0,
+        'MH Analisa': parseFloat(item.mhAnalisa) || 0,
+        'KWH Mesin': parseFloat(item.kwhMesin) || 0
+      }));
+      
+      // Create a new workbook
+      const workbook = XLSX.utils.book_new();
+      
+      // Create worksheet from data
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      
+      // Set column widths for better formatting
+      const columnWidths = [
+        { wch: 15 }, // Product ID
+        { wch: 40 }, // Product Name
+        { wch: 12 }, // Category ID
+        { wch: 20 }, // Category Name
+        { wch: 12 }, // MHT BB
+        { wch: 12 }, // MHT BK
+        { wch: 12 }, // MH Analisa
+        { wch: 12 }  // KWH Mesin
       ];
+      worksheet['!cols'] = columnWidths;
       
-      const csvRows = generikData.map(item => [
-        item.productId || '',
-        item.productName || '',
-        item.pnCategory || '',
-        item.pnCategoryName || '',
-        item.mhtBB || 0,
-        item.mhtBK || 0,
-        item.mhAnalisa || 0,
-        item.kwhMesin || 0
-      ]);
+      // Apply header formatting
+      const headerCells = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1'];
+      headerCells.forEach(cell => {
+        if (worksheet[cell]) {
+          worksheet[cell].s = {
+            font: { bold: true, color: { rgb: "FFFFFF" } },
+            fill: { fgColor: { rgb: "366092" } },
+            alignment: { horizontal: "center" }
+          };
+        }
+      });
       
-      // Create CSV content
-      const csvContent = [
-        csvHeaders.join(','),
-        ...csvRows.map(row => row.map(cell => 
-          typeof cell === 'string' && cell.includes(',') 
-            ? `"${cell.replace(/"/g, '""')}"` 
-            : cell
-        ).join(','))
-      ].join('\n');
+      // Apply number formatting to numeric columns (E-H)
+      const range = XLSX.utils.decode_range(worksheet['!ref']);
+      for (let row = range.s.r + 1; row <= range.e.r; row++) {
+        ['E', 'F', 'G', 'H'].forEach(col => {
+          const cellAddress = col + (row + 1);
+          if (worksheet[cellAddress]) {
+            worksheet[cellAddress].s = {
+              numFmt: "0.00", // Two decimal places
+              alignment: { horizontal: "right" }
+            };
+          }
+        });
+      }
       
-      // Create and download file
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `ProductGroup_GenerikData_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Add the worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Generik Products');
+      
+      // Generate filename with current date
+      const fileName = `ProductGroup_GenerikData_${new Date().toISOString().split('T')[0]}.xlsx`;
+      
+      // Write and download the file
+      XLSX.writeFile(workbook, fileName);
+      
+      // Show success notification
+      notifier.success(`Excel file exported successfully: ${fileName}`, {
+        durations: { success: 3000 }
+      });
       
     } catch (error) {
       console.error('Error exporting Generik data:', error);
