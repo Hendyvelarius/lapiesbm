@@ -342,6 +342,55 @@ class HPPController {
       });
     }
   }
+
+  // Get affected products for price change simulation
+  static async getPriceChangeAffectedProducts(req, res) {
+    try {
+      console.log('=== Get Price Change Affected Products Request ===');
+      console.log('Request body:', JSON.stringify(req.body, null, 2));
+      
+      const { description, simulasiDate } = req.body;
+      
+      // Validate input
+      if (!description || !simulasiDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'Both description and simulasiDate are required'
+        });
+      }
+
+      // Format the date - replace 'T' with space and remove 'Z'
+      // From: "2025-09-24T00:27:38.087Z" 
+      // To: "2025-09-24 00:27:38.087"
+      const formattedDate = simulasiDate.replace('T', ' ').replace('Z', '');
+
+      console.log('=== Formatted Parameters ===');
+      console.log('Description:', description);
+      console.log('Original Date:', simulasiDate);
+      console.log('Formatted Date:', formattedDate);
+
+      // Execute the stored procedure
+      const { getPriceChangeAffectedProducts } = require('../models/hppModel');
+      const result = await getPriceChangeAffectedProducts(description, formattedDate);
+
+      console.log('=== Stored Procedure Result ===');
+      console.log('Records returned:', result?.length || 0);
+
+      res.status(200).json({
+        success: true,
+        message: 'Affected products retrieved successfully',
+        data: result
+      });
+
+    } catch (error) {
+      console.error('Get Price Change Affected Products Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving affected products',
+        error: error.message
+      });
+    }
+  }
 }
 
 module.exports = HPPController;

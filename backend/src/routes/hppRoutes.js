@@ -37,4 +37,8 @@ router.delete('/simulation/:simulasiId', HPPController.deleteSimulation);
 // Body: { materialPriceChanges: [{ materialId: "AC 209A", newPrice: 50.4 }, { materialId: "IN 003", newPrice: 45000 }] }
 router.post('/generate-price-change-simulation', HPPController.generatePriceChangeSimulation);
 
+// POST /api/hpp/price-change-affected-products - Get affected products for price change simulation
+// Body: { description: "Price Changes : AC 014B: 22 -> 31; ", simulasiDate: "2025-09-24T00:27:38.087Z" }
+router.post('/price-change-affected-products', HPPController.getPriceChangeAffectedProducts);
+
 module.exports = router;

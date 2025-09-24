@@ -107,6 +107,7 @@ export default function HPPSimulation() {
     useState(false);
   const [selectedPriceChangeDescription, setSelectedPriceChangeDescription] =
     useState("");
+  const [selectedPriceChangeDate, setSelectedPriceChangeDate] = useState("");
 
   // Available products with formulas (intersection of productName and chosenFormula)
   const [availableProducts, setAvailableProducts] = useState([]);
@@ -451,9 +452,10 @@ export default function HPPSimulation() {
   };
 
   // Open affected products modal for price changes
-  const handleShowAffectedProducts = (description, event) => {
+  const handleShowAffectedProducts = (description, date, event) => {
     event.stopPropagation(); // Prevent group toggle when clicking the button
     setSelectedPriceChangeDescription(description);
+    setSelectedPriceChangeDate(date);
     setAffectedProductsModalOpen(true);
   };
 
@@ -461,6 +463,7 @@ export default function HPPSimulation() {
   const handleCloseAffectedProductsModal = () => {
     setAffectedProductsModalOpen(false);
     setSelectedPriceChangeDescription("");
+    setSelectedPriceChangeDate("");
   };
 
   // Load simulation list from API
@@ -2448,6 +2451,7 @@ export default function HPPSimulation() {
                                       onClick={(e) =>
                                         handleShowAffectedProducts(
                                           item.description,
+                                          item.date,
                                           e
                                         )
                                       }
@@ -5845,6 +5849,7 @@ export default function HPPSimulation() {
         isOpen={affectedProductsModalOpen}
         onClose={handleCloseAffectedProductsModal}
         priceChangeDescription={selectedPriceChangeDescription}
+        priceChangeDate={selectedPriceChangeDate}
       />
     </div>
   );

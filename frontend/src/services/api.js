@@ -183,6 +183,12 @@ export const hppAPI = {
     method: 'POST',
     body: JSON.stringify({ materialPriceChanges }),
   }),
+
+  // Get affected products for price change simulation
+  getPriceChangeAffectedProducts: (description, simulasiDate) => apiRequest('/hpp/price-change-affected-products', {
+    method: 'POST',
+    body: JSON.stringify({ description, simulasiDate }),
+  }),
 };
 
 // Combined service for creating complete HPP records
