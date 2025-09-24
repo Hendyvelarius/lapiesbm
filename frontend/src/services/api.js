@@ -189,6 +189,12 @@ export const hppAPI = {
     method: 'POST',
     body: JSON.stringify({ description, simulasiDate }),
   }),
+
+  // Bulk delete price change group (all simulations with matching description and date)
+  bulkDeletePriceChangeGroup: (description, simulasiDate) => apiRequest('/hpp/simulation/bulk-delete-price-change-group', {
+    method: 'DELETE',
+    body: JSON.stringify({ description, simulasiDate }),
+  }),
 };
 
 // Combined service for creating complete HPP records

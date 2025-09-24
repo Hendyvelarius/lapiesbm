@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { masterAPI, productsAPI, hppAPI } from "../services/api";
 import AWN from "awesome-notifications";
 import "awesome-notifications/dist/style.css";
@@ -16,6 +16,7 @@ import {
   ChevronRight,
   ChevronsUpDown,
   BarChart3,
+  Trash,
 } from "lucide-react";
 import AffectedProductsModal from "../components/AffectedProductsModal";
 
@@ -89,6 +90,9 @@ export default function HPPSimulation() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredSimulationList, setFilteredSimulationList] = useState([]);
 
+  // Ref for table container scroll detection
+  const tableContainerRef = useRef(null);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20); // Show 20 simulations per page
@@ -108,6 +112,13 @@ export default function HPPSimulation() {
   const [selectedPriceChangeDescription, setSelectedPriceChangeDescription] =
     useState("");
   const [selectedPriceChangeDate, setSelectedPriceChangeDate] = useState("");
+
+  // Bulk delete confirmation modal states
+  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
+  const [bulkDeleteDescription, setBulkDeleteDescription] = useState("");
+  const [bulkDeleteDate, setBulkDeleteDate] = useState("");
+  const [bulkDeleteCount, setBulkDeleteCount] = useState(0);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Available products with formulas (intersection of productName and chosenFormula)
   const [availableProducts, setAvailableProducts] = useState([]);
@@ -356,10 +367,10 @@ export default function HPPSimulation() {
 
   // Create final paginated list that handles both grouped and regular simulations
   const paginatedDisplayList = useMemo(() => {
-    const displayList = [];
+    // Step 1: Create a list of "paginatable items" (group headers + regular simulations, but NOT group children)
+    const paginatableItems = [];
     const processedPriceChangeGroups = new Set();
 
-    // First, process all simulations and create the display list
     filteredSimulationList.forEach((simulation) => {
       if (simulation.Simulasi_Type === "Price Changes") {
         const description = simulation.Simulasi_Deskripsi || "No Description";
@@ -368,30 +379,17 @@ export default function HPPSimulation() {
         // Only add the group header once per unique group key (description + date)
         if (!processedPriceChangeGroups.has(groupKey)) {
           processedPriceChangeGroups.add(groupKey);
-
-          // Add the group header
-          displayList.push({
+          
+          // Add the group header as a paginatable item
+          paginatableItems.push({
             type: "group",
             groupKey: groupKey,
             ...groupedSimulations[groupKey],
           });
-
-          // Add individual simulations if group is expanded
-          if (expandedGroups.has(groupKey)) {
-            groupedSimulations[groupKey]?.simulations?.forEach((sim) => {
-              displayList.push({
-                type: "simulation",
-                isGroupChild: true,
-                ...sim,
-              });
-            });
-          }
         }
-        // If we've already processed this group, skip this individual simulation
-        // (it's already handled in the group)
       } else {
-        // Regular simulations (not Price Change) - add normally
-        displayList.push({
+        // Regular simulations are also paginatable items
+        paginatableItems.push({
           type: "simulation",
           isGroupChild: false,
           ...simulation,
@@ -399,10 +397,36 @@ export default function HPPSimulation() {
       }
     });
 
-    // Apply pagination to the display list
+    // Step 2: Apply pagination to only the paginatable items (group headers + regular simulations)
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return displayList.slice(startIndex, endIndex);
+    const paginatedItems = paginatableItems.slice(startIndex, endIndex);
+
+    // Step 3: Build final display list by expanding groups if needed
+    const finalDisplayList = [];
+    
+    paginatedItems.forEach((item) => {
+      if (item.type === "group") {
+        // Add the group header
+        finalDisplayList.push(item);
+        
+        // Add expanded children if this group is expanded (children don't count toward pagination)
+        if (expandedGroups.has(item.groupKey)) {
+          groupedSimulations[item.groupKey]?.simulations?.forEach((sim) => {
+            finalDisplayList.push({
+              type: "simulation",
+              isGroupChild: true,
+              ...sim,
+            });
+          });
+        }
+      } else {
+        // Add regular simulation
+        finalDisplayList.push(item);
+      }
+    });
+
+    return finalDisplayList;
   }, [
     filteredSimulationList,
     groupedSimulations,
@@ -411,7 +435,7 @@ export default function HPPSimulation() {
     itemsPerPage,
   ]);
 
-  // Calculate total display count (accounting for grouped price changes)
+  // Calculate total paginatable items count (group headers + regular simulations, NOT expanded children)
   const getTotalDisplayCount = () => {
     const processedPriceChangeGroups = new Set();
     let totalCount = 0;
@@ -424,12 +448,7 @@ export default function HPPSimulation() {
         // Count each unique price change group only once (description + date)
         if (!processedPriceChangeGroups.has(groupKey)) {
           processedPriceChangeGroups.add(groupKey);
-          totalCount++; // Add 1 for the group header
-
-          // Add count for expanded children
-          if (expandedGroups.has(groupKey)) {
-            totalCount += groupedSimulations[groupKey]?.count || 0;
-          }
+          totalCount++; // Add 1 for the group header (but NOT for expanded children)
         }
       } else {
         // Regular simulations count normally
@@ -451,6 +470,42 @@ export default function HPPSimulation() {
     setExpandedGroups(newExpanded);
   };
 
+  // Function to check if table container is scrollable and add appropriate class
+  const checkTableScrollable = () => {
+    if (tableContainerRef.current) {
+      const container = tableContainerRef.current;
+      const isScrollable = container.scrollHeight > container.clientHeight;
+      
+      if (isScrollable) {
+        container.classList.add('has-scroll');
+      } else {
+        container.classList.remove('has-scroll');
+      }
+    }
+  };
+
+  // Check scrollable status when expanded groups change or data changes
+  useEffect(() => {
+    // Use a longer delay to ensure DOM updates and layout changes are complete
+    const timeoutId = setTimeout(checkTableScrollable, 300);
+    return () => clearTimeout(timeoutId);
+  }, [expandedGroups, paginatedSimulations]);
+
+  // Add resize observer to handle window resize
+  useEffect(() => {
+    const resizeObserver = new ResizeObserver(() => {
+      checkTableScrollable();
+    });
+
+    if (tableContainerRef.current) {
+      resizeObserver.observe(tableContainerRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
   // Open affected products modal for price changes
   const handleShowAffectedProducts = (description, date, event) => {
     event.stopPropagation(); // Prevent group toggle when clicking the button
@@ -464,6 +519,57 @@ export default function HPPSimulation() {
     setAffectedProductsModalOpen(false);
     setSelectedPriceChangeDescription("");
     setSelectedPriceChangeDate("");
+  };
+
+  // Handle bulk delete confirmation
+  const handleBulkDeleteGroup = (description, date, count, event) => {
+    event.stopPropagation(); // Prevent group toggle when clicking the button
+    setBulkDeleteDescription(description);
+    setBulkDeleteDate(date);
+    setBulkDeleteCount(count);
+    setBulkDeleteModalOpen(true);
+  };
+
+  // Close bulk delete modal
+  const handleCloseBulkDeleteModal = () => {
+    setBulkDeleteModalOpen(false);
+    setBulkDeleteDescription("");
+    setBulkDeleteDate("");
+    setBulkDeleteCount(0);
+    setBulkDeleting(false);
+  };
+
+  // Execute bulk delete
+  const handleConfirmBulkDelete = async () => {
+    try {
+      setBulkDeleting(true);
+      
+      const notifier = new AWN();
+      notifier.info("Deleting price change group...");
+
+      // Call the API to bulk delete
+      const response = await hppAPI.bulkDeletePriceChangeGroup(
+        bulkDeleteDescription,
+        bulkDeleteDate
+      );
+
+      // Show success message
+      notifier.success(
+        `Successfully deleted ${response.data?.deletedCount || bulkDeleteCount} price change simulations`
+      );
+
+      // Close modal
+      handleCloseBulkDeleteModal();
+
+      // Refresh the simulation list
+      await loadSimulationList();
+
+    } catch (error) {
+      console.error("Error bulk deleting price change group:", error);
+      const notifier = new AWN();
+      notifier.alert("Failed to delete price change group: " + error.message);
+      setBulkDeleting(false);
+    }
   };
 
   // Load simulation list from API
@@ -2339,7 +2445,7 @@ export default function HPPSimulation() {
             {loadingList ? (
               <div className="loading-message">Loading simulations...</div>
             ) : (
-              <div className="simulation-table-container">
+              <div className="simulation-table-container" ref={tableContainerRef}>
                 <table className="simulation-list-table">
                   <thead>
                     <tr>
@@ -2460,11 +2566,21 @@ export default function HPPSimulation() {
                                       <BarChart3 size={16} />
                                       <span>Affected Products</span>
                                     </button>
-                                  </div>
-                                  <div className="group-date">
-                                    {new Date(item.date).toLocaleDateString(
-                                      "id-ID"
-                                    )}
+                                    <button
+                                      className="bulk-delete-group-btn"
+                                      onClick={(e) =>
+                                        handleBulkDeleteGroup(
+                                          item.description,
+                                          item.date,
+                                          item.count,
+                                          e
+                                        )
+                                      }
+                                      title={`Delete all ${item.count} simulations in this price change group`}
+                                    >
+                                      <Trash size={16} />
+                                      <span>Delete Group</span>
+                                    </button>
                                   </div>
                                 </div>
                               </td>
@@ -2654,6 +2770,15 @@ export default function HPPSimulation() {
                     Next →
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* Show info message when groups are expanded */}
+            {!loadingList && filteredSimulationList.length > 0 && expandedGroups.size > 0 && (
+              <div className="expanded-groups-info">
+                <p>
+                  <strong>📋 Smart Pagination Active</strong> - Expanded group children are shown in full while maintaining normal pagination for group headers. You can see all items within expanded groups on this page.
+                </p>
               </div>
             )}
           </div>
@@ -5851,6 +5976,72 @@ export default function HPPSimulation() {
         priceChangeDescription={selectedPriceChangeDescription}
         priceChangeDate={selectedPriceChangeDate}
       />
+
+      {/* Bulk Delete Confirmation Modal */}
+      {bulkDeleteModalOpen && (
+        <div className="modal-overlay">
+          <div className="bulk-delete-modal">
+            <div className="modal-header">
+              <h3>⚠️ Confirm Bulk Delete</h3>
+              <button
+                className="modal-close-btn"
+                onClick={handleCloseBulkDeleteModal}
+                disabled={bulkDeleting}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-content">
+              <div className="bulk-delete-warning">
+                <p>
+                  You are about to <strong>permanently delete</strong> all{" "}
+                  <strong>{bulkDeleteCount} simulations</strong> in this Price Change group:
+                </p>
+                <div className="group-details">
+                  <p>
+                    <strong>Description:</strong> {bulkDeleteDescription}
+                  </p>
+                  <p>
+                    <strong>Date:</strong>{" "}
+                    {new Date(bulkDeleteDate).toLocaleString("id-ID")}
+                  </p>
+                </div>
+                <div className="warning-note">
+                  <strong>⚠️ Warning:</strong> This action cannot be undone. All
+                  simulation data, materials, and calculations for this price change
+                  will be permanently removed.
+                </div>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                className="cancel-btn"
+                onClick={handleCloseBulkDeleteModal}
+                disabled={bulkDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                className="confirm-delete-btn"
+                onClick={handleConfirmBulkDelete}
+                disabled={bulkDeleting}
+              >
+                {bulkDeleting ? (
+                  <>
+                    <span className="spinner"></span>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash size={16} />
+                    Delete {bulkDeleteCount} Simulations
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

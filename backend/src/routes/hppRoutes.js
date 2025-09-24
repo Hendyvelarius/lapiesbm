@@ -30,6 +30,10 @@ router.post('/simulation/create-custom', HPPController.createCustomSimulation);
 // GET /api/hpp/simulation/list - Get list of all simulation records
 router.get('/simulation/list', HPPController.getSimulationList);
 
+// DELETE /api/hpp/simulation/bulk-delete-price-change-group - Bulk delete price change group
+// Body: { description: "Price Changes : AC 014B: 22 -> 31; ", simulasiDate: "2025-09-24T00:27:38.087Z" }
+router.delete('/simulation/bulk-delete-price-change-group', HPPController.bulkDeletePriceChangeGroup);
+
 // DELETE /api/hpp/simulation/:simulasiId - Delete simulation by ID
 router.delete('/simulation/:simulasiId', HPPController.deleteSimulation);
 

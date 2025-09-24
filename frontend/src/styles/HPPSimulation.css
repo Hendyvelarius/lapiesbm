@@ -8,7 +8,7 @@
   align-items: center;
   gap: 24px;
   max-width: 1200px;
-  min-height: 100%;
+  min-height: 100vh; /* Use viewport height but allow expansion */
 }
 
 .hpp-simulation-header {
@@ -1890,9 +1890,17 @@
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  overflow: auto; /* Enable horizontal scrolling if needed */
   border: 1px solid #e5e7eb;
   max-width: 100%;
+  /* Allow natural expansion based on content - no height constraints */
+  overflow-x: auto; /* Enable horizontal scrolling if needed for wide tables */
+  /* Custom scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+  position: relative;
+  /* Ensure the container can grow with content naturally */
+  height: auto;
+  /* Remove max-height constraint to allow full expansion */
 }
 
 .simulation-list-table {
@@ -1900,7 +1908,7 @@
   min-width: 800px; /* Ensure minimum width for proper column display */
   border-collapse: collapse;
   font-size: 14px;
-  table-layout: fixed; /* Fixed table layout for consistent column widths */
+  table-layout: auto; /* Auto table layout to allow natural expansion */
 }
 
 .simulation-list-table th {
@@ -1918,30 +1926,30 @@
   white-space: nowrap;
 }
 
-/* Fixed column widths for consistency */
+/* Flexible column widths for auto table layout */
 .simulation-list-table th:nth-child(1) {
-  width: 8%;
+  min-width: 60px;
 } /* ID */
 .simulation-list-table th:nth-child(2) {
-  width: 12%;
+  min-width: 80px;
 } /* Type */
 .simulation-list-table th:nth-child(3) {
-  width: 12%;
+  min-width: 90px;
 } /* Product ID */
 .simulation-list-table th:nth-child(4) {
-  width: 20%;
+  min-width: 150px;
 } /* Product Name */
 .simulation-list-table th:nth-child(5) {
-  width: 15%;
+  min-width: 100px;
 } /* Formula */
 .simulation-list-table th:nth-child(6) {
-  width: 20%;
+  min-width: 150px;
 } /* Description */
 .simulation-list-table th:nth-child(7) {
-  width: 10%;
+  min-width: 80px;
 } /* Date */
 .simulation-list-table th:nth-child(8) {
-  width: 13%;
+  min-width: 100px;
 } /* Actions */
 
 .simulation-list-table td {
@@ -1954,30 +1962,30 @@
   white-space: nowrap;
 }
 
-/* Apply same widths to table data cells */
+/* Apply flexible widths to table data cells */
 .simulation-list-table td:nth-child(1) {
-  width: 8%;
+  min-width: 60px;
 } /* ID */
 .simulation-list-table td:nth-child(2) {
-  width: 12%;
+  min-width: 80px;
 } /* Type */
 .simulation-list-table td:nth-child(3) {
-  width: 12%;
+  min-width: 90px;
 } /* Product ID */
 .simulation-list-table td:nth-child(4) {
-  width: 20%;
+  min-width: 150px;
 } /* Product Name */
 .simulation-list-table td:nth-child(5) {
-  width: 15%;
+  min-width: 100px;
 } /* Formula */
 .simulation-list-table td:nth-child(6) {
-  width: 20%;
+  min-width: 150px;
 } /* Description */
 .simulation-list-table td:nth-child(7) {
-  width: 10%;
+  min-width: 80px;
 } /* Date */
 .simulation-list-table td:nth-child(8) {
-  width: 13%;
+  min-width: 100px;
 } /* Actions */
 
 /* Sortable header styles */
@@ -3229,12 +3237,23 @@
     padding: 8px 6px; /* Reduce padding on mobile */
   }
 
-  .group-header {
-    padding: 8px 12px !important;
+  .group-header-content {
+    gap: 8px; /* Reduce gap on smaller screens */
   }
 
-  .group-header-content {
-    gap: 8px;
+  .group-actions {
+    gap: 4px; /* Reduce button gap on smaller screens */
+  }
+
+  .affected-products-btn span,
+  .bulk-delete-group-btn span {
+    display: none; /* Hide button text on very small screens, keep only icons */
+  }
+
+  .affected-products-btn,
+  .bulk-delete-group-btn {
+    padding: 6px 8px; /* Even more compact on mobile */
+    font-size: 0.75rem;
   }
 }
 
@@ -3269,7 +3288,7 @@
   display: flex;
   align-items: center;
   width: 100%;
-  gap: 12px;
+  gap: 16px; /* Increased gap for better spacing */
   min-width: 0; /* Allow flex items to shrink */
   overflow: hidden; /* Prevent overflow from breaking layout */
 }
@@ -3290,10 +3309,10 @@
 
 .group-info {
   display: flex;
-  align-items: center;
+  flex-direction: column; /* Stack description and meta vertically */
   flex: 1;
   min-width: 0; /* Allow flex child to shrink below content size */
-  gap: 16px;
+  gap: 4px; /* Small gap between description and meta */
 }
 
 .group-type {
@@ -3312,61 +3331,60 @@
   font-weight: 600;
   color: #1f2937;
   font-size: 1rem;
-  flex: 1;
-  min-width: 0; /* Allow shrinking */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-right: auto; /* Push meta info to the right */
+  line-height: 1.2;
 }
 
 .group-meta {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px; /* Reduced gap to fit better */
   flex-shrink: 0; /* Never shrink the meta info */
-  margin-left: auto; /* Align to the right */
 }
 
 .group-count {
   color: #6b7280;
-  font-size: 0.875rem;
+  font-size: 0.8rem; /* Slightly smaller */
   font-weight: 500;
   background: rgba(107, 114, 128, 0.1);
-  padding: 2px 8px;
-  border-radius: 8px;
+  padding: 2px 6px; /* Reduced padding */
+  border-radius: 6px;
   white-space: nowrap;
 }
 
 .group-date {
   color: #7c3aed;
-  font-size: 0.8rem;
+  font-size: 0.75rem; /* Smaller font */
   font-weight: 500;
-  padding: 3px 8px;
+  padding: 2px 6px; /* Reduced padding */
   background: rgba(124, 58, 237, 0.1);
-  border-radius: 6px;
+  border-radius: 4px;
   font-family: 'Courier New', monospace;
   border: 1px solid rgba(124, 58, 237, 0.2);
   white-space: nowrap;
 }
 
-/* Group actions - Affected Products button */
+/* Group actions - Both action buttons */
 .group-actions {
   display: flex;
   align-items: center;
-  flex-shrink: 0;
+  gap: 8px; /* Space between the two buttons */
+  flex-shrink: 0; /* Never shrink the action buttons */
+  margin-left: auto; /* Push to the right */
 }
 
 .affected-products-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px; /* Reduced gap */
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
   border: none;
-  border-radius: 8px;
-  padding: 8px 16px;
-  font-size: 0.875rem;
+  border-radius: 6px; /* Smaller border radius */
+  padding: 6px 10px; /* More compact padding */
+  font-size: 0.8rem; /* Smaller font size */
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -3413,6 +3431,397 @@
   }
 }
 
+/* Animation for scroll indicator */
+@keyframes fadeInOut {
+  0%, 20% {
+    opacity: 0;
+  }
+  30%, 70% {
+    opacity: 0.8;
+  }
+   80%, 100% {
+    opacity: 0;
+  }
+}
+
 .group-child {
   animation: expandGroup 0.3s ease-out;
+}
+
+/* Fix for expanded group scrolling issue */
+.simulation-list-table tbody {
+  /* Ensure tbody can expand naturally within the scrollable container */
+  height: auto;
+  overflow: visible;
+}
+
+/* Ensure expanded group content is fully visible */
+.simulation-list-table tbody tr {
+  /* Prevent row content from being cut off */
+  overflow: visible;
+  /* Allow rows to expand naturally */
+  height: auto;
+}
+
+/* Ensure table cells don't have height restrictions */
+.simulation-list-table td {
+  height: auto;
+  /* Remove any max-height constraints */
+  max-height: none;
+}
+
+/* Ensure the page can scroll when price changes groups are expanded */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar styling for webkit browsers */
+.simulation-table-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.simulation-table-container::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.simulation-table-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.simulation-table-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Ensure the table content is properly contained and scrollable */
+.simulation-list-table {
+  /* Allow table to expand naturally within the scrollable container */
+  height: auto;
+}
+
+/* When a group is expanded, ensure proper spacing and visibility */
+
+/* Expanded groups information message styling */
+.expanded-groups-info {
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  border: 1px solid #0ea5e9;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-top: 16px;
+  text-align: center;
+}
+
+.expanded-groups-info p {
+  margin: 0;
+  color: #0c4a6e;
+  font-size: 14px;
+  font-family: "Inter", sans-serif;
+}
+
+.expanded-groups-info strong {
+  color: #0369a1;
+  font-weight: 600;
+}
+.price-changes-group + .group-child {
+  /* Add a subtle visual connection */
+  border-left: 4px solid #e0e7ff;
+}
+
+/* Add a subtle shadow at the bottom when content is scrollable */
+.simulation-table-container {
+  position: relative;
+}
+
+.simulation-table-container::after {
+  content: '';
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.08) 50%, rgba(0, 0, 0, 0.12) 100%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+}
+
+/* Show shadow when scrollable */
+.simulation-table-container.has-scroll::after {
+  opacity: 1;
+}
+
+/* Add a scroll indicator hint */
+.simulation-table-container.has-scroll::before {
+  content: 'Scroll to see more';
+  position: sticky;
+  bottom: 4px;
+  right: 8px;
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.8;
+  pointer-events: none;
+  z-index: 15;
+  float: right;
+  clear: both;
+  margin-left: auto;
+  display: block;
+  width: fit-content;
+  animation: fadeInOut 3s ease-in-out;
+}
+
+/* Ensure pagination doesn't interfere with expanded content visibility */
+.pagination-container {
+  margin-top: 24px;
+  /* Ensure pagination is always visible even with expanded content */
+  position: relative;
+  z-index: 1;
+}
+
+/* Bulk Delete Group Button Styling */
+.bulk-delete-group-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px; /* Reduced gap to match affected products button */
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border: none;
+  padding: 6px 10px; /* More compact padding to match affected products button */
+  border-radius: 6px; /* Smaller border radius to match */
+  font-size: 0.8rem; /* Smaller font size to match */
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bulk-delete-group-btn:hover {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+
+.bulk-delete-group-btn span {
+  white-space: nowrap;
+}
+
+/* Bulk Delete Confirmation Modal Styling */
+.bulk-delete-modal {
+  background: white;
+  border-radius: 12px;
+  width: 98%; /* Even wider */
+  max-width: 700px; /* Increased max-width even more */
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  /* Ensure modal doesn't exceed viewport */
+  min-width: 320px;
+}
+
+.bulk-delete-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+}
+
+.bulk-delete-modal .modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bulk-delete-modal .modal-close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.bulk-delete-modal .modal-close-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.bulk-delete-modal .modal-content {
+  padding: 24px;
+  flex: 1;
+  overflow-y: auto;
+  /* Ensure content doesn't exceed modal width */
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.bulk-delete-warning {
+  color: #374151;
+  line-height: 1.6; /* Improved line height for better readability */
+  word-wrap: break-word; /* Ensure long text wraps */
+  overflow-wrap: break-word; /* Additional text wrapping support */
+  /* Force text wrapping even for long words */
+  word-break: break-word;
+  hyphens: auto;
+  max-width: 100%;
+}
+
+.bulk-delete-warning p {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  /* Aggressive text wrapping */
+  word-break: break-word;
+  white-space: normal;
+  max-width: 100%;
+}
+
+.group-details {
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  border-left: 4px solid #3b82f6;
+  word-wrap: break-word; /* Handle long descriptions */
+  overflow-wrap: break-word;
+  word-break: break-word; /* Force wrapping */
+  max-width: 100%;
+}
+
+.group-details p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #1f2937;
+  word-wrap: break-word; /* Ensure long text wraps properly */
+  overflow-wrap: break-word;
+  word-break: break-word; /* Force wrapping */
+  line-height: 1.4;
+  max-width: 100%;
+}
+
+.group-details p:last-child {
+  margin-bottom: 0;
+}
+
+.warning-note {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 12px;
+  color: #991b1b;
+  font-size: 14px;
+  font-weight: 500;
+  margin-top: 16px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word; /* Force wrapping for long words */
+  max-width: 100%;
+}
+
+.bulk-delete-modal .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  flex-wrap: wrap; /* Allow buttons to wrap on very small screens */
+  align-items: center;
+}
+
+.bulk-delete-modal .cancel-btn {
+  background: #f3f4f6;
+  color: #374151;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bulk-delete-modal .cancel-btn:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.bulk-delete-modal .confirm-delete-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bulk-delete-modal .confirm-delete-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+
+.bulk-delete-modal .confirm-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: -4px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Mobile responsiveness for bulk delete modal */
+@media (max-width: 768px) {
+  .bulk-delete-modal {
+    width: 95%;
+    max-width: 95vw; /* Use viewport width on mobile */
+    margin: 20px;
+  }
+
+  .bulk-delete-modal .modal-header,
+  .bulk-delete-modal .modal-content,
+  .bulk-delete-modal .modal-actions {
+    padding: 16px; /* Reduced padding on mobile */
+  }
+
+  .bulk-delete-modal .modal-actions {
+    flex-direction: column; /* Stack buttons vertically on mobile */
+    gap: 8px;
+  }
+
+  .bulk-delete-modal .cancel-btn,
+  .bulk-delete-modal .confirm-delete-btn {
+    width: 100%; /* Full width buttons on mobile */
+  }
 }

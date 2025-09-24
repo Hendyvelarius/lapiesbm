@@ -391,6 +391,59 @@ class HPPController {
       });
     }
   }
+
+  // Bulk delete price change group (all simulations with matching description and date)
+  static async bulkDeletePriceChangeGroup(req, res) {
+    try {
+      console.log('=== Bulk Delete Price Change Group ===');
+      console.log('Request body:', JSON.stringify(req.body, null, 2));
+      
+      const { description, simulasiDate } = req.body;
+      
+      // Validate input
+      if (!description || !simulasiDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'Both description and simulasiDate are required'
+        });
+      }
+
+      // Format the date - replace 'T' with space and remove 'Z'
+      // From: "2025-09-24T00:27:38.087Z" 
+      // To: "2025-09-24 00:27:38.087"
+      const formattedDate = simulasiDate.replace('T', ' ').replace('Z', '');
+
+      console.log('=== Bulk Delete Parameters ===');
+      console.log('Description:', description);
+      console.log('Original Date:', simulasiDate);
+      console.log('Formatted Date:', formattedDate);
+
+      // Execute the bulk delete
+      const { bulkDeletePriceChangeGroup } = require('../models/hppModel');
+      const result = await bulkDeletePriceChangeGroup(description, formattedDate);
+
+      console.log('=== Bulk Delete Result ===');
+      console.log('Deleted records:', result?.deletedCount || 0);
+
+      res.status(200).json({
+        success: true,
+        message: `Successfully deleted ${result?.deletedCount || 0} price change simulations`,
+        data: {
+          deletedCount: result?.deletedCount || 0,
+          description: description,
+          simulasiDate: simulasiDate
+        }
+      });
+
+    } catch (error) {
+      console.error('Bulk Delete Price Change Group Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error deleting price change group',
+        error: error.message
+      });
+    }
+  }
 }
 
 module.exports = HPPController;

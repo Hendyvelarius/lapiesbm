@@ -22,6 +22,9 @@ body {
   min-width: 320px;
   min-height: 100vh;
   font-family: 'Inter', sans-serif;
+  /* Ensure proper scrolling for dynamic content */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 h1 {

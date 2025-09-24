@@ -525,6 +525,86 @@ async function getPriceChangeAffectedProducts(description, formattedDate) {
   }
 }
 
+// Bulk delete price change group (all simulations with matching description and date)
+async function bulkDeletePriceChangeGroup(description, formattedDate) {
+  try {
+    console.log('=== bulkDeletePriceChangeGroup Model Function ===');
+    console.log('Parameters received:');
+    console.log('- Description:', description);
+    console.log('- FormattedDate:', formattedDate);
+
+    const db = await connect();
+    
+    // First, get the Simulasi_IDs that will be deleted (for deleting detail records)
+    const getIdsQuery = `
+      SELECT Simulasi_ID 
+      FROM t_COGS_HPP_Product_Header_Simulasi 
+      WHERE Simulasi_Deskripsi = @Description 
+      AND CONVERT(varchar, Simulasi_Date, 121) = @FormattedDate
+      AND Simulasi_Type = 'Price Changes'
+    `;
+
+    console.log('=== Getting Simulasi_IDs ===');
+    console.log('Query:', getIdsQuery.replace(/\s+/g, ' ').trim());
+
+    const simulasiIds = await db
+      .request()
+      .input('Description', sql.VarChar(255), description)
+      .input('FormattedDate', sql.VarChar(50), formattedDate)
+      .query(getIdsQuery);
+
+    console.log('Found Simulasi_IDs to delete:', simulasiIds.recordset.map(r => r.Simulasi_ID));
+
+    // Delete detail records first (to maintain referential integrity)
+    if (simulasiIds.recordset.length > 0) {
+      const idList = simulasiIds.recordset.map(r => r.Simulasi_ID).join(',');
+      const deleteDetailsQuery = `DELETE FROM t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan WHERE Simulasi_ID IN (${idList})`;
+      
+      console.log('=== Deleting Detail Records ===');
+      console.log('Query:', deleteDetailsQuery);
+      
+      const detailResult = await db.request().query(deleteDetailsQuery);
+      console.log('Detail records deleted:', detailResult.rowsAffected?.[0] || 0);
+    }
+
+    // Then delete header records
+    const deleteHeaderQuery = `
+      DELETE FROM t_COGS_HPP_Product_Header_Simulasi 
+      WHERE Simulasi_Deskripsi = @Description 
+      AND CONVERT(varchar, Simulasi_Date, 121) = @FormattedDate
+      AND Simulasi_Type = 'Price Changes'
+    `;
+
+    console.log('=== Deleting Header Records ===');
+    console.log('Query:', deleteHeaderQuery.replace(/\s+/g, ' ').trim());
+
+    const result = await db
+      .request()
+      .input('Description', sql.VarChar(255), description)
+      .input('FormattedDate', sql.VarChar(50), formattedDate)
+      .query(deleteHeaderQuery);
+
+    console.log('=== Bulk Delete Result ===');
+    console.log('Header rows affected:', result.rowsAffected?.[0] || 0);
+
+    return {
+      deletedCount: result.rowsAffected?.[0] || 0,
+      success: true
+    };
+
+  } catch (error) {
+    console.error('=== bulkDeletePriceChangeGroup Error ===');
+    console.error('Error message:', error.message);
+    console.error('Error number:', error.number);
+    console.error('Line number:', error.lineNumber);
+    console.error('Parameters sent:');
+    console.error('- Description:', description);
+    console.error('- FormattedDate:', formattedDate);
+    
+    throw error;
+  }
+}
+
 module.exports = {
   getHPP,
   generateHPPCalculation,
@@ -539,4 +619,5 @@ module.exports = {
   deleteSimulation,
   generatePriceChangeSimulation,
   getPriceChangeAffectedProducts,
+  bulkDeletePriceChangeGroup,
 };
