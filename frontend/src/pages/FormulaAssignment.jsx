@@ -34,8 +34,7 @@ const FormulaAssignment = () => {
     ps: '',
     kp: '',
     ks: '',
-    stdOutput: 0,
-    isManual: false  // Important checkbox state
+    stdOutput: 0
   });
   
   // Formula selection states
@@ -223,8 +222,7 @@ const FormulaAssignment = () => {
         ps: formula.PS === null || formula.PS === undefined ? null : formula.PS,
         kp: formula.KP === null || formula.KP === undefined ? null : formula.KP,
         ks: formula.KS === null || formula.KS === undefined ? null : formula.KS,
-        stdOutput: formula.Std_Output || 0,
-        isManual: formula.isManual === 1 || formula.isManual === '1' || formula.isManual === true
+        stdOutput: formula.Std_Output || 0
       });
       
       // Reset recommendation selection
@@ -263,8 +261,7 @@ const FormulaAssignment = () => {
       ps: null,
       kp: null,
       ks: null,
-      stdOutput: 0,
-      isManual: true  // New assignments are manual by default
+      stdOutput: 0
     });
     setSelectedProduct(null);
     setProductFormulas({ PI: [], PS: [], KP: [], KS: [] });
@@ -312,8 +309,7 @@ const FormulaAssignment = () => {
       ps: recommendation.formulas.PS !== null && recommendation.formulas.PS !== undefined ? recommendation.formulas.PS : null,
       kp: recommendation.formulas.KP !== null && recommendation.formulas.KP !== undefined ? recommendation.formulas.KP : null,
       ks: recommendation.formulas.KS !== null && recommendation.formulas.KS !== undefined ? recommendation.formulas.KS : null,
-      stdOutput: recommendation.stdOutput,
-      isManual: true  // Auto-check Important when user selects a recommendation
+      stdOutput: recommendation.stdOutput
     }));
     
     // Update total price
@@ -348,8 +344,7 @@ const FormulaAssignment = () => {
       setFormData(prev => {
         const newData = {
           ...prev,
-          [type.toLowerCase()]: null,
-          isManual: true  // Auto-check Important when user manually changes formulas
+          [type.toLowerCase()]: null
         };
         
         // Recalculate total price with new formula selection
@@ -377,8 +372,7 @@ const FormulaAssignment = () => {
           const newData = {
             ...prev,
             [type.toLowerCase()]: formulaId,
-            stdOutput: formulaBatchSize,
-            isManual: true  // Auto-check Important when user manually changes formulas
+            stdOutput: formulaBatchSize
           };
           
           // Recalculate total price with new formula selection
@@ -401,8 +395,7 @@ const FormulaAssignment = () => {
               const newData = {
                 ...prev,
                 [type.toLowerCase()]: formulaId,
-                stdOutput: formulaBatchSize,
-                isManual: true  // Auto-check Important when user manually changes formulas
+                stdOutput: formulaBatchSize
               };
               
               // Recalculate total price with new formula selection
@@ -420,8 +413,7 @@ const FormulaAssignment = () => {
             setFormData(prev => {
               const newData = {
                 ...prev,
-                [type.toLowerCase()]: formulaId,
-                isManual: true  // Auto-check Important when user manually changes formulas
+                [type.toLowerCase()]: formulaId
               };
               
               // Recalculate total price with new formula selection
@@ -440,8 +432,7 @@ const FormulaAssignment = () => {
         setFormData(prev => {
           const newData = {
             ...prev,
-            [type.toLowerCase()]: formulaId,
-            isManual: true  // Auto-check Important when user manually changes formulas
+            [type.toLowerCase()]: formulaId
           };
           
           // Recalculate total price with new formula selection
@@ -455,14 +446,11 @@ const FormulaAssignment = () => {
       }
     } else {
       // Formula not found, just update with the formulaId (might be empty string)
-      setFormData(prev => {
-        const newData = {
-          ...prev,
-          [type.toLowerCase()]: formulaId,
-          isManual: true  // Auto-check Important when user manually changes formulas
-        };
-        
-        // Recalculate total price with new formula selection
+        setFormData(prev => {
+          const newData = {
+            ...prev,
+            [type.toLowerCase()]: formulaId
+          };        // Recalculate total price with new formula selection
         setTimeout(() => {
           const totalPrice = calculateTotalProductPrice(formulaPrices, newData);
           setTotalProductPrice(totalPrice);
@@ -502,14 +490,14 @@ const FormulaAssignment = () => {
           kp: formData.kp,
           ks: formData.ks,
           stdOutput: formData.stdOutput,
-          isManual: formData.isManual ? 1 : null  // Convert boolean to 1 or null
+          isManual: 1  // Default to manual (important)
         });
         notifier.success(`Formula assignment updated successfully for product ${formData.productId}`);
       } else {
         // Add new
         const dataToSend = {
           ...formData,
-          isManual: formData.isManual ? 1 : null  // Convert boolean to 1 or null
+          isManual: 1  // Default to manual (important)
         };
         await api.products.addChosenFormula(dataToSend);
         notifier.success(`Formula assignment added successfully for product ${formData.productId}`);
@@ -697,6 +685,65 @@ const FormulaAssignment = () => {
     setImportFile(file);
   };
 
+  // Process raw Excel data to group by Product_ID and filter by COGS='aktif'
+  const processRawExcelData = (rawData) => {
+    console.log('Processing raw Excel data:', rawData);
+    
+    // Group by Product_ID
+    const groupedByProduct = {};
+    
+    rawData.forEach((row, index) => {
+      const productId = row.Product_ID?.toString().trim();
+      if (!productId) {
+        console.warn(`Row ${index + 1}: Missing Product_ID, skipping`);
+        return;
+      }
+      
+      if (!groupedByProduct[productId]) {
+        groupedByProduct[productId] = {
+          Product_ID: productId,
+          Product_Name: row.Product_Name?.toString().trim() || '',
+          formulas: []
+        };
+      }
+      
+      // Add this formula to the product
+      groupedByProduct[productId].formulas.push({
+        TypeCode: row.TypeCode?.toString().trim(),
+        TypeName: row.TypeName?.toString().trim() || '', // Optional
+        PPI_SubID: row.PPI_SubID?.toString().trim(),
+        BatchSize: parseFloat(row.BatchSize) || 0,
+        COGS: row.COGS?.toString().trim(),
+        ppi_owner: row.ppi_owner?.toString().trim() || '', // Optional
+        Total: row.Total || '', // Optional
+        Item_type: row.Item_type?.toString().trim() || '', // Optional
+        production: row.production || '' // Optional
+      });
+    });
+    
+    console.log('Grouped by product:', groupedByProduct);
+    
+    // Filter each product's formulas to only include COGS='aktif' (case insensitive)
+    const processedProducts = [];
+    
+    Object.values(groupedByProduct).forEach(product => {
+      const activeFormulas = product.formulas.filter(formula => 
+        formula.COGS?.toLowerCase() === 'aktif'
+      );
+      
+      if (activeFormulas.length > 0) {
+        processedProducts.push({
+          ...product,
+          formulas: activeFormulas
+        });
+      }
+    });
+    
+    console.log('Processed products with active formulas:', processedProducts);
+    
+    return processedProducts;
+  };
+
   // Parse Excel file and validate data
   const handleParseAndValidate = async () => {
     if (!importFile) {
@@ -708,16 +755,19 @@ const FormulaAssignment = () => {
       setLoadingImport(true);
       
       // Read Excel file
-      const data = await readExcelFile(importFile);
+      const rawData = await readExcelFile(importFile);
       
-      // Load available formulas from API
+      // Process the raw data (group by Product_ID, filter by COGS='aktif')
+      const processedData = processRawExcelData(rawData);
+      
+      // Load available formulas from API (not needed anymore but keeping for compatibility)
       const formulas = await api.products.getFormula();
       setAvailableFormulas(formulas);
       
-      // Validate the parsed data
-      const validation = validateImportData(data, formulas, productList);
+      // Validate the processed data
+      const validation = validateImportData(processedData, formulas, productList);
       
-      setImportData(data);
+      setImportData(processedData);
       setValidationResults(validation);
       
       if (validation.isValid) {
@@ -742,21 +792,41 @@ const FormulaAssignment = () => {
         try {
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: 'array' });
-          const sheetName = workbook.SheetNames[0];
+          
+          // Look for "Summary Per SubID" sheet
+          const targetSheetName = 'Summary Per SubID';
+          let sheetName = null;
+          
+          // Find the exact sheet name (case-insensitive)
+          for (const name of workbook.SheetNames) {
+            if (name.toLowerCase() === targetSheetName.toLowerCase()) {
+              sheetName = name;
+              break;
+            }
+          }
+          
+          if (!sheetName) {
+            throw new Error(`Sheet "${targetSheetName}" not found. Available sheets: ${workbook.SheetNames.join(', ')}`);
+          }
+          
           const worksheet = workbook.Sheets[sheetName];
           const jsonData = XLSX.utils.sheet_to_json(worksheet);
           
           // Validate Excel format
           if (jsonData.length === 0) {
-            throw new Error('Excel file is empty');
+            throw new Error(`Sheet "${sheetName}" is empty`);
           }
           
-          const requiredColumns = ['Product_ID', 'Product_Name', 'PI', 'PS', 'KP', 'KS'];
+          // Essential columns that we actually use (based on requirements)
+          const requiredColumns = ['TypeCode', 'PPI_SubID', 'Product_ID', 'Product_Name', 'BatchSize', 'COGS'];
+          // Optional columns (we ignore these but they might be present)
+          const optionalColumns = ['ppi_owner', 'TypeName', 'Total', 'Item_type', 'production'];
+          
           const firstRow = jsonData[0];
           const missingColumns = requiredColumns.filter(col => !(col in firstRow));
           
           if (missingColumns.length > 0) {
-            throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
+            throw new Error(`Missing required columns in "${sheetName}" sheet: ${missingColumns.join(', ')}`);
           }
           
           resolve(jsonData);
@@ -770,78 +840,63 @@ const FormulaAssignment = () => {
   };
 
   // Validate import data against available formulas and products
-  const validateImportData = (data, formulas, products) => {
+  const validateImportData = (processedData, formulas, products) => {
     const errors = [];
     const warnings = [];
     const validProducts = new Set(products.map(p => p.Product_ID));
+    const validTypeCodes = new Set(['PI', 'PS', 'KP', 'KS']);
     
-    // Create formula lookup maps
-    const formulaMap = new Map();
-    formulas.forEach(formula => {
-      const key = `${formula.Product_ID}-${formula.TypeCode}-${formula.PPI_SubID}`;
-      formulaMap.set(key, formula);
-    });
-    
-    // Group formulas by product and type for batch size validation
-    const productFormulaBatches = new Map();
-    
-    data.forEach((row, index) => {
-      const rowNum = index + 2; // Excel row number (1-based + header)
-      const productId = row.Product_ID?.toString().trim();
-      const productName = row.Product_Name?.toString().trim();
+    processedData.forEach((product, index) => {
+      const productId = product.Product_ID;
       
       // Validate product existence
-      if (!productId) {
-        errors.push(`Row ${rowNum}: Product_ID is required`);
-        return;
-      }
-      
       if (!validProducts.has(productId)) {
-        errors.push(`Row ${rowNum}: Product_ID "${productId}" does not exist in the system`);
+        errors.push(`Product "${productId}" does not exist in the system`);
         return;
       }
       
-      // Initialize batch tracking for this product
-      if (!productFormulaBatches.has(productId)) {
-        productFormulaBatches.set(productId, new Set());
-      }
+      // Check for duplicate TypeCodes within the same product
+      const typeCodeCounts = {};
+      const batchSizes = new Set();
       
-      // Validate each formula type
-      ['PI', 'PS', 'KP', 'KS'].forEach(typeCode => {
-        const formulaValue = row[typeCode];
+      product.formulas.forEach((formula, formulaIndex) => {
+        const typeCode = formula.TypeCode;
         
-        if (formulaValue === '-') {
-          // Unassigned formula - valid
+        // Validate TypeCode
+        if (!validTypeCodes.has(typeCode)) {
+          errors.push(`Product "${productId}": Invalid TypeCode "${typeCode}". Must be one of: PI, PS, KP, KS`);
           return;
-        } else if (formulaValue === '' || formulaValue === null || formulaValue === undefined) {
-          // Empty string formula - need to validate it exists
-          const key = `${productId}-${typeCode}-`;
-          if (!formulaMap.has(key)) {
-            errors.push(`Row ${rowNum}: Empty string formula for ${typeCode} does not exist for product "${productId}"`);
-            return;
-          }
-          // Add batch size to tracking
-          const formula = formulaMap.get(key);
-          productFormulaBatches.get(productId).add(formula.BatchSize);
-        } else {
-          // Named formula - validate it exists
-          const key = `${productId}-${typeCode}-${formulaValue}`;
-          if (!formulaMap.has(key)) {
-            errors.push(`Row ${rowNum}: Formula "${formulaValue}" for ${typeCode} does not exist for product "${productId}"`);
-            return;
-          }
-          // Add batch size to tracking
-          const formula = formulaMap.get(key);
-          productFormulaBatches.get(productId).add(formula.BatchSize);
+        }
+        
+        // Count TypeCodes for duplicate detection
+        typeCodeCounts[typeCode] = (typeCodeCounts[typeCode] || 0) + 1;
+        
+        // Collect BatchSizes for consistency check
+        if (formula.BatchSize > 0) {
+          batchSizes.add(formula.BatchSize);
         }
       });
-    });
-    
-    // Validate batch size consistency for each product
-    productFormulaBatches.forEach((batchSizes, productId) => {
+      
+      // Check for duplicate TypeCodes
+      Object.entries(typeCodeCounts).forEach(([typeCode, count]) => {
+        if (count > 1) {
+          const duplicateFormulas = product.formulas
+            .filter(f => f.TypeCode === typeCode)
+            .map(f => `${f.PPI_SubID || '(empty)'} (Batch: ${f.BatchSize})`)
+            .join(', ');
+          errors.push(`Product "${productId}": Multiple active ${typeCode} formulas detected: ${duplicateFormulas}. Only one active formula per TypeCode is allowed.`);
+        }
+      });
+      
+      // Check BatchSize consistency
       if (batchSizes.size > 1) {
-        const sizesArray = Array.from(batchSizes);
-        errors.push(`Product "${productId}" has formulas with different batch sizes: ${sizesArray.join(', ')}. All assigned formulas must have the same batch size.`);
+        const sizesArray = Array.from(batchSizes).sort((a, b) => a - b);
+        errors.push(`Product "${productId}": All active formulas must have the same BatchSize. Found: ${sizesArray.join(', ')}`);
+      }
+      
+      // Validate that at least one formula exists
+      if (product.formulas.length === 0) {
+        warnings.push(`Product "${productId}": No active formulas found (no COGS='aktif' entries)`);
       }
     });
     
@@ -850,9 +905,10 @@ const FormulaAssignment = () => {
       errors,
       warnings,
       summary: {
-        totalRows: data.length,
-        validProducts: data.filter(row => validProducts.has(row.Product_ID?.toString().trim())).length,
-        invalidProducts: data.filter(row => !validProducts.has(row.Product_ID?.toString().trim())).length
+        totalProducts: processedData.length,
+        validProducts: processedData.filter(p => validProducts.has(p.Product_ID)).length,
+        invalidProducts: processedData.filter(p => !validProducts.has(p.Product_ID)).length,
+        totalActiveFormulas: processedData.reduce((sum, p) => sum + p.formulas.length, 0)
       }
     };
   };
@@ -888,51 +944,42 @@ const FormulaAssignment = () => {
   };
 
   // Transform import data to backend format
-  const transformImportData = (data, formulas) => {
-    const formulaMap = new Map();
-    formulas.forEach(formula => {
-      const key = `${formula.Product_ID}-${formula.TypeCode}-${formula.PPI_SubID}`;
-      formulaMap.set(key, formula);
-    });
-
+  const transformImportData = (processedData, formulas) => {
     const currentYear = new Date().getFullYear().toString();
     const processDate = new Date().toISOString();
     
-    return data.map(row => {
-      const productId = row.Product_ID.toString().trim();
+    return processedData.map(product => {
+      const productId = product.Product_ID;
       
-      // Helper to convert Excel values to backend format
-      const convertFormulaValue = (excelValue, typeCode) => {
-        if (excelValue === '-') {
-          return null; // Unassigned
-        } else if (excelValue === '' || excelValue === null || excelValue === undefined) {
-          return ''; // Empty string formula
-        } else {
-          return excelValue.toString().trim(); // Named formula
-        }
+      // Initialize formula assignments
+      const assignments = {
+        PI: null,
+        PS: null,
+        KP: null,
+        KS: null
       };
       
-      // Find batch size from any assigned formula
+      // Get BatchSize (all formulas should have the same BatchSize after validation)
       let stdOutput = 0;
-      for (const typeCode of ['PI', 'PS', 'KP', 'KS']) {
-        const formulaValue = convertFormulaValue(row[typeCode], typeCode);
-        if (formulaValue !== null) { // If formula is assigned (not unassigned)
-          const key = `${productId}-${typeCode}-${formulaValue}`;
-          const formula = formulaMap.get(key);
-          if (formula && formula.BatchSize) {
+      
+      // Process each active formula for this product
+      product.formulas.forEach(formula => {
+        const typeCode = formula.TypeCode;
+        if (assignments.hasOwnProperty(typeCode)) {
+          assignments[typeCode] = formula.PPI_SubID || ''; // Use PPI_SubID for formula assignment
+          if (formula.BatchSize > 0) {
             stdOutput = formula.BatchSize;
-            break;
           }
         }
-      }
+      });
       
       return {
         Periode: currentYear,
         Product_ID: productId,
-        PI: convertFormulaValue(row.PI, 'PI'),
-        PS: convertFormulaValue(row.PS, 'PS'),
-        KP: convertFormulaValue(row.KP, 'KP'),
-        KS: convertFormulaValue(row.KS, 'KS'),
+        PI: assignments.PI,
+        PS: assignments.PS,
+        KP: assignments.KP,
+        KS: assignments.KS,
         Std_Output: stdOutput,
         isManual: null,
         user_id: 'AUTO_ASSIGN',
@@ -1132,7 +1179,6 @@ const FormulaAssignment = () => {
               <tr>
                 <th>Product ID</th>
                 <th>Product Name</th>
-                <th>Important</th>
                 <th>PI Formula</th>
                 <th>PS Formula</th>
                 <th>KP Formula</th>
@@ -1144,7 +1190,7 @@ const FormulaAssignment = () => {
             <tbody>
               {filteredChosenFormulas.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="no-data">
+                  <td colSpan="7" className="no-data">
                     {tableSearchTerm.trim() 
                       ? `No formula assignments found matching "${tableSearchTerm}".`
                       : "No formula assignments found. Click \"Add New Assignment\" to get started."
@@ -1156,13 +1202,6 @@ const FormulaAssignment = () => {
                   <tr key={`${formula.Product_ID}-${index}`}>
                     <td>{formula.Product_ID}</td>
                     <td>{getProductName(formula.Product_ID)}</td>
-                    <td>
-                      {formula.isManual === 1 ? (
-                        <span className="important-checkmark">✓</span>
-                      ) : (
-                        <span className="not-important">—</span>
-                      )}
-                    </td>
                     <td>{getFormulaDetails(formula.PI)}</td>
                     <td>{getFormulaDetails(formula.PS)}</td>
                     <td>{getFormulaDetails(formula.KP)}</td>
@@ -1367,24 +1406,14 @@ const FormulaAssignment = () => {
                       <input
                         type="number"
                         value={formData.stdOutput}
-                        onChange={(e) => setFormData(prev => ({ ...prev, stdOutput: e.target.value, isManual: true }))}
+                        onChange={(e) => setFormData(prev => ({ ...prev, stdOutput: e.target.value }))}
                         className="input-field"
                         min="0"
                         step="0.01"
                       />
                     </div>
                     
-                    <div className="important-field">
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={formData.isManual}
-                          onChange={(e) => setFormData(prev => ({ ...prev, isManual: e.target.checked }))}
-                          className="important-checkbox"
-                        />
-                        Important (Protected from Auto Assignment)
-                      </label>
-                    </div>
+
                     
                     <div className="total-cost-field">
                       <label>Total Product Cost:</label>
@@ -1532,24 +1561,14 @@ const FormulaAssignment = () => {
                     <input
                       type="number"
                       value={formData.stdOutput}
-                      onChange={(e) => setFormData(prev => ({ ...prev, stdOutput: e.target.value, isManual: true }))}
+                      onChange={(e) => setFormData(prev => ({ ...prev, stdOutput: e.target.value }))}
                       className="input-field"
                       min="0"
                       step="0.01"
                     />
                   </div>
                   
-                  <div className="important-field">
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={formData.isManual}
-                        onChange={(e) => setFormData(prev => ({ ...prev, isManual: e.target.checked }))}
-                        className="important-checkbox"
-                      />
-                      Important (Protected from Auto Assignment)
-                    </label>
-                  </div>
+
                   
                   <div className="total-cost-field">
                     <label>Total Product Cost:</label>
@@ -1638,37 +1657,58 @@ const FormulaAssignment = () => {
                 <div className="import-upload-step">
                   <div className="upload-instructions">
                     <h4>Step 1: Select Excel File</h4>
-                    <p>Please select an Excel file (.xlsx or .xls) with the following format:</p>
+                    <p>Please select an Excel file (.xlsx or .xls) with <strong>two sheets</strong>:</p>
+                    <ul>
+                      <li><strong>Sheet 1:</strong> "Formula Details" (ignored)</li>
+                      <li><strong>Sheet 2:</strong> "Summary Per SubID" (used for import)</li>
+                    </ul>
+                    <p>The <strong>"Summary Per SubID"</strong> sheet must contain these <strong>required columns</strong>:</p>
                     <div className="format-example">
                       <table className="example-table">
                         <thead>
                           <tr>
-                            <th>Product_ID</th>
-                            <th>Product_Name</th>
-                            <th>PI</th>
-                            <th>PS</th>
-                            <th>KP</th>
-                            <th>KS</th>
+                            <th>TypeCode ✓</th>
+                            <th>PPI_SubID ✓</th>
+                            <th>Product_ID ✓</th>
+                            <th>Product_Name ✓</th>
+                            <th>BatchSize ✓</th>
+                            <th>COGS ✓</th>
+                            <th>ppi_owner</th>
+                            <th>TypeName</th>
+                            <th>Total</th>
+                            <th>Item_type</th>
+                            <th>production</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr>
-                            <td>PROD001</td>
-                            <td>Product Name</td>
+                            <td>PI</td>
                             <td>F1</td>
-                            <td>-</td>
-                            <td></td>
-                            <td>F3</td>
+                            <td>01LA</td>
+                            <td>Product A</td>
+                            <td>3000</td>
+                            <td>aktif</td>
+                            <td>Owner1</td>
+                            <td>Process Ingredient</td>
+                            <td>100</td>
+                            <td>Bahan</td>
+                            <td>Yes</td>
                           </tr>
                         </tbody>
                       </table>
                     </div>
+                    <div className="column-legend">
+                      <p><strong>✓ Required columns</strong> | Other columns are optional (will be ignored)</p>
+                    </div>
                     <div className="format-notes">
-                      <h5>Format Notes:</h5>
+                      <h5>Import Process:</h5>
                       <ul>
-                        <li><strong>"-"</strong> = Unassigned formula (will be set to null)</li>
-                        <li><strong>Blank cell</strong> = Empty string formula (assigned but unnamed)</li>
-                        <li><strong>Formula name</strong> = Named formula assignment</li>
+                        <li>All rows are <strong>grouped by Product_ID</strong></li>
+                        <li>Only formulas with <strong>COGS = "aktif"</strong> (case insensitive) are imported</li>
+                        <li><strong>TypeCode</strong> must be one of: PI, PS, KP, KS</li>
+                        <li>Each product can have <strong>only one active formula per TypeCode</strong></li>
+                        <li>All active formulas for a product must have the <strong>same BatchSize</strong></li>
+                        <li><strong>PPI_SubID</strong> becomes the formula assignment value</li>
                       </ul>
                     </div>
                   </div>
@@ -1715,7 +1755,10 @@ const FormulaAssignment = () => {
                         <strong>{validationResults.warnings.length}</strong> Warning(s)
                       </div>
                       <div className="stat-item info">
-                        <strong>{validationResults.summary.totalRows}</strong> Total Rows
+                        <strong>{validationResults.summary.totalProducts}</strong> Total Products
+                      </div>
+                      <div className="stat-item info">
+                        <strong>{validationResults.summary.totalActiveFormulas}</strong> Active Formulas
                       </div>
                     </div>
                   </div>
@@ -1763,10 +1806,13 @@ const FormulaAssignment = () => {
                   <div className="confirmation-summary">
                     <div className="summary-stats">
                       <div className="stat-item success">
-                        <strong>{validationResults.summary.totalRows}</strong> Products Ready
+                        <strong>{validationResults.summary.totalProducts}</strong> Products Ready
                       </div>
                       <div className="stat-item info">
                         <strong>{validationResults.summary.validProducts}</strong> Valid Products
+                      </div>
+                      <div className="stat-item info">
+                        <strong>{validationResults.summary.totalActiveFormulas}</strong> Active Formulas
                       </div>
                     </div>
                   </div>
@@ -1779,6 +1825,8 @@ const FormulaAssignment = () => {
                           <tr>
                             <th>Product ID</th>
                             <th>Product Name</th>
+                            <th>Active Formulas</th>
+                            <th>Batch Size</th>
                             <th>PI</th>
                             <th>PS</th>
                             <th>KP</th>
@@ -1786,20 +1834,34 @@ const FormulaAssignment = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {importData.slice(0, 10).map((row, index) => (
-                            <tr key={index}>
-                              <td>{row.Product_ID}</td>
-                              <td>{row.Product_Name}</td>
-                              <td>{row.PI === '-' ? '(unassigned)' : row.PI === '' ? '(empty)' : row.PI}</td>
-                              <td>{row.PS === '-' ? '(unassigned)' : row.PS === '' ? '(empty)' : row.PS}</td>
-                              <td>{row.KP === '-' ? '(unassigned)' : row.KP === '' ? '(empty)' : row.KP}</td>
-                              <td>{row.KS === '-' ? '(unassigned)' : row.KS === '' ? '(empty)' : row.KS}</td>
-                            </tr>
-                          ))}
+                          {importData.slice(0, 10).map((product, index) => {
+                            const assignments = { PI: null, PS: null, KP: null, KS: null };
+                            let batchSize = 0;
+                            
+                            product.formulas.forEach(formula => {
+                              if (assignments.hasOwnProperty(formula.TypeCode)) {
+                                assignments[formula.TypeCode] = formula.PPI_SubID || '';
+                                if (formula.BatchSize > 0) batchSize = formula.BatchSize;
+                              }
+                            });
+                            
+                            return (
+                              <tr key={index}>
+                                <td>{product.Product_ID}</td>
+                                <td>{product.Product_Name}</td>
+                                <td>{product.formulas.length} formulas</td>
+                                <td>{batchSize}</td>
+                                <td>{assignments.PI === null ? '(unassigned)' : assignments.PI === '' ? '(empty)' : assignments.PI}</td>
+                                <td>{assignments.PS === null ? '(unassigned)' : assignments.PS === '' ? '(empty)' : assignments.PS}</td>
+                                <td>{assignments.KP === null ? '(unassigned)' : assignments.KP === '' ? '(empty)' : assignments.KP}</td>
+                                <td>{assignments.KS === null ? '(unassigned)' : assignments.KS === '' ? '(empty)' : assignments.KS}</td>
+                              </tr>
+                            );
+                          })}
                           {importData.length > 10 && (
                             <tr>
-                              <td colSpan="6" className="preview-more">
-                                ... and {importData.length - 10} more rows
+                              <td colSpan="8" className="preview-more">
+                                ... and {importData.length - 10} more products
                               </td>
                             </tr>
                           )}
