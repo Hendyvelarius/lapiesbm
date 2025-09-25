@@ -269,6 +269,7 @@ const Generik2Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
             <th>MH Kemas Std</th>
             <th>Direct Labor</th>
             <th>Factory Over Head 50</th>
+            <th>Depresiasi</th>
             <th>Expiry Cost</th>
             <th>Group Rendemen</th>
             <th>Batch Size</th>
@@ -286,6 +287,7 @@ const Generik2Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
               <td>{formatNumber(item.MH_Kemas_Std)}</td>
               <td>{formatCurrency(item.Direct_Labor)}</td>
               <td>{formatCurrency(item.Factory_Over_Head_50)}</td>
+              <td>{formatCurrency(item.Depresiasi)}</td>
               <td>{formatCurrency(item.Beban_Sisa_Bahan_Exp)}</td>
               <td>{formatNumber(item.Group_Rendemen)}%</td>
               <td>{formatNumber(item.Batch_Size)}</td>

@@ -83,7 +83,7 @@ npm run dev  # Vite dev server
 ### Environment Configuration
 - Backend uses `.env` for SQL Server connection
 - Frontend uses `VITE_API_BASE_URL` environment variable
-- Default API base: `http://localhost:3100/api`
+- Default API base: `http://localhost:3001/api`
 
 ## Component Patterns
 

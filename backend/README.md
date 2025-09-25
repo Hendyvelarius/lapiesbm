@@ -36,7 +36,7 @@ npm run dev
 npm start
 ```
 
-The server will start on `http://localhost:3100`
+The server will start on `http://localhost:3001`
 
 ## 📁 Project Structure
 
@@ -133,7 +133,7 @@ See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for detailed API documentatio
 ### Environment Variables
 Make sure to set these in production:
 - `NODE_ENV=production`
-- `PORT=3100`
+- `PORT=3001`
 - SQL Server database credentials
 - `SESSION_SECRET` for sessions
 

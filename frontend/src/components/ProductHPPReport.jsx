@@ -206,8 +206,9 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                           ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) +
                           ((product.MH_Proses_Std || 0) * (product.Factory_Over_Head_50 || 0)) +
                           ((product.MH_Kemas_Std || 0) * (product.Factory_Over_Head_50 || 0)) +
+                          ((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) +
+                          ((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0)) +
                           (product.Beban_Sisa_Bahan_Exp || 0);
-                          // Note: Depreciation (Depresiasi) removed as it's no longer used for Generic Type 2
     }
 
     totalOverheadPerPack = totalOverheadCost / batchSizeActual;
@@ -693,7 +694,46 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
         });
         yPosition = doc.lastAutoTable.finalY + 15;
 
-        // Note: Depreciation section removed for Generic Type 2 as it's no longer used
+        // Depresiasi Section
+        checkPageBreak(30);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Depresiasi', 20, yPosition);
+        yPosition += 10;
+
+        const depresiasiData = [
+          ['Line Production', '', '', '', '', '', ''],
+          ['1 PENGOLAHAN', 'DEPRESIASI MESIN PROSES', formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Depresiasi || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) / batchSizeActual)],
+          ['2 PENGEMASAN', 'DEPRESIASI MESIN KEMAS', formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Depresiasi || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0)) / batchSizeActual)],
+          ['Total Hours: ' + formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0)), 'Total Cost', '', '', '', formatNumber(((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) + ((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0))), formatNumber((((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) + ((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0))) / batchSizeActual)]
+        ];
+
+        autoTable(doc, {
+          startY: yPosition,
+          head: [['Resource Scheduling', 'Nama Material', 'Qty', 'Mhrs/machine hours', 'Cost/unit', 'Extended Cost', 'Per pack']],
+          body: depresiasiData,
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
+          columnStyles: {
+            0: { cellWidth: 35 },
+            1: { cellWidth: 40 },
+            2: { halign: 'right', cellWidth: 15 },
+            3: { halign: 'center', cellWidth: 15 },
+            4: { halign: 'right', cellWidth: 20 },
+            5: { halign: 'right', cellWidth: 25 },
+            6: { halign: 'right', cellWidth: 20 }
+          },
+          didParseCell: function(data) {
+            if (data.row.index === 0) {
+              data.cell.styles.fontStyle = 'italic';
+              data.cell.styles.fillColor = [245, 245, 245];
+            } else if (data.row.index === depresiasiData.length - 1) {
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.fillColor = [248, 248, 248];
+            }
+          }
+        });
+        yPosition = doc.lastAutoTable.finalY + 15;
       }
 
       // Final Total Section
@@ -1207,7 +1247,56 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                   </table>
                   </div>
 
-                  {/* Note: Depreciation section removed for Generic Type 2 as it's no longer used */}
+                  {/* Depresiasi Section */}
+                  <div className="material-section">
+                    <div className="section-title">
+                      <h4>Depresiasi</h4>
+                    </div>
+                    <table className="excel-table">
+                      <thead>
+                        <tr>
+                          <th>Resource Scheduling</th>
+                          <th>Nama Material</th>
+                          <th>Qty</th>
+                          <th>Mhrs/machine hours</th>
+                          <th>Cost/unit</th>
+                          <th>Extended Cost</th>
+                          <th>Per pack</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                      <tr className="subsection-header">
+                        <td colSpan="7"><em>Line Production</em></td>
+                      </tr>
+                      <tr>
+                        <td>1 PENGOLAHAN</td>
+                        <td>DEPRESIASI MESIN PROSES</td>
+                        <td className="number">{formatNumber(product.MH_Proses_Std || 0)}</td>
+                        <td>HRS</td>
+                        <td className="number">{formatNumber(product.Depresiasi || 0)}</td>
+                        <td className="number">{formatNumber((product.MH_Proses_Std || 0) * (product.Depresiasi || 0))}</td>
+                        <td className="number">{formatNumber(((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) / batchSizeActual)}</td>
+                      </tr>
+                      <tr>
+                        <td>2 PENGEMASAN</td>
+                        <td>DEPRESIASI MESIN KEMAS</td>
+                        <td className="number">{formatNumber(product.MH_Kemas_Std || 0)}</td>
+                        <td>HRS</td>
+                        <td className="number">{formatNumber(product.Depresiasi || 0)}</td>
+                        <td className="number">{formatNumber((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0))}</td>
+                        <td className="number">{formatNumber(((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0)) / batchSizeActual)}</td>
+                      </tr>
+                      <tr className="total-row">
+                        <td colSpan="2"><strong>Total Hours</strong></td>
+                        <td className="number"><strong>{formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0))}</strong></td>
+                        <td><strong>Total Cost</strong></td>
+                        <td></td>
+                        <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) + ((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0)))}</strong></td>
+                        <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Depresiasi || 0)) + ((product.MH_Kemas_Std || 0) * (product.Depresiasi || 0))) / batchSizeActual)}</strong></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  </div>
                 </div>
               )}
 

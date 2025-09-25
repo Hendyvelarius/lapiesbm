@@ -5,7 +5,7 @@ import { CheckCircle, Calculator, Eye, AlertTriangle, Clock, ChevronRight } from
 import ValidationModal from '../components/ValidationModal';
 
 // API base configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3100/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 // Generic API request function
 const apiCall = async (endpoint, method = 'GET', data = null) => {
