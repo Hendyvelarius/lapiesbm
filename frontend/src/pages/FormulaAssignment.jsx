@@ -267,7 +267,7 @@ const FormulaAssignment = () => {
     setProductFormulas({ PI: [], PS: [], KP: [], KS: [] });
     setSearchTerm('');
     setFilteredProducts([]);
-    setShowProductDropdown(false);
+    // Don't set dropdown to false initially, let the focus event handle it
     setShowAddModal(true);
   };
 
@@ -1190,7 +1190,7 @@ const FormulaAssignment = () => {
             <tbody>
               {filteredChosenFormulas.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="no-data">
+                  <td colSpan="8" className="no-data">
                     {tableSearchTerm.trim() 
                       ? `No formula assignments found matching "${tableSearchTerm}".`
                       : "No formula assignments found. Click \"Add New Assignment\" to get started."
@@ -1286,9 +1286,23 @@ const FormulaAssignment = () => {
                     className="search-input"
                     disabled={productList.length - chosenFormulas.length === 0}
                   />
+
                   {/* Show search results when dropdown is open */}
                   {showProductDropdown && (
-                    <div className="search-results">
+                    <div className="search-results" style={{ 
+                      position: 'absolute',
+                      top: '100%',
+                      left: '0',
+                      right: '0',
+                      background: 'white',
+                      border: '1px solid #e9ecef',
+                      borderTop: 'none',
+                      borderRadius: '0 0 6px 6px',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      zIndex: 1000,
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}>
                       {filteredProducts.length === 0 && searchTerm.trim() ? (
                         <div className="search-result-item no-results">
                           <span>No available products found matching "{searchTerm}"</span>
