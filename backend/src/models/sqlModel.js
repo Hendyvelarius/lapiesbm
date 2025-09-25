@@ -931,19 +931,25 @@ async function getMaterialUsage() {
     const db = await connect();
     const query = `
       SELECT 
-        d.product_id,
-        d.item_type,
-        d.PPI_ItemID,
-        m.Item_Name,
-        d.PPI_QTY,
-        d.PPI_UnitID,
-        ROUND(d.total / d.ppi_qty, 3) AS Item_unit,
-        d.total
-      FROM t_COGS_HPP_Product_Detail_Formula d
-      INNER JOIN m_item_Manufacturing m 
-        ON d.PPI_ItemID = m.Item_ID
-      ORDER BY d.product_id, d.ITEM_TYPE, d.PPI_ItemID
-    `;
+    d.product_id, d.item_type, d.PPI_ItemID, m.Item_Name, d.PPI_QTY, 
+    d.PPI_UnitID, ROUND(d.total * 1.0 / d.PPI_QTY, 3) AS Item_unit, d.total
+    FROM t_COGS_HPP_Product_Detail_Formula d
+LEFT JOIN (
+    SELECT DISTINCT 
+        CASE 
+            WHEN item_id LIKE '%.%' 
+            THEN LEFT(item_id, LEN(item_id) - 4) 
+            ELSE item_id 
+        END AS Item_ID,
+        item_name
+    FROM m_item_manufacturing
+    WHERE isActive = 1
+) m 
+    ON d.PPI_ItemID = m.Item_ID
+ORDER BY 
+    d.product_id, 
+    d.item_type, 
+    d.PPI_ItemID;`;
     const result = await db.request().query(query);
     return result.recordset;
   } catch (error) {
