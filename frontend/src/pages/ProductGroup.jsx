@@ -107,6 +107,8 @@ const ProductGroup = () => {
         periode: item.Periode,
         productId: item.Group_ProductID,
         productName: item.Product_Name,
+        lob: item.LOB,
+        jenisSediaan: item.Jenis_Sediaan,
         pnCategory: item.Group_PNCategory,
         pnCategoryName: item.Group_PNCategoryName,
         manHourPros: item.Group_ManHourPros,
@@ -405,13 +407,116 @@ const ProductGroup = () => {
 
   // Export functionality
   const handleExportAll = async () => {
+  try {
+    setSubmitLoading(true);
+
+    // Import xlsx library dynamically
+    const XLSX = await import('xlsx');
+
+    // Prepare data for Excel export with all group data (both Standard and Generik)
+    const excelData = groupData.map(item => ({
+      'Product ID': item.productId || '',
+      'Product Name': item.productName || '',
+      'LOB': item.lob || '',
+      'Sediaan': item.jenisSediaan || '',
+      'Category ID': item.pnCategory || '',
+      'Category Name': item.pnCategoryName || '',
+      'MH Process': parseFloat(item.manHourPros) || 0,
+      'MH Packing': parseFloat(item.manHourPack) || 0,
+      'Yield (%)': parseFloat(item.rendemen) || 0,
+      'Department': item.dept || '',
+      'MHT BB': parseFloat(item.mhtBB) || 0,
+      'MHT BK': parseFloat(item.mhtBK) || 0,
+      'MH Analisa': parseFloat(item.mhAnalisa) || 0,
+      'KWH Mesin': parseFloat(item.kwhMesin) || 0,
+      'Source': getSourceData(item)
+    }));
+
+    // Create a new workbook
+    const workbook = XLSX.utils.book_new();
+
+    // Create worksheet from data
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+    // Set column widths for better formatting
+    const columnWidths = [
+      { wch: 15 }, // Product ID
+      { wch: 40 }, // Product Name
+      { wch: 12 }, // LOB
+      { wch: 15 }, // Sediaan
+      { wch: 12 }, // Category ID
+      { wch: 20 }, // Category Name
+      { wch: 12 }, // MH Process
+      { wch: 12 }, // MH Packing
+      { wch: 10 }, // Yield (%)
+      { wch: 15 }, // Department
+      { wch: 12 }, // MHT BB
+      { wch: 12 }, // MHT BK
+      { wch: 12 }, // MH Analisa
+      { wch: 12 }, // KWH Mesin
+      { wch: 10 }, // Source
+    ];
+    worksheet['!cols'] = columnWidths;
+
+    // Apply header formatting
+    const headerCells = [
+      'A1','B1','C1','D1','E1','F1','G1','H1','I1','J1','K1','L1','M1','N1','O1'
+    ];
+    headerCells.forEach(cell => {
+      if (worksheet[cell]) {
+        worksheet[cell].s = {
+          font: { bold: true, color: { rgb: "FFFFFF" } },
+          fill: { fgColor: { rgb: "366092" } },
+          alignment: { horizontal: "center" }
+        };
+      }
+    });
+
+    // Apply number formatting to numeric columns (G-N)
+    const range = XLSX.utils.decode_range(worksheet['!ref']);
+    for (let row = range.s.r + 1; row <= range.e.r; row++) {
+      ['G','H','I','K','L','M','N'].forEach(col => {
+        const cellAddress = col + (row + 1);
+        if (worksheet[cellAddress]) {
+          worksheet[cellAddress].s = {
+            numFmt: "0.00",
+            alignment: { horizontal: "right" }
+          };
+        }
+      });
+    }
+
+    // Add the worksheet to workbook
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'All Product Groups');
+
+    // Generate filename with current date
+    const fileName = `ProductGroup_AllData_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    // Write and download the file
+    XLSX.writeFile(workbook, fileName);
+
+    // Show success notification
+    notifier.success(`Excel file exported successfully: ${fileName}`, {
+      durations: { success: 3000 }
+    });
+
+  } catch (error) {
+    console.error('Error exporting data:', error);
+    setError('Failed to export data. Please try again.');
+  } finally {
+    setSubmitLoading(false);
+  }
+};
+  /*const handleExportAll = async () => {
     try {
       setSubmitLoading(true);
       
       // Create CSV content from all group data (both Standard and Generik)
       const csvHeaders = [
         'Product ID',
-        'Product Name', 
+        'Product Name',
+        'LOB',
+        'Sediaan',
         'Category ID',
         'Category Name',
         'MH Process',
@@ -428,6 +533,8 @@ const ProductGroup = () => {
       const csvRows = groupData.map(item => [
         item.productId || '',
         item.productName || '',
+        item.lob || '',
+        item.jenisSediaan || '',
         item.pnCategory || '',
         item.pnCategoryName || '',
         item.manHourPros || 0,
@@ -468,7 +575,7 @@ const ProductGroup = () => {
     } finally {
       setSubmitLoading(false);
     }
-  };
+  };*/
 
   // Export Generik functionality - exports Generik products in Excel format with proper formatting
   const handleExportGenerik = async () => {

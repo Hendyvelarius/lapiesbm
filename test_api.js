@@ -12,7 +12,7 @@ async function testAffectedProducts() {
 
     console.log('Request data:', testData);
     
-    const response = await axios.post('http://localhost:3001/api/hpp/price-change-affected-products', testData, {
+    const response = await axios.post('http://localhost:3100/api/hpp/price-change-affected-products', testData, {
       headers: {
         'Content-Type': 'application/json'
       }
