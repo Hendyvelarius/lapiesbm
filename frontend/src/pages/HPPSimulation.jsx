@@ -2822,7 +2822,7 @@ export default function HPPSimulation() {
                 onClick={() => handleSimulationTypeSelect("custom")}
               >
                 <div className="option-icon">⚙️</div>
-                <h3>Custom Formula</h3>
+                <h3>New Product</h3>
                 <p>
                   Create a custom simulation with your own formula parameters
                   and ingredient specifications.

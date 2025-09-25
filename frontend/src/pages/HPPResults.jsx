@@ -493,7 +493,7 @@ const HPPResults = () => {
         const ethicalWS = XLSX.utils.json_to_sheet(hppData.ethical, { 
           header: ethicalColumns 
         });
-        XLSX.utils.book_append_sheet(workbook, ethicalWS, 'Ethical / OTC');
+        XLSX.utils.book_append_sheet(workbook, ethicalWS, 'Ethical OTC');
       }
       
       if (hppData.generik1 && hppData.generik1.length > 0) {
