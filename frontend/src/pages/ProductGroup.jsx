@@ -599,6 +599,12 @@ const ProductGroup = () => {
         'Product Name': item.productName || '',
         'Category ID': item.pnCategory || '',
         'Category Name': item.pnCategoryName || '',
+
+        'MH Process': parseFloat(item.manHourPros) || 0,
+        'MH Packing': parseFloat(item.manHourPack) || 0,
+        'Yield (%)': parseFloat(item.rendemen) || 0,
+        'Department': item.dept || '',
+        
         'MHT BB': parseFloat(item.mhtBB) || 0,
         'MHT BK': parseFloat(item.mhtBK) || 0,
         'MH Analisa': parseFloat(item.mhAnalisa) || 0,
@@ -617,6 +623,10 @@ const ProductGroup = () => {
         { wch: 40 }, // Product Name
         { wch: 12 }, // Category ID
         { wch: 20 }, // Category Name
+        { wch: 12 }, // MH Process
+        { wch: 12 }, // MH Packing
+        { wch: 10 }, // Yield (%)
+        { wch: 15 }, // Department  
         { wch: 12 }, // MHT BB
         { wch: 12 }, // MHT BK
         { wch: 12 }, // MH Analisa
@@ -625,7 +635,7 @@ const ProductGroup = () => {
       worksheet['!cols'] = columnWidths;
       
       // Apply header formatting
-      const headerCells = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1'];
+      const headerCells = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1', 'L1'];
       headerCells.forEach(cell => {
         if (worksheet[cell]) {
           worksheet[cell].s = {
@@ -639,7 +649,7 @@ const ProductGroup = () => {
       // Apply number formatting to numeric columns (E-H)
       const range = XLSX.utils.decode_range(worksheet['!ref']);
       for (let row = range.s.r + 1; row <= range.e.r; row++) {
-        ['E', 'F', 'G', 'H'].forEach(col => {
+        ['E', 'F', 'G', 'I', 'J', 'K', 'L'].forEach(col => {
           const cellAddress = col + (row + 1);
           if (worksheet[cellAddress]) {
             worksheet[cellAddress].s = {
