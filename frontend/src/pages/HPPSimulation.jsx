@@ -198,6 +198,11 @@ export default function HPPSimulation() {
   const [customFormulaName, setCustomFormulaName] = useState("");
   const [customLine, setCustomLine] = useState("PN1"); // Default to PN1
 
+  // Group selection state
+  const [selectedGroup, setSelectedGroup] = useState("");
+  const [groupsData, setGroupsData] = useState([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+
   // Material master data for adding new materials
   const [masterMaterials, setMasterMaterials] = useState([]);
   const [loadingMaterials, setLoadingMaterials] = useState(false);
@@ -206,9 +211,10 @@ export default function HPPSimulation() {
   const [materialSearchQuery, setMaterialSearchQuery] = useState("");
   const [randomMaterialSample, setRandomMaterialSample] = useState([]); // Stable random sample
 
-  // Load simulation list on component mount
+  // Load simulation list and groups data on component mount
   useEffect(() => {
     loadSimulationList();
+    loadGroupsData();
   }, []);
 
   // Generate random sample when materials are loaded and modal type is set
@@ -217,6 +223,13 @@ export default function HPPSimulation() {
       generateRandomSample(addMaterialType);
     }
   }, [masterMaterials, addMaterialType, showAddMaterialModal]);
+
+  // Auto-update overhead costs when group, LOB, or version changes
+  useEffect(() => {
+    if (selectedGroup && isCustomFormula) {
+      updateOverheadFromGroup(selectedGroup);
+    }
+  }, [editableLOB, editableVersion, selectedGroup, isCustomFormula, groupsData]);
 
   // Sorting function
   const sortSimulations = (simulations, field, direction) => {
@@ -586,6 +599,63 @@ export default function HPPSimulation() {
     } finally {
       setLoadingList(false);
     }
+  };
+
+  // Load groups data for group selection
+  const loadGroupsData = async () => {
+    try {
+      setLoadingGroups(true);
+      const response = await masterAPI.getPembebanan();
+      const data = response.data || response;
+      
+      // Filter data where Group_ProductID is null (default rates)
+      const defaultGroups = data.filter(item => item.Group_ProductID === null);
+      setGroupsData(defaultGroups);
+      
+      console.log("Loaded pembebanan data:", defaultGroups.length, "groups");
+    } catch (error) {
+      console.error("Error loading pembebanan data:", error);
+    } finally {
+      setLoadingGroups(false);
+    }
+  };
+
+  // Handle group selection and update overhead costs
+  const handleGroupSelection = (groupId) => {
+    setSelectedGroup(groupId);
+    if (groupId) {
+      updateOverheadFromGroup(groupId);
+    }
+  };
+
+  // Update overhead costs based on selected group and current LOB/Version
+  const updateOverheadFromGroup = (groupId) => {
+    if (!groupId) return;
+    
+    const selectedGroupData = groupsData.find(g => g.Group_PNCategoryID === groupId);
+    if (!selectedGroupData) return;
+    
+    const currentLOB = getCurrentLOB();
+    const currentVersion = editableVersion || simulationResults?.[0]?.Versi || "1";
+    
+    // Update overhead costs based on LOB type
+    if (currentLOB === "ETHICAL" || currentLOB === "OTC") {
+      // For ETHICAL: use Group_Proses_Rate and Group_Kemas_Rate
+      setEditableOverheadData(prev => ({
+        ...prev,
+        Biaya_Proses: selectedGroupData.Group_Proses_Rate,
+        Biaya_Kemas: selectedGroupData.Group_Kemas_Rate,
+      }));
+    } else if (currentLOB === "GENERIC" && currentVersion === "1") {
+      // For GENERIC V1: use Group_Generik_Rate and Group_Analisa_Rate
+      setEditableOverheadData(prev => ({
+        ...prev,
+        Biaya_Generik: selectedGroupData.Group_Generik_Rate,
+        Biaya_Reagen: selectedGroupData.Group_Analisa_Rate,
+      }));
+    }
+    
+    console.log("Updated overhead costs for group:", selectedGroupData.Group_PNCategory_Name);
   };
 
   // Delete simulation
@@ -3270,6 +3340,34 @@ export default function HPPSimulation() {
                         >
                           <option value="PN1">PN1</option>
                           <option value="PN2">PN2</option>
+                        </select>
+                      </div>
+                      <div className="custom-input-item">
+                        <label className="custom-input-label">
+                          Group:
+                        </label>
+                        <select
+                          value={selectedGroup}
+                          onChange={(e) => handleGroupSelection(e.target.value)}
+                          className="custom-select-field"
+                          disabled={loadingGroups}
+                        >
+                          <option value="">
+                            {loadingGroups ? "Loading groups..." : "-- Select Group --"}
+                          </option>
+                          {groupsData.map((group) => (
+                            <option 
+                              key={group.Group_PNCategoryID} 
+                              value={group.Group_PNCategoryID}
+                              title={group.Group_PNCategory_Name} // Tooltip for long names
+                            >
+                              {group.Group_PNCategoryID}. {
+                                group.Group_PNCategory_Name.length > 60 
+                                  ? `${group.Group_PNCategory_Name.substring(0, 60)}...`
+                                  : group.Group_PNCategory_Name
+                              }
+                            </option>
+                          ))}
                         </select>
                       </div>
                     </div>
