@@ -62,7 +62,7 @@ export default function GenerateHPP() {
     {
       number: 2,
       title: 'HPP Calculation',
-      description: 'Execute stored procedure to calculate Cost of Goods Sold (HPP) for all products',
+      description: 'Execute stored procedure to calculate Harga Pokok Produksi (HPP) for all products',
       icon: Calculator,
       action: 'Calculate',
       status: stepStatus.calculation

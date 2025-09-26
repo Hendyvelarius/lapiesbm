@@ -233,7 +233,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
       
       // Header section
       XLSX.utils.sheet_add_aoa(ws, [
-        ['Perhitungan Estimasi COGS', '', '', '', '', '', 'Site :', '', product?.Group_PNCategory_Dept || 'N/A'],
+        ['Perhitungan Estimasi HPP', '', '', '', '', '', 'Site :', '', product?.Group_PNCategory_Dept || 'N/A'],
         ['', '', '', '', '', '', '', '', ''],
         ['', '', '', '', '', '', '', '', ''],
         [`Kode Produk - Description`, ':', `${product.Product_ID} - ${product.Product_Name}`, '', 'LOB', ':', formatLOB(product)],
@@ -340,7 +340,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
       // Final total
       XLSX.utils.sheet_add_aoa(ws, [
         ['', '', '', '', '', '', ''],
-        ['Total COGS Estimasi', '', '', '', 'Total HPP', formatNumber(totalBB + totalBK + totalOverheadCost), formatNumber(totalHPPPerPack)]
+        ['Total HPP Estimasi', '', '', '', 'Total HPP', formatNumber(totalBB + totalBK + totalOverheadCost), formatNumber(totalHPPPerPack)]
       ], { origin: `A${currentRow}` });
 
       // Apply some basic formatting
@@ -389,7 +389,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
       // Document Header
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('Perhitungan Estimasi COGS', 20, yPosition);
+      doc.text('Perhitungan Estimasi HPP', 20, yPosition);
       doc.text('Site: ' + (product?.Group_PNCategory_Dept || 'N/A'), pageWidth - 50, yPosition);
       yPosition += 15;
 
@@ -745,7 +745,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
       
       autoTable(doc, {
         startY: yPosition,
-        head: [['Total COGS Estimasi', '', '', '', 'Total HPP', 'Extended Cost', 'Per Pack']],
+        head: [['Total HPP Estimasi', '', '', '', 'Total HPP', 'Extended Cost', 'Per Pack']],
         body: [['', '', '', '', '', formatNumber(finalTotal), formatNumber(totalHPPPerPack)]],
         styles: { fontSize: 10, cellPadding: 3 },
         headStyles: { fillColor: [255, 235, 156], textColor: [0, 0, 0], fontStyle: 'bold' },
@@ -822,7 +822,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
               <div className="document-header">
                 <div className="header-row">
                   <div className="header-left">
-                    <h3>Perhitungan Estimasi COGS</h3>
+                    <h3>Perhitungan Estimasi HPP</h3>
                   </div>
                   <div className="header-right">
                     <div className="header-info">
@@ -1305,7 +1305,7 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                 <table className="excel-table">
                   <tbody>
                     <tr className="final-total">
-                      <td><strong>Total COGS Estimasi</strong></td>
+                      <td><strong>Total HPP Estimasi</strong></td>
                       <td colSpan="3"></td>
                       <td><strong>Total HPP</strong></td>
                       <td className="number final"><strong>{formatNumber(totalBB + totalBK + totalOverheadCost)}</strong></td>

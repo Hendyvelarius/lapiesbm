@@ -209,11 +209,11 @@ const ProductFormula = () => {
     const isDefaultCOGS = formulaData.defaultCOGS === 'Aktif';
     
     if (isDefault && isDefaultCOGS) {
-      return <span className="default-badge lms-cogs-badge">LMS/COGS</span>;
+      return <span className="default-badge lms-cogs-badge">LMS/HPP</span>;
     } else if (isDefault) {
       return <span className="default-badge lms-badge">LMS</span>;
     } else if (isDefaultCOGS) {
-      return <span className="default-badge cogs-badge">COGS</span>;
+      return <span className="default-badge cogs-badge">HPP</span>;
     } else {
       return 'No';
     }

@@ -1686,7 +1686,7 @@ const FormulaAssignment = () => {
                             <th>Product_ID ✓</th>
                             <th>Product_Name ✓</th>
                             <th>BatchSize ✓</th>
-                            <th>COGS ✓</th>
+                            <th>HPP Status ✓</th>
                             <th>ppi_owner</th>
                             <th>TypeName</th>
                             <th>Total</th>
@@ -1718,7 +1718,7 @@ const FormulaAssignment = () => {
                       <h5>Import Process:</h5>
                       <ul>
                         <li>All rows are <strong>grouped by Product_ID</strong></li>
-                        <li>Only formulas with <strong>COGS = "aktif"</strong> (case insensitive) are imported</li>
+                        <li>Only formulas with <strong>HPP Status = "aktif"</strong> (case insensitive) are imported</li>
                         <li><strong>TypeCode</strong> must be one of: PI, PS, KP, KS</li>
                         <li>Each product can have <strong>only one active formula per TypeCode</strong></li>
                         <li>All active formulas for a product must have the <strong>same BatchSize</strong></li>

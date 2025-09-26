@@ -2416,7 +2416,7 @@ export default function HPPSimulation() {
       <div className="hpp-simulation-header">
         <h1>HPP Simulation</h1>
         <p>
-          Guided step-by-step process to simulate Cost of Goods Sold (COGS) for
+          Guided step-by-step process to simulate Harga Pokok Produksi (HPP) for
           products
         </p>
       </div>
@@ -2825,7 +2825,7 @@ export default function HPPSimulation() {
                 <div className="option-icon">📋</div>
                 <h3>Existing Formula</h3>
                 <p>
-                  Simulate COGS using an existing product formula that has
+                  Simulate HPP using an existing product formula that has
                   already been configured in the system.
                 </p>
                 <div className="option-features">
@@ -4507,7 +4507,7 @@ export default function HPPSimulation() {
                 <div className="document-header">
                   <div className="header-row">
                     <div className="header-left">
-                      <h3>Perhitungan Estimasi COGS</h3>
+                      <h3>Perhitungan Estimasi HPP</h3>
                     </div>
                     <div className="header-right">
                       <div className="header-info">
@@ -5451,7 +5451,7 @@ export default function HPPSimulation() {
                     <tbody>
                       <tr className="final-total">
                         <td>
-                          <strong>Total COGS Estimasi</strong>
+                          <strong>Total HPP Estimasi</strong>
                         </td>
                         <td colSpan="2"></td>
                         <td>
