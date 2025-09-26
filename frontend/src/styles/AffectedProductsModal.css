@@ -25,15 +25,15 @@
   overflow: hidden;
 }
 
-/* Modal Header */
-.modal-header {
+/* Modal Header - Use more specific selector to override other modal styles */
+.affected-products-modal .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 24px 32px;
   border-bottom: 1px solid #e5e7eb;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important;
+  color: white !important;
 }
 
 .modal-header h2 {

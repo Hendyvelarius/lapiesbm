@@ -901,6 +901,15 @@ export default function HPPSimulation() {
 
       console.log("Simulation result:", result);
 
+      // Create description for the price change group based on materials changed
+      const materialNames = selectedMaterials.map(m => m.ITEM_ID).sort();
+      const priceChangeDescription = materialNames.length <= 3 
+        ? `Price Changes : ${materialNames.join('; ')}`
+        : `Price Changes : ${materialNames.slice(0, 2).join('; ')}; +${materialNames.length - 2} more`;
+
+      // Use current date/time for the price change group
+      const currentDateTime = new Date().toISOString();
+
       // Show success message
       notifier.success("Price change simulation generated successfully!");
 
@@ -912,6 +921,13 @@ export default function HPPSimulation() {
       
       // Refresh the simulation list to show new simulations
       await loadSimulationList();
+
+      // Automatically show the affected products modal for the newly created price change
+      setTimeout(() => {
+        setSelectedPriceChangeDescription(priceChangeDescription);
+        setSelectedPriceChangeDate(currentDateTime);
+        setAffectedProductsModalOpen(true);
+      }, 500); // Small delay to ensure the simulation list is refreshed first
     } catch (error) {
       console.error("Error generating simulation:", error);
       setError("Failed to generate simulation: " + error.message);
