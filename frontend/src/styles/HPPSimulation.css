@@ -1891,8 +1891,8 @@
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   border: 1px solid #e5e7eb;
-  max-width: 100%;
-  /* Allow natural expansion based on content - no height constraints */
+  width: 100%;
+  /* Fixed container width to prevent expansion */
   overflow-x: auto; /* Enable horizontal scrolling if needed for wide tables */
   /* Custom scrollbar styling */
   scrollbar-width: thin;
@@ -1905,10 +1905,10 @@
 
 .simulation-list-table {
   width: 100%;
-  min-width: 800px; /* Ensure minimum width for proper column display */
+  min-width: 930px; /* Reduced minimum width to fit better in viewport */
   border-collapse: collapse;
   font-size: 14px;
-  table-layout: auto; /* Auto table layout to allow natural expansion */
+  table-layout: fixed; /* Fixed table layout to prevent expansion based on content */
 }
 
 .simulation-list-table th {
@@ -1926,31 +1926,31 @@
   white-space: nowrap;
 }
 
-/* Flexible column widths for auto table layout */
+/* Fixed column widths for consistent table layout */
 .simulation-list-table th:nth-child(1) {
-  min-width: 60px;
+  width: 50px;
 } /* ID */
 .simulation-list-table th:nth-child(2) {
-  min-width: 80px;
+  width: 80px;
 } /* Type */
 .simulation-list-table th:nth-child(3) {
-  min-width: 90px;
+  width: 80px;
 } /* Product ID */
 .simulation-list-table th:nth-child(4) {
-  min-width: 150px;
+  width: 160px;
 } /* Product Name */
 .simulation-list-table th:nth-child(5) {
-  min-width: 100px;
+  width: 80px;
 } /* Formula */
 .simulation-list-table th:nth-child(6) {
-  min-width: 150px;
-} /* Description */
+  width: 180px;
+} /* Description - Slightly smaller to save space */
 .simulation-list-table th:nth-child(7) {
-  min-width: 80px;
+  width: 80px;
 } /* Date */
 .simulation-list-table th:nth-child(8) {
-  min-width: 100px;
-} /* Actions */
+  width: 220px;
+} /* Actions - Reduced width but still enough for group buttons */
 
 .simulation-list-table td {
   padding: 14px 12px;
@@ -1962,31 +1962,31 @@
   white-space: nowrap;
 }
 
-/* Apply flexible widths to table data cells */
+/* Apply matching fixed widths to table data cells */
 .simulation-list-table td:nth-child(1) {
-  min-width: 60px;
+  width: 50px;
 } /* ID */
 .simulation-list-table td:nth-child(2) {
-  min-width: 80px;
+  width: 80px;
 } /* Type */
 .simulation-list-table td:nth-child(3) {
-  min-width: 90px;
+  width: 80px;
 } /* Product ID */
 .simulation-list-table td:nth-child(4) {
-  min-width: 150px;
+  width: 160px;
 } /* Product Name */
 .simulation-list-table td:nth-child(5) {
-  min-width: 100px;
+  width: 80px;
 } /* Formula */
 .simulation-list-table td:nth-child(6) {
-  min-width: 150px;
-} /* Description */
+  width: 180px;
+} /* Description - Slightly smaller to save space */
 .simulation-list-table td:nth-child(7) {
-  min-width: 80px;
+  width: 80px;
 } /* Date */
 .simulation-list-table td:nth-child(8) {
-  min-width: 100px;
-} /* Actions */
+  width: 220px;
+} /* Actions - Reduced width but still enough for group buttons */
 
 /* Sortable header styles */
 .sortable-header {
@@ -2054,12 +2054,16 @@
 .description-cell {
   font-size: 13px;
   color: #6b7280;
-  max-width: 200px;
+  width: 180px !important;
+  max-width: 180px !important;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding: 4px 8px;
+  padding: 8px 12px;
   font-style: italic;
+  /* Ensure the cell maintains its width and doesn't expand */
+  word-break: break-word;
+  box-sizing: border-box;
 }
 
 .actions-cell {
@@ -3288,9 +3292,11 @@
   display: flex;
   align-items: center;
   width: 100%;
-  gap: 16px; /* Increased gap for better spacing */
+  gap: 12px; /* Optimized gap for better space distribution */
   min-width: 0; /* Allow flex items to shrink */
   overflow: hidden; /* Prevent overflow from breaking layout */
+  /* Ensure content fits in the available space */
+  box-sizing: border-box;
 }
 
 .group-toggle {
@@ -3313,6 +3319,7 @@
   flex: 1;
   min-width: 0; /* Allow flex child to shrink below content size */
   gap: 4px; /* Small gap between description and meta */
+  overflow: hidden; /* Ensure text doesn't break container layout */
 }
 
 .group-type {
@@ -3370,21 +3377,23 @@
 .group-actions {
   display: flex;
   align-items: center;
-  gap: 8px; /* Space between the two buttons */
+  gap: 4px; /* Tighter space between buttons to fit better */
   flex-shrink: 0; /* Never shrink the action buttons */
   margin-left: auto; /* Push to the right */
+  min-width: 200px; /* Reduced minimum width to fit in available space */
+  justify-content: flex-end; /* Align buttons to the right */
 }
 
 .affected-products-btn {
   display: flex;
   align-items: center;
-  gap: 4px; /* Reduced gap */
+  gap: 3px; /* Even smaller gap */
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
   border: none;
-  border-radius: 6px; /* Smaller border radius */
-  padding: 6px 10px; /* More compact padding */
-  font-size: 0.8rem; /* Smaller font size */
+  border-radius: 4px; /* Smaller border radius */
+  padding: 5px 8px; /* More compact padding */
+  font-size: 0.75rem; /* Smaller font size */
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
