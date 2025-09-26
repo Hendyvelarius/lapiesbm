@@ -3810,6 +3810,175 @@ html {
   100% { transform: rotate(360deg); }
 }
 
+/* Selected Materials Section Styles */
+.selected-materials-section {
+  background: #f0fdf4;
+  border: 2px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.selected-materials-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #bbf7d0;
+  padding-bottom: 12px;
+}
+
+.selected-materials-header h4 {
+  color: #059669;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.clear-all-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-all-btn:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.selected-materials-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.selected-material-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: white;
+  border: 1px solid #d1fae5;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.selected-material-item:hover {
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
+}
+
+.selected-material-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.selected-material-name {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.selected-material-details {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.selected-material-original-price {
+  font-size: 13px;
+  color: #059669;
+  font-weight: 500;
+}
+
+.selected-material-price-input {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 200px;
+}
+
+.selected-material-price-input label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.selected-material-price-input .price-input {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.selected-material-price-input .price-input:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.selected-material-price-input .price-change-indicator {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.selected-material-price-input .price-change-indicator.increase {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.selected-material-price-input .price-change-indicator.decrease {
+  background: #f0fdf4;
+  color: #059669;
+  border: 1px solid #bbf7d0;
+}
+
+.selected-material-actions {
+  flex-shrink: 0;
+}
+
+.remove-material-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.remove-material-btn:hover {
+  background: #dc2626;
+  transform: scale(1.1);
+}
+
+/* Selected indicator for items in the main list */
+.selected-indicator {
+  color: #059669;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* Mobile responsiveness for bulk delete modal */
 @media (max-width: 768px) {
   .bulk-delete-modal {
@@ -3832,5 +4001,22 @@ html {
   .bulk-delete-modal .cancel-btn,
   .bulk-delete-modal .confirm-delete-btn {
     width: 100%; /* Full width buttons on mobile */
+  }
+
+  /* Mobile responsive for selected materials */
+  .selected-material-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .selected-material-price-input {
+    min-width: auto;
+  }
+
+  .selected-materials-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
   }
 }

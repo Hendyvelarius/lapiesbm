@@ -904,10 +904,14 @@ export default function HPPSimulation() {
       // Show success message
       notifier.success("Price change simulation generated successfully!");
 
-      // Reset the form
+      // Reset the form and go back to main simulations table
       setSelectedMaterials([]);
       setSelectedMaterialPrices({});
       setPriceChangeStep(1);
+      setStep(0); // Go back to main simulations list
+      
+      // Refresh the simulation list to show new simulations
+      await loadSimulationList();
     } catch (error) {
       console.error("Error generating simulation:", error);
       setError("Failed to generate simulation: " + error.message);
@@ -5609,6 +5613,68 @@ export default function HPPSimulation() {
                   <h3>Select Materials for Price Change</h3>
                 </div>
 
+                {/* Selected Materials Section */}
+                {selectedMaterials.length > 0 && (
+                  <div className="selected-materials-section">
+                    <div className="selected-materials-header">
+                      <h4>Selected Materials ({selectedMaterials.length})</h4>
+                      <button
+                        className="clear-all-btn"
+                        onClick={() => setSelectedMaterials([])}
+                        title="Clear all selected materials"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                    <div className="selected-materials-list">
+                      {selectedMaterials.map((material) => (
+                        <div key={material.ITEM_ID} className="selected-material-item">
+                          <div className="selected-material-info">
+                            <div className="selected-material-name">
+                              {material.ITEM_NAME}
+                            </div>
+                            <div className="selected-material-details">
+                              Code: {material.ITEM_ID} | Type: {material.ITEM_TYP} | Unit: {material.UNIT}
+                            </div>
+                            <div className="selected-material-original-price">
+                              Original: {formatPriceWithCurrency(material.originalPrice, material.CURRENCY)} per {material.UNIT}
+                            </div>
+                          </div>
+                          <div className="selected-material-price-input">
+                            <label>New Price ({material.CURRENCY}):</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={material.newPrice || ""}
+                              onChange={(e) => handlePriceChange(material.ITEM_ID, e.target.value)}
+                              placeholder={`Enter new price`}
+                              className="price-input"
+                            />
+                            {material.priceChangePercent !== 0 && (
+                              <div className={`price-change-indicator ${material.priceChange > 0 ? "increase" : "decrease"}`}>
+                                {material.priceChange > 0 ? "+" : ""}
+                                {material.priceChangePercent?.toFixed(2)}%
+                                <span className="price-change-amount">
+                                  ({formatPriceWithCurrency(material.priceChange, material.CURRENCY)})
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="selected-material-actions">
+                            <button
+                              className="remove-material-btn"
+                              onClick={() => handleMaterialSelection(material, false)}
+                              title="Remove this material"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="material-search-section">
                   <div className="search-controls">
                     <input
@@ -5647,9 +5713,6 @@ export default function HPPSimulation() {
                         const isSelected = selectedMaterials.some(
                           (m) => m.ITEM_ID === material.ITEM_ID
                         );
-                        const selectedMaterial = selectedMaterials.find(
-                          (m) => m.ITEM_ID === material.ITEM_ID
-                        );
 
                         return (
                           <div
@@ -5684,52 +5747,12 @@ export default function HPPSimulation() {
                                 )}{" "}
                                 per {material.UNIT}
                               </div>
+                              {isSelected && (
+                                <div className="selected-indicator">
+                                  ✓ Selected - Edit price in the section above
+                                </div>
+                              )}
                             </div>
-                            {isSelected && (
-                              <div className="material-price-input">
-                                <label>
-                                  New Price ({material.CURRENCY} per{" "}
-                                  {material.UNIT}):
-                                </label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={selectedMaterial?.newPrice || ""}
-                                  onChange={(e) =>
-                                    handlePriceChange(
-                                      material.ITEM_ID,
-                                      e.target.value
-                                    )
-                                  }
-                                  placeholder={`Enter new price in ${material.CURRENCY}`}
-                                />
-                                {selectedMaterial?.priceChangePercent !== 0 && (
-                                  <div
-                                    className={`price-change-indicator ${
-                                      selectedMaterial?.priceChange > 0
-                                        ? "increase"
-                                        : "decrease"
-                                    }`}
-                                  >
-                                    {selectedMaterial?.priceChange > 0
-                                      ? "+"
-                                      : ""}
-                                    {selectedMaterial?.priceChangePercent?.toFixed(
-                                      2
-                                    )}
-                                    %
-                                    <span className="price-change-amount">
-                                      (
-                                      {formatPriceWithCurrency(
-                                        selectedMaterial?.priceChange,
-                                        material.CURRENCY
-                                      )}
-                                      )
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
                           </div>
                         );
                       })}
