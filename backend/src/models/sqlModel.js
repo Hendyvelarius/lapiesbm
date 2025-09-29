@@ -375,6 +375,178 @@ async function updateParameter(directLaborPN1, directLaborPN2, fohPN1, fohPN2, d
   }
 }
 
+// NEW FUNCTIONS FOR M_COGS_RATE_GENERAL_per_SEDIAAN
+
+async function getGeneralCostsPerSediaan() {
+  try {
+    const db = await connect();
+    const query = 'SELECT * FROM M_COGS_RATE_GENERAL_per_SEDIAAN ORDER BY Periode DESC, Bentuk_Sediaan, Line_Production';
+    const result = await db.request().query(query);
+    return result.recordset;
+  } catch (error) {
+    console.error('Error executing getGeneralCostsPerSediaan query:', error);
+    throw error;
+  }
+}
+
+async function addGeneralCostPerSediaan(periode, directLabor, factoryOverHead, depresiasi, lineProduction, bentukSediaan) {
+  try {
+    const db = await connect();
+    
+    // Check for duplicate first
+    const checkQuery = `
+      SELECT COUNT(*) as count 
+      FROM M_COGS_RATE_GENERAL_per_SEDIAAN 
+      WHERE Periode = @periode 
+        AND Line_Production = @lineProduction 
+        AND Bentuk_Sediaan = @bentukSediaan
+    `;
+    
+    const checkResult = await db.request()
+      .input('periode', periode)
+      .input('lineProduction', lineProduction)
+      .input('bentukSediaan', bentukSediaan)
+      .query(checkQuery);
+      
+    if (checkResult.recordset[0].count > 0) {
+      throw new Error(`Duplicate entry: General cost for periode ${periode}, line ${lineProduction}, and bentuk sediaan ${bentukSediaan} already exists`);
+    }
+    
+    const insertQuery = `
+      INSERT INTO M_COGS_RATE_GENERAL_per_SEDIAAN 
+      (Periode, Direct_Labor, Factory_Over_Head, Depresiasi, Line_Production, Bentuk_Sediaan)
+      VALUES (@periode, @directLabor, @factoryOverHead, @depresiasi, @lineProduction, @bentukSediaan)
+    `;
+    
+    const result = await db.request()
+      .input('periode', periode)
+      .input('directLabor', directLabor)
+      .input('factoryOverHead', factoryOverHead)
+      .input('depresiasi', depresiasi)
+      .input('lineProduction', lineProduction)
+      .input('bentukSediaan', bentukSediaan)
+      .query(insertQuery);
+      
+    return {
+      success: true,
+      operation: 'insert',
+      rowsAffected: result.rowsAffected[0]
+    };
+  } catch (error) {
+    console.error('Error executing addGeneralCostPerSediaan query:', error);
+    throw error;
+  }
+}
+
+async function updateGeneralCostPerSediaan(originalKeys, updatedData) {
+  try {
+    const db = await connect();
+    
+    const updateQuery = `
+      UPDATE M_COGS_RATE_GENERAL_per_SEDIAAN 
+      SET 
+        Periode = @newPeriode,
+        Direct_Labor = @directLabor,
+        Factory_Over_Head = @factoryOverHead,
+        Depresiasi = @depresiasi,
+        Line_Production = @newLineProduction,
+        Bentuk_Sediaan = @newBentukSediaan
+      WHERE Periode = @originalPeriode 
+        AND Line_Production = @originalLineProduction 
+        AND Bentuk_Sediaan = @originalBentukSediaan
+    `;
+    
+    const result = await db.request()
+      .input('originalPeriode', originalKeys.periode)
+      .input('originalLineProduction', originalKeys.lineProduction)
+      .input('originalBentukSediaan', originalKeys.bentukSediaan)
+      .input('newPeriode', updatedData.periode)
+      .input('directLabor', updatedData.directLabor)
+      .input('factoryOverHead', updatedData.factoryOverHead)
+      .input('depresiasi', updatedData.depresiasi)
+      .input('newLineProduction', updatedData.lineProduction)
+      .input('newBentukSediaan', updatedData.bentukSediaan)
+      .query(updateQuery);
+      
+    return {
+      success: true,
+      operation: 'update',
+      rowsAffected: result.rowsAffected[0]
+    };
+  } catch (error) {
+    console.error('Error executing updateGeneralCostPerSediaan query:', error);
+    throw error;
+  }
+}
+
+async function deleteGeneralCostPerSediaan(keys) {
+  try {
+    const db = await connect();
+    
+    const deleteQuery = `
+      DELETE FROM M_COGS_RATE_GENERAL_per_SEDIAAN 
+      WHERE Periode = @periode 
+        AND Line_Production = @lineProduction 
+        AND Bentuk_Sediaan = @bentukSediaan
+    `;
+    
+    const result = await db.request()
+      .input('periode', keys.periode)
+      .input('lineProduction', keys.lineProduction)
+      .input('bentukSediaan', keys.bentukSediaan)
+      .query(deleteQuery);
+      
+    return {
+      success: true,
+      operation: 'delete',
+      rowsAffected: result.rowsAffected[0]
+    };
+  } catch (error) {
+    console.error('Error executing deleteGeneralCostPerSediaan query:', error);
+    throw error;
+  }
+}
+
+async function bulkInsertGeneralCostsPerSediaan(data) {
+  try {
+    const db = await connect();
+    
+    // First, clear all existing data
+    const deleteResult = await db.request().query('DELETE FROM M_COGS_RATE_GENERAL_per_SEDIAAN');
+    const deletedCount = deleteResult.rowsAffected[0] || 0;
+
+    // Insert new data
+    let insertedCount = 0;
+    
+    for (const item of data) {
+      const insertResult = await db.request()
+        .input('periode', item.periode)
+        .input('directLabor', item.directLabor)
+        .input('factoryOverHead', item.factoryOverHead)
+        .input('depresiasi', item.depresiasi)
+        .input('lineProduction', item.lineProduction)
+        .input('bentukSediaan', item.bentukSediaan)
+        .query(`
+          INSERT INTO M_COGS_RATE_GENERAL_per_SEDIAAN 
+          (Periode, Direct_Labor, Factory_Over_Head, Depresiasi, Line_Production, Bentuk_Sediaan)
+          VALUES (@periode, @directLabor, @factoryOverHead, @depresiasi, @lineProduction, @bentukSediaan)
+        `);
+        
+      insertedCount += insertResult.rowsAffected[0] || 0;
+    }
+    
+    return {
+      success: true,
+      operation: 'bulk_insert',
+      deleted: deletedCount,
+      inserted: insertedCount
+    };
+  } catch (error) {
+    console.error('Error executing bulkInsertGeneralCostsPerSediaan query:', error);
+    throw error;
+  }
+}
+
 async function getGroup(req, res) {
   try {
     const db = await connect();
@@ -1239,6 +1411,11 @@ module.exports = {
   getUnit,
   getParameter,
   updateParameter,
+  getGeneralCostsPerSediaan,
+  addGeneralCostPerSediaan,
+  updateGeneralCostPerSediaan,
+  deleteGeneralCostPerSediaan,
+  bulkInsertGeneralCostsPerSediaan,
   getGroup,
   getGroupManual,
   addGroup,

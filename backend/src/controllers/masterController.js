@@ -1,4 +1,4 @@
-const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, bulkDeleteBBHargaBahan, bulkDeleteBKHargaBahan, bulkInsertHargaBahan, getUnit, getManufacturingItems, getParameter, updateParameter, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, bulkDeleteGenerikGroups, bulkInsertGenerikGroups, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, bulkDeletePembebanانWithProductID, bulkInsertPembebanan, getMaterial, getMaterialUsage, exportAllFormulaDetail, exportAllFormulaDetailSumPerSubID, addFormulaManual, addBatchFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
+const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, bulkDeleteBBHargaBahan, bulkDeleteBKHargaBahan, bulkInsertHargaBahan, getUnit, getManufacturingItems, getParameter, updateParameter, getGeneralCostsPerSediaan, addGeneralCostPerSediaan, updateGeneralCostPerSediaan, deleteGeneralCostPerSediaan, bulkInsertGeneralCostsPerSediaan, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, bulkDeleteGenerikGroups, bulkInsertGenerikGroups, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, bulkDeletePembebanانWithProductID, bulkInsertPembebanan, getMaterial, getMaterialUsage, exportAllFormulaDetail, exportAllFormulaDetailSumPerSubID, addFormulaManual, addBatchFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
 
 class MasterController {
     static async getCurrency(req, res) {
@@ -469,6 +469,214 @@ class MasterController {
             res.status(500).json({
                 success: false,
                 message: 'Failed to update parameters',
+                error: error.message
+            });
+        }
+    }
+
+    // NEW CONTROLLER METHODS FOR M_COGS_RATE_GENERAL_per_SEDIAAN
+
+    static async getGeneralCostsPerSediaan(req, res) {
+        try {
+            const generalCosts = await getGeneralCostsPerSediaan();
+            res.status(200).json(generalCosts);
+        } catch (error) {
+            console.error('Error in getGeneralCostsPerSediaan endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve general costs per sediaan',
+                error: error.message
+            });
+        }
+    }
+
+    static async addGeneralCostPerSediaan(req, res) {
+        try {
+            const { 
+                periode, 
+                directLabor, 
+                factoryOverHead, 
+                depresiasi, 
+                lineProduction, 
+                bentukSediaan 
+            } = req.body;
+            
+            // Validate required fields
+            if (!periode || !lineProduction || !bentukSediaan) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields: periode, lineProduction, and bentukSediaan are required.'
+                });
+            }
+            
+            // Validate numeric values
+            const numericFields = { directLabor, factoryOverHead, depresiasi };
+            for (const [fieldName, value] of Object.entries(numericFields)) {
+                if (value !== null && value !== undefined && isNaN(parseFloat(value))) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Invalid numeric value for field: ${fieldName}`
+                    });
+                }
+            }
+            
+            const result = await addGeneralCostPerSediaan(
+                periode,
+                parseFloat(directLabor) || 0,
+                parseFloat(factoryOverHead) || 0,
+                parseFloat(depresiasi) || 0,
+                lineProduction,
+                bentukSediaan
+            );
+            
+            res.status(201).json({
+                success: true,
+                message: 'General cost per sediaan added successfully',
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in addGeneralCostPerSediaan endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to add general cost per sediaan',
+                error: error.message
+            });
+        }
+    }
+
+    static async updateGeneralCostPerSediaan(req, res) {
+        try {
+            const { originalPeriode, originalLineProduction, originalBentukSediaan } = req.params;
+            const { 
+                periode, 
+                directLabor, 
+                factoryOverHead, 
+                depresiasi, 
+                lineProduction, 
+                bentukSediaan 
+            } = req.body;
+            
+            // Validate required fields
+            if (!originalPeriode || !originalLineProduction || !originalBentukSediaan) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required original keys in params'
+                });
+            }
+            
+            if (!periode || !lineProduction || !bentukSediaan) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields: periode, lineProduction, and bentukSediaan are required.'
+                });
+            }
+            
+            // Validate numeric values
+            const numericFields = { directLabor, factoryOverHead, depresiasi };
+            for (const [fieldName, value] of Object.entries(numericFields)) {
+                if (value !== null && value !== undefined && isNaN(parseFloat(value))) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Invalid numeric value for field: ${fieldName}`
+                    });
+                }
+            }
+            
+            const originalKeys = {
+                periode: originalPeriode,
+                lineProduction: originalLineProduction,
+                bentukSediaan: originalBentukSediaan
+            };
+            
+            const updatedData = {
+                periode,
+                directLabor: parseFloat(directLabor) || 0,
+                factoryOverHead: parseFloat(factoryOverHead) || 0,
+                depresiasi: parseFloat(depresiasi) || 0,
+                lineProduction,
+                bentukSediaan
+            };
+            
+            const result = await updateGeneralCostPerSediaan(originalKeys, updatedData);
+            
+            res.status(200).json({
+                success: true,
+                message: 'General cost per sediaan updated successfully',
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in updateGeneralCostPerSediaan endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to update general cost per sediaan',
+                error: error.message
+            });
+        }
+    }
+
+    static async deleteGeneralCostPerSediaan(req, res) {
+        try {
+            const { periode, lineProduction, bentukSediaan } = req.params;
+            
+            if (!periode || !lineProduction || !bentukSediaan) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required parameters: periode, lineProduction, and bentukSediaan are required'
+                });
+            }
+            
+            const keys = { periode, lineProduction, bentukSediaan };
+            const result = await deleteGeneralCostPerSediaan(keys);
+            
+            res.status(200).json({
+                success: true,
+                message: 'General cost per sediaan deleted successfully',
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in deleteGeneralCostPerSediaan endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to delete general cost per sediaan',
+                error: error.message
+            });
+        }
+    }
+
+    static async bulkImportGeneralCostsPerSediaan(req, res) {
+        try {
+            const { items } = req.body;
+            
+            if (!items || !Array.isArray(items) || items.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing or invalid items array in request body'
+                });
+            }
+            
+            // Validate each item
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (!item.periode || !item.lineProduction || !item.bentukSediaan) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Item ${i + 1}: Missing required fields (periode, lineProduction, bentukSediaan)`
+                    });
+                }
+            }
+            
+            const result = await bulkInsertGeneralCostsPerSediaan(items);
+            
+            res.status(200).json({
+                success: true,
+                message: `Bulk import completed successfully. Deleted: ${result.deleted}, Inserted: ${result.inserted}`,
+                data: result
+            });
+        } catch (error) {
+            console.error('Error in bulkImportGeneralCostsPerSediaan endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to bulk import general costs per sediaan',
                 error: error.message
             });
         }

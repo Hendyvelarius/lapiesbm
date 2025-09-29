@@ -304,6 +304,26 @@ export const masterAPI = {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
+
+  // General Costs per Sediaan API methods
+  getGeneralCostsPerSediaan: () => apiRequest('/master/generalCostsPerSediaan'),
+  
+  addGeneralCostPerSediaan: (data) => apiRequest('/master/generalCostsPerSediaan', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  
+  updateGeneralCostPerSediaan: (originalKeys, data) => apiRequest(`/master/generalCostsPerSediaan/${encodeURIComponent(originalKeys.periode)}/${encodeURIComponent(originalKeys.lineProduction)}/${encodeURIComponent(originalKeys.bentukSediaan)}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+
+  deleteGeneralCostPerSediaan: (keys) => apiRequest(`/master/generalCostsPerSediaan/${encodeURIComponent(keys.periode)}/${encodeURIComponent(keys.lineProduction)}/${encodeURIComponent(keys.bentukSediaan)}`, {
+    method: 'DELETE',
+  }),  bulkImportGeneralCostsPerSediaan: (items) => apiRequest('/master/generalCostsPerSediaan/bulk-import', {
+    method: 'POST',
+    body: JSON.stringify({ items }),
+  }),
   
   // Get groups
   getGroup: () => apiRequest('/master/group'),

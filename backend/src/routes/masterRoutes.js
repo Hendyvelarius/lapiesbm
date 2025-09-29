@@ -15,6 +15,14 @@ router.post('/hargaBahan/bulk-import-bahan-baku', MasterController.bulkImportBah
 router.post('/hargaBahan/bulk-import-bahan-kemas', MasterController.bulkImportBahanKemas);
 router.get('/parameter', MasterController.getParameter);
 router.put('/parameter', MasterController.updateParameter);
+
+// General costs per sediaan routes
+router.get('/generalCostsPerSediaan', MasterController.getGeneralCostsPerSediaan);
+router.post('/generalCostsPerSediaan', MasterController.addGeneralCostPerSediaan);
+router.put('/generalCostsPerSediaan/:originalPeriode/:originalLineProduction/:originalBentukSediaan', MasterController.updateGeneralCostPerSediaan);
+router.delete('/generalCostsPerSediaan/:periode/:lineProduction/:bentukSediaan', MasterController.deleteGeneralCostPerSediaan);
+router.post('/generalCostsPerSediaan/bulk-import', MasterController.bulkImportGeneralCostsPerSediaan);
+
 router.get('/group', MasterController.getGroup);
 router.get('/groupManual', MasterController.getGroupManual);
 router.post('/group', MasterController.addGroup);
