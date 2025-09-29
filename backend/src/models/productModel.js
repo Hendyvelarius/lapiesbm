@@ -404,6 +404,29 @@ async function bulkImportFormulas(importData) {
     }
 }
 
+// Generate HPP for a specific product using stored procedure
+async function generateHPP(productId) {
+    try {
+        const pool = await connect();
+        const currentYear = new Date().getFullYear().toString();
+        
+        // Execute the stored procedure directly with positional parameters
+        // exec [sp_COGS_GenerateHPP_perProduct] '2025','0','1','ProductID'
+        const query = `exec [sp_COGS_GenerateHPP_perProduct] '${currentYear}','0','1','${productId}'`;
+        const result = await pool.request().query(query);
+        
+        return {
+            success: true,
+            message: `HPP generation completed successfully for product ${productId}`,
+            periode: currentYear,
+            productId: productId
+        };
+    } catch (error) {
+        console.error('Error generating HPP:', error);
+        throw error;
+    }
+}
+
 module.exports = {
     getFormula,
     getChosenFormula,
@@ -417,5 +440,6 @@ module.exports = {
     getFormulaProductCost,
     autoAssignFormulas,
     getFormulaRecommendations,
-    bulkImportFormulas
+    bulkImportFormulas,
+    generateHPP
 };

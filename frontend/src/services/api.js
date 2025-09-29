@@ -107,6 +107,11 @@ export const productsAPI = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
+  
+  // Generate HPP for a specific product
+  generateHPP: (productId) => apiRequest(`/products/generate-hpp/${productId}`, {
+    method: 'POST',
+  }),
 };
 
 // HPP API

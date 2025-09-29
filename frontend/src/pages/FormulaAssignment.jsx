@@ -546,6 +546,54 @@ const FormulaAssignment = () => {
     setDeletingProduct(null);
   };
 
+  // Handle generate HPP for a specific product
+  const handleGenerate = async (productId) => {
+    try {
+      setLoading(true);
+      
+      // Show confirmation dialog
+      notifier.confirm(
+        `Generate HPP calculation for product ${productId}?\n\nThis will run the HPP calculation process using the current formula assignments for this product.`,
+        async () => {
+          try {
+            notifier.info(`Starting HPP generation for product ${productId}...`, {
+              durations: { info: 3000 }
+            });
+            
+            // Call the API to generate HPP
+            const result = await api.products.generateHPP(productId);
+            
+            if (result.success) {
+              notifier.success(`HPP generation completed successfully for product ${productId}!`, {
+                durations: { success: 5000 }
+              });
+            } else {
+              throw new Error(result.message || 'HPP generation failed');
+            }
+          } catch (error) {
+            console.error('Error generating HPP:', error);
+            notifier.alert(`Failed to generate HPP for product ${productId}: ${error.message}`);
+          } finally {
+            setLoading(false);
+          }
+        },
+        () => {
+          // User cancelled
+          setLoading(false);
+        },
+        {
+          title: 'Generate HPP',
+          okButtonText: 'Generate',
+          cancelButtonText: 'Cancel'
+        }
+      );
+    } catch (error) {
+      console.error('Error in handleGenerate:', error);
+      notifier.alert('An unexpected error occurred while preparing HPP generation.');
+      setLoading(false);
+    }
+  };
+
   // Handle auto assignment
   const handleAutoAssign = () => {
     notifier.confirm(
@@ -1179,10 +1227,10 @@ const FormulaAssignment = () => {
               <tr>
                 <th>Product ID</th>
                 <th>Product Name</th>
-                <th>PI Formula</th>
-                <th>PS Formula</th>
-                <th>KP Formula</th>
-                <th>KS Formula</th>
+                <th>PI</th>
+                <th>PS</th>
+                <th>KP</th>
+                <th>KS</th>
                 <th>Std Output</th>
                 <th>Actions</th>
               </tr>
@@ -1220,6 +1268,29 @@ const FormulaAssignment = () => {
                           disabled={loadingEdit}
                         >
                           {loadingEdit ? 'Loading...' : 'Edit'}
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            // TODO: Implement lock functionality
+                            console.log('Lock formula for:', formula.Product_ID);
+                          }}
+                          className="btn-lock"
+                          type="button"
+                        >
+                          Lock
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleGenerate(formula.Product_ID);
+                          }}
+                          className="btn-generate"
+                          type="button"
+                        >
+                          Generate
                         </button>
                         <button 
                           onClick={(e) => {

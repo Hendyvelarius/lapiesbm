@@ -1,4 +1,4 @@
-const { getChosenFormula, getFormula, findFormula, addChosenFormula, updateChosenFormula, deleteChosenFormula, findRecipe, getAllFormulaDetails, getActiveFormulaDetails, getFormulaProductCost } = require('../models/productModel');
+const { getChosenFormula, getFormula, findFormula, addChosenFormula, updateChosenFormula, deleteChosenFormula, findRecipe, getAllFormulaDetails, getActiveFormulaDetails, getFormulaProductCost, generateHPP } = require('../models/productModel');
 
 class ProductController {
   static async getFormula(req, res) {
@@ -260,6 +260,34 @@ class ProductController {
       res.status(500).json({
         success: false,
         message: 'Error bulk importing formulas',
+        error: error.message
+      });
+    }
+  }
+
+  static async generateHPP(req, res) {
+    try {
+      const { productId } = req.params;
+      
+      if (!productId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Product ID is required'
+        });
+      }
+
+      const result = await generateHPP(productId);
+      
+      res.status(200).json({
+        success: true,
+        message: `HPP generation completed successfully for product ${productId}`,
+        data: result
+      });
+    } catch (error) {
+      console.error('Error generating HPP:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error generating HPP',
         error: error.message
       });
     }

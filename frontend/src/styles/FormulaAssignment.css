@@ -105,41 +105,41 @@
   overflow: visible;
 }
 
-.formula-table th:nth-child(3), /* PI Formula */
+.formula-table th:nth-child(3), /* PI */
 .formula-table td:nth-child(3) {
-  width: 12%;
-  min-width: 80px;
+  width: 9%;
+  min-width: 60px;
 }
 
-.formula-table th:nth-child(4), /* PS Formula */
+.formula-table th:nth-child(4), /* PS */
 .formula-table td:nth-child(4) {
-  width: 12%;
-  min-width: 80px;
+  width: 9%;
+  min-width: 60px;
 }
 
-.formula-table th:nth-child(5), /* KP Formula */
+.formula-table th:nth-child(5), /* KP */
 .formula-table td:nth-child(5) {
-  width: 12%;
-  min-width: 80px;
+  width: 9%;
+  min-width: 60px;
 }
 
-.formula-table th:nth-child(6), /* KS Formula */
+.formula-table th:nth-child(6), /* KS */
 .formula-table td:nth-child(6) {
-  width: 12%;
-  min-width: 80px;
+  width: 9%;
+  min-width: 60px;
 }
 
 .formula-table th:nth-child(7), /* Std Output */
 .formula-table td:nth-child(7) {
-  width: 10%;
-  min-width: 80px;
+  width: 8%;
+  min-width: 65px;
   text-align: right;
 }
 
 .formula-table th:nth-child(8), /* Actions */
 .formula-table td:nth-child(8) {
-  width: 15%;
-  min-width: 130px;
+  width: 19%;
+  min-width: 180px;
 }
 
 .formula-table th {
@@ -170,17 +170,18 @@
 /* Action Buttons */
 .action-buttons {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   justify-content: flex-start;
   align-items: center;
+  flex-wrap: wrap;
 }
 
-.btn-edit, .btn-delete, .btn-primary, .btn-secondary {
-  padding: 8px 16px;
+.btn-edit, .btn-lock, .btn-generate, .btn-delete, .btn-primary, .btn-secondary {
+  padding: 6px 12px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   font-weight: 500;
   text-decoration: none;
   display: inline-flex;
@@ -256,6 +257,24 @@
 
 .btn-edit:hover {
   background-color: #059669;
+}
+
+.btn-lock {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.btn-lock:hover {
+  background-color: #d97706;
+}
+
+.btn-generate {
+  background-color: #8b5cf6;
+  color: white;
+}
+
+.btn-generate:hover {
+  background-color: #7c3aed;
 }
 
 .btn-delete {
@@ -929,10 +948,11 @@
   .action-buttons {
     flex-direction: column;
     align-items: stretch;
+    gap: 4px;
   }
   
-  .btn-edit, .btn-delete {
-    margin-bottom: 5px;
+  .btn-edit, .btn-lock, .btn-generate, .btn-delete {
+    margin-bottom: 2px;
   }
   
   .modal-content {
