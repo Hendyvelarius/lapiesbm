@@ -689,6 +689,7 @@ const ProductGroup = () => {
 
   // Handle import confirmation from modal
   const handleImportConfirm = () => {
+    setShowImportWarning(false);
     proceedWithGenerikImport();
   };
 
@@ -697,7 +698,7 @@ const ProductGroup = () => {
     // Create a hidden file input
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
-    fileInput.accept = '.csv,.xlsx,.xls';
+    fileInput.accept = '.xlsx,.xls,.csv';
     fileInput.style.display = 'none';
     
     fileInput.addEventListener('change', async (event) => {
@@ -708,9 +709,21 @@ const ProductGroup = () => {
         setSubmitLoading(true);
         setError('');
         
-        // Parse CSV file
-        const csvText = await readFileAsText(file);
-        const parsedData = parseCSV(csvText);
+        let parsedData = [];
+        
+        if (file.name.toLowerCase().endsWith('.csv')) {
+          // Handle CSV files
+          const csvText = await readFileAsText(file);
+          parsedData = parseCSV(csvText);
+        } else {
+          // Handle Excel files (.xlsx, .xls)
+          const XLSX = await import('xlsx');
+          const buffer = await file.arrayBuffer();
+          const workbook = XLSX.read(buffer, { type: 'buffer' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          parsedData = XLSX.utils.sheet_to_json(worksheet);
+        }
         
         if (parsedData.length === 0) {
           setError('No data found in the uploaded file.');
@@ -764,25 +777,15 @@ const ProductGroup = () => {
     if (lines.length <= 1) return [];
     
     const headers = lines[0].split(',').map(header => header.trim().replace(/"/g, ''));
-    const expectedHeaders = ['Product ID', 'Product Name', 'Category ID', 'Category Name', 'MHT BB', 'MHT BK', 'MH Analisa', 'KWH Mesin'];
-    
-    // Validate headers
-    const headerMismatch = expectedHeaders.some(expected => 
-      !headers.some(header => header.toLowerCase() === expected.toLowerCase())
-    );
-    
-    if (headerMismatch) {
-      throw new Error(`Invalid CSV format. Expected headers: ${expectedHeaders.join(', ')}`);
-    }
     
     // Parse data rows
     const data = [];
     for (let i = 1; i < lines.length; i++) {
       const values = lines[i].split(',').map(value => value.trim().replace(/"/g, ''));
-      if (values.length === headers.length) {
+      if (values.length >= headers.length) {
         const row = {};
         headers.forEach((header, index) => {
-          row[header] = values[index];
+          row[header] = values[index] || '';
         });
         data.push(row);
       }
@@ -798,16 +801,22 @@ const ProductGroup = () => {
     for (let i = 0; i < rawData.length; i++) {
       const row = rawData[i];
       
-      // Map CSV headers to expected field names
+      // Map Excel/CSV headers to expected field names (handle both Excel and CSV formats)
       const validatedRow = {
-        productId: row['Product ID'],
-        productName: row['Product Name'],
-        pnCategory: parseInt(row['Category ID']) || 0,
-        pnCategoryName: row['Category Name'],
-        mhtBB: parseFloat(row['MHT BB']) || 0,
-        mhtBK: parseFloat(row['MHT BK']) || 0,
-        mhAnalisa: parseFloat(row['MH Analisa']) || 0,
-        kwhMesin: parseFloat(row['KWH Mesin']) || 0
+        productId: row['Product ID'] || row['Product_ID'] || row['productId'],
+        productName: row['Product Name'] || row['Product_Name'] || row['productName'],
+        pnCategory: parseInt(row['Category ID'] || row['Category_ID'] || row['pnCategory']) || 0,
+        pnCategoryName: row['Category Name'] || row['Category_Name'] || row['pnCategoryName'],
+        // Include all fields from export for complete data preservation
+        manHourPros: parseFloat(row['MH Process'] || row['MH_Process'] || row['manHourPros']) || 0,
+        manHourPack: parseFloat(row['MH Packing'] || row['MH_Packing'] || row['manHourPack']) || 0,
+        rendemen: parseFloat(row['Yield (%)'] || row['Yield'] || row['rendemen']) || 0,
+        dept: row['Department'] || row['dept'] || '',
+        // Generik-specific fields
+        mhtBB: parseFloat(row['MHT BB'] || row['MHT_BB'] || row['mhtBB']) || 0,
+        mhtBK: parseFloat(row['MHT BK'] || row['MHT_BK'] || row['mhtBK']) || 0,
+        mhAnalisa: parseFloat(row['MH Analisa'] || row['MH_Analisa'] || row['mhAnalisa']) || 0,
+        kwhMesin: parseFloat(row['KWH Mesin'] || row['KWH_Mesin'] || row['kwhMesin']) || 0
       };
       
       // Validate required fields
