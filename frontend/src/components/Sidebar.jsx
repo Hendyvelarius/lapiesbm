@@ -1,9 +1,13 @@
 import '../styles/Sidebar.css';
-import { FileText, BarChart3, DollarSign, Package, Calculator, Users, Layers, FlaskConical, Settings, CalendarX, ClipboardList } from 'lucide-react';
+import { FileText, BarChart3, DollarSign, Package, Calculator, Users, Layers, FlaskConical, Settings, CalendarX, ClipboardList, User } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 
-export default function Sidebar() {
+export default function Sidebar({ user }) {
   const location = useLocation();
+  
+  // Extract user information with fallbacks
+  const userName = user?.nama || user?.inisialNama || 'User';
+  const userRole = user?.jabatan || 'Unknown Position';
   
     return (
       <aside className="sidebar">
@@ -87,10 +91,12 @@ export default function Sidebar() {
         </div>
         {/* Sticky Bottom Section */}
         <div className="sidebar-user">
-          <div className="user-avatar">R</div>
+          <div className="user-avatar">
+            <User size={20} color="#ffffff" />
+          </div>
           <div className="user-info">
-            <div className="user-name">Gunawan</div>
-            <div className="user-role">NT Supervisor</div>
+            <div className="user-name">{userName}</div>
+            <div className="user-role">{userRole}</div>
           </div>
         </div>
       </aside>

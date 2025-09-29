@@ -223,11 +223,19 @@
 .user-info {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-width: 0; /* Allow text to shrink */
 }
 .user-name {
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .user-role {
   font-size: 0.85rem;
   color: #b0b8d1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
