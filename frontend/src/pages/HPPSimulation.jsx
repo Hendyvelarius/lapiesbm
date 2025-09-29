@@ -971,14 +971,8 @@ export default function HPPSimulation() {
 
       console.log("Simulation result:", result);
 
-      // Create description for the price change group based on materials changed
-      const materialNames = selectedMaterials.map(m => m.ITEM_ID).sort();
-      const priceChangeDescription = materialNames.length <= 3 
-        ? `Price Changes : ${materialNames.join('; ')}`
-        : `Price Changes : ${materialNames.slice(0, 2).join('; ')}; +${materialNames.length - 2} more`;
-
-      // Use current date/time for the price change group
-      const currentDateTime = new Date().toISOString();
+      // Store the materials that were changed for finding the created simulation
+      const changedMaterialIds = selectedMaterials.map(m => m.ITEM_ID);
 
       // Show success message
       notifier.success("Price change simulation generated successfully!");
@@ -992,12 +986,48 @@ export default function HPPSimulation() {
       // Refresh the simulation list to show new simulations
       await loadSimulationList();
 
-      // Automatically show the affected products modal for the newly created price change
-      setTimeout(() => {
-        setSelectedPriceChangeDescription(priceChangeDescription);
-        setSelectedPriceChangeDate(currentDateTime);
-        setAffectedProductsModalOpen(true);
-      }, 500); // Small delay to ensure the simulation list is refreshed first
+      // Wait a bit more for the data to be fully refreshed, then find the latest matching simulation
+      setTimeout(async () => {
+        try {
+          // Refresh the simulation list again to get the latest data
+          const refreshedResponse = await hppAPI.getSimulationList();
+          const refreshedSimulations = refreshedResponse.data || [];
+          
+          // Find the most recent price change simulation that contains our changed materials
+          const recentSimulations = refreshedSimulations
+            .filter(sim => sim.Simulasi_Type === "Price Changes")
+            .sort((a, b) => new Date(b.Simulasi_Date) - new Date(a.Simulasi_Date)) // Most recent first
+            .slice(0, 10); // Check only the 10 most recent simulations
+          
+          // Look for a simulation with a description that contains our material IDs
+          let matchingSimulation = null;
+          for (const sim of recentSimulations) {
+            const description = sim.Simulasi_Deskripsi || "";
+            // Check if the description contains any of our changed material IDs
+            const containsChangedMaterial = changedMaterialIds.some(materialId => 
+              description.includes(materialId)
+            );
+            if (containsChangedMaterial) {
+              matchingSimulation = sim;
+              break; // Take the first (most recent) match
+            }
+          }
+          
+          if (matchingSimulation) {
+            console.log("Found matching simulation:", matchingSimulation);
+            setSelectedPriceChangeDescription(matchingSimulation.Simulasi_Deskripsi);
+            setSelectedPriceChangeDate(matchingSimulation.Simulasi_Date);
+            setAffectedProductsModalOpen(true);
+          } else {
+            console.warn("Could not find matching simulation for automatic modal opening");
+            // Fallback - just notify user that simulation was created
+            notifier.info("Price change simulation created. You can view affected products from the simulation list.");
+          }
+        } catch (error) {
+          console.error("Error finding matching simulation:", error);
+          // Don't show error to user, just log it
+        }
+      }, 1000); // Longer delay to ensure the simulation is fully created and available
     } catch (error) {
       console.error("Error generating simulation:", error);
       setError("Failed to generate simulation: " + error.message);
