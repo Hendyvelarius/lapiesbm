@@ -38,6 +38,26 @@ const formatNumber = (value, decimals = 2) => {
   }).format(value);
 };
 
+// Format HNA currency (e.g., 690000.0000 -> Rp 690.000,00)
+const formatHNA = (hnaValue) => {
+  if (!hnaValue || isNaN(hnaValue)) return "Rp 0,00";
+  return `Rp ${formatNumber(parseFloat(hnaValue), 2)}`;
+};
+
+// Format HPP ratio as percentage (e.g., 0.042166 -> 4.22%)
+const formatHPPRatio = (ratio) => {
+  if (!ratio || isNaN(ratio)) return "0,00%";
+  const percentage = (parseFloat(ratio) * 100).toFixed(2);
+  return `${percentage.replace('.', ',')}%`;
+};
+
+// Format cost per unit with HPP ratio (e.g., Rp 29.094,58 (4.22%))
+const formatCostPerUnitWithRatio = (cost, ratio) => {
+  const costFormatted = `Rp ${formatNumber(cost, 2)}`;
+  const ratioFormatted = formatHPPRatio(ratio);
+  return `${costFormatted} (${ratioFormatted})`;
+};
+
 // Normalize LOB values from database to UI format
 const normalizeLOB = (databaseLOB) => {
   if (databaseLOB === "GENERIK") return "GENERIC";
@@ -161,6 +181,7 @@ export default function HPPSimulation() {
   // Detailed simulation data from API
   const [simulationHeader, setSimulationHeader] = useState(null);
   const [simulationDetailBahan, setSimulationDetailBahan] = useState([]);
+  const [simulationSummary, setSimulationSummary] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
   // Editable simulation parameters
@@ -703,6 +724,7 @@ export default function HPPSimulation() {
     setSimulationResults(null);
     setSimulationDetailBahan([]); // Clear materials display data
     setSimulationHeader(null); // Clear simulation header for detailed report
+    setSimulationSummary(null); // Clear simulation summary data
     setLoadingDetails(false); // Reset loading details state
     setIsEditMode(false); // New simulation mode
     setEditableDescription(null); // Reset description for new simulation
@@ -727,6 +749,7 @@ export default function HPPSimulation() {
     setEditableMaterialData([]);
     setSimulationDetailBahan([]); // Clear materials display data
     setSimulationHeader(null); // Clear simulation header for detailed report
+    setSimulationSummary(null); // Clear simulation summary data
     setLoadingDetails(false); // Reset loading details state
     setIsEditMode(false); // Reset edit mode
     loadSimulationList(); // Refresh the list
@@ -816,6 +839,7 @@ export default function HPPSimulation() {
     setEditableMaterialData([]);
     setSimulationDetailBahan([]);
     setSimulationHeader(null);
+    setSimulationSummary(null);
     setLoadingDetails(false);
     setError("");
 
@@ -1109,14 +1133,19 @@ export default function HPPSimulation() {
       // Reset custom formula state when editing regular simulation
       setIsCustomFormula(false);
 
-      // First, load the simulation header and detail data
-      const [headerResponse, materialsResponse] = await Promise.all([
+      // First, load the simulation header, detail data, and summary
+      const [headerResponse, materialsResponse, summaryResponse] = await Promise.all([
         hppAPI.getSimulationHeader(simulation.Simulasi_ID),
         hppAPI.getSimulationDetailBahan(simulation.Simulasi_ID),
+        hppAPI.getSimulationSummary(simulation.Simulasi_ID),
       ]);
 
       const headerData = headerResponse.data[0]; // API returns array, take first element
       const materialsData = materialsResponse.data;
+      const summaryData = summaryResponse.data[0]; // API returns array, take first element
+      
+      // Set simulation summary for HNA and HPP ratio display
+      setSimulationSummary(summaryData);
 
       // Parse Formula to extract individual formulas
       // Format: "GLC#-#B#C" means PI: GLC, PS: - (none), KP: B, KS: C
@@ -1531,14 +1560,16 @@ export default function HPPSimulation() {
 
         setLoadingDetails(true);
         try {
-          // Fetch both header and detail data in parallel
-          const [headerResponse, detailResponse] = await Promise.all([
+          // Fetch header, detail data, and summary in parallel
+          const [headerResponse, detailResponse, summaryResponse] = await Promise.all([
             hppAPI.getSimulationHeader(simulasiId),
             hppAPI.getSimulationDetailBahan(simulasiId),
+            hppAPI.getSimulationSummary(simulasiId),
           ]);
 
           setSimulationHeader(headerResponse.data || []);
           setSimulationDetailBahan(detailResponse.data || []);
+          setSimulationSummary(summaryResponse.data?.[0] || null);
 
           // Initialize editable values with current data
           if (results && results.length > 0) {
@@ -4569,10 +4600,24 @@ export default function HPPSimulation() {
                         Rp {formatNumber(calculateGrandTotal(), 2)}
                       </span>
                     </div>
+                    {simulationSummary && (
+                      <div className="total-cost-item">
+                        <span className="total-label">HNA:</span>
+                        <span className="total-value">
+                          {formatHNA(simulationSummary.Product_SalesHNA)}
+                        </span>
+                      </div>
+                    )}
                     <div className="total-cost-item grand-total">
                       <span className="total-label">Cost per Unit:</span>
                       <span className="total-value">
-                        Rp {formatNumber(calculateCostPerUnitWithRendemen(), 2)}
+                        {simulationSummary ? 
+                          formatCostPerUnitWithRatio(
+                            calculateCostPerUnitWithRendemen(), 
+                            simulationSummary.HPP_Ratio
+                          ) : 
+                          `Rp ${formatNumber(calculateCostPerUnitWithRendemen(), 2)}`
+                        }
                       </span>
                     </div>
                   </div>

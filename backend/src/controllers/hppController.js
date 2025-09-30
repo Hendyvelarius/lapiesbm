@@ -444,6 +444,42 @@ class HPPController {
       });
     }
   }
+
+  static async getSimulationSummary(req, res) {
+    try {
+      console.log('=== Get Simulation Summary Request ===');
+      console.log('Simulasi ID:', req.params.simulasiId);
+      
+      const simulasiId = req.params.simulasiId;
+      
+      if (!simulasiId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Simulasi ID is required'
+        });
+      }
+
+      const { getSimulationSummary } = require('../models/hppModel');
+      const result = await getSimulationSummary(simulasiId);
+
+      console.log('=== Controller Response ===');
+      console.log('Records returned:', result?.length || 0);
+
+      res.status(200).json({
+        success: true,
+        data: result
+      });
+
+    } catch (error) {
+      console.error('=== getSimulationSummary Controller Error ===');
+      console.error('Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching simulation summary',
+        error: error.message
+      });
+    }
+  }
 }
 
 module.exports = HPPController;

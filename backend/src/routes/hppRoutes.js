@@ -45,4 +45,7 @@ router.post('/generate-price-change-simulation', HPPController.generatePriceChan
 // Body: { description: "Price Changes : AC 014B: 22 -> 31; ", simulasiDate: "2025-09-24T00:27:38.087Z" }
 router.post('/price-change-affected-products', HPPController.getPriceChangeAffectedProducts);
 
+// GET /api/hpp/simulation/:simulasiId/summary - Get simulation summary with HNA and HPP ratio
+router.get('/simulation/:simulasiId/summary', HPPController.getSimulationSummary);
+
 module.exports = router;

@@ -605,6 +605,43 @@ async function bulkDeletePriceChangeGroup(description, formattedDate) {
   }
 }
 
+// Get simulation summary with HNA data using stored procedure
+async function getSimulationSummary(simulasiId) {
+  try {
+    console.log('=== Executing getSimulationSummary ===');
+    console.log('Simulasi ID:', simulasiId);
+
+    const db = await connect();
+    
+    // Execute the stored procedure
+    const query = `EXEC [sp_COGS_HPP_List_Simulasi] @SimulasiId`;
+    
+    const result = await db
+      .request()
+      .input('SimulasiId', sql.VarChar(20), simulasiId)
+      .query(query);
+
+    console.log('=== Stored Procedure Result ===');
+    console.log('Records returned:', result.recordset?.length || 0);
+    if (result.recordset?.length > 0) {
+      console.log('Sample record:', JSON.stringify(result.recordset[0], null, 2));
+    }
+
+    return result.recordset || [];
+
+  } catch (error) {
+    console.error('=== getSimulationSummary Error ===');
+    console.error('Error message:', error.message);
+    console.error('Error number:', error.number);
+    console.error('Line number:', error.lineNumber);
+    console.error('Procedure name:', error.procName);
+    console.error('Parameters sent:');
+    console.error('- SimulasiId:', simulasiId);
+    
+    throw error;
+  }
+}
+
 module.exports = {
   getHPP,
   generateHPPCalculation,
@@ -620,4 +657,5 @@ module.exports = {
   generatePriceChangeSimulation,
   getPriceChangeAffectedProducts,
   bulkDeletePriceChangeGroup,
+  getSimulationSummary,
 };

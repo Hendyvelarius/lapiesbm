@@ -200,6 +200,9 @@ export const hppAPI = {
     method: 'DELETE',
     body: JSON.stringify({ description, simulasiDate }),
   }),
+
+  // Get simulation summary with HNA and HPP ratio data
+  getSimulationSummary: (simulasiId) => apiRequest(`/hpp/simulation/${simulasiId}/summary`),
 };
 
 // Combined service for creating complete HPP records
