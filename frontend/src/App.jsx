@@ -178,16 +178,36 @@ function AppContent() {
   // Show authentication error screen
   if (!authState.isAuthenticated) {
     const isTokenExpired = authState.authError && authState.authError.includes('expired');
+    const isDepartmentRestricted = authState.authError && authState.authError.includes('Access denied');
     
     return (
       <div className="auth-error-screen">
         <div className="auth-error-content">
           <h2>eSBM - Manufacturing Cost System</h2>
           <div className="auth-error-message">
-            <h3>{isTokenExpired ? '⏰ Token Expired' : '🔒 Authentication Required'}</h3>
+            <h3>
+              {isTokenExpired ? '⏰ Token Expired' : 
+               isDepartmentRestricted ? '� Access Denied' : 
+               '�🔒 Authentication Required'}
+            </h3>
             <p>{authState.authError}</p>
             
-            {isTokenExpired ? (
+            {isDepartmentRestricted ? (
+              <div className="auth-info">
+                <p><strong>🚫 Department Access Restriction:</strong></p>
+                <ul>
+                  <li>This application is restricted to <strong>NT department</strong> staff only</li>
+                  <li>Your current department does not have access to this system</li>
+                  <li>If you believe this is an error, please contact your system administrator</li>
+                  <li>Only users with empDeptID "NT" can access the Manufacturing Cost System</li>
+                </ul>
+                <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '4px' }}>
+                  <p style={{ margin: 0, color: '#dc2626', fontWeight: 'bold' }}>
+                    ⚠️ Access is limited to authorized NT department personnel only
+                  </p>
+                </div>
+              </div>
+            ) : isTokenExpired ? (
               <div className="auth-info">
                 <p><strong>🚨 Token Expiration Issue:</strong></p>
                 <ul>
@@ -212,12 +232,28 @@ function AppContent() {
             )}
             
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-              <button 
-                onClick={() => window.location.reload()} 
-                className="auth-retry-button"
-              >
-                {isTokenExpired ? 'Check Again' : 'Retry Authentication'}
-              </button>
+              {!isDepartmentRestricted && (
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="auth-retry-button"
+                >
+                  {isTokenExpired ? 'Check Again' : 'Retry Authentication'}
+                </button>
+              )}
+              
+              {isDepartmentRestricted && (
+                <button 
+                  onClick={() => {
+                    // Clear data and close tab for department restrictions
+                    clearAuthData();
+                    window.close();
+                  }} 
+                  className="auth-retry-button"
+                  style={{ background: '#ef4444' }}
+                >
+                  Close Application
+                </button>
+              )}
               
               {isTokenExpired && (
                 <button 

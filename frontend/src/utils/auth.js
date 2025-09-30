@@ -189,6 +189,17 @@ export const authenticateFromURL = (url) => {
         expiredHours
       };
     }
+
+    // Step 5: Check if user has required department access (NT)
+    if (userInfo.empDeptID !== 'NT') {
+      return {
+        success: false,
+        message: `Access denied. This application is restricted to NT department staff only. Your department: ${userInfo.empDeptID || 'Unknown'}. Please contact your administrator if you believe this is an error.`,
+        user: userInfo,
+        token: authToken,
+        unauthorizedReason: 'department_restriction'
+      };
+    }
     
     return {
       success: true,
@@ -268,6 +279,16 @@ export const clearAuthData = () => {
 export const isAuthenticated = () => {
   const authData = getStoredAuthData();
   return authData && authData.success && authData.user && authData.user.tokenValid;
+};
+
+/**
+ * Check if user has required department access
+ * @param {string} requiredDept - Required department ID (default: 'NT')
+ * @returns {boolean} - True if user has access, false otherwise
+ */
+export const hasDesktopAccess = (requiredDept = 'NT') => {
+  const user = getCurrentUser();
+  return user && user.empDeptID === requiredDept;
 };
 
 /**
