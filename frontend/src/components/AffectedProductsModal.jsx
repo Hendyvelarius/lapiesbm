@@ -68,6 +68,20 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
     return `${formatted}%`;
   };
 
+  // Format HPP ratio as percentage (e.g., 0.253779 -> 25.38%)
+  const formatHPPRatio = (ratio) => {
+    if (!ratio || isNaN(ratio)) return "0.00%";
+    const percentage = (parseFloat(ratio) * 100).toFixed(2);
+    return `${percentage}%`;
+  };
+
+  // Format HPP with currency and ratio (e.g., Rp 15.227 (25%))
+  const formatHPPWithRatio = (hppAmount, ratio) => {
+    const currency = formatCurrency(parseFloat(hppAmount || 0));
+    const ratioPercent = formatHPPRatio(ratio);
+    return `${currency} (${ratioPercent})`;
+  };
+
   // Get trend icon based on percentage change
   const getTrendIcon = (percent) => {
     if (percent > 0) {
@@ -141,7 +155,7 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
                   <div className="results-header">
                     <h3>Affected Products ({affectedProducts.length})</h3>
                     <p className="results-subtitle">
-                      Products affected by the price change simulation
+                      Produk yang terdampak simulasi perubahan harga. Persentase dalam kurung pada kolom HPP menunjukkan rasio HPP terhadap HNA (Harga Netto Akhir).
                     </p>
                   </div>
 
@@ -150,10 +164,11 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
                       <table className="affected-products-table">
                         <thead>
                           <tr>
-                            <th>Product ID</th>
+                            <th>ID</th>
                             <th>Product Name</th>
-                            <th>Material Cost Before</th>
-                            <th>Material Cost After</th>
+                            <th>Cost Before</th>
+                            <th>Cost After</th>
+                            <th>HNA</th>
                             <th>HPP Before</th>
                             <th>HPP After</th>
                             <th>Impact</th>
@@ -170,11 +185,14 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
                               <td className="material-cost-after">
                                 {formatCurrency(parseFloat(product.totalBahanSesudah || 0))}
                               </td>
+                              <td className="hna">
+                                {formatCurrency(parseFloat(product.Product_SalesHNA || 0))}
+                              </td>
                               <td className="hpp-before">
-                                {formatCurrency(parseFloat(product.HPPSebelum || 0))}
+                                {formatHPPWithRatio(product.HPPSebelum, product.Rasio_HPP_Sebelum)}
                               </td>
                               <td className="hpp-after">
-                                {formatCurrency(parseFloat(product.HPPSesudah || 0))}
+                                {formatHPPWithRatio(product.HPPSesudah, product.Rasio_HPP_Sesudah)}
                               </td>
                               <td className="impact-cell">
                                 <div className="impact-indicator">

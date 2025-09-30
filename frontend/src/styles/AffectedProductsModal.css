@@ -229,6 +229,16 @@
   white-space: nowrap;
 }
 
+/* Specific header column widths and alignment */
+.affected-products-table th:nth-child(1) { width: 8%; }  /* ID */
+.affected-products-table th:nth-child(2) { width: 18%; } /* Product Name */
+.affected-products-table th:nth-child(3) { width: 12%; text-align: right; } /* Cost Before */
+.affected-products-table th:nth-child(4) { width: 12%; text-align: right; } /* Cost After */
+.affected-products-table th:nth-child(5) { width: 12%; text-align: right; } /* HNA */
+.affected-products-table th:nth-child(6) { width: 15%; text-align: right; } /* HPP Before */
+.affected-products-table th:nth-child(7) { width: 15%; text-align: right; } /* HPP After */
+.affected-products-table th:nth-child(8) { width: 10%; text-align: center; } /* Impact */
+
 .affected-products-table td {
   padding: 16px 12px;
   border-bottom: 1px solid #f3f4f6;
@@ -245,18 +255,50 @@
   border-bottom: none;
 }
 
-/* Table Cell Specific Styles */
+/* Table Cell Specific Styles with Column Widths */
 .product-id {
   font-weight: 600;
   color: #1f2937;
   font-family: monospace;
+  width: 8%;
 }
 
 .product-name {
-  max-width: 200px;
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  width: 18%;
+}
+
+.material-cost-before,
+.material-cost-after {
+  text-align: right;
+  font-family: monospace;
+  font-weight: 500;
+  width: 12%;
+}
+
+.hna {
+  text-align: right;
+  font-family: monospace;
+  font-weight: 500;
+  width: 12%;
+  color: #1f2937;
+}
+
+.hpp-before,
+.hpp-after {
+  text-align: right;
+  font-family: monospace;
+  font-weight: 500;
+  width: 15%;
+  color: #1f2937;
+}
+
+.impact-cell {
+  text-align: center;
+  width: 10%;
 }
 
 .batch-size {
@@ -390,16 +432,26 @@
 
   .affected-products-table th,
   .affected-products-table td {
-    padding: 12px 8px;
+    padding: 12px 6px;
   }
 
   .product-name {
-    max-width: 150px;
+    max-width: 120px;
   }
 
   .table-container {
     overflow-x: auto;
   }
+
+  /* Adjust column widths for mobile */
+  .product-id { width: 6%; }
+  .product-name { width: 16%; }
+  .material-cost-before,
+  .material-cost-after,
+  .hna { width: 10%; }
+  .hpp-before,
+  .hpp-after { width: 13%; }
+  .impact-cell { width: 8%; }
 }
 
 @media (max-width: 640px) {
