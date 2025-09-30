@@ -388,8 +388,11 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
     try {
       setExporting(true);
       
-      // Capture the modal content as canvas
-      const canvas = await html2canvas(modalContentRef.current, {
+      // Detect product type for type-specific handling
+      const productType = detectProductType(product);
+      
+      // Adjust canvas capture options based on product type
+      const captureOptions = {
         scale: 2, // Higher resolution
         useCORS: true,
         backgroundColor: '#ffffff',
@@ -397,7 +400,15 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
         height: modalContentRef.current.scrollHeight,
         scrollX: 0,
         scrollY: 0
-      });
+      };
+
+      // For Generic Type 2, use slightly different scale to prevent width issues
+      if (productType === 'Generic Type 2') {
+        captureOptions.scale = 1.8; // Slightly lower scale to prevent overflow
+      }
+      
+      // Capture the modal content as canvas
+      const canvas = await html2canvas(modalContentRef.current, captureOptions);
 
       // Create PDF
       const imgData = canvas.toDataURL('image/png');
@@ -408,16 +419,23 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
       
-      // Calculate dimensions to fit the content
-      const ratio = Math.min(pdfWidth / (canvasWidth / 2), pdfHeight / (canvasHeight / 2));
-      const imgWidth = (canvasWidth / 2) * ratio;
-      const imgHeight = (canvasHeight / 2) * ratio;
+      // Calculate dimensions to fit the content with absolute minimal margins
+      const scaleRatio = productType === 'Generic Type 2' ? 1.8 : 2;
+      const widthRatio = (pdfWidth - 2) / (canvasWidth / scaleRatio); // Absolute minimal 1mm margins on sides
+      const heightRatio = (pdfHeight - 4) / (canvasHeight / scaleRatio); // Absolute minimal margin for height
+      const ratio = Math.min(widthRatio, heightRatio);
+      
+      const imgWidth = (canvasWidth / scaleRatio) * ratio;
+      const imgHeight = (canvasHeight / scaleRatio) * ratio;
+      
+      // Adjust page threshold for Generic Type 2 to be more conservative
+      const pageThreshold = productType === 'Generic Type 2' ? pdfHeight - 6 : pdfHeight - 3;
       
       // Check if content needs multiple pages
-      if (imgHeight > pdfHeight - 20) {
+      if (imgHeight > pageThreshold) {
         // Content is too tall for one page, split into multiple pages
         let currentY = 0;
-        const pageContentHeight = pdfHeight - 20; // Leave margins
+        const pageContentHeight = pageThreshold; // Use adjusted threshold
         
         while (currentY < imgHeight) {
           if (currentY > 0) {
@@ -432,25 +450,24 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
           const tempCanvas = document.createElement('canvas');
           const tempCtx = tempCanvas.getContext('2d');
           tempCanvas.width = canvasWidth;
-          tempCanvas.height = (currentPageHeight / ratio) * 2; // Scale back for canvas
+          tempCanvas.height = (currentPageHeight / ratio) * scaleRatio; // Use consistent scale
           
           // Draw the portion of the original canvas
-          tempCtx.drawImage(canvas, 0, (currentY / ratio) * 2, canvasWidth, tempCanvas.height, 0, 0, canvasWidth, tempCanvas.height);
+          tempCtx.drawImage(canvas, 0, (currentY / ratio) * scaleRatio, canvasWidth, tempCanvas.height, 0, 0, canvasWidth, tempCanvas.height);
           
           const pageImgData = tempCanvas.toDataURL('image/png');
-          pdf.addImage(pageImgData, 'PNG', 10, 10, imgWidth, currentPageHeight);
+          pdf.addImage(pageImgData, 'PNG', 1, 2, imgWidth, currentPageHeight);
           
           currentY += currentPageHeight;
         }
       } else {
-        // Content fits on one page
-        const xPosition = (pdfWidth - imgWidth) / 2; // Center horizontally
-        const yPosition = 10; // Small top margin
+        // Content fits on one page - always align to left with absolute minimal margin to prevent right-shift
+        const xPosition = 1; // Absolute minimal left margin instead of centering
+        const yPosition = 2; // Absolute minimal top margin
         pdf.addImage(imgData, 'PNG', xPosition, yPosition, imgWidth, imgHeight);
       }
 
       // Save the PDF
-      const productType = detectProductType(product);
       const filename = `Product_HPP_Report_${productType}_${product.Product_ID}_${new Date().toISOString().split('T')[0]}.pdf`;
       pdf.save(filename);
       
