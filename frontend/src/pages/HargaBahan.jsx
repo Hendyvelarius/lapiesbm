@@ -5,6 +5,7 @@ import 'awesome-notifications/dist/style.css';
 import '../styles/HargaBahan.css';
 import { Plus, Search, Filter, Edit, Trash2, Package, ChevronLeft, ChevronRight, X, Check, Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 // Initialize awesome-notifications
 const notifier = new AWN({
@@ -1360,10 +1361,10 @@ const HargaBahan = () => {
   if (loading) {
     return (
       <div className="harga-bahan-container">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading material data...</p>
-        </div>
+        <LoadingSpinner 
+          message="Loading material data..." 
+          size="large" 
+        />
       </div>
     );
   }
@@ -1580,10 +1581,11 @@ const HargaBahan = () => {
             </div>
             
             {modalLoading ? (
-              <div className="modal-loading">
-                <div className="spinner"></div>
-                <p>Loading available materials...</p>
-              </div>
+              <LoadingSpinner 
+                message="Loading available materials..." 
+                size="medium" 
+                className="esbm-modal-loading"
+              />
             ) : modalMode === 'add' && availableItems.length === 0 ? (
               <div className="modal-no-items">
                 <Check size={48} className="success-icon" />
@@ -1777,7 +1779,7 @@ const HargaBahan = () => {
                   >
                     {submitLoading ? (
                       <>
-                        <div className="btn-spinner"></div>
+                        <div className="esbm-spinner esbm-spinner-small" style={{ marginRight: '8px' }}></div>
                         {modalMode === 'edit' ? 'Updating...' : 'Adding...'}
                       </>
                     ) : (
@@ -1845,7 +1847,7 @@ const HargaBahan = () => {
                 >
                   {submitLoading ? (
                     <>
-                      <div className="btn-spinner"></div>
+                      <div className="esbm-spinner esbm-spinner-small" style={{ marginRight: '8px' }}></div>
                       Deleting...
                     </>
                   ) : (

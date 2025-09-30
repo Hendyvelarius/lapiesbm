@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { hppAPI } from "../services/api";
+import LoadingSpinner from "./LoadingSpinner";
 import "../styles/AffectedProductsModal.css";
 
 const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceChangeDate }) => {
@@ -130,10 +131,11 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
 
           {/* Loading State */}
           {loading && (
-            <div className="loading-state">
-              <div className="spinner"></div>
-              <p>Calculating product impact...</p>
-            </div>
+            <LoadingSpinner 
+              message="Calculating product impact..." 
+              size="medium"
+              className="esbm-modal-loading"
+            />
           )}
 
           {/* Error State */}

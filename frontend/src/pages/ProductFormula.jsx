@@ -4,6 +4,7 @@ import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import '../styles/ProductFormula.css';
 import * as XLSX from 'xlsx';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 // Initialize awesome-notifications
 const notifier = new AWN({
@@ -856,7 +857,10 @@ const ProductFormula = () => {
   if (loading && !selectedProduct) {
     return (
       <div className="product-formula-container">
-        <div className="loading">Loading...</div>
+        <LoadingSpinner 
+          message="Loading product formulas..." 
+          size="large" 
+        />
       </div>
     );
   }

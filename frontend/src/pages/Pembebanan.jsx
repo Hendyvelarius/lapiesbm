@@ -6,6 +6,7 @@ import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import * as XLSX from 'xlsx';
 import ImportWarningModal from '../components/ImportWarningModal';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 // Initialize awesome-notifications
 const notifier = new AWN({
@@ -774,10 +775,10 @@ const Pembebanan = () => {
 
   if (loading) {
     return (
-      <div className="loading-spinner">
-        <div className="spinner"></div>
-        <p>Loading cost allocation data...</p>
-      </div>
+      <LoadingSpinner 
+        message="Loading cost allocation data..." 
+        size="large" 
+      />
     );
   }
 
@@ -1332,7 +1333,7 @@ const Pembebanan = () => {
                 >
                   {submitLoading ? (
                     <>
-                      <div className="btn-spinner"></div>
+                      <div className="esbm-spinner esbm-spinner-small" style={{ marginRight: '8px' }}></div>
                       Deleting...
                     </>
                   ) : (

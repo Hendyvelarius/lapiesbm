@@ -1,0 +1,112 @@
+/* eSBM Loading Spinner - Isolated CSS with unique class names */
+
+.esbm-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+/* Spinner Animation - Completely isolated */
+.esbm-spinner {
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: esbm-spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+/* Spinner Sizes */
+.esbm-spinner-small {
+  width: 24px;
+  height: 24px;
+  border-width: 2px;
+}
+
+.esbm-spinner-medium {
+  width: 40px;
+  height: 40px;
+  border-width: 4px;
+}
+
+.esbm-spinner-large {
+  width: 60px;
+  height: 60px;
+  border-width: 6px;
+}
+
+/* Loading Message */
+.esbm-loading-message {
+  color: #6b7280;
+  font-size: 1rem;
+  font-family: "Inter", sans-serif;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Spinner Animation Keyframes - Unique name */
+@keyframes esbm-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Variants for different contexts */
+.esbm-loading-container.esbm-modal-loading {
+  padding: 80px 20px;
+}
+
+.esbm-loading-container.esbm-table-loading {
+  padding: 40px 20px;
+}
+
+.esbm-loading-container.esbm-inline-loading {
+  padding: 20px;
+  flex-direction: row;
+  gap: 12px;
+}
+
+.esbm-loading-container.esbm-inline-loading .esbm-loading-message {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/* Dark theme variant */
+.esbm-loading-container.esbm-dark-theme .esbm-spinner {
+  border-color: #374151;
+  border-top-color: #60a5fa;
+}
+
+.esbm-loading-container.esbm-dark-theme .esbm-loading-message {
+  color: #d1d5db;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .esbm-loading-container {
+    padding: 40px 16px;
+  }
+  
+  .esbm-loading-message {
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .esbm-spinner-large {
+    width: 48px;
+    height: 48px;
+    border-width: 4px;
+  }
+  
+  .esbm-spinner-medium {
+    width: 32px;
+    height: 32px;
+    border-width: 3px;
+  }
+}

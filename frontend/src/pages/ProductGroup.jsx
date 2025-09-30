@@ -5,6 +5,7 @@ import { Search, Filter, Edit, Trash2, Users, ChevronLeft, ChevronRight, X, Chec
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import ImportWarningModal from '../components/ImportWarningModal';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 // Initialize awesome-notifications
 const notifier = new AWN({
@@ -857,10 +858,10 @@ const ProductGroup = () => {
 
   if (loading) {
     return (
-      <div className="loading-spinner">
-        <div className="spinner"></div>
-        <p>Loading product groups...</p>
-      </div>
+      <LoadingSpinner 
+        message="Loading product groups..." 
+        size="large" 
+      />
     );
   }
 
@@ -1303,7 +1304,7 @@ const ProductGroup = () => {
                 >
                   {submitLoading ? (
                     <>
-                      <div className="btn-spinner"></div>
+                      <div className="esbm-spinner esbm-spinner-small" style={{ marginRight: '8px' }}></div>
                       Deleting...
                     </>
                   ) : (

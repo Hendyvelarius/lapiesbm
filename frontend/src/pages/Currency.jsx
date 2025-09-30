@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { masterAPI } from '../services/api';
+import LoadingSpinner from '../components/LoadingSpinner';
 import '../styles/Currency.css';
 
 const Currency = () => {
@@ -147,10 +148,10 @@ const Currency = () => {
   if (loading) {
     return (
       <div className="currency-container">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading currency data...</p>
-        </div>
+        <LoadingSpinner 
+          message="Loading currency data..." 
+          size="large" 
+        />
       </div>
     );
   }

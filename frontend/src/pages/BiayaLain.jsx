@@ -5,6 +5,7 @@ import { Search, Filter, Users, ChevronLeft, ChevronRight, ChevronUp, ChevronDow
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import * as XLSX from 'xlsx';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 // Initialize awesome-notifications
 const notifier = new AWN({
@@ -591,10 +592,10 @@ const BiayaLain = () => {
 
   if (loading) {
     return (
-      <div className="loading-spinner">
-        <div className="spinner"></div>
-        <p>Loading general costs data...</p>
-      </div>
+      <LoadingSpinner 
+        message="Loading general costs data..." 
+        size="large" 
+      />
     );
   }
 
@@ -1061,7 +1062,7 @@ const BiayaLain = () => {
                 >
                   {submitLoading ? (
                     <>
-                      <div className="btn-spinner"></div>
+                      <div className="esbm-spinner esbm-spinner-small" style={{ marginRight: '8px' }}></div>
                       Deleting...
                     </>
                   ) : (

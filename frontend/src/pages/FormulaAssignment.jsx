@@ -4,6 +4,7 @@ import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import * as XLSX from 'xlsx';
 import { FileDown, FileUp } from 'lucide-react';
+import LoadingSpinner from '../components/LoadingSpinner';
 import '../styles/FormulaAssignment.css';
 
 const FormulaAssignment = () => {
@@ -1160,7 +1161,10 @@ const FormulaAssignment = () => {
   if (loading && chosenFormulas.length === 0) {
     return (
       <div className="formula-assignment-container">
-        <div className="loading">Loading...</div>
+        <LoadingSpinner 
+          message="Loading formula assignments..." 
+          size="large" 
+        />
       </div>
     );
   }
@@ -1267,7 +1271,14 @@ const FormulaAssignment = () => {
                           type="button"
                           disabled={loadingEdit}
                         >
-                          {loadingEdit ? 'Loading...' : 'Edit'}
+                          {loadingEdit ? (
+                            <>
+                              <div className="esbm-spinner esbm-spinner-small" style={{ marginRight: '8px' }}></div>
+                              Loading...
+                            </>
+                          ) : (
+                            'Edit'
+                          )}
                         </button>
                         <button 
                           onClick={(e) => {

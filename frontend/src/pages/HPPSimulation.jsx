@@ -4,6 +4,7 @@ import AWN from "awesome-notifications";
 import "awesome-notifications/dist/style.css";
 import "../styles/HPPSimulation.css";
 import "../styles/ProductHPPReport.css"; // Import for modal styling
+import LoadingSpinner from "../components/LoadingSpinner";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import {
@@ -2995,7 +2996,13 @@ export default function HPPSimulation() {
                   onChange={(e) => setProductSearchQuery(e.target.value)}
                   className="product-search-input"
                 />
-                {loading && <div className="search-loading">Searching...</div>}
+                {loading && (
+                  <LoadingSpinner 
+                    message="Searching..." 
+                    size="small" 
+                    className="esbm-inline-loading"
+                  />
+                )}
               </div>
 
               {productOptions.length > 0 && (
@@ -3071,9 +3078,11 @@ export default function HPPSimulation() {
             </p>
 
             {loading && (
-              <div className="loading-message">
-                Loading recipe data and materials...
-              </div>
+              <LoadingSpinner 
+                message="Loading recipe data and materials..." 
+                size="medium" 
+                className="esbm-table-loading"
+              />
             )}
 
             {!loading && Object.keys(formulaGroups).length === 0 && (
@@ -3326,10 +3335,11 @@ export default function HPPSimulation() {
               <div className="simulation-results-section">
                 {/* Loading state for detailed data */}
                 {loadingDetails && (
-                  <div className="loading-detailed-data">
-                    <div className="loading-spinner"></div>
-                    <p>Loading detailed simulation data...</p>
-                  </div>
+                  <LoadingSpinner 
+                    message="Loading detailed simulation data..." 
+                    size="medium" 
+                    className="esbm-table-loading"
+                  />
                 )}
 
                 {/* Custom Formula or Selected Formulas Summary */}
@@ -6197,7 +6207,7 @@ export default function HPPSimulation() {
               >
                 {bulkDeleting ? (
                   <>
-                    <span className="spinner"></span>
+                    <div className="esbm-spinner esbm-spinner-small" style={{ marginRight: '8px' }}></div>
                     Deleting...
                   </>
                 ) : (

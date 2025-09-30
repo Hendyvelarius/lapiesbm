@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { useState, useEffect } from 'react';
 import TopNavbar from './components/TopNavbar';
 import Sidebar from './components/Sidebar';
+import LoadingSpinner from './components/LoadingSpinner';
 import Dashboard from './pages/Dashboard';
 import HPPSimulation from './pages/HPPSimulation';
 import Currency from './pages/Currency';
@@ -166,7 +167,7 @@ function AppContent() {
     return (
       <div className="auth-loading-screen">
         <div className="auth-loading-content">
-          <div className="loading-spinner"></div>
+          <LoadingSpinner size="large" showMessage={false} />
           <h2>eSBM - Manufacturing Cost System</h2>
           <p>Checking authentication...</p>
         </div>
