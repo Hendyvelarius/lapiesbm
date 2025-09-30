@@ -489,14 +489,15 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
         <div className="product-hpp-modal-header">
           <h2>Product HPP Report - {product?.Product_Name || 'Loading...'}</h2>
           <div className="product-hpp-modal-actions">
-            <button
+            {/* Excel export button temporarily hidden */}
+            {/* <button
               onClick={handleExportToExcel}
               disabled={loading || exporting}
               className="product-hpp-export-btn excel"
             >
               {exporting ? <Loader2 className="spin" size={16} /> : <FileText size={16} />}
               Excel
-            </button>
+            </button> */}
             <button
               onClick={handleExportToPDF}
               disabled={loading}
