@@ -35,6 +35,12 @@ const formatNumber = (value, decimals = 2) => {
   }).format(value);
 };
 
+const formatHPPRatio = (value) => {
+  if (value === null || value === undefined) return '-';
+  const percentage = (parseFloat(value) * 100).toFixed(2);
+  return `${percentage.replace('.', ',')}%`;
+};
+
 // Format LOB based on product data and detected product type
 const formatLOB = (product) => {
   if (!product) return 'Unknown';
@@ -238,8 +244,12 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
         ['', '', '', '', '', '', '', '', ''],
         [`Kode Produk - Description`, ':', `${product.Product_ID} - ${product.Product_Name}`, '', 'LOB', ':', formatLOB(product)],
         [`Batch Size Teori`, ':', formatNumber(product.Batch_Size), 'KOTAK', 'Tanggal Print', ':', formatPrintDate()],
-        [`Batch Size Actual`, ':', formatNumber(batchSizeActual), 'KOTAK', '', '', ''],
-        [`Rendemen`, ':', `${formatNumber(product.Group_Rendemen)}%`, '', '', '', ''],
+        [`Batch Size Actual`, ':', formatNumber(batchSizeActual), 'KOTAK', 'Formula', ':', product?.Formula || '-'],
+        [`Rendemen`, ':', `${formatNumber(product.Group_Rendemen)}%`, '', 'Category', ':', 
+          product?.Group_PNCategory && product?.Group_PNCategory_Name 
+            ? `${product.Group_PNCategory}. ${product.Group_PNCategory_Name}`
+            : '-'
+        ],
         ['', '', '', '', '', '', '', '', ''],
       ], { origin: 'A1' });
 
@@ -340,7 +350,8 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
       // Final total
       XLSX.utils.sheet_add_aoa(ws, [
         ['', '', '', '', '', '', ''],
-        ['Total HPP Estimasi', '', '', '', 'Total HPP', formatNumber(totalBB + totalBK + totalOverheadCost), formatNumber(totalHPPPerPack)]
+        ['Total HPP Estimasi', '', '', '', 'Total HPP', formatNumber(totalBB + totalBK + totalOverheadCost), formatNumber(totalHPPPerPack)],
+        ['HNA', '', '', '', 'HPP/HNA', formatCurrency(product?.Product_SalesHNA), formatHPPRatio(product?.HPP_Ratio)]
       ], { origin: `A${currentRow}` });
 
       // Apply some basic formatting
@@ -405,9 +416,14 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
       yPosition += 7;
       
       doc.text(`Batch Size Actual: ${formatNumber(batchSizeActual)} KOTAK`, 20, yPosition);
+      doc.text(`Formula: ${product?.Formula || '-'}`, pageWidth - 80, yPosition);
       yPosition += 7;
       
       doc.text(`Rendemen: ${formatNumber(product.Group_Rendemen)}%`, 20, yPosition);
+      const categoryText = product?.Group_PNCategory && product?.Group_PNCategory_Name 
+        ? `${product.Group_PNCategory}. ${product.Group_PNCategory_Name}`
+        : '-';
+      doc.text(`Category: ${categoryText}`, pageWidth - 80, yPosition);
       yPosition += 15;
 
       // Bahan Baku Section
@@ -761,6 +777,26 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
         }
       });
 
+      // Add HNA and HPP/HNA information
+      yPosition = doc.lastAutoTable.finalY + 5;
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['HNA', '', '', '', 'HPP/HNA', 'Value', 'Ratio']],
+        body: [['', '', '', '', '', formatCurrency(product?.Product_SalesHNA), formatHPPRatio(product?.HPP_Ratio)]],
+        styles: { fontSize: 10, cellPadding: 3 },
+        headStyles: { fillColor: [200, 220, 255], textColor: [0, 0, 0], fontStyle: 'bold' },
+        bodyStyles: { fontStyle: 'bold', fillColor: [200, 220, 255] },
+        columnStyles: {
+          0: { cellWidth: 35 },
+          1: { cellWidth: 20 },
+          2: { cellWidth: 20 },
+          3: { cellWidth: 20 },
+          4: { cellWidth: 25 },
+          5: { halign: 'right', cellWidth: 25 },
+          6: { halign: 'right', cellWidth: 20 }
+        }
+      });
+
       // Save the PDF
       const filename = `Product_HPP_Report_${productType}_${product.Product_ID}_${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(filename);
@@ -868,6 +904,21 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                       <span className="label">Tanggal Print</span>
                       <span className="separator">:</span>
                       <span className="value">{formatPrintDate()}</span>
+                    </div>
+                    <div className="info-line">
+                      <span className="label">Formula</span>
+                      <span className="separator">:</span>
+                      <span className="value">{product?.Formula || '-'}</span>
+                    </div>
+                    <div className="info-line">
+                      <span className="label">Category</span>
+                      <span className="separator">:</span>
+                      <span className="value">
+                        {product?.Group_PNCategory && product?.Group_PNCategory_Name 
+                          ? `${product.Group_PNCategory}. ${product.Group_PNCategory_Name}`
+                          : '-'
+                        }
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1310,6 +1361,13 @@ const ProductHPPReport = ({ product, isOpen, onClose }) => {
                       <td><strong>Total HPP</strong></td>
                       <td className="number final"><strong>{formatNumber(totalBB + totalBK + totalOverheadCost)}</strong></td>
                       <td className="number final"><strong>{formatNumber(totalHPPPerPack)}</strong></td>
+                    </tr>
+                    <tr className="final-total">
+                      <td><strong>HNA</strong></td>
+                      <td colSpan="3"></td>
+                      <td><strong>HPP/HNA</strong></td>
+                      <td className="number final"><strong>{formatCurrency(product?.Product_SalesHNA)}</strong></td>
+                      <td className="number final"><strong>{formatHPPRatio(product?.HPP_Ratio)}</strong></td>
                     </tr>
                   </tbody>
                 </table>

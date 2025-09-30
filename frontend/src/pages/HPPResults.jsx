@@ -25,6 +25,13 @@ const formatNumber = (value, decimals = 0) => {
   }).format(value);
 };
 
+// Format HPP ratio as percentage (e.g., 0.296500 -> 29.65%)
+const formatHPPRatio = (ratio) => {
+  if (!ratio || isNaN(ratio)) return '0,00%';
+  const percentage = (parseFloat(ratio) * 100).toFixed(2);
+  return `${percentage.replace('.', ',')}%`;
+};
+
 // Pagination component
 const Pagination = ({ currentPage, totalPages, onPageChange, totalItems }) => {
   const getVisiblePages = () => {
@@ -129,6 +136,8 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
             <th>Group Rendemen</th>
             <th>Batch Size</th>
             <th>HPP</th>
+            <th>HNA</th>
+            <th>HPP/HNA</th>
           </tr>
         </thead>
         <tbody>
@@ -146,6 +155,8 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
               <td>{formatNumber(item.Group_Rendemen)}%</td>
               <td>{formatNumber(item.Batch_Size)}</td>
               <td className="hpp-value">{formatCurrency(item.HPP)}</td>
+              <td>{formatCurrency(item.Product_SalesHNA)}</td>
+              <td>{formatHPPRatio(item.HPP_Ratio)}</td>
             </tr>
           ))}
         </tbody>
@@ -201,6 +212,8 @@ const Generik1Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
             <th>Group Rendemen</th>
             <th>Batch Size</th>
             <th>HPP</th>
+            <th>HNA</th>
+            <th>HPP/HNA</th>
           </tr>
         </thead>
         <tbody>
@@ -223,6 +236,8 @@ const Generik1Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
               <td>{formatNumber(item.Group_Rendemen)}%</td>
               <td>{formatNumber(item.Batch_Size)}</td>
               <td className="hpp-value">{formatCurrency(item.HPP)}</td>
+              <td>{formatCurrency(item.Product_SalesHNA)}</td>
+              <td>{formatHPPRatio(item.HPP_Ratio)}</td>
             </tr>
           ))}
         </tbody>
@@ -274,6 +289,8 @@ const Generik2Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
             <th>Group Rendemen</th>
             <th>Batch Size</th>
             <th>HPP</th>
+            <th>HNA</th>
+            <th>HPP/HNA</th>
           </tr>
         </thead>
         <tbody>
@@ -292,6 +309,8 @@ const Generik2Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
               <td>{formatNumber(item.Group_Rendemen)}%</td>
               <td>{formatNumber(item.Batch_Size)}</td>
               <td className="hpp-value">{formatCurrency(item.HPP)}</td>
+              <td>{formatCurrency(item.Product_SalesHNA)}</td>
+              <td>{formatHPPRatio(item.HPP_Ratio)}</td>
             </tr>
           ))}
         </tbody>
@@ -466,21 +485,21 @@ const HPPResults = () => {
       const ethicalColumns = [
         'Product_ID', 'Product_Name', 'totalBB', 'totalBK', 'MH_Proses_Std', 
         'MH_Kemas_Std', 'Biaya_Proses', 'Biaya_Kemas', 'Beban_Sisa_Bahan_Exp',
-        'Group_Rendemen', 'Batch_Size', 'HPP'
+        'Group_Rendemen', 'Batch_Size', 'HPP', 'Product_SalesHNA', 'HPP_Ratio'
       ];
       
       const generik1Columns = [
         'Product_ID', 'Product_Name', 'totalBB', 'totalBK', 'MH_Proses_Std',
         'MH_Kemas_Std', 'MH_Analisa_Std', 'MH_Timbang_BB', 'MH_Timbang_BK',
         'Biaya_Generik', 'Biaya_Analisa', 'MH_Mesin_Std', 'Rate_PLN',
-        'Beban_Sisa_Bahan_Exp', 'Group_Rendemen', 'Batch_Size', 'HPP'
+        'Beban_Sisa_Bahan_Exp', 'Group_Rendemen', 'Batch_Size', 'HPP', 'Product_SalesHNA', 'HPP_Ratio'
       ];
       
       const generik2Columns = [
         'Product_ID', 'Product_Name', 'totalBB', 'totalBK', 'MH_Proses_Std',
         'MH_Kemas_Std', 'Direct_Labor',
-        'Factory_Over_Head_50', 'Beban_Sisa_Bahan_Exp', 'Group_Rendemen', 
-        'Batch_Size', 'HPP'
+        'Factory_Over_Head_50', 'Depresiasi', 'Beban_Sisa_Bahan_Exp', 'Group_Rendemen', 
+        'Batch_Size', 'HPP', 'Product_SalesHNA', 'HPP_Ratio'
       ];
 
       const materialUsageColumns = [
