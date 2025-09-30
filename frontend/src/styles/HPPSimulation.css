@@ -1892,8 +1892,8 @@
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   border: 1px solid #e5e7eb;
   width: 100%;
-  /* Fixed container width to prevent expansion */
-  overflow-x: auto; /* Enable horizontal scrolling if needed for wide tables */
+  /* Allow container to use full available width */
+  overflow-x: auto; /* Enable horizontal scrolling only if content exceeds viewport */
   /* Custom scrollbar styling */
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 #f1f5f9;
@@ -1905,10 +1905,10 @@
 
 .simulation-list-table {
   width: 100%;
-  min-width: 930px; /* Reduced minimum width to fit better in viewport */
+  min-width: 800px; /* Reduced minimum width for better space utilization */
   border-collapse: collapse;
   font-size: 14px;
-  table-layout: fixed; /* Fixed table layout to prevent expansion based on content */
+  table-layout: auto; /* Auto layout allows better space distribution */
 }
 
 .simulation-list-table th {
@@ -1926,31 +1926,39 @@
   white-space: nowrap;
 }
 
-/* Fixed column widths for consistent table layout */
+/* Flexible column widths for better space utilization */
 .simulation-list-table th:nth-child(1) {
-  width: 50px;
+  width: 6%;
+  min-width: 50px;
 } /* ID */
 .simulation-list-table th:nth-child(2) {
-  width: 80px;
+  width: 8%;
+  min-width: 70px;
 } /* Type */
 .simulation-list-table th:nth-child(3) {
-  width: 80px;
+  width: 8%;
+  min-width: 70px;
 } /* Product ID */
 .simulation-list-table th:nth-child(4) {
-  width: 160px;
-} /* Product Name */
+  width: 20%;
+  min-width: 120px;
+} /* Product Name - More space for readability */
 .simulation-list-table th:nth-child(5) {
-  width: 80px;
+  width: 10%;
+  min-width: 80px;
 } /* Formula */
 .simulation-list-table th:nth-child(6) {
-  width: 180px;
-} /* Description - Slightly smaller to save space */
+  width: 25%;
+  min-width: 150px;
+} /* Description - More space for better readability */
 .simulation-list-table th:nth-child(7) {
-  width: 80px;
+  width: 8%;
+  min-width: 80px;
 } /* Date */
 .simulation-list-table th:nth-child(8) {
-  width: 220px;
-} /* Actions - Reduced width but still enough for group buttons */
+  width: 15%;
+  min-width: 180px;
+} /* Actions - Flexible width for action buttons */
 
 .simulation-list-table td {
   padding: 14px 12px;
@@ -1962,31 +1970,39 @@
   white-space: nowrap;
 }
 
-/* Apply matching fixed widths to table data cells */
+/* Apply matching flexible widths to table data cells */
 .simulation-list-table td:nth-child(1) {
-  width: 50px;
+  width: 6%;
+  min-width: 50px;
 } /* ID */
 .simulation-list-table td:nth-child(2) {
-  width: 80px;
+  width: 8%;
+  min-width: 70px;
 } /* Type */
 .simulation-list-table td:nth-child(3) {
-  width: 80px;
+  width: 8%;
+  min-width: 70px;
 } /* Product ID */
 .simulation-list-table td:nth-child(4) {
-  width: 160px;
-} /* Product Name */
+  width: 20%;
+  min-width: 120px;
+} /* Product Name - More space for readability */
 .simulation-list-table td:nth-child(5) {
-  width: 80px;
+  width: 10%;
+  min-width: 80px;
 } /* Formula */
 .simulation-list-table td:nth-child(6) {
-  width: 180px;
-} /* Description - Slightly smaller to save space */
+  width: 25%;
+  min-width: 150px;
+} /* Description - More space for better readability */
 .simulation-list-table td:nth-child(7) {
-  width: 80px;
+  width: 8%;
+  min-width: 80px;
 } /* Date */
 .simulation-list-table td:nth-child(8) {
-  width: 220px;
-} /* Actions - Reduced width but still enough for group buttons */
+  width: 15%;
+  min-width: 180px;
+} /* Actions - Flexible width for action buttons */
 
 /* Sortable header styles */
 .sortable-header {
@@ -2054,16 +2070,15 @@
 .description-cell {
   font-size: 13px;
   color: #6b7280;
-  width: 180px !important;
-  max-width: 180px !important;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 8px 12px;
   font-style: italic;
-  /* Ensure the cell maintains its width and doesn't expand */
+  /* Allow flexible width based on percentage */
   word-break: break-word;
   box-sizing: border-box;
+  max-width: none; /* Remove fixed max-width constraint */
 }
 
 .actions-cell {
@@ -3221,7 +3236,11 @@
 /* Responsive table adjustments */
 @media (max-width: 1200px) {
   .simulation-list-table {
-    min-width: 900px; /* Reduce minimum width on smaller screens */
+    min-width: 750px; /* Better minimum width for medium screens */
+  }
+  
+  .group-actions {
+    min-width: 200px; /* Slightly reduce action area width */
   }
 }
 
@@ -3232,21 +3251,27 @@
   }
 
   .simulation-list-table {
-    min-width: 700px; /* Further reduce for mobile */
+    min-width: 650px; /* Better mobile minimum width */
     font-size: 12px;
   }
 
   .simulation-list-table th,
   .simulation-list-table td {
-    padding: 8px 6px; /* Reduce padding on mobile */
+    padding: 10px 8px; /* Better mobile padding */
   }
 
   .group-header-content {
-    gap: 8px; /* Reduce gap on smaller screens */
+    gap: 10px; /* Better gap on mobile */
   }
 
   .group-actions {
-    gap: 4px; /* Reduce button gap on smaller screens */
+    gap: 4px; /* Compact button gap on smaller screens */
+    width: 160px; /* Smaller fixed action area for mobile */
+    max-width: 160px; /* Ensure no overflow on mobile */
+  }
+  
+  .group-info {
+    max-width: calc(100% - 200px); /* Adjust for smaller mobile action area */
   }
 
   .affected-products-btn span,
@@ -3256,8 +3281,10 @@
 
   .affected-products-btn,
   .bulk-delete-group-btn {
-    padding: 6px 8px; /* Even more compact on mobile */
+    padding: 8px; /* Icon-only padding on mobile */
     font-size: 0.75rem;
+    min-width: 36px; /* Ensure buttons are still clickable */
+    justify-content: center; /* Center icons when text is hidden */
   }
 }
 
@@ -3286,17 +3313,19 @@
   position: relative;
   width: 100% !important; /* Ensure full width */
   display: table-cell !important; /* Maintain table cell behavior */
+  box-sizing: border-box; /* Include padding in width calculation */
+  max-width: 0; /* Force content to respect container bounds */
 }
 
 .group-header-content {
   display: flex;
   align-items: center;
-  width: 100%;
-  gap: 12px; /* Optimized gap for better space distribution */
+  width: 100%; /* Use full available width */
+  gap: 12px; /* Restore better gap */
   min-width: 0; /* Allow flex items to shrink */
   overflow: hidden; /* Prevent overflow from breaking layout */
-  /* Ensure content fits in the available space */
   box-sizing: border-box;
+  /* Remove justify-content - let content flow naturally */
 }
 
 .group-toggle {
@@ -3320,6 +3349,7 @@
   min-width: 0; /* Allow flex child to shrink below content size */
   gap: 4px; /* Small gap between description and meta */
   overflow: hidden; /* Ensure text doesn't break container layout */
+  max-width: calc(100% - 300px); /* Reserve space for action buttons */
 }
 
 .group-type {
@@ -3342,13 +3372,29 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   line-height: 1.2;
+  max-width: 500px; /* Limit description width to leave space for buttons */
+  display: inline-block; /* Ensure max-width works */
 }
 
 .group-meta {
   display: flex;
   align-items: center;
-  gap: 8px; /* Reduced gap to fit better */
-  flex-shrink: 0; /* Never shrink the meta info */
+  gap: 8px; /* Better gap for readability */
+  flex-shrink: 0; /* Don't allow meta section to shrink */
+  min-width: 0; /* Allow content to shrink */
+  overflow: visible; /* Allow buttons to be visible */
+  justify-content: space-between; /* Spread out content */
+  width: 100%; /* Take full available width */
+}
+
+.group-meta-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 1; /* Allow left side to shrink if needed */
+  min-width: 0;
+  overflow: hidden;
+  max-width: 250px; /* Limit the space for date/count info */
 }
 
 .group-count {
@@ -3359,6 +3405,7 @@
   padding: 2px 6px; /* Reduced padding */
   border-radius: 6px;
   white-space: nowrap;
+  flex-shrink: 0; /* Don't shrink count */
 }
 
 .group-date {
@@ -3371,34 +3418,36 @@
   font-family: 'Courier New', monospace;
   border: 1px solid rgba(124, 58, 237, 0.2);
   white-space: nowrap;
+  flex-shrink: 0; /* Don't shrink date */
 }
 
 /* Group actions - Both action buttons */
 .group-actions {
   display: flex;
   align-items: center;
-  gap: 4px; /* Tighter space between buttons to fit better */
+  gap: 8px; /* Better spacing between buttons - restore readability */
   flex-shrink: 0; /* Never shrink the action buttons */
-  margin-left: auto; /* Push to the right */
-  min-width: 200px; /* Reduced minimum width to fit in available space */
+  min-width: 280px; /* Guarantee minimum space for both buttons */
   justify-content: flex-end; /* Align buttons to the right */
 }
 
 .affected-products-btn {
   display: flex;
   align-items: center;
-  gap: 3px; /* Even smaller gap */
+  gap: 4px; /* Restore readable gap */
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
   border: none;
-  border-radius: 4px; /* Smaller border radius */
-  padding: 5px 8px; /* More compact padding */
-  font-size: 0.75rem; /* Smaller font size */
+  border-radius: 6px; /* Restore readable border radius */
+  padding: 6px 10px; /* Restore readable padding */
+  font-size: 0.8rem; /* Restore readable font size */
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   font-family: "Inter", sans-serif;
   box-shadow: 0 2px 4px rgba(16, 185, 129, 0.25);
+  white-space: nowrap; /* Prevent text wrapping */
+  /* Remove max-width constraint */
 }
 
 .affected-products-btn:hover {
@@ -3598,16 +3647,18 @@ html {
 .bulk-delete-group-btn {
   display: flex;
   align-items: center;
-  gap: 4px; /* Reduced gap to match affected products button */
+  gap: 4px; /* Match affected products button gap */
   background: linear-gradient(135deg, #ef4444, #dc2626);
   color: white;
   border: none;
-  padding: 6px 10px; /* More compact padding to match affected products button */
-  border-radius: 6px; /* Smaller border radius to match */
-  font-size: 0.8rem; /* Smaller font size to match */
-  font-weight: 500;
+  padding: 6px 10px; /* Match affected products button padding */
+  border-radius: 6px; /* Match border radius */
+  font-size: 0.8rem; /* Match font size */
+  font-weight: 600; /* Match font weight for consistency */
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap; /* Prevent text wrapping */
+  /* Remove max-width constraint */
 }
 
 .bulk-delete-group-btn:hover {

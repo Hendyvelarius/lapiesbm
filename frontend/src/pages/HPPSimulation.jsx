@@ -2663,44 +2663,46 @@ export default function HPPSimulation() {
                                       {item.description}
                                     </span>
                                     <div className="group-meta">
-                                      <span className="group-date">
-                                        {item.formattedDate}
-                                      </span>
-                                      <span className="group-count">
-                                        ({item.count} products)
-                                      </span>
+                                      <div className="group-meta-left">
+                                        <span className="group-date">
+                                          {item.formattedDate}
+                                        </span>
+                                        <span className="group-count">
+                                          ({item.count} products)
+                                        </span>
+                                      </div>
+                                      <div className="group-actions">
+                                        <button
+                                          className="affected-products-btn"
+                                          onClick={(e) =>
+                                            handleShowAffectedProducts(
+                                              item.description,
+                                              item.date,
+                                              e
+                                            )
+                                          }
+                                          title="View products affected by this price change"
+                                        >
+                                          <BarChart3 size={16} />
+                                          <span>Affected Products</span>
+                                        </button>
+                                        <button
+                                          className="bulk-delete-group-btn"
+                                          onClick={(e) =>
+                                            handleBulkDeleteGroup(
+                                              item.description,
+                                              item.date,
+                                              item.count,
+                                              e
+                                            )
+                                          }
+                                          title={`Delete all ${item.count} simulations in this price change group`}
+                                        >
+                                          <Trash size={16} />
+                                          <span>Delete Group</span>
+                                        </button>
+                                      </div>
                                     </div>
-                                  </div>
-                                  <div className="group-actions">
-                                    <button
-                                      className="affected-products-btn"
-                                      onClick={(e) =>
-                                        handleShowAffectedProducts(
-                                          item.description,
-                                          item.date,
-                                          e
-                                        )
-                                      }
-                                      title="View products affected by this price change"
-                                    >
-                                      <BarChart3 size={16} />
-                                      <span>Affected Products</span>
-                                    </button>
-                                    <button
-                                      className="bulk-delete-group-btn"
-                                      onClick={(e) =>
-                                        handleBulkDeleteGroup(
-                                          item.description,
-                                          item.date,
-                                          item.count,
-                                          e
-                                        )
-                                      }
-                                      title={`Delete all ${item.count} simulations in this price change group`}
-                                    >
-                                      <Trash size={16} />
-                                      <span>Delete Group</span>
-                                    </button>
                                   </div>
                                 </div>
                               </td>
