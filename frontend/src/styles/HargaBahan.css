@@ -1101,6 +1101,23 @@
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
+.btn-disabled {
+  background: #9ca3af;
+  color: #ffffff;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  cursor: not-allowed;
+  font-weight: 500;
+  opacity: 0.6;
+  transition: none;
+}
+
+.btn-disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 .modal-footer {
   display: flex;
   justify-content: flex-end;

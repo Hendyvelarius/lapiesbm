@@ -462,12 +462,26 @@ const HargaBahan = () => {
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: 'array' });
           
-          // Get the first worksheet
-          const firstSheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[firstSheetName];
+          console.log('Available sheets:', workbook.SheetNames);
           
-          // Convert to JSON
+          let selectedSheetName;
+          
+          // Check if there's a sheet named "First Sheet"
+          if (workbook.SheetNames.includes('First Sheet')) {
+            selectedSheetName = 'First Sheet';
+            console.log('Using sheet: "First Sheet" (found by name)');
+          } else {
+            // Use the first available sheet (active sheet)
+            selectedSheetName = workbook.SheetNames[0];
+            console.log(`Using sheet: "${selectedSheetName}" (first/active sheet)`);
+          }
+          
+          const worksheet = workbook.Sheets[selectedSheetName];
+          
+          // Convert to JSON with header row included
           const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          console.log(`Sheet "${selectedSheetName}" contains ${jsonData.length} rows`);
+          
           resolve(jsonData);
           
         } catch (error) {
@@ -483,77 +497,98 @@ const HargaBahan = () => {
   const extractRequiredColumns = (data) => {
     if (!data || data.length === 0) return [];
     
-    // Get the header row (first row)
-    const headers = data[0];
-    console.log('Headers found:', headers);
+    console.log('=== BAHAN BAKU IMPORT STRUCTURE ===');
+    console.log('New Excel format (starting from row 2):');
+    console.log('Column A: Item Type (must be "Bahan Baku")');
+    console.log('Column B: Item ID');
+    console.log('Column D: Item Name (display only)');
+    console.log('Column E: Item PRC ID');
+    console.log('Column AB: Item Purchase Unit');
+    console.log('Column AD: Item Currency');
+    console.log('Column AE: Item Purchase Standard Price');
+    console.log('=====================================');
     
-    // Find the column indices for the required columns
-    const columnMap = {};
-    
-    // Define the column names to look for (case insensitive)
-    const requiredColumns = {
-      kode: ['kode'],
-      unitTerakhirPo: ['unit terakhir po', 'unit terakhir po idr'],
-      kurs: ['kurs'],
-      estimasiHarga: ['estimasi harga'],
-      kodePrinciple: ['kode principle']
-    };
-    
-    // Find column indices
-    headers.forEach((header, index) => {
-      if (header) {
-        const headerLower = header.toString().toLowerCase().trim();
-        
-        Object.keys(requiredColumns).forEach(key => {
-          requiredColumns[key].forEach(searchTerm => {
-            // Use exact match for "kode" to avoid matching "Kode Principle"
-            if (key === 'kode') {
-              if (headerLower === searchTerm.toLowerCase()) {
-                columnMap[key] = index;
-              }
-            } else {
-              // Use includes for other columns
-              if (headerLower.includes(searchTerm.toLowerCase())) {
-                columnMap[key] = index;
-              }
-            }
-          });
-        });
-      }
-    });
-    
-    console.log('Column mapping:', columnMap);
-    
-    // Check if we found all required columns
-    const missingColumns = Object.keys(requiredColumns).filter(key => !(key in columnMap));
-    if (missingColumns.length > 0) {
-      notifier.alert(`Missing required columns: ${missingColumns.join(', ')}`);
-      return [];
-    }
-    
-    // Extract data from rows (skip header row)
+    // Skip header row (row 1), start from row 2 (index 1)
     const extractedData = [];
     
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
       if (!row || row.length === 0) continue;
       
+      // Extract data from specific columns based on new format
+      const itemType = row[0] ? row[0].toString().trim() : ''; // Column A
+      const itemId = row[1] ? row[1].toString().trim() : ''; // Column B
+      const itemName = row[3] ? row[3].toString().trim() : ''; // Column D (index 3) - For display only
+      const itemPrcId = row[4] ? row[4].toString().trim() : ''; // Column E (index 4)
+      const itemPurchaseUnit = row[27] ? row[27].toString().trim() : ''; // Column AB (index 27)
+      const itemCurrency = row[29] ? row[29].toString().trim() : ''; // Column AD (index 29)
+      const itemPurchasePrice = row[30] ? row[30] : ''; // Column AE (index 30)
+      
+      // Only validate Item ID and Item Type - skip empty or invalid entries
+      if (!itemId) continue;
+      
+      // Validate that Item Type is "Bahan Baku" (case insensitive)
+      if (itemType.toLowerCase() !== 'bahan baku') {
+        console.warn(`Row ${i + 1}: Invalid item type "${itemType}" - expected "Bahan Baku". Skipping row.`);
+        continue;
+      }
+      
+      // Handle invalid or null price - set to 0
+      let processedPrice = 0;
+      if (itemPurchasePrice !== null && itemPurchasePrice !== undefined && itemPurchasePrice !== '') {
+        const parsedPrice = parseFloat(itemPurchasePrice);
+        if (!isNaN(parsedPrice) && parsedPrice >= 0) {
+          processedPrice = parsedPrice;
+        }
+      }
+      
+      // Validate and handle invalid ITEM_PURCHASE_UNIT
+      let processedUnit = itemPurchaseUnit;
+      if (!itemPurchaseUnit || 
+          itemPurchaseUnit.toString().trim() === '' ||
+          /^\d+$/.test(itemPurchaseUnit.toString().trim()) || // Pure number
+          itemPurchaseUnit.toString().toLowerCase() === 'null' ||
+          itemPurchaseUnit.toString().toLowerCase() === 'undefined') {
+        
+        console.warn(`Row ${i + 1}: Invalid unit "${itemPurchaseUnit}" detected. Setting to null for manual review.`);
+        processedUnit = null;
+      }
+      
       const rowData = {
-        kode: row[columnMap.kode] || '',
-        unitTerakhirPo: row[columnMap.unitTerakhirPo] || '',
-        kurs: row[columnMap.kurs] || '',
-        estimasiHarga: row[columnMap.estimasiHarga] || '',
-        kodePrinciple: row[columnMap.kodePrinciple] || '',
-        rowNumber: i + 1
+        rowNumber: i + 1,
+        itemType: itemType,
+        itemId: itemId,
+        itemName: itemName, // Column D - For display only
+        itemPrcId: itemPrcId,
+        itemPurchaseUnit: processedUnit,
+        itemCurrency: itemCurrency,
+        itemPurchasePrice: processedPrice,
+        
+        // Legacy field mapping for compatibility with existing processing logic
+        kode: itemId,
+        kodePrinciple: itemPrcId,
+        unitTerakhirPo: processedUnit,
+        kurs: itemCurrency,
+        estimasiHarga: processedPrice,
+        
+        // Database field mapping
+        ITEM_ID: itemId,
+        ITEM_TYPE: 'BB', // Convert "Bahan Baku" to "BB"
+        ITEM_PURCHASE_UNIT: processedUnit,
+        ITEM_PURCHASE_STD_PRICE: processedPrice,
+        ITEM_CURRENCY: itemCurrency,
+        ITEM_PRC_ID: itemPrcId,
+        
+        // Validation flags for review
+        hasInvalidUnit: processedUnit === null,
+        hasZeroPrice: processedPrice === 0
       };
       
-      // Only add row if at least kode is not empty
-      if (rowData.kode && rowData.kode.toString().trim() !== '') {
-        extractedData.push(rowData);
-      }
+      extractedData.push(rowData);
     }
     
-    console.log('Extracted data:', extractedData);
+    console.log(`Extracted ${extractedData.length} valid Bahan Baku records`);
+    console.log('Sample extracted data:', extractedData.slice(0, 3));
     return extractedData;
   };
 
@@ -1891,9 +1926,16 @@ const HargaBahan = () => {
                   </>
                 ) : (
                   <>
-                    <p><strong>Processed columns:</strong> Kode, Item Name, Type, Unit, Currency, Price</p>
+                    <p><strong>Import Type:</strong> Bahan Baku (BB)</p>
+                    <p><strong>Columns Read:</strong> Item Type (A), Item ID (B), Item Name (D), PRC ID (E), Unit (AB), Currency (AD), Price (AE)</p>
                     {importPreviewData.some(item => item.isDuplicate) && (
                       <p style={{color: '#f59e0b'}}><strong>Note:</strong> Duplicates detected and resolved by selecting highest priced items</p>
+                    )}
+                    {importPreviewData.some(item => item.hasInvalidUnit) && (
+                      <p style={{color: '#dc2626'}}><strong>🚫 Critical Warning:</strong> {importPreviewData.filter(item => item.hasInvalidUnit).length} items have invalid units - import blocked until fixed</p>
+                    )}
+                    {importPreviewData.some(item => item.hasZeroPrice) && (
+                      <p style={{color: '#f59e0b'}}><strong>Notice:</strong> {importPreviewData.filter(item => item.hasZeroPrice).length} items have zero price (automatically set)</p>
                     )}
                   </>
                 )}
@@ -1934,23 +1976,39 @@ const HargaBahan = () => {
                         </thead>
                         <tbody>
                           {currentPageData.map((row, index) => (
-                            <tr key={startIndex + index}>
+                            <tr key={startIndex + index} style={{
+                              backgroundColor: (row.hasInvalidUnit || row.hasZeroPrice) ? '#fef3c7' : 'transparent'
+                            }}>
                               <td>{row.rowNumber}</td>
                               <td>{row.kode || row.itemCode}</td>
                               <td>{row.itemName || 'N/A'}</td>
                               <td>{row.itemType || 'N/A'}</td>
-                              <td>{row.finalUnit || row.unitTerakhirPo || row.unit}</td>
+                              <td style={{color: row.hasInvalidUnit ? '#dc2626' : 'inherit'}}>
+                                {row.finalUnit || row.unitTerakhirPo || row.unit || 'NULL'}
+                                {row.hasInvalidUnit && <small style={{display: 'block', color: '#dc2626'}}>Invalid</small>}
+                              </td>
                               <td>{row.finalCurrency || row.kurs || row.currency}</td>
-                              <td>{row.finalPrice || row.estimasiHarga || row.price}</td>
+                              <td style={{color: row.hasZeroPrice ? '#f59e0b' : 'inherit'}}>
+                                {row.finalPrice || row.estimasiHarga || row.price}
+                                {row.hasZeroPrice && <small style={{display: 'block', color: '#f59e0b'}}>Zero</small>}
+                              </td>
                               <td>{row.kodePrinciple || row.principle || 'N/A'}</td>
                               <td>
                                 {row.isDuplicate ? (
                                   <span style={{color: '#f59e0b', fontWeight: 'bold'}}>
                                     🔄 Duplicate (Selected)
                                   </span>
+                                ) : row.hasInvalidUnit ? (
+                                  <span style={{color: '#dc2626', fontWeight: 'bold'}}>
+                                    Needs Fix
+                                  </span>
+                                ) : row.hasZeroPrice ? (
+                                  <span style={{color: '#f59e0b', fontWeight: 'bold'}}>
+                                    Needs Review
+                                  </span>
                                 ) : (
                                   <span style={{color: '#10b981', fontWeight: 'bold'}}>
-                                    ✓ {importType === 'bahan-kemas' ? 'Valid' : 'Single'}
+                                    ✓ {importType === 'bahan-kemas' ? 'Valid' : 'Valid'}
                                   </span>
                                 )}
                               </td>
@@ -2010,36 +2068,51 @@ const HargaBahan = () => {
                 Close Preview
               </button>
               
-              {/* Bahan Kemas Import - Data is already processed, ready for DB import */}
-              {importType === 'bahan-kemas' && importPreviewData.length > 0 && (
-                <button 
-                  className="btn-primary"
-                  onClick={handleBahanKemasFinalImport}
-                  disabled={importLoading}
-                >
-                  {importLoading ? 'Importing...' : 'Import to Database'}
-                </button>
-              )}
-              
-              {/* Bahan Baku Import - Standard flow */}
-              {importType === 'bahan-baku' && importPreviewData.length > 0 && importPreviewData[0].itemName && (
-                <button 
-                  className="btn-primary"
-                  onClick={handleFinalImport}
-                  disabled={importLoading}
-                >
-                  {importLoading ? 'Importing...' : 'Import to Database'}
-                </button>
-              )}
-              {importType === 'bahan-baku' && (!importPreviewData.length || !importPreviewData[0].itemName) && (
-                <button 
-                  className="btn-primary"
-                  onClick={handleProcessImport}
-                  disabled={importLoading}
-                >
-                  {importLoading ? 'Processing...' : 'Process Import'}
-                </button>
-              )}
+              {/* Check for critical warnings (invalid units) */}
+              {(() => {
+                const hasCriticalWarnings = importPreviewData.some(item => item.hasInvalidUnit);
+                
+                return (
+                  <>
+                    {/* Bahan Kemas Import - Data is already processed, ready for DB import */}
+                    {importType === 'bahan-kemas' && importPreviewData.length > 0 && (
+                      <button 
+                        className={hasCriticalWarnings ? "btn-disabled" : "btn-primary"}
+                        onClick={handleBahanKemasFinalImport}
+                        disabled={importLoading || hasCriticalWarnings}
+                        title={hasCriticalWarnings ? "Cannot import: Fix invalid units first" : ""}
+                      >
+                        {hasCriticalWarnings ? 'Fix Data Issues First' : 
+                         importLoading ? 'Importing...' : 'Import to Database'}
+                      </button>
+                    )}
+                    
+                    {/* Bahan Baku Import - Standard flow */}
+                    {importType === 'bahan-baku' && importPreviewData.length > 0 && importPreviewData[0].itemName && (
+                      <button 
+                        className={hasCriticalWarnings ? "btn-disabled" : "btn-primary"}
+                        onClick={handleFinalImport}
+                        disabled={importLoading || hasCriticalWarnings}
+                        title={hasCriticalWarnings ? "Cannot import: Fix invalid units first" : ""}
+                      >
+                        {hasCriticalWarnings ? 'Fix Data Issues First' : 
+                         importLoading ? 'Importing...' : 'Import to Database'}
+                      </button>
+                    )}
+                    {importType === 'bahan-baku' && (!importPreviewData.length || !importPreviewData[0].itemName) && (
+                      <button 
+                        className={hasCriticalWarnings ? "btn-disabled" : "btn-primary"}
+                        onClick={handleProcessImport}
+                        disabled={importLoading || hasCriticalWarnings}
+                        title={hasCriticalWarnings ? "Cannot process: Fix invalid units first" : ""}
+                      >
+                        {hasCriticalWarnings ? 'Fix Data Issues First' : 
+                         importLoading ? 'Processing...' : 'Process Import'}
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
