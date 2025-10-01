@@ -54,7 +54,8 @@ const HargaBahan = () => {
   const [importPreviewData, setImportPreviewData] = useState([]);
   const [showImportPreview, setShowImportPreview] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
-  const [showFormatModal, setShowFormatModal] = useState(false); // New state for format modal
+  const [showFormatModal, setShowFormatModal] = useState(false); // For Bahan Kemas format modal
+  const [showBahanBakuFormatModal, setShowBahanBakuFormatModal] = useState(false); // For Bahan Baku format modal
   
   // Import pagination states
   const [importCurrentPage, setImportCurrentPage] = useState(1);
@@ -291,6 +292,12 @@ const HargaBahan = () => {
   };
 
   const handleImportMaterial = () => {
+    // Show Bahan Baku format information modal first
+    setShowBahanBakuFormatModal(true);
+  };
+
+  const proceedWithBahanBakuImport = () => {
+    setShowBahanBakuFormatModal(false);
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.xls,.xlsx';
@@ -365,14 +372,14 @@ const HargaBahan = () => {
     if (!data || data.length === 0) return [];
     
     console.log('=== BAHAN KEMAS IMPORT STRUCTURE ===');
-    console.log('Required Excel format (starting from row 2):');
+    console.log('New Excel format (starting from row 2):');
     console.log('Column A: Item Type (must be "Bahan Kemas")');
-    console.log('Column B: Item Code/ID'); 
+    console.log('Column B: Item ID');
     console.log('Column D: Item Name (display only)');
-    console.log('Column E: Principle/PRC ID');
-    console.log('Column L: Purchase Unit');
-    console.log('Column AD: Purchase Price');
-    console.log('Column AE: Currency');
+    console.log('Column E: Item PRC ID');
+    console.log('Column AB: Item Purchase Unit');
+    console.log('Column AD: Item Currency');
+    console.log('Column AE: Item Purchase Standard Price');
     console.log('=====================================');
     
     // Skip header row (row 1), start from row 2 (index 1)
@@ -382,17 +389,17 @@ const HargaBahan = () => {
       const row = data[i];
       if (!row || row.length === 0) continue;
       
-      // Extract data from specific columns
+      // Extract data from specific columns based on new format (same as Bahan Baku)
       const itemType = row[0] ? row[0].toString().trim() : ''; // Column A
-      const itemCode = row[1] ? row[1].toString().trim() : ''; // Column B  
-      const itemName = row[3] ? row[3].toString().trim() : ''; // Column D
-      const principle = row[4] ? row[4].toString().trim() : ''; // Column E
-      const unit = row[11] ? row[11].toString().trim() : ''; // Column L (index 11)
-      const price = row[29] ? row[29] : ''; // Column AD (index 29)
-      const currency = row[30] ? row[30].toString().trim() : ''; // Column AE (index 30)
+      const itemId = row[1] ? row[1].toString().trim() : ''; // Column B
+      const itemName = row[3] ? row[3].toString().trim() : ''; // Column D (index 3) - For display only
+      const itemPrcId = row[4] ? row[4].toString().trim() : ''; // Column E (index 4)
+      const itemPurchaseUnit = row[27] ? row[27].toString().trim() : ''; // Column AB (index 27)
+      const itemCurrency = row[29] ? row[29].toString().trim() : ''; // Column AD (index 29)
+      const itemPurchasePrice = row[30] ? row[30] : ''; // Column AE (index 30)
       
-      // Only validate Item Code and Item Type - skip empty or invalid entries
-      if (!itemCode) continue;
+      // Only validate Item ID and Item Type - skip empty or invalid entries
+      if (!itemId) continue;
       
       // Validate that Item Type is "Bahan Kemas" (case insensitive)
       if (itemType.toLowerCase() !== 'bahan kemas') {
@@ -400,28 +407,64 @@ const HargaBahan = () => {
         continue;
       }
       
+      // Handle invalid or null price - set to 0 (same as Bahan Baku)
+      let processedPrice = 0;
+      if (itemPurchasePrice !== null && itemPurchasePrice !== undefined && itemPurchasePrice !== '') {
+        const parsedPrice = parseFloat(itemPurchasePrice);
+        if (!isNaN(parsedPrice) && parsedPrice >= 0) {
+          processedPrice = parsedPrice;
+        }
+      }
+      
+      // Validate and handle invalid ITEM_PURCHASE_UNIT (same as Bahan Baku)
+      let processedUnit = itemPurchaseUnit;
+      if (!itemPurchaseUnit || 
+          itemPurchaseUnit.toString().trim() === '' ||
+          /^\d+$/.test(itemPurchaseUnit.toString().trim()) || // Pure number
+          itemPurchaseUnit.toString().toLowerCase() === 'null' ||
+          itemPurchaseUnit.toString().toLowerCase() === 'undefined' ||
+          itemPurchaseUnit.toString().toLowerCase() === '(none)' ||
+          itemPurchaseUnit.toString().toLowerCase() === 'none') {
+        
+        console.warn(`Row ${i + 1}: Invalid unit "${itemPurchaseUnit}" detected. Setting to null for manual review.`);
+        processedUnit = null;
+      }
+      
       const rowData = {
         rowNumber: i + 1,
         itemType: itemType,
-        itemCode: itemCode,
-        itemName: itemName,
-        principle: principle,
-        unit: unit,
-        price: price,
-        currency: currency,
-        // Derived fields for database insertion
-        ITEM_ID: itemCode,
+        itemId: itemId,
+        itemName: itemName, // Column D - For display only
+        itemPrcId: itemPrcId,
+        itemPurchaseUnit: processedUnit,
+        itemCurrency: itemCurrency,
+        itemPurchasePrice: processedPrice,
+        
+        // Legacy field mapping for compatibility with existing processing logic
+        itemCode: itemId,
+        principle: itemPrcId,
+        unit: processedUnit,
+        currency: itemCurrency,
+        price: processedPrice,
+        
+        // Database field mapping
+        ITEM_ID: itemId,
         ITEM_TYPE: 'BK', // Convert "Bahan Kemas" to "BK"
-        ITEM_PURCHASE_UNIT: unit,
-        ITEM_PURCHASE_STD_PRICE: price ? parseFloat(price) : null,
-        ITEM_CURRENCY: currency,
-        ITEM_PRC_ID: principle
+        ITEM_PURCHASE_UNIT: processedUnit,
+        ITEM_PURCHASE_STD_PRICE: processedPrice,
+        ITEM_CURRENCY: itemCurrency,
+        ITEM_PRC_ID: itemPrcId,
+        
+        // Validation flags for review (same as Bahan Baku)
+        hasInvalidUnit: processedUnit === null,
+        hasZeroPrice: processedPrice === 0
       };
       
       extractedData.push(rowData);
     }
     
     console.log(`Extracted ${extractedData.length} valid Bahan Kemas records`);
+    console.log('Sample extracted data:', extractedData.slice(0, 3));
     return extractedData;
   };
 
@@ -548,7 +591,9 @@ const HargaBahan = () => {
           itemPurchaseUnit.toString().trim() === '' ||
           /^\d+$/.test(itemPurchaseUnit.toString().trim()) || // Pure number
           itemPurchaseUnit.toString().toLowerCase() === 'null' ||
-          itemPurchaseUnit.toString().toLowerCase() === 'undefined') {
+          itemPurchaseUnit.toString().toLowerCase() === 'undefined' ||
+          itemPurchaseUnit.toString().toLowerCase() === '(none)' ||
+          itemPurchaseUnit.toString().toLowerCase() === 'none') {
         
         console.warn(`Row ${i + 1}: Invalid unit "${itemPurchaseUnit}" detected. Setting to null for manual review.`);
         processedUnit = null;
@@ -787,12 +832,13 @@ const HargaBahan = () => {
     
     // Step 1: Normalize item codes (remove .xxx endings)
     const normalizedData = importData.map(item => {
-      const normalized = normalizeKode(item.itemCode);
-      console.log(`Normalizing: "${item.itemCode}" → "${normalized}"`);
+      const normalized = normalizeKode(item.itemId || item.itemCode); // Support both new and legacy field names
+      console.log(`Normalizing: "${item.itemId || item.itemCode}" → "${normalized}"`);
       return {
         ...item,
-        originalCode: item.itemCode,
-        itemCode: normalized,
+        originalCode: item.itemId || item.itemCode,
+        itemId: normalized, // New field name
+        itemCode: normalized, // Legacy field name for compatibility
         ITEM_ID: normalized // Update the database field too
       };
     });
@@ -1917,11 +1963,15 @@ const HargaBahan = () => {
                 {importType === 'bahan-kemas' ? (
                   <>
                     <p><strong>Import Type:</strong> Bahan Kemas (BK)</p>
-                    <p><strong>Columns Read:</strong> Item Type (A), Item Code (B), Item Name (D), Principle (E), Unit (L), Price (AD), Currency (AE)</p>
-                    {importPreviewData.some(item => item.isDuplicate) ? (
-                      <p style={{color: '#f59e0b'}}><strong>Status:</strong> Auto-processed - Duplicates resolved by highest price selection</p>
-                    ) : (
-                      <p style={{color: '#10b981'}}><strong>Status:</strong> Auto-processed - No duplicates found, ready for import</p>
+                    <p><strong>Columns Read:</strong> Item Type (A), Item ID (B), Item Name (D), PRC ID (E), Unit (AB), Currency (AD), Price (AE)</p>
+                    {importPreviewData.some(item => item.isDuplicate) && (
+                      <p style={{color: '#f59e0b'}}><strong>Note:</strong> Duplicates detected and resolved by selecting highest priced items</p>
+                    )}
+                    {importPreviewData.some(item => item.hasInvalidUnit) && (
+                      <p style={{color: '#dc2626'}}><strong>🚫 Critical Warning:</strong> {importPreviewData.filter(item => item.hasInvalidUnit).length} items have invalid units - import blocked until fixed</p>
+                    )}
+                    {importPreviewData.some(item => item.hasZeroPrice) && (
+                      <p style={{color: '#f59e0b'}}><strong>Notice:</strong> {importPreviewData.filter(item => item.hasZeroPrice).length} items have zero price (automatically set)</p>
                     )}
                   </>
                 ) : (
@@ -2170,21 +2220,21 @@ const HargaBahan = () => {
                         <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#059669' }}>No</td>
                       </tr>
                       <tr>
-                        <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>L</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>AB</td>
                         <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Purchase Unit</td>
                         <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Unit of measurement (kg, pcs, etc.)</td>
                         <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#059669' }}>No</td>
                       </tr>
                       <tr style={{ backgroundColor: '#f9fafb' }}>
                         <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>AD</td>
-                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Purchase Price</td>
-                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Standard purchase price</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Currency</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Currency code (IDR, USD, etc.)</td>
                         <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#059669' }}>No</td>
                       </tr>
                       <tr>
                         <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>AE</td>
-                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Currency</td>
-                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Currency code (IDR, USD, etc.)</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Purchase Price</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Standard purchase price</td>
                         <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#059669' }}>No</td>
                       </tr>
                     </tbody>
@@ -2200,6 +2250,22 @@ const HargaBahan = () => {
                     <li><strong>Duplicate handling:</strong> Items with same code will be automatically deduplicated by highest price</li>
                     <li><strong>Currency conversion:</strong> All prices will be normalized to IDR for comparison</li>
                     <li><strong>Code normalization:</strong> Codes ending with ".xxx" (e.g., "130.000") will be normalized to "130"</li>
+                  </ul>
+                  
+                  <div style={{ backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '8px', padding: '15px', margin: '15px 0' }}>
+                    <h4 style={{ color: '#92400e', margin: '0 0 10px 0' }}>🗑️ Data Replacement Warning</h4>
+                    <p style={{ margin: '0', color: '#92400e', fontWeight: '500' }}>
+                      <strong>All existing Bahan Kemas (BK) data will be deleted and replaced</strong> with the uploaded data. 
+                      This action cannot be undone. Please ensure your Excel file contains all the data you want to keep.
+                    </p>
+                  </div>
+                  
+                  <h4 style={{ color: '#dc2626', marginTop: '15px' }}>🚫 Data Validation Rules:</h4>
+                  <ul style={{ paddingLeft: '20px', lineHeight: '1.6', color: '#374151' }}>
+                    <li><strong>Invalid Units:</strong> Pure numbers (e.g., "5"), "null", "undefined", "(none)", "none" will be flagged and block import</li>
+                    <li><strong>Zero Prices:</strong> Items with 0 or invalid prices will be normalized to 0 (warning only)</li>
+                    <li><strong>Empty Fields:</strong> Missing essential data will be handled gracefully</li>
+                    <li><strong>Critical Warnings:</strong> Import will be blocked until invalid units are fixed manually</li>
                   </ul>
                 </div>
 
@@ -2222,6 +2288,136 @@ const HargaBahan = () => {
                 <button 
                   className="modal-btn primary" 
                   onClick={proceedWithBahanKemasImport}
+                >
+                  <Upload size={16} />
+                  Continue with Import
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bahan Baku Format Information Modal */}
+      {showBahanBakuFormatModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Bahan Baku Import Format Guide</h2>
+              <button className="modal-close" onClick={() => setShowBahanBakuFormatModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="format-guide">
+                <h3>📋 Required Excel Format</h3>
+                <p>Your Excel file must follow this exact column structure:</p>
+                
+                <div className="format-table-container" style={{ marginBottom: '20px' }}>
+                  <table className="format-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f3f4f6' }}>
+                        <th style={{ border: '1px solid #d1d5db', padding: '8px', textAlign: 'left' }}>Column</th>
+                        <th style={{ border: '1px solid #d1d5db', padding: '8px', textAlign: 'left' }}>Field Name</th>
+                        <th style={{ border: '1px solid #d1d5db', padding: '8px', textAlign: 'left' }}>Description</th>
+                        <th style={{ border: '1px solid #d1d5db', padding: '8px', textAlign: 'left' }}>Required</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>A</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Item Type</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Must be "Bahan Baku" exactly</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#dc2626' }}>Yes</td>
+                      </tr>
+                      <tr style={{ backgroundColor: '#f9fafb' }}>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>B</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Item Code/ID</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Unique identifier for the item</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#dc2626' }}>Yes</td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>D</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Item Name</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Display name (for reference only)</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#059669' }}>No</td>
+                      </tr>
+                      <tr style={{ backgroundColor: '#f9fafb' }}>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>E</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Principle/PRC ID</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Principle code reference</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#059669' }}>No</td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>AB</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Purchase Unit</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Unit of measurement (kg, pcs, etc.)</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#059669' }}>No</td>
+                      </tr>
+                      <tr style={{ backgroundColor: '#f9fafb' }}>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>AD</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Currency</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Currency code (IDR, USD, etc.)</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#059669' }}>No</td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', fontWeight: 'bold' }}>AE</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Purchase Price</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px' }}>Standard purchase price</td>
+                        <td style={{ border: '1px solid #d1d5db', padding: '8px', color: '#059669' }}>No</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="format-notes">
+                  <h4>⚠️ Important Notes:</h4>
+                  <ul style={{ paddingLeft: '20px', lineHeight: '1.6' }}>
+                    <li><strong>Row 1:</strong> Must contain headers (will be skipped)</li>
+                    <li><strong>Data starts from Row 2</strong></li>
+                    <li><strong>Item Type validation:</strong> Only "Bahan Baku" entries will be processed</li>
+                    <li><strong>Duplicate handling:</strong> Items with same code will be automatically deduplicated by highest price</li>
+                    <li><strong>Currency conversion:</strong> All prices will be normalized to IDR for comparison</li>
+                    <li><strong>Code normalization:</strong> Codes ending with ".xxx" (e.g., "130.000") will be normalized to "130"</li>
+                  </ul>
+                  
+                  <div style={{ backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '8px', padding: '15px', margin: '15px 0' }}>
+                    <h4 style={{ color: '#92400e', margin: '0 0 10px 0' }}>🗑️ Data Replacement Warning</h4>
+                    <p style={{ margin: '0', color: '#92400e', fontWeight: '500' }}>
+                      <strong>All existing Bahan Baku (BB) data will be deleted and replaced</strong> with the uploaded data. 
+                      This action cannot be undone. Please ensure your Excel file contains all the data you want to keep.
+                    </p>
+                  </div>
+                  
+                  <h4 style={{ color: '#dc2626', marginTop: '15px' }}>🚫 Data Validation Rules:</h4>
+                  <ul style={{ paddingLeft: '20px', lineHeight: '1.6', color: '#374151' }}>
+                    <li><strong>Invalid Units:</strong> Pure numbers (e.g., "5"), "null", "undefined", "(none)", "none" will be flagged and block import</li>
+                    <li><strong>Zero Prices:</strong> Items with 0 or invalid prices will be normalized to 0 (warning only)</li>
+                    <li><strong>Empty Fields:</strong> Missing essential data will be handled gracefully</li>
+                    <li><strong>Critical Warnings:</strong> Import will be blocked until invalid units are fixed manually</li>
+                  </ul>
+                </div>
+
+                <div className="process-info" style={{ backgroundColor: '#f0f9ff', padding: '15px', borderRadius: '8px', marginTop: '15px' }}>
+                  <h4 style={{ color: '#0369a1', margin: '0 0 10px 0' }}>🚀 Auto-Processing</h4>
+                  <p style={{ margin: '0', color: '#0c4a6e' }}>
+                    After upload, your data will be automatically processed for duplicates and normalized. 
+                    You'll only need to review the results and click "Import to Database".
+                  </p>
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button 
+                  className="modal-btn secondary" 
+                  onClick={() => setShowBahanBakuFormatModal(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="modal-btn primary" 
+                  onClick={proceedWithBahanBakuImport}
                 >
                   <Upload size={16} />
                   Continue with Import

@@ -220,12 +220,18 @@ async function bulkDeleteBBHargaBahan() {
 async function bulkDeleteBKHargaBahan() {
   try {
     const db = await connect();
-    const deleteQuery = 'DELETE FROM M_COGS_STD_HRG_BAHAN WHERE ITEM_TYPE = @itemType';
+    // Delete BK items but preserve entries where ITEM_ID is exactly 2 characters
+    // This preserves entries like BA, C0, J1, etc. which are not part of regular import
+    const deleteQuery = `
+      DELETE FROM M_COGS_STD_HRG_BAHAN 
+      WHERE ITEM_TYPE = @itemType 
+      AND LEN(ITEM_ID) != 2
+    `;
     const result = await db.request()
       .input('itemType', 'BK')
       .query(deleteQuery);
       
-    console.log(`Bulk deleted ${result.rowsAffected[0]} BK records`);
+    console.log(`Bulk deleted ${result.rowsAffected[0]} BK records (preserving 2-character ITEM_IDs like BA, C0, J1)`);
     return {
       success: true,
       rowsAffected: result.rowsAffected[0]
