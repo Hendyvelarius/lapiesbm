@@ -822,11 +822,28 @@ const HargaBahan = () => {
       const mappedData = importPreviewData.map((item) => {
         const currentDateTime = new Date().toISOString();
         
+        // Fix price mapping - handle 0 values correctly (don't treat as falsy)
+        let finalPrice = null;
+        if (item.ITEM_PURCHASE_STD_PRICE !== undefined && item.ITEM_PURCHASE_STD_PRICE !== null) {
+          finalPrice = item.ITEM_PURCHASE_STD_PRICE;
+        } else if (item.finalPrice !== undefined && item.finalPrice !== null) {
+          finalPrice = item.finalPrice;
+        } else if (item.price !== undefined && item.price !== null && item.price !== '') {
+          finalPrice = parseFloat(item.price);
+        }
+        
+        // Ensure 0 is preserved as valid price (don't convert to null)
+        if (finalPrice !== null && !isNaN(finalPrice)) {
+          finalPrice = Number(finalPrice);
+        } else {
+          finalPrice = null;
+        }
+
         return {
           ITEM_ID: item.ITEM_ID,
           ITEM_TYPE: 'BK', // Always BK for Bahan Kemas
           ITEM_PURCHASE_UNIT: item.ITEM_PURCHASE_UNIT || item.unit || null,
-          ITEM_PURCHASE_STD_PRICE: item.ITEM_PURCHASE_STD_PRICE || item.finalPrice || parseFloat(item.price) || null,
+          ITEM_PURCHASE_STD_PRICE: finalPrice,
           ITEM_CURRENCY: item.ITEM_CURRENCY || item.finalCurrency || item.currency || 'IDR',
           ITEM_PRC_ID: item.ITEM_PRC_ID || item.principle || null,
           user_id: 'SYSTEM',
