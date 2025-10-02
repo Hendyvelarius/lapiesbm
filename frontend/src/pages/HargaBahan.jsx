@@ -476,6 +476,7 @@ const HargaBahan = () => {
     setImportType('bahan-baku'); // Set import type for Bahan Baku
     
     try {
+      // Step 1: Read and extract data from Excel
       const data = await readExcelFile(file);
       const extractedData = extractRequiredColumns(data);
       
@@ -484,9 +485,41 @@ const HargaBahan = () => {
         return;
       }
       
-      setImportPreviewData(extractedData);
+      console.log('=== BAHAN BAKU AUTO-PROCESSING ===');
+      notifier.info(`Extracted ${extractedData.length} records. Processing duplicates...`);
+      
+      // Step 2: Automatically process the data (normalize codes, handle duplicates)
+      const [manufacturingItems, currencyData] = await Promise.all([
+        masterAPI.getManufacturingItems(),
+        masterAPI.getCurrency()
+      ]);
+      
+      const currentYear = new Date().getFullYear().toString();
+      const currentYearCurrency = currencyData.filter(curr => curr.Periode === currentYear);
+      
+      const processedData = await processImportData(extractedData, manufacturingItems, currentYearCurrency);
+      
+      // Step 3: Validate all items are BB (Bahan Baku) type
+      const nonBBItems = processedData.filter(item => item.itemType !== 'BB');
+      if (nonBBItems.length > 0) {
+        console.warn('Non-BB items found:', nonBBItems);
+        notifier.alert(`Import failed: Found ${nonBBItems.length} items that are not Bahan Baku (BB). Only BB items can be imported.`);
+        return;
+      }
+      
+      // Step 4: Show processed results
+      setImportPreviewData(processedData);
+      setImportCurrentPage(1); // Reset to first page
       setShowImportPreview(true);
-      notifier.success(`Successfully extracted ${extractedData.length} records from Excel file`);
+      
+      const duplicateCount = processedData.filter(item => item.isDuplicate).length;
+      const totalRemoved = extractedData.length - processedData.length;
+      
+      if (duplicateCount > 0) {
+        notifier.success(`Processing completed! ${processedData.length} items ready for import (${duplicateCount} duplicates resolved, ${totalRemoved} lower-priced items removed)`);
+      } else {
+        notifier.success(`Processing completed! ${processedData.length} Bahan Baku items ready for import (no duplicates found)`);
+      }
       
     } catch (error) {
       console.error('Error processing Excel file:', error);
@@ -2137,8 +2170,8 @@ const HargaBahan = () => {
                       </button>
                     )}
                     
-                    {/* Bahan Baku Import - Standard flow */}
-                    {importType === 'bahan-baku' && importPreviewData.length > 0 && importPreviewData[0].itemName && (
+                    {/* Bahan Baku Import - Auto-processed flow */}
+                    {importType === 'bahan-baku' && (
                       <button 
                         className={hasCriticalWarnings ? "btn-disabled" : "btn-primary"}
                         onClick={handleFinalImport}
@@ -2147,17 +2180,6 @@ const HargaBahan = () => {
                       >
                         {hasCriticalWarnings ? 'Fix Data Issues First' : 
                          importLoading ? 'Importing...' : 'Import to Database'}
-                      </button>
-                    )}
-                    {importType === 'bahan-baku' && (!importPreviewData.length || !importPreviewData[0].itemName) && (
-                      <button 
-                        className={hasCriticalWarnings ? "btn-disabled" : "btn-primary"}
-                        onClick={handleProcessImport}
-                        disabled={importLoading || hasCriticalWarnings}
-                        title={hasCriticalWarnings ? "Cannot process: Fix invalid units first" : ""}
-                      >
-                        {hasCriticalWarnings ? 'Fix Data Issues First' : 
-                         importLoading ? 'Processing...' : 'Process Import'}
                       </button>
                     )}
                   </>
