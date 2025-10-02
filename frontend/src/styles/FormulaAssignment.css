@@ -73,15 +73,16 @@
   overflow-y: auto;
 }
 
-.formula-table {
+.formula-assignment-table {
   width: 100%;
   border-collapse: collapse;
   background: white;
   table-layout: fixed;
+  min-width: 800px; /* Ensure minimum width for proper column alignment */
 }
 
-.formula-table th,
-.formula-table td {
+.formula-assignment-table th,
+.formula-assignment-table td {
   padding: 15px;
   text-align: left;
   border-bottom: 1px solid #e9ecef;
@@ -91,58 +92,62 @@
 }
 
 /* Define specific column widths */
-.formula-table th:nth-child(1), /* Product ID */
-.formula-table td:nth-child(1) {
-  width: 12%;
+.formula-assignment-table th:nth-child(1), /* Product ID */
+.formula-assignment-table td:nth-child(1) {
+  width: 10%;
   min-width: 80px;
 }
 
-.formula-table th:nth-child(2), /* Product Name */
-.formula-table td:nth-child(2) {
-  width: 25%;
-  min-width: 180px;
+.formula-assignment-table th:nth-child(2), /* Product Name */
+.formula-assignment-table td:nth-child(2) {
+  width: 28%;
+  min-width: 200px;
   white-space: normal;
   overflow: visible;
 }
 
-.formula-table th:nth-child(3), /* PI */
-.formula-table td:nth-child(3) {
-  width: 9%;
-  min-width: 60px;
-}
-
-.formula-table th:nth-child(4), /* PS */
-.formula-table td:nth-child(4) {
-  width: 9%;
-  min-width: 60px;
-}
-
-.formula-table th:nth-child(5), /* KP */
-.formula-table td:nth-child(5) {
-  width: 9%;
-  min-width: 60px;
-}
-
-.formula-table th:nth-child(6), /* KS */
-.formula-table td:nth-child(6) {
-  width: 9%;
-  min-width: 60px;
-}
-
-.formula-table th:nth-child(7), /* Std Output */
-.formula-table td:nth-child(7) {
+.formula-assignment-table th:nth-child(3), /* PI */
+.formula-assignment-table td:nth-child(3) {
   width: 8%;
-  min-width: 65px;
+  min-width: 60px;
+  text-align: center;
+}
+
+.formula-assignment-table th:nth-child(4), /* PS */
+.formula-assignment-table td:nth-child(4) {
+  width: 8%;
+  min-width: 60px;
+  text-align: center;
+}
+
+.formula-assignment-table th:nth-child(5), /* KP */
+.formula-assignment-table td:nth-child(5) {
+  width: 8%;
+  min-width: 60px;
+  text-align: center;
+}
+
+.formula-assignment-table th:nth-child(6), /* KS */
+.formula-assignment-table td:nth-child(6) {
+  width: 8%;
+  min-width: 60px;
+  text-align: center;
+}
+
+.formula-assignment-table th:nth-child(7), /* Std Output */
+.formula-assignment-table td:nth-child(7) {
+  width: 10%;
+  min-width: 80px;
   text-align: right;
 }
 
-.formula-table th:nth-child(8), /* Actions */
-.formula-table td:nth-child(8) {
-  width: 19%;
-  min-width: 180px;
+.formula-assignment-table th:nth-child(8), /* Actions */
+.formula-assignment-table td:nth-child(8) {
+  width: 20%;
+  min-width: 200px;
 }
 
-.formula-table th {
+.formula-assignment-table th {
   background: #f1f3f4;
   font-weight: 600;
   color: #2c3e50;
@@ -151,7 +156,20 @@
   z-index: 10;
 }
 
-.formula-table tbody tr:hover {
+/* Center align formula headers to match data */
+.formula-assignment-table th:nth-child(3), /* PI */
+.formula-assignment-table th:nth-child(4), /* PS */
+.formula-assignment-table th:nth-child(5), /* KP */
+.formula-assignment-table th:nth-child(6)  /* KS */ {
+  text-align: center;
+}
+
+/* Right align Std Output header */
+.formula-assignment-table th:nth-child(7) /* Std Output */ {
+  text-align: right;
+}
+
+.formula-assignment-table tbody tr:hover {
   background-color: #f8f9fa;
 }
 

@@ -1226,7 +1226,7 @@ const FormulaAssignment = () => {
         </div>
 
         <div className="table-container">
-          <table className="formula-table">
+          <table className="formula-assignment-table">
             <thead>
               <tr>
                 <th>Product ID</th>
