@@ -1019,7 +1019,11 @@ class MasterController {
     static async getProductName(req, res) {
         try {
             const result = await getProductName();
-            res.status(200).json(result);
+            res.status(200).json({
+                success: true,
+                data: result,
+                message: `Found ${result.length} product names`
+            });
         } catch (error) {
             console.error('Error in getProductName endpoint:', error);
             res.status(500).json({

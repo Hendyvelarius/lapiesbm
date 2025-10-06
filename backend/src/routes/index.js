@@ -6,12 +6,14 @@ const productRoutes = require('./productRoutes');
 const hppRoutes = require('./hppRoutes');
 const masterRoutes = require('./masterRoutes');
 const expiryCostRoutes = require('./expiryCostRoutes');
+const reagenRoutes = require('./reagenRoutes');
 
 // Use routes
 router.use('/products', productRoutes);
 router.use('/hpp', hppRoutes);
 router.use('/master', masterRoutes);
 router.use('/expiry-cost', expiryCostRoutes);
+router.use('/reagen', reagenRoutes);
 
 // Health check endpoint
 router.get('/health', (req, res) => {

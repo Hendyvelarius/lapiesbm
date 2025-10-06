@@ -440,6 +440,53 @@ export const masterAPI = {
   }),
 };
 
+// Reagen API
+export const reagenAPI = {
+  // Get all reagen entries (with optional filters and product info)
+  getAll: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/reagen${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Get reagen entry by ID
+  getById: (id) => apiRequest(`/reagen/${id}`),
+
+  // Create new reagen entry
+  create: (reagenData) => apiRequest('/reagen', {
+    method: 'POST',
+    body: JSON.stringify(reagenData),
+  }),
+
+  // Update reagen entry
+  update: (id, reagenData) => apiRequest(`/reagen/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(reagenData),
+  }),
+
+  // Delete reagen entry
+  delete: (id) => apiRequest(`/reagen/${id}`, {
+    method: 'DELETE',
+  }),
+
+  // Bulk delete reagen entries
+  bulkDelete: (ids) => apiRequest('/reagen/bulk/delete', {
+    method: 'DELETE',
+    body: JSON.stringify({ ids }),
+  }),
+
+  // Bulk insert reagen entries (for import)
+  bulkInsert: (entries, userId = null) => apiRequest('/reagen/bulk/insert', {
+    method: 'POST',
+    body: JSON.stringify({ entries, userId }),
+  }),
+
+  // Validate Product ID
+  validateProductId: (productId) => apiRequest(`/reagen/validate/${productId}`),
+
+  // Get reagen entries with product information
+  getAllWithProductInfo: () => apiRequest('/reagen?withProductInfo=true'),
+};
+
 // Health check
 export const healthAPI = {
   check: () => apiRequest('/health', { method: 'GET' }),
@@ -450,5 +497,6 @@ export default {
   hpp: hppAPI,
   hppService,
   master: masterAPI,
+  reagen: reagenAPI,
   health: healthAPI,
 };

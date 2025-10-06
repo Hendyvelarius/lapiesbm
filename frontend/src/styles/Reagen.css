@@ -175,170 +175,348 @@
   background-color: #c82333;
 }
 
-/* Table Container */
-.table-container {
+/* Reagen Table Container */
+.reagen-table-container {
   background: white;
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   margin-bottom: 20px;
+  width: 100%;
 }
 
-.reagen-table {
+.reagen-data-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  table-layout: fixed;
 }
 
-.reagen-table thead {
+.reagen-table-header {
   background-color: #f8f9fa;
   border-bottom: 2px solid #dee2e6;
 }
 
-.reagen-table th {
-  padding: 16px 12px;
-  text-align: left;
-  font-weight: 600;
-  color: #495057;
+.reagen-header-row {
+  height: 50px;
+}
+
+.reagen-header-cell {
+  padding: 16px 12px !important;
+  text-align: left !important;
+  font-weight: 600 !important;
+  color: #495057 !important;
   position: relative;
   white-space: nowrap;
+  border: none !important;
+  vertical-align: middle !important;
 }
 
-.reagen-table th.sortable {
-  cursor: pointer;
+/* Column widths */
+.reagen-header-cell:nth-child(1) { /* Product ID */
+  width: 150px;
+}
+
+.reagen-header-cell:nth-child(2) { /* Product Name */
+  width: auto;
+  min-width: 250px;
+}
+
+.reagen-header-cell:nth-child(3) { /* Reagen Rate */
+  width: 150px;
+  text-align: right !important;
+}
+
+.reagen-header-cell:nth-child(4) { /* Actions */
+  width: 120px;
+  text-align: center !important;
+}
+
+.reagen-sortable {
+  cursor: pointer !important;
   user-select: none;
   transition: background-color 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
-.reagen-table th.sortable:hover {
-  background-color: #e9ecef;
+.reagen-sortable:hover {
+  background-color: #e9ecef !important;
 }
 
-.reagen-table td {
-  padding: 12px;
-  border-bottom: 1px solid #dee2e6;
-  vertical-align: middle;
+.reagen-table-body {
+  background-color: white;
 }
 
-.reagen-table tbody tr:hover {
+.reagen-data-row {
+  height: 50px;
+  border-bottom: 1px solid #dee2e6 !important;
+}
+
+.reagen-data-row:hover {
+  background-color: #f8f9fa !important;
+}
+
+.reagen-data-row:last-child {
+  border-bottom: none !important;
+}
+
+.reagen-data-cell {
+  padding: 12px !important;
+  vertical-align: middle !important;
+  border: none !important;
+}
+
+/* Data cell specific styles */
+.reagen-product-id {
+  font-family: 'Courier New', monospace !important;
+  font-weight: 600 !important;
+  color: #007bff !important;
+  width: 150px;
+}
+
+.reagen-product-name {
+  color: #495057 !important;
+  min-width: 250px;
+}
+
+.reagen-rate-cell {
+  width: 150px;
+  text-align: right !important;
+}
+
+.reagen-rate-value {
+  font-family: 'Courier New', monospace !important;
+  font-weight: 600 !important;
+  color: #28a745 !important;
+}
+
+.reagen-actions-cell {
+  width: 120px;
+  text-align: center !important;
+}
+
+/* Reagen Edit Input */
+.reagen-edit-input {
+  width: 100px !important;
+  padding: 4px 8px !important;
+  border: 2px solid #007bff !important;
+  border-radius: 4px !important;
+  font-size: 13px !important;
+  font-family: 'Courier New', monospace !important;
+  text-align: right !important;
+  background-color: white !important;
+}
+
+.reagen-edit-input:focus {
+  outline: none !important;
+  border-color: #0056b3 !important;
+}
+
+/* Reagen Action Buttons */
+.reagen-view-actions, .reagen-edit-actions {
+  display: flex !important;
+  gap: 8px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+}
+
+.reagen-edit-btn, 
+.reagen-delete-btn, 
+.reagen-submit-btn, 
+.reagen-cancel-btn {
+  background: none !important;
+  border: none !important;
+  padding: 6px !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.reagen-edit-btn {
+  color: #007bff !important;
+  background-color: #e7f3ff !important;
+}
+
+.reagen-edit-btn:hover {
+  background-color: #cce7ff !important;
+  transform: translateY(-1px) !important;
+}
+
+.reagen-delete-btn {
+  color: #dc3545 !important;
+  background-color: #ffe6e6 !important;
+}
+
+.reagen-delete-btn:hover {
+  background-color: #ffcccc !important;
+  transform: translateY(-1px) !important;
+}
+
+.reagen-submit-btn {
+  color: #28a745 !important;
+  background-color: #e6ffe6 !important;
+}
+
+.reagen-submit-btn:hover:not(:disabled) {
+  background-color: #ccffcc !important;
+  transform: translateY(-1px) !important;
+}
+
+.reagen-cancel-btn {
+  color: #6c757d !important;
+  background-color: #f0f0f0 !important;
+}
+
+.reagen-cancel-btn:hover:not(:disabled) {
+  background-color: #e0e0e0 !important;
+  transform: translateY(-1px) !important;
+}
+
+.reagen-submit-btn:disabled, 
+.reagen-cancel-btn:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+/* Reagen No Data Message */
+.reagen-no-data {
+  text-align: center !important;
+  color: #6c757d !important;
+  font-style: italic !important;
+  padding: 40px 12px !important;
+}
+
+.reagen-empty-row {
+  height: auto !important;
+}
+
+/* Product Selection Dropdown */
+.product-search-container {
+  position: relative;
+  width: 100%;
+}
+
+.product-search-input {
+  width: 100% !important;
+  padding: 8px 12px !important;
+  border: 2px solid #e9ecef !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box !important;
+}
+
+.product-search-input:focus {
+  outline: none !important;
+  border-color: #007bff !important;
+}
+
+.product-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 1000;
+  margin-top: 2px;
+  min-width: 100%;
+  width: auto;
+  max-width: 600px;
+}
+
+.dropdown-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f8f9fa;
+  transition: background-color 0.2s ease;
+  display: block;
+  min-width: max-content;
+  box-sizing: border-box;
+}
+
+.dropdown-item:hover {
   background-color: #f8f9fa;
 }
 
-.reagen-table tbody tr:last-child td {
+.dropdown-item:last-child {
   border-bottom: none;
 }
 
-/* Table Content Styles */
-.product-id {
-  font-family: 'Courier New', monospace;
+.dropdown-item .product-id {
   font-weight: 600;
   color: #007bff;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: visible;
 }
 
-.product-name {
+.dropdown-item .product-name {
+  color: #495057;
+  font-size: 13px;
+  margin-top: 2px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: unset;
+  width: 100%;
+  display: block;
+}
+
+.dropdown-item .product-details {
+  color: #6c757d;
+  font-size: 11px;
+  margin-top: 2px;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.dropdown-item.no-results {
+  color: #6c757d;
+  font-style: italic;
+  text-align: center;
+  cursor: default;
+}
+
+.dropdown-item.no-results:hover {
+  background-color: white;
+}
+
+.dropdown-item.showing-limit {
+  color: #6c757d;
+  font-size: 12px;
+  font-style: italic;
+  text-align: center;
+  cursor: default;
+  background-color: #f8f9fa;
+}
+
+.dropdown-item.showing-limit:hover {
+  background-color: #f8f9fa;
+}
+
+.selected-product {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background-color: #e7f3ff;
+  border: 1px solid #007bff;
+  border-radius: 4px;
+  font-size: 13px;
   color: #495057;
 }
 
-.reagen-rate {
-  font-family: 'Courier New', monospace;
-  font-weight: 600;
-  color: #28a745;
-  text-align: right;
-}
-
-/* Edit Input */
-.edit-input {
-  width: 100px;
-  padding: 4px 8px;
-  border: 2px solid #007bff;
-  border-radius: 4px;
-  font-size: 13px;
-  font-family: 'Courier New', monospace;
-  text-align: right;
-}
-
-.edit-input:focus {
-  outline: none;
-  border-color: #0056b3;
-}
-
-/* Action Buttons */
-.actions {
-  white-space: nowrap;
-}
-
-.view-actions, .edit-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.edit-btn, .delete-btn, .submit-btn, .cancel-btn {
-  background: none;
-  border: none;
-  padding: 6px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.edit-btn {
+.selected-product strong {
   color: #007bff;
-  background-color: #e7f3ff;
-}
-
-.edit-btn:hover {
-  background-color: #cce7ff;
-  transform: translateY(-1px);
-}
-
-.delete-btn {
-  color: #dc3545;
-  background-color: #ffe6e6;
-}
-
-.delete-btn:hover {
-  background-color: #ffcccc;
-  transform: translateY(-1px);
-}
-
-.submit-btn {
-  color: #28a745;
-  background-color: #e6ffe6;
-}
-
-.submit-btn:hover:not(:disabled) {
-  background-color: #ccffcc;
-  transform: translateY(-1px);
-}
-
-.cancel-btn {
-  color: #6c757d;
-  background-color: #f0f0f0;
-}
-
-.cancel-btn:hover:not(:disabled) {
-  background-color: #e0e0e0;
-  transform: translateY(-1px);
-}
-
-.submit-btn:disabled, .cancel-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* No Data Message */
-.no-data {
-  text-align: center;
-  color: #6c757d;
-  font-style: italic;
-  padding: 40px 12px;
 }
 
 /* Pagination */
@@ -408,7 +586,8 @@
 
 .add-modal {
   width: 90%;
-  max-width: 500px;
+  max-width: 600px;
+  min-width: 500px;
 }
 
 .modal-header {
