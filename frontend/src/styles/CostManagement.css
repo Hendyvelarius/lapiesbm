@@ -16,27 +16,9 @@
   z-index: 10;
 }
 
-.tab-header {
-  padding: 1.5rem 2rem 1rem 2rem;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.tab-header h1 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.875rem;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.tab-header p {
-  margin: 0;
-  color: #6b7280;
-  font-size: 0.875rem;
-}
-
 .tab-buttons {
   display: flex;
-  padding: 0 2rem;
+  padding: 1rem 2rem 0 2rem;
   gap: 0;
   overflow-x: auto;
 }

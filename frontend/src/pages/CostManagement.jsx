@@ -58,10 +58,6 @@ const CostManagement = ({ user }) => {
     <div className="cost-management-container">
       {/* Tab Navigation */}
       <div className="tab-navigation">
-        <div className="tab-header">
-          <h1>Cost Management</h1>
-          <p>Manage all cost-related configurations and parameters</p>
-        </div>
         <div className="tab-buttons">
           {tabs.map((tab) => {
             const IconComponent = tab.icon;
