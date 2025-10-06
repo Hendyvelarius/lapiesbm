@@ -734,7 +734,7 @@ const FormulaAssignment = () => {
     setImportFile(file);
   };
 
-  // Process raw Excel data to group by Product_ID and filter by COGS='aktif'
+  // Process raw Excel data to group by Product_ID and filter by HPP='aktif'
   const processRawExcelData = (rawData) => {
     console.log('Processing raw Excel data:', rawData);
     
@@ -762,7 +762,7 @@ const FormulaAssignment = () => {
         TypeName: row.TypeName?.toString().trim() || '', // Optional
         PPI_SubID: row.PPI_SubID?.toString().trim(),
         BatchSize: parseFloat(row.BatchSize) || 0,
-        COGS: row.COGS?.toString().trim(),
+        COGS: row['HPP']?.toString().trim(),
         ppi_owner: row.ppi_owner?.toString().trim() || '', // Optional
         Total: row.Total || '', // Optional
         Item_type: row.Item_type?.toString().trim() || '', // Optional
@@ -772,7 +772,7 @@ const FormulaAssignment = () => {
     
     console.log('Grouped by product:', groupedByProduct);
     
-    // Filter each product's formulas to only include COGS='aktif' (case insensitive)
+    // Filter each product's formulas to only include HPP='aktif' (case insensitive)
     const processedProducts = [];
     
     Object.values(groupedByProduct).forEach(product => {
@@ -806,7 +806,7 @@ const FormulaAssignment = () => {
       // Read Excel file
       const rawData = await readExcelFile(importFile);
       
-      // Process the raw data (group by Product_ID, filter by COGS='aktif')
+      // Process the raw data (group by Product_ID, filter by HPP='aktif')
       const processedData = processRawExcelData(rawData);
       
       // Load available formulas from API (not needed anymore but keeping for compatibility)
@@ -867,7 +867,7 @@ const FormulaAssignment = () => {
           }
           
           // Essential columns that we actually use (based on requirements)
-          const requiredColumns = ['TypeCode', 'PPI_SubID', 'Product_ID', 'Product_Name', 'BatchSize', 'COGS'];
+          const requiredColumns = ['TypeCode', 'PPI_SubID', 'Product_ID', 'Product_Name', 'BatchSize', 'HPP'];
           // Optional columns (we ignore these but they might be present)
           const optionalColumns = ['ppi_owner', 'TypeName', 'Total', 'Item_type', 'production'];
           
@@ -945,7 +945,7 @@ const FormulaAssignment = () => {
       
       // Validate that at least one formula exists
       if (product.formulas.length === 0) {
-        warnings.push(`Product "${productId}": No active formulas found (no COGS='aktif' entries)`);
+        warnings.push(`Product "${productId}": No active formulas found (no HPP='aktif' entries)`);
       }
     });
     
@@ -1196,6 +1196,7 @@ const FormulaAssignment = () => {
               className="btn-secondary export-btn"
               disabled={loading || productList.length === 0}
               title="Export all products with formula assignments to Excel (includes unassigned products)"
+              style={{ display: 'none' }}
             >
               <FileDown size={16} />
               Export Excel
@@ -1768,7 +1769,7 @@ const FormulaAssignment = () => {
                             <th>Product_ID ✓</th>
                             <th>Product_Name ✓</th>
                             <th>BatchSize ✓</th>
-                            <th>HPP Status ✓</th>
+                            <th>HPP ✓</th>
                             <th>ppi_owner</th>
                             <th>TypeName</th>
                             <th>Total</th>
@@ -1800,7 +1801,7 @@ const FormulaAssignment = () => {
                       <h5>Import Process:</h5>
                       <ul>
                         <li>All rows are <strong>grouped by Product_ID</strong></li>
-                        <li>Only formulas with <strong>HPP Status = "aktif"</strong> (case insensitive) are imported</li>
+                        <li>Only formulas with <strong>HPP = "aktif"</strong> (case insensitive) are imported</li>
                         <li><strong>TypeCode</strong> must be one of: PI, PS, KP, KS</li>
                         <li>Each product can have <strong>only one active formula per TypeCode</strong></li>
                         <li>All active formulas for a product must have the <strong>same BatchSize</strong></li>
