@@ -44,19 +44,9 @@ export default function Sidebar({ user }) {
                 <Package className="sidebar-icon" size={20} /> Material Prices
               </Link>
             </li>
-            <li className={location.pathname === '/biaya-lain' ? 'active' : ''}>
-              <Link to="/biaya-lain" className="sidebar-link">
-                <Calculator className="sidebar-icon" size={20} /> General Costs
-              </Link>
-            </li>
-            <li className={location.pathname === '/product-group' ? 'active' : ''}>
-              <Link to="/product-group" className="sidebar-link">
-                <Users className="sidebar-icon" size={20} /> Product Group
-              </Link>
-            </li>
-            <li className={location.pathname === '/pembebanan' ? 'active' : ''}>
-              <Link to="/pembebanan" className="sidebar-link">
-                <Layers className="sidebar-icon" size={20} /> Cost Allocation
+            <li className={location.pathname === '/cost-management' ? 'active' : ''}>
+              <Link to="/cost-management" className="sidebar-link">
+                <Calculator className="sidebar-icon" size={20} /> Cost Management
               </Link>
             </li>
             <li className={location.pathname === '/formula-assignment' ? 'active' : ''}>
@@ -79,12 +69,6 @@ export default function Sidebar({ user }) {
             <li className={location.pathname === '/hpp-results' ? 'active' : ''}>
               <Link to="/hpp-results" className="sidebar-link">
                 <ClipboardList className="sidebar-icon" size={20} /> HPP Results
-              </Link>
-            </li>
-            {/* Expiry Cost Management */}
-            <li className={location.pathname === '/expiry-cost' ? 'active' : ''}>
-              <Link to="/expiry-cost" className="sidebar-link">
-                <CalendarX className="sidebar-icon" size={20} /> Expiry Cost
               </Link>
             </li>
           </ul>

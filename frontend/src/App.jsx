@@ -7,13 +7,10 @@ import Dashboard from './pages/Dashboard';
 import HPPSimulation from './pages/HPPSimulation';
 import Currency from './pages/Currency';
 import HargaBahan from './pages/HargaBahan';
-import BiayaLain from './pages/BiayaLain';
-import ProductGroup from './pages/ProductGroup';
-import Pembebanan from './pages/Pembebanan';
+import CostManagement from './pages/CostManagement';
 import FormulaAssignment from './pages/FormulaAssignment';
 import ProductFormula from './pages/ProductFormula';
 import GenerateHPP from './pages/GenerateHPP';
-import ExpiryCost from './pages/ExpiryCost';
 import HPPResults from './pages/HPPResults';
 import { 
   authenticateFromURL, 
@@ -124,20 +121,14 @@ function AppContent() {
         return 'Currency Exchange Rates';
       case '/harga-bahan':
         return 'Ingredient Pricing Management';
-      case '/biaya-lain':
-        return 'General Cost Parameters';
-      case '/product-group':
-        return 'Product Group Management';
-      case '/pembebanan':
-        return 'Cost Allocation Management';
+      case '/cost-management':
+        return 'Cost Management';
       case '/formula-assignment':
         return 'Formula Assignment Management';
       case '/product-formula':
         return 'Product Formula Management';
       case '/generate-hpp':
         return 'Generate HPP';
-      case '/expiry-cost':
-        return 'Expiry Cost Management';
       case '/hpp-results':
         return 'HPP Calculation Results';
       default:
@@ -289,17 +280,13 @@ function AppContent() {
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Dashboard user={authState.user} />} />
-          <Route path="/eSistemBiayaManufaktur" element={<Dashboard user={authState.user} />} />
           <Route path="/hpp-simulation" element={<HPPSimulation user={authState.user} />} />
           <Route path="/currency" element={<Currency user={authState.user} />} />
           <Route path="/harga-bahan" element={<HargaBahan user={authState.user} />} />
-          <Route path="/biaya-lain" element={<BiayaLain user={authState.user} />} />
-          <Route path="/product-group" element={<ProductGroup user={authState.user} />} />
-          <Route path="/pembebanan" element={<Pembebanan user={authState.user} />} />
+          <Route path="/cost-management" element={<CostManagement user={authState.user} />} />
           <Route path="/formula-assignment" element={<FormulaAssignment user={authState.user} />} />
           <Route path="/product-formula" element={<ProductFormula user={authState.user} />} />
           <Route path="/generate-hpp" element={<GenerateHPP user={authState.user} />} />
-          <Route path="/expiry-cost" element={<ExpiryCost user={authState.user} />} />
           <Route path="/hpp-results" element={<HPPResults user={authState.user} />} />
         </Routes>
       </main>
