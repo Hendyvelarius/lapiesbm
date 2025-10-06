@@ -26,12 +26,7 @@ export default function Sidebar({ user }) {
           <ul className="sidebar-menu">
             <li className={location.pathname === '/' ? 'active' : ''}>
               <Link to="/" className="sidebar-link">
-                <BarChart3 className="sidebar-icon" size={20} /> HPP Report
-              </Link>
-            </li>
-            <li className={location.pathname === '/hpp-simulation' ? 'active' : ''}>
-              <Link to="/hpp-simulation" className="sidebar-link">
-                <FileText className="sidebar-icon" size={20} /> HPP Simulation
+                <BarChart3 className="sidebar-icon" size={20} /> Dashboard
               </Link>
             </li>
             <li className={location.pathname === '/currency' ? 'active' : ''}>
@@ -39,19 +34,14 @@ export default function Sidebar({ user }) {
                 <DollarSign className="sidebar-icon" size={20} /> Exchange Rates
               </Link>
             </li>
-            <li className={location.pathname === '/harga-bahan' ? 'active' : ''}>
-              <Link to="/harga-bahan" className="sidebar-link">
-                <Package className="sidebar-icon" size={20} /> Material Prices
-              </Link>
-            </li>
             <li className={location.pathname === '/cost-management' ? 'active' : ''}>
               <Link to="/cost-management" className="sidebar-link">
                 <Calculator className="sidebar-icon" size={20} /> Cost Management
               </Link>
             </li>
-            <li className={location.pathname === '/formula-assignment' ? 'active' : ''}>
-              <Link to="/formula-assignment" className="sidebar-link">
-                <Settings className="sidebar-icon" size={20} /> Formula Assignment
+            <li className={location.pathname === '/harga-bahan' ? 'active' : ''}>
+              <Link to="/harga-bahan" className="sidebar-link">
+                <Package className="sidebar-icon" size={20} /> Material Prices
               </Link>
             </li>
             <li className={location.pathname === '/product-formula' ? 'active' : ''}>
@@ -59,13 +49,21 @@ export default function Sidebar({ user }) {
                 <FlaskConical className="sidebar-icon" size={20} /> Product Formula
               </Link>
             </li>
-            {/* Generate HPP Button */}
+            <li className={location.pathname === '/formula-assignment' ? 'active' : ''}>
+              <Link to="/formula-assignment" className="sidebar-link">
+                <Settings className="sidebar-icon" size={20} /> Formula Assignment
+              </Link>
+            </li>
+            <li className={location.pathname === '/hpp-simulation' ? 'active' : ''}>
+              <Link to="/hpp-simulation" className="sidebar-link">
+                <FileText className="sidebar-icon" size={20} /> HPP Simulation
+              </Link>
+            </li>
             <li className={location.pathname === '/generate-hpp' ? 'active' : ''}>
               <Link to="/generate-hpp" className="sidebar-link">
                 <Calculator className="sidebar-icon" size={20} /> Generate HPP
               </Link>
             </li>
-            {/* HPP Results */}
             <li className={location.pathname === '/hpp-results' ? 'active' : ''}>
               <Link to="/hpp-results" className="sidebar-link">
                 <ClipboardList className="sidebar-icon" size={20} /> HPP Results
