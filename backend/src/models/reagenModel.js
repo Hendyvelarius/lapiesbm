@@ -138,11 +138,11 @@ class ReagenModel {
       
       const result = await pool.request()
         .input('productId', sql.NVarChar, reagenData.productId)
-        .input('reagenRate', sql.Decimal(18,4), reagenData.reagenRate)
+        .input('reagenRate', sql.Decimal(18,2), reagenData.reagenRate)
         .input('userId', sql.NVarChar, reagenData.userId)
         .input('delegatedTo', sql.NVarChar, reagenData.delegatedTo || null)
         .input('processDate', sql.DateTime, reagenData.processDate || new Date())
-        .input('flagUpdate', sql.Bit, reagenData.flagUpdate || 0)
+        .input('flagUpdate', sql.NVarChar, reagenData.flagUpdate || '0')
         .input('fromUpdate', sql.NVarChar, reagenData.fromUpdate || 'INSERT')
         .query(query);
         
@@ -180,11 +180,11 @@ class ReagenModel {
       await pool.request()
         .input('id', sql.Int, id)
         .input('productId', sql.NVarChar, reagenData.productId)
-        .input('reagenRate', sql.Decimal(18,4), reagenData.reagenRate)
+        .input('reagenRate', sql.Decimal(18,2), reagenData.reagenRate)
         .input('userId', sql.NVarChar, reagenData.userId)
         .input('delegatedTo', sql.NVarChar, reagenData.delegatedTo || null)
         .input('processDate', sql.DateTime, reagenData.processDate || new Date())
-        .input('flagUpdate', sql.Bit, reagenData.flagUpdate || 1)
+        .input('flagUpdate', sql.NVarChar, reagenData.flagUpdate || '1')
         .input('fromUpdate', sql.NVarChar, reagenData.fromUpdate || 'UPDATE')
         .query(query);
         
@@ -269,24 +269,24 @@ class ReagenModel {
       const table = new sql.Table('M_COGS_PEMBEBANAN_REAGEN');
       table.create = false; // Don't create the table, it already exists
       
-      // Define columns
-      table.columns.add('ProductID', sql.NVarChar(50), { nullable: false });
-      table.columns.add('Reagen_Rate', sql.Decimal(18,4), { nullable: false });
+      // Define columns (excluding pk_id as it's identity)
+      table.columns.add('ProductID', sql.NVarChar(50), { nullable: true });
+      table.columns.add('Reagen_Rate', sql.Decimal(18,2), { nullable: true });
       table.columns.add('user_id', sql.NVarChar(50), { nullable: true });
       table.columns.add('delegated_to', sql.NVarChar(50), { nullable: true });
       table.columns.add('process_date', sql.DateTime, { nullable: true });
-      table.columns.add('flag_update', sql.Bit, { nullable: true });
+      table.columns.add('flag_update', sql.NVarChar(50), { nullable: true });
       table.columns.add('from_update', sql.NVarChar(50), { nullable: true });
       
       // Add rows to table
       reagenEntries.forEach(entry => {
         table.rows.add(
-          entry.productId,
-          entry.reagenRate || 0,
+          entry.productId || null,
+          parseFloat(entry.reagenRate) || 0,
           entry.userId || 'SYSTEM',
           entry.delegatedTo || null,
           entry.processDate || new Date(),
-          entry.flagUpdate || 0,
+          entry.flagUpdate || '0',
           entry.fromUpdate || 'BULK_INSERT'
         );
       });

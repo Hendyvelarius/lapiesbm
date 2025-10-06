@@ -32,6 +32,9 @@ const Reagen = ({ user }) => {
   
   // Modal and editing states
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [importConfirmData, setImportConfirmData] = useState(null);
   const [editingRowId, setEditingRowId] = useState(null);
   const [editFormData, setEditFormData] = useState({});
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -438,10 +441,15 @@ const Reagen = ({ user }) => {
   // Export to Excel
   const handleExportExcel = () => {
     try {
+      if (reagenData.length === 0) {
+        notifier.warning('No reagen data to export.');
+        return;
+      }
+
       const exportData = reagenData.map(item => ({
         'Product ID': item.productId,
         'Product Name': item.productName,
-        'Reagen Rate': item.reagenRate || 0
+        'Reagen Rate': parseFloat(item.reagenRate || 0).toFixed(2)
       }));
 
       const wb = XLSX.utils.book_new();
@@ -450,7 +458,7 @@ const Reagen = ({ user }) => {
       // Set column widths
       ws['!cols'] = [
         { wch: 15 }, // Product ID
-        { wch: 40 }, // Product Name
+        { wch: 50 }, // Product Name
         { wch: 15 }  // Reagen Rate
       ];
 
@@ -470,10 +478,213 @@ const Reagen = ({ user }) => {
     }
   };
 
-  // Import Excel placeholder
+  // Import Excel functionality
   const handleImportExcel = () => {
-    // TODO: Implement Excel import functionality
-    notifier.info('Import functionality will be implemented later');
+    setShowImportModal(true);
+  };
+
+  // Handle import modal confirmation
+  const handleImportConfirm = () => {
+    setShowImportModal(false);
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx,.xls';
+    input.onchange = handleFileUpload;
+    input.click();
+  };
+
+  // Handle final import confirmation
+  const handleFinalImportConfirm = async () => {
+    if (importConfirmData && importConfirmData.validEntries) {
+      setShowConfirmModal(false);
+      await performBulkImport(importConfirmData.validEntries);
+      setImportConfirmData(null);
+    }
+  };
+
+  // Handle import cancellation
+  const handleImportCancel = () => {
+    setShowConfirmModal(false);
+    setImportConfirmData(null);
+  };
+
+  // Handle file upload and processing
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      setLoading(true);
+      notifier.info('Processing Excel file...');
+
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+      if (jsonData.length < 2) {
+        throw new Error('Excel file must contain at least a header row and one data row');
+      }
+
+      // Process the Excel data
+      await processImportData(jsonData);
+
+    } catch (error) {
+      console.error('Error processing Excel file:', error);
+      notifier.alert('Error processing Excel file: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Process and validate import data
+  const processImportData = async (jsonData) => {
+    try {
+      // Skip header row and filter out empty rows
+      const dataRows = jsonData.slice(1).filter(row => 
+        row && row.length > 0 && row[0] && String(row[0]).trim() !== ''
+      );
+
+      if (dataRows.length === 0) {
+        throw new Error('No valid data rows found in Excel file');
+      }
+
+      const validationResults = [];
+      const validEntries = [];
+      const errors = [];
+
+      notifier.info(`Validating ${dataRows.length} entries...`);
+
+      for (let i = 0; i < dataRows.length; i++) {
+        const row = dataRows[i];
+        const rowNum = i + 2; // +2 because we start from row 2 (after header)
+        
+        const productId = row[0] ? String(row[0]).trim() : '';
+        const reagenRate = row[2]; // Column C
+
+        // Validate Product ID
+        if (!productId) {
+          errors.push(`Row ${rowNum}: Product ID is required`);
+          continue;
+        }
+
+        // Validate Reagen Rate
+        if (reagenRate === undefined || reagenRate === null || reagenRate === '') {
+          errors.push(`Row ${rowNum}: Reagen Rate is required`);
+          continue;
+        }
+
+        const numericRate = parseFloat(reagenRate);
+        if (isNaN(numericRate) || numericRate < 0) {
+          errors.push(`Row ${rowNum}: Reagen Rate must be a number 0 or greater (got: ${reagenRate})`);
+          continue;
+        }
+
+        // Check if Product ID exists in Group PNCategory 8
+        const productInfo = productNames.find(p => 
+          p.Product_ID === productId && p.Group_PNCategory === 8
+        );
+
+        if (!productInfo) {
+          const generalProduct = productNames.find(p => p.Product_ID === productId);
+          if (generalProduct) {
+            errors.push(`Row ${rowNum}: Product ID "${productId}" does not belong to Group PNCategory 8 (found in category ${generalProduct.Group_PNCategory})`);
+          } else {
+            errors.push(`Row ${rowNum}: Product ID "${productId}" does not exist in the system`);
+          }
+          continue;
+        }
+
+        // Check for duplicates in import data
+        const existingEntry = validEntries.find(e => e.productId === productId);
+        if (existingEntry) {
+          errors.push(`Row ${rowNum}: Duplicate Product ID "${productId}" (first occurrence at row ${existingEntry.originalRow})`);
+          continue;
+        }
+
+        validEntries.push({
+          productId,
+          reagenRate: numericRate,
+          originalRow: rowNum,
+          productName: productInfo.Product_Name
+        });
+      }
+
+      // Show validation results
+      if (errors.length > 0) {
+        const errorMessage = `Validation failed with ${errors.length} error(s):\n\n${errors.slice(0, 10).join('\n')}${errors.length > 10 ? `\n\n... and ${errors.length - 10} more errors` : ''}`;
+        notifier.alert(errorMessage);
+        return;
+      }
+
+      if (validEntries.length === 0) {
+        throw new Error('No valid entries found after validation');
+      }
+
+      // Show confirmation modal
+      setImportConfirmData({
+        validEntries,
+        currentDataCount: reagenData.length,
+        newDataCount: validEntries.length
+      });
+      setShowConfirmModal(true);
+
+    } catch (error) {
+      console.error('Error processing import data:', error);
+      notifier.alert('Error processing import data: ' + error.message);
+    }
+  };
+
+  // Perform bulk import (delete all, then insert)
+  const performBulkImport = async (validEntries) => {
+    try {
+      setLoading(true);
+      notifier.info('Importing reagen data...');
+
+      // Step 1: Get all existing reagen IDs for bulk delete
+      const existingIds = reagenData.map(item => item.pk_id);
+
+      // Step 2: Bulk delete existing entries if any exist
+      if (existingIds.length > 0) {
+        notifier.info('Removing existing data...');
+        const deleteResult = await reagenAPI.bulkDelete(existingIds);
+        if (!deleteResult.success) {
+          throw new Error(deleteResult.message || 'Failed to delete existing entries');
+        }
+      }
+
+      // Step 3: Prepare entries for bulk insert
+      const entriesToInsert = validEntries.map(entry => ({
+        productId: entry.productId,
+        reagenRate: entry.reagenRate,
+        userId: user?.nama || user?.inisialNama || 'SYSTEM',
+        delegatedTo: null,
+        processDate: new Date().toISOString()
+      }));
+
+      // Step 4: Bulk insert new entries
+      notifier.info('Inserting new data...');
+      const insertResult = await reagenAPI.bulkInsert(entriesToInsert);
+      
+      if (!insertResult.success) {
+        throw new Error(insertResult.message || 'Failed to insert new entries');
+      }
+
+      // Step 5: Reload data and notify success
+      await loadReagenData();
+      
+      notifier.success(`Import completed successfully! Imported ${validEntries.length} entries.`);
+
+    } catch (error) {
+      console.error('Error performing bulk import:', error);
+      notifier.alert('Import failed: ' + error.message);
+      
+      // Reload data to refresh the current state
+      await loadReagenData();
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Pagination handlers
@@ -518,11 +729,11 @@ const Reagen = ({ user }) => {
             <button 
               onClick={handleImportExcel}
               className="btn-secondary import-btn"
-              disabled={loading}
-              title="Import reagen data from Excel"
+              disabled={loading || productNames.length === 0}
+              title={productNames.length === 0 ? "Please wait for product data to load" : "Import reagen data from Excel (replaces all existing data)"}
             >
               <Upload size={16} />
-              Import
+              Import Excel
             </button>
             <button 
               onClick={() => setShowAddModal(true)}
@@ -790,6 +1001,174 @@ const Reagen = ({ user }) => {
                 disabled={submitLoading}
               >
                 {submitLoading ? 'Adding...' : 'Add Entry'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Instructions Modal */}
+      {showImportModal && (
+        <div className="modal-overlay">
+          <div className="modal-content import-instructions-modal">
+            <div className="modal-header">
+              <h2>Import Reagen Data</h2>
+              <button className="modal-close" onClick={() => setShowImportModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="instructions-section">
+                <h3>📋 Expected Excel Format:</h3>
+                <div className="format-example">
+                  <table className="format-table">
+                    <thead>
+                      <tr>
+                        <th>Product ID</th>
+                        <th>Product Name</th>
+                        <th>Reagen Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>G5</td>
+                        <td>LAMESON-125 mg/2 mL injeksi</td>
+                        <td>12.50</td>
+                      </tr>
+                      <tr>
+                        <td>G6</td>
+                        <td>LAPIBAL-500 µG INJEKSI</td>
+                        <td>15.75</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="instructions-section">
+                <h3>✅ Validation Rules:</h3>
+                <ul>
+                  <li>Column A: <strong>Product ID</strong> (required)</li>
+                  <li>Column B: <strong>Product Name</strong> (reference only, will be ignored)</li>
+                  <li>Column C: <strong>Reagen Rate</strong> (required, must be 0 or greater)</li>
+                  <li>First row must contain headers</li>
+                  <li>All Product IDs must belong to <strong>Group PNCategory 8</strong></li>
+                  <li>Product IDs must exist in the system</li>
+                  <li>Empty rows will be ignored</li>
+                </ul>
+              </div>
+
+              <div className="instructions-section warning-section">
+                <h3>⚠️ Important Warning:</h3>
+                <ul>
+                  <li><strong>All existing reagen data will be REPLACED</strong></li>
+                  <li>This operation cannot be undone</li>
+                  <li>Make sure your data is correct before importing</li>
+                  <li>Current entries: <strong>{reagenData.length}</strong></li>
+                </ul>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="btn-secondary"
+                onClick={() => setShowImportModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn-primary"
+                onClick={handleImportConfirm}
+              >
+                Select Excel File
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Confirmation Modal */}
+      {showConfirmModal && importConfirmData && (
+        <div className="modal-overlay">
+          <div className="modal-content import-confirm-modal">
+            <div className="modal-header">
+              <h2>Confirm Import</h2>
+              <button className="modal-close" onClick={handleImportCancel}>
+                <X size={24} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="confirmation-section success-section">
+                <h3>✅ Validation Successful!</h3>
+                <ul>
+                  <li><strong>{importConfirmData.validEntries.length}</strong> valid entries ready to import</li>
+                  <li>All Product IDs belong to Group PNCategory 8</li>
+                  <li>All Reagen Rates are valid numbers</li>
+                </ul>
+              </div>
+
+              <div className="confirmation-section warning-section">
+                <h3>⚠️ Data Replacement Warning:</h3>
+                <div className="data-comparison">
+                  <div className="data-item">
+                    <span className="label">Current entries:</span>
+                    <span className="value current">{importConfirmData.currentDataCount}</span>
+                  </div>
+                  <div className="data-item">
+                    <span className="label">New entries:</span>
+                    <span className="value new">{importConfirmData.newDataCount}</span>
+                  </div>
+                </div>
+                <p className="warning-text">
+                  This will <strong>permanently replace all existing reagen data</strong>. 
+                  This operation cannot be undone.
+                </p>
+              </div>
+
+              <div className="confirmation-section">
+                <h3>📋 Preview of Import Data:</h3>
+                <div className="preview-table-container">
+                  <table className="preview-table">
+                    <thead>
+                      <tr>
+                        <th>Product ID</th>
+                        <th>Product Name</th>
+                        <th>Reagen Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importConfirmData.validEntries.slice(0, 5).map((entry, index) => (
+                        <tr key={index}>
+                          <td className="product-id-cell">{entry.productId}</td>
+                          <td className="product-name-cell">{entry.productName}</td>
+                          <td className="reagen-rate-cell">{entry.reagenRate.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                      {importConfirmData.validEntries.length > 5 && (
+                        <tr className="more-rows">
+                          <td colSpan="3">
+                            ... and {importConfirmData.validEntries.length - 5} more entries
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="btn-secondary"
+                onClick={handleImportCancel}
+                disabled={submitLoading}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn-danger"
+                onClick={handleFinalImportConfirm}
+                disabled={submitLoading}
+              >
+                {submitLoading ? 'Importing...' : 'Confirm Import'}
               </button>
             </div>
           </div>
