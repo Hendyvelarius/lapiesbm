@@ -53,8 +53,7 @@ const Pembebanan = () => {
     groupProsesRate: '',
     groupKemasRate: '',
     groupGenerikRate: '',
-    groupAnalisaRate: '',
-    tollFee: ''
+    groupAnalisaRate: ''
   });
   
   // Import warning modal state
@@ -122,9 +121,8 @@ const Pembebanan = () => {
           groupName: pembebanan.Group_PNCategory_Name,
           rateProses: pembebanan.Group_Proses_Rate,
           rateKemas: pembebanan.Group_Kemas_Rate,
-          rateGenerik: pembebanan.Group_Generik_Rate,
+          rateGenerik: pembebanan.Group_PLN_Rate,
           rateAnalisa: pembebanan.Group_Analisa_Rate,
-          tollFee: pembebanan.Toll_Fee,
           userId: pembebanan.user_id,
           processDate: pembebanan.process_date,
           sortPriority: 0 // Higher priority for sorting (default rates at top)
@@ -146,9 +144,8 @@ const Pembebanan = () => {
             groupName: productDetails.Group_PNCategoryName,
             rateProses: pembebanan.Group_Proses_Rate,
             rateKemas: pembebanan.Group_Kemas_Rate,
-            rateGenerik: pembebanan.Group_Generik_Rate,
+            rateGenerik: pembebanan.Group_PLN_Rate,
             rateAnalisa: pembebanan.Group_Analisa_Rate,
-            tollFee: pembebanan.Toll_Fee,
             userId: pembebanan.user_id,
             processDate: pembebanan.process_date,
             sortPriority: 1 // Lower priority for sorting (actual products after defaults)
@@ -165,9 +162,8 @@ const Pembebanan = () => {
             groupName: 'Unknown Group',
             rateProses: pembebanan.Group_Proses_Rate,
             rateKemas: pembebanan.Group_Kemas_Rate,
-            rateGenerik: pembebanan.Group_Generik_Rate,
+            rateGenerik: pembebanan.Group_PLN_Rate,
             rateAnalisa: pembebanan.Group_Analisa_Rate,
-            tollFee: pembebanan.Toll_Fee,
             userId: pembebanan.user_id,
             processDate: pembebanan.process_date,
             sortPriority: 1
@@ -217,7 +213,7 @@ const Pembebanan = () => {
       let bValue = b[field];
 
       // Handle numeric fields
-      if (field === 'rateProses' || field === 'rateKemas' || field === 'rateGenerik' || field === 'rateAnalisa' || field === 'tollFee') {
+      if (field === 'rateProses' || field === 'rateKemas' || field === 'rateGenerik' || field === 'rateAnalisa') {
         aValue = parseFloat(aValue) || 0;
         bValue = parseFloat(bValue) || 0;
       }
@@ -302,8 +298,7 @@ const Pembebanan = () => {
       rateProses: item.rateProses,
       rateKemas: item.rateKemas,
       rateGenerik: item.rateGenerik || '',
-      rateAnalisa: item.rateAnalisa || '',
-      tollFee: item.tollFee || ''
+      rateAnalisa: item.rateAnalisa || ''
     });
   };
 
@@ -329,9 +324,8 @@ const Pembebanan = () => {
         groupProductID: processedData.find(p => p.pk_id === editingRowId)?.productId,
         groupProsesRate: parseFloat(editFormData.rateProses) || 0,
         groupKemasRate: parseFloat(editFormData.rateKemas) || 0,
-        groupGenerikRate: parseFloat(editFormData.rateGenerik) || null,
-        groupAnalisaRate: parseFloat(editFormData.rateAnalisa) || null,
-        tollFee: parseFloat(editFormData.tollFee) || null
+        groupPLNRate: parseFloat(editFormData.rateGenerik) || null,
+        groupAnalisaRate: parseFloat(editFormData.rateAnalisa) || null
       };
       
       await masterAPI.updatePembebanan(editingRowId, updateData);
@@ -367,8 +361,7 @@ const Pembebanan = () => {
       groupProsesRate: '',
       groupKemasRate: '',
       groupGenerikRate: '',
-      groupAnalisaRate: '',
-      tollFee: ''
+      groupAnalisaRate: ''
     });
     setFilteredProducts(availableProducts);
   };
@@ -474,9 +467,8 @@ const Pembebanan = () => {
         groupProductID: String(addFormData.groupProductID),
         groupProsesRate: parseFloat(addFormData.groupProsesRate),
         groupKemasRate: parseFloat(addFormData.groupKemasRate),
-        groupGenerikRate: addFormData.groupGenerikRate ? parseFloat(addFormData.groupGenerikRate) : null,
-        groupAnalisaRate: addFormData.groupAnalisaRate ? parseFloat(addFormData.groupAnalisaRate) : null,
-        tollFee: addFormData.tollFee ? parseFloat(addFormData.tollFee) : null
+        groupPLNRate: addFormData.groupGenerikRate ? parseFloat(addFormData.groupGenerikRate) : null,
+        groupAnalisaRate: addFormData.groupAnalisaRate ? parseFloat(addFormData.groupAnalisaRate) : null
       };
       
       await masterAPI.addPembebanan(newEntry);
@@ -531,9 +523,8 @@ const Pembebanan = () => {
           'Product ID': item.productId,
           'Rate Proses': item.rateProses || 0,
           'Rate Kemas': item.rateKemas || 0,
-          'Rate Generik': item.rateGenerik || 0,
-          'Rate Reagen': item.rateAnalisa || 0, // Assuming rateAnalisa is rateReagen
-          'Toll Fee': item.tollFee || 0
+          'Rate PLN': item.rateGenerik || 0,
+          'Rate Analisa': item.rateAnalisa || 0
         }));
 
       if (exportData.length === 0) {
@@ -550,9 +541,8 @@ const Pembebanan = () => {
         { wch: 15 }, // Product ID
         { wch: 12 }, // Rate Proses
         { wch: 12 }, // Rate Kemas
-        { wch: 12 }, // Rate Generik
-        { wch: 12 }, // Rate Reagen
-        { wch: 12 }  // Toll Fee
+        { wch: 12 }, // Rate PLN
+        { wch: 12 }  // Rate Analisa
       ];
       worksheet['!cols'] = columnWidths;
 
@@ -722,9 +712,8 @@ const Pembebanan = () => {
       const numericFields = {
         rateProses: row['Rate Proses'] || row['RateProses'] || row['Rate_Proses'] || 0,
         rateKemas: row['Rate Kemas'] || row['RateKemas'] || row['Rate_Kemas'] || 0,
-        rateGenerik: row['Rate Generik'] || row['RateGenerik'] || row['Rate_Generik'] || 0,
-        rateReagen: row['Rate Reagen'] || row['RateReagen'] || row['Rate_Reagen'] || 0,
-        tollFee: row['Toll Fee'] || row['TollFee'] || row['Toll_Fee'] || 0
+        rateGenerik: row['Rate PLN'] || row['RatePLN'] || row['Rate_PLN'] || row['Rate Generik'] || row['RateGenerik'] || row['Rate_Generik'] || 0,
+        rateReagen: row['Rate Analisa'] || row['RateAnalisa'] || row['Rate_Analisa'] || row['Rate Reagen'] || row['RateReagen'] || row['Rate_Reagen'] || 0
       };
 
       let validRow = true;
@@ -874,20 +863,14 @@ const Pembebanan = () => {
                   )}
                 </th>
                 <th onClick={() => handleSort('rateGenerik')} className="sortable">
-                  Rate Generik
+                  Rate PLN
                   {sortField === 'rateGenerik' && (
                     sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   )}
                 </th>
                 <th onClick={() => handleSort('rateAnalisa')} className="sortable">
-                  Rate Reagen
+                  Rate Analisa
                   {sortField === 'rateAnalisa' && (
-                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                  )}
-                </th>
-                <th onClick={() => handleSort('tollFee')} className="sortable">
-                  Toll Fee
-                  {sortField === 'tollFee' && (
                     sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   )}
                 </th>
@@ -952,7 +935,7 @@ const Pembebanan = () => {
                           value={editFormData.rateGenerik}
                           onChange={(e) => handleEditChange('rateGenerik', e.target.value)}
                           className="edit-input"
-                          placeholder="Generik Rate"
+                          placeholder="PLN Rate"
                         />
                       </td>
                       <td>
@@ -963,16 +946,6 @@ const Pembebanan = () => {
                           onChange={(e) => handleEditChange('rateAnalisa', e.target.value)}
                           className="edit-input"
                           placeholder="Analisa Rate"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={editFormData.tollFee}
-                          onChange={(e) => handleEditChange('tollFee', e.target.value)}
-                          className="edit-input"
-                          placeholder="Toll Fee"
                         />
                       </td>
                       <td className="actions editing-mode">
@@ -1006,7 +979,6 @@ const Pembebanan = () => {
                       <td className="manhour">{parseFloat(item.rateKemas).toFixed(2)}</td>
                       <td className="manhour">{item.rateGenerik ? parseFloat(item.rateGenerik).toFixed(2) : '-'}</td>
                       <td className="manhour">{item.rateAnalisa ? parseFloat(item.rateAnalisa).toFixed(2) : '-'}</td>
-                      <td className="manhour">{item.tollFee ? parseFloat(item.tollFee).toFixed(2) : '-'}</td>
                       <td className={`actions display-mode ${item.isDefaultRate ? 'single-button' : 'multiple-buttons'}`}>
                         <button 
                           className="edit-btn"
@@ -1192,7 +1164,7 @@ const Pembebanan = () => {
               
               <div className="form-row">
                 <div className="form-group">
-                  <label>Generik Rate:</label>
+                  <label>PLN Rate:</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1213,18 +1185,6 @@ const Pembebanan = () => {
                     placeholder="0.00 (Optional)"
                   />
                 </div>
-              </div>
-              
-              <div className="form-group">
-                <label>Toll Fee:</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={addFormData.tollFee}
-                  onChange={(e) => handleAddFormChange('tollFee', e.target.value)}
-                  placeholder="0.00 (Optional)"
-                />
               </div>
               
               <div className="form-info">

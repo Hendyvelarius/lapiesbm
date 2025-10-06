@@ -455,13 +455,23 @@
 }
 
 .cancel-btn {
-  background: #fef2f2;
-  color: #dc2626;
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0.5rem !important;
+  border: none !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
 }
 
 .cancel-btn:hover:not(:disabled) {
-  background: #dc2626;
-  color: white;
+  background: #dc2626 !important;
+  color: white !important;
   transform: translateY(-1px);
 }
 

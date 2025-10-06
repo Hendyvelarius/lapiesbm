@@ -1052,9 +1052,8 @@ class MasterController {
                 groupProductID, 
                 groupProsesRate, 
                 groupKemasRate,
-                groupGenerikRate,
-                groupAnalisaRate,
-                tollFee
+                groupPLNRate,
+                groupAnalisaRate
             } = req.body;
 
             // Validate required fields
@@ -1072,9 +1071,8 @@ class MasterController {
                 groupProductID,
                 groupProsesRate,
                 groupKemasRate,
-                groupGenerikRate || null,
+                groupPLNRate || null,
                 groupAnalisaRate || null,
-                tollFee || null,
                 'GWN' // Default user for now
             );
 
@@ -1102,9 +1100,8 @@ class MasterController {
                 groupProductID, 
                 groupProsesRate, 
                 groupKemasRate,
-                groupGenerikRate,
-                groupAnalisaRate,
-                tollFee
+                groupPLNRate,
+                groupAnalisaRate
             } = req.body;
 
             // Validate required fields
@@ -1130,9 +1127,8 @@ class MasterController {
                 groupProductID,
                 groupProsesRate,
                 groupKemasRate,
-                groupGenerikRate || null,
+                groupPLNRate || null,
                 groupAnalisaRate || null,
-                tollFee || null,
                 'GWN' // Default user for now
             );
 
