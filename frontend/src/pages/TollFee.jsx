@@ -111,8 +111,6 @@ const TollFee = ({ user }) => {
     // Limit to 50 results for performance
     const limitedResults = filtered.slice(0, 50);
     setFilteredProducts(limitedResults);
-    
-    console.log(`Filtered products: ${limitedResults.length} of ${filtered.length} available`);
   }, [availableProducts, productSearchTerm, showProductDropdown]);
 
   // Close dropdown when clicking outside
@@ -158,7 +156,6 @@ const TollFee = ({ user }) => {
         
         setTollFeeData(mappedData);
         setError('');
-        console.log('Loaded toll fee data:', mappedData.length, 'items');
       } else {
         throw new Error(result?.message || 'Invalid response format');
       }
@@ -190,7 +187,6 @@ const TollFee = ({ user }) => {
         }));
         
         setProductNames(transformedData);
-        console.log('Loaded product data from group API:', transformedData.length, 'items');
       } else if (result && Array.isArray(result)) {
         // Handle case where API returns array directly (without success wrapper)
         const transformedData = result.map(item => ({
@@ -203,7 +199,6 @@ const TollFee = ({ user }) => {
         }));
         
         setProductNames(transformedData);
-        console.log('Loaded product data (direct array):', transformedData.length, 'items');
       } else {
         throw new Error(result?.message || 'Invalid response format');
       }
@@ -230,7 +225,6 @@ const TollFee = ({ user }) => {
       );
       
       setAvailableProducts(available);
-      console.log(`Available products for toll fee (Group_PNCategory=6 or 7): ${available.length} items`);
     } catch (err) {
       console.error('Error loading available products:', err);
       setAvailableProducts([]);

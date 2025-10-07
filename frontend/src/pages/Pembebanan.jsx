@@ -513,22 +513,24 @@ const Pembebanan = () => {
     setDeletingItem(null);
   };
 
-  // Export function - exports all products except "Default Rate" ones
+  // Export function - exports all cost allocation data (including default rates)
   const handleExportCostAllocation = () => {
     try {
-      // Filter out default rate entries and get only the required columns
+      // Export all entries (including default rates) with proper formatting
       const exportData = processedData
-        .filter(item => !item.isDefaultRate) // Exclude "Default Rate" entries
         .map(item => ({
-          'Product ID': item.productId,
-          'Rate Proses': item.rateProses || 0,
-          'Rate Kemas': item.rateKemas || 0,
-          'Rate PLN': item.rateGenerik || 0,
-          'Rate Analisa': item.rateAnalisa || 0
+          'Product ID': item.isDefaultRate ? '' : (item.productId || ''),
+          'Group ID': item.groupId || '',
+          'Group Name': item.groupName || '',
+          'Is Default Rate': item.isDefaultRate ? 'YES' : 'NO',
+          'Rate Proses': parseFloat(item.rateProses) || 0,
+          'Rate Kemas': parseFloat(item.rateKemas) || 0,
+          'Rate PLN': parseFloat(item.rateGenerik) || 0,
+          'Rate Analisa': parseFloat(item.rateAnalisa) || 0
         }));
 
       if (exportData.length === 0) {
-        notifier.alert('No cost allocation data available for export (excluding default rates)');
+        notifier.alert('No cost allocation data available for export');
         return;
       }
 
@@ -539,6 +541,9 @@ const Pembebanan = () => {
       // Set column widths for better display
       const columnWidths = [
         { wch: 15 }, // Product ID
+        { wch: 12 }, // Group ID  
+        { wch: 25 }, // Group Name
+        { wch: 15 }, // Is Default Rate
         { wch: 12 }, // Rate Proses
         { wch: 12 }, // Rate Kemas
         { wch: 12 }, // Rate PLN
@@ -546,13 +551,55 @@ const Pembebanan = () => {
       ];
       worksheet['!cols'] = columnWidths;
 
-      // Format Product ID column as text to ensure consistent alignment
+      // Format columns properly to avoid Excel warnings and ensure proper data entry
       const range = XLSX.utils.decode_range(worksheet['!ref']);
+      
+      // Set column formats for the entire columns (not just existing cells)
+      if (!worksheet['!cols']) worksheet['!cols'] = [];
+      
+      // Force Product ID and Group ID columns to be text format
+      worksheet['!cols'][0] = { ...worksheet['!cols'][0], z: '@' }; // Product ID as text
+      worksheet['!cols'][1] = { ...worksheet['!cols'][1], z: '@' }; // Group ID as text
+      
       for (let row = range.s.r; row <= range.e.r; row++) {
-        const cellAddress = XLSX.utils.encode_cell({ r: row, c: 0 }); // Column A (Product ID)
-        if (worksheet[cellAddress]) {
-          worksheet[cellAddress].t = 's'; // Set cell type to string
-          worksheet[cellAddress].z = '@'; // Set number format to text
+        // Format Product ID column as text (including empty cells)
+        const productIdCell = XLSX.utils.encode_cell({ r: row, c: 0 });
+        if (!worksheet[productIdCell]) worksheet[productIdCell] = { v: '', t: 's' };
+        worksheet[productIdCell].t = 's';
+        worksheet[productIdCell].z = '@';
+        
+        // Format Group ID column as text (including empty cells)  
+        const groupIdCell = XLSX.utils.encode_cell({ r: row, c: 1 });
+        if (!worksheet[groupIdCell]) worksheet[groupIdCell] = { v: '', t: 's' };
+        worksheet[groupIdCell].t = 's';
+        worksheet[groupIdCell].z = '@';
+        
+        // Format numeric columns explicitly as numbers with 2 decimal places
+        for (let col = 4; col <= 7; col++) { // Rate columns (Proses, Kemas, PLN, Analisa)
+          const numCell = XLSX.utils.encode_cell({ r: row, c: col });
+          if (worksheet[numCell] && row > range.s.r) { // Skip header row
+            worksheet[numCell].t = 'n';
+            worksheet[numCell].z = '0.00';
+          }
+        }
+      }
+      
+      // Add additional empty rows with proper formatting to make manual entry easier
+      const lastRow = range.e.r;
+      for (let extraRow = lastRow + 1; extraRow <= lastRow + 10; extraRow++) {
+        // Pre-format empty rows for Product ID and Group ID as text
+        const productIdCell = XLSX.utils.encode_cell({ r: extraRow, c: 0 });
+        const groupIdCell = XLSX.utils.encode_cell({ r: extraRow, c: 1 });
+        
+        worksheet[productIdCell] = { v: '', t: 's', z: '@' };
+        worksheet[groupIdCell] = { v: '', t: 's', z: '@' };
+        
+        // Update range to include these new rows
+        if (!worksheet['!ref']) {
+          worksheet['!ref'] = XLSX.utils.encode_range({
+            s: { r: range.s.r, c: range.s.c },
+            e: { r: extraRow, c: range.e.c }
+          });
         }
       }
 
@@ -565,7 +612,9 @@ const Pembebanan = () => {
       // Write and download the file
       XLSX.writeFile(workbook, filename);
 
-      notifier.success(`Successfully exported ${exportData.length} cost allocation records to Excel`);
+      const defaultRatesCount = exportData.filter(item => item['Is Default Rate'] === 'YES').length;
+      const customRatesCount = exportData.filter(item => item['Is Default Rate'] === 'NO').length;
+      notifier.success(`Successfully exported ${exportData.length} cost allocation records to Excel (${defaultRatesCount} default rates, ${customRatesCount} custom rates)`);
     } catch (error) {
       console.error('Error exporting cost allocation data:', error);
       notifier.alert('Failed to export cost allocation data. Please try again.');
@@ -630,7 +679,6 @@ const Pembebanan = () => {
         const result = await masterAPI.bulkImportPembebanan(validatedData);
 
         // Show success message and refresh data
-        console.log('Import successful:', result);
         await fetchAllData();
 
         notifier.success(`Import completed successfully! Deleted: ${result.data.deleted} old records, Inserted: ${result.data.inserted} new records`, {
@@ -639,7 +687,13 @@ const Pembebanan = () => {
 
       } catch (error) {
         console.error('Error importing data:', error);
-        notifier.alert(`Failed to import data: ${error.message}`);
+        
+        // Show different messages for validation errors vs. other errors
+        if (error.message.includes('Validation failed')) {
+          notifier.alert(`Import cancelled due to validation errors. Please fix the issues in your Excel file and try again.`);
+        } else {
+          notifier.alert(`Failed to import data: ${error.message}`);
+        }
       } finally {
         setLoading(false);
       }
@@ -681,31 +735,68 @@ const Pembebanan = () => {
     return data;
   };
 
-  // Validate and map imported data against existing products
+  // Validate and map imported data against existing products and default rates
   const validateAndMapImportData = async (importedData) => {
     const validatedData = [];
     const errors = [];
+    const foundDefaultRates = new Set(); // Track which default rates we've seen
 
     for (let i = 0; i < importedData.length; i++) {
       const row = importedData[i];
       const rowIndex = i + 2; // +2 because header is row 1
 
-      // Get the product ID from various possible column names
+      // Check if this is a default rate
+      const isDefaultRate = row['Is Default Rate'] === 'YES' || 
+                           row['IsDefaultRate'] === 'YES' || 
+                           row['Is_Default_Rate'] === 'YES' ||
+                           (row['Product ID'] === null || row['Product ID'] === '' || row['Product ID'] === undefined) ||
+                           String(row['Product ID']).trim() === '';
+
       const productId = row['Product ID'] || row['ProductID'] || row['productId'] || row['Product_ID'];
+      const groupId = row['Group ID'] || row['GroupID'] || row['Group_ID'];
+      const groupName = row['Group Name'] || row['GroupName'] || row['Group_Name'];
 
-      if (!productId) {
-        errors.push(`Row ${rowIndex}: Product ID is required`);
-        continue;
-      }
+      let processedRow;
 
-      // Find the product in our existing group data
-      const productDetails = groupData.find(group => 
-        String(group.Group_ProductID).toLowerCase() === String(productId).toLowerCase()
-      );
+      if (isDefaultRate) {
+        // Handle default rate
+        if (!groupId || !groupName) {
+          errors.push(`Row ${rowIndex}: Default rate entries require Group ID and Group Name`);
+          continue;
+        }
 
-      if (!productDetails) {
-        errors.push(`Row ${rowIndex}: Product ID "${productId}" not found in system`);
-        continue;
+        // Track this default rate
+        foundDefaultRates.add(String(groupId));
+
+        processedRow = {
+          groupProductID: null,
+          groupPNCategoryID: String(groupId),
+          groupPNCategoryName: String(groupName),
+          isDefaultRate: true
+        };
+      } else {
+        // Handle custom rate (product-specific)
+        if (!productId) {
+          errors.push(`Row ${rowIndex}: Product ID is required for custom rates`);
+          continue;
+        }
+
+        // Find the product in our existing group data
+        const productDetails = groupData.find(group => 
+          String(group.Group_ProductID).toLowerCase() === String(productId).toLowerCase()
+        );
+
+        if (!productDetails) {
+          errors.push(`Row ${rowIndex}: Product ID "${productId}" not found in system`);
+          continue;
+        }
+
+        processedRow = {
+          groupProductID: productDetails.Group_ProductID,
+          groupPNCategoryID: productDetails.Group_PNCategory,
+          groupPNCategoryName: productDetails.Group_PNCategoryName,
+          isDefaultRate: false
+        };
       }
 
       // Validate and extract numeric values
@@ -717,11 +808,6 @@ const Pembebanan = () => {
       };
 
       let validRow = true;
-      const processedRow = {
-        groupProductID: productDetails.Group_ProductID,
-        groupPNCategoryID: productDetails.Group_PNCategory,
-        groupPNCategoryName: productDetails.Group_PNCategoryName
-      };
 
       // Validate and convert numeric fields
       for (const [key, value] of Object.entries(numericFields)) {
@@ -753,10 +839,29 @@ const Pembebanan = () => {
       }
     }
 
-    // Show errors if any
+    // Check if all existing default rates are present in the import
+    const existingDefaultRates = processedData
+      .filter(item => item.isDefaultRate)
+      .map(item => String(item.groupId));
+    
+    const missingDefaultRates = existingDefaultRates.filter(groupId => !foundDefaultRates.has(groupId));
+    
+    if (missingDefaultRates.length > 0) {
+      const missingGroups = missingDefaultRates
+        .map(groupId => {
+          const existingDefault = processedData.find(item => item.isDefaultRate && String(item.groupId) === groupId);
+          return `${existingDefault?.groupName || 'Unknown'} (ID: ${groupId})`;
+        });
+      
+      errors.push(`Missing required default rates for groups: ${missingGroups.join(', ')}`);
+      errors.push('All existing default rates must be included in the import to ensure data consistency.');
+    }
+
+    // Show errors if any and prevent import
     if (errors.length > 0) {
-      const errorMessage = `Import validation errors:\n${errors.slice(0, 10).join('\n')}${errors.length > 10 ? `\n... and ${errors.length - 10} more errors` : ''}`;
+      const errorMessage = `Import validation failed with ${errors.length} error(s):\n\n${errors.slice(0, 10).join('\n')}${errors.length > 10 ? `\n... and ${errors.length - 10} more errors` : ''}\n\nPlease fix these errors before importing.`;
       notifier.alert(errorMessage);
+      throw new Error(`Validation failed with ${errors.length} errors. Import aborted.`);
     }
 
     return validatedData;

@@ -967,25 +967,22 @@ async function deletePembebanan(pkId) {
   }
 }
 
-// Bulk operations for pembebanan import
+// Bulk operations for pembebanan import - now deletes ALL entries (including default rates)
 async function bulkDeletePembebanانWithProductID(userId = "system") {
   try {
     const db = await connect();
     
-    // Delete all entries where Group_ProductID is NOT null (keep default rates)
+    // Delete ALL entries (including default rates) to allow full replacement
     const deleteQuery = `
-      DELETE FROM M_COGS_PEMBEBANAN 
-      WHERE Group_ProductID IS NOT NULL
+      DELETE FROM M_COGS_PEMBEBANAN
     `;
     
     const result = await db.request().query(deleteQuery);
     
-    console.log(`Bulk delete completed: ${result.rowsAffected[0]} pembebanan entries with Product ID deleted`);
-    
     return {
       success: true,
       rowsAffected: result.rowsAffected[0],
-      operation: 'bulk_delete_pembebanan_with_product_id',
+      operation: 'bulk_delete_all_pembebanan',
       userId: userId
     };
   } catch (error) {
@@ -1056,10 +1053,10 @@ async function bulkInsertPembebanan(pembebanانData, userId = "system") {
       request.input(`${paramPrefix}_periode`, sql.VarChar, currentYear);
       request.input(`${paramPrefix}_categoryId`, sql.VarChar, String(item.groupPNCategoryID || ''));
       request.input(`${paramPrefix}_categoryName`, sql.VarChar, String(item.groupPNCategoryName || ''));
-      request.input(`${paramPrefix}_productId`, sql.VarChar, String(item.groupProductID));
+      request.input(`${paramPrefix}_productId`, sql.VarChar, item.groupProductID ? String(item.groupProductID) : null);
       request.input(`${paramPrefix}_prosesRate`, sql.Decimal(18, 2), item.groupProsesRate);
       request.input(`${paramPrefix}_kemasRate`, sql.Decimal(18, 2), item.groupKemasRate);
-      request.input(`${paramPrefix}_plnRate`, sql.Decimal(18, 2), item.groupPLNRate);
+      request.input(`${paramPrefix}_plnRate`, sql.Decimal(18, 2), item.groupGenerikRate);
       request.input(`${paramPrefix}_analisaRate`, sql.Decimal(18, 2), item.groupAnalisaRate);
       request.input(`${paramPrefix}_userId`, sql.VarChar, String(userId));
       request.input(`${paramPrefix}_delegatedTo`, sql.VarChar, String(userId));
@@ -1070,8 +1067,6 @@ async function bulkInsertPembebanan(pembebanانData, userId = "system") {
     
     const finalQuery = insertQuery + values.join(',');
     const result = await request.query(finalQuery);
-    
-    console.log(`Bulk insert completed: ${result.rowsAffected[0]} pembebanan entries inserted`);
     
     return {
       success: true,

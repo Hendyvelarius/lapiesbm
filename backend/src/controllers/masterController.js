@@ -204,21 +204,8 @@ class MasterController {
         try {
             const { items } = req.body;
             
-            // Debug: Log the received request body
-            console.log('=== BULK IMPORT DEBUG ===');
-            console.log('Request body structure:', {
-                hasItems: !!items,
-                itemsType: Array.isArray(items) ? 'array' : typeof items,
-                itemsLength: Array.isArray(items) ? items.length : 'N/A'
-            });
-            
-            if (items && Array.isArray(items) && items.length > 0) {
-                console.log('First 3 items sample:', JSON.stringify(items.slice(0, 3), null, 2));
-            }
-            
             // Validate required fields
             if (!items || !Array.isArray(items) || items.length === 0) {
-                console.log('Validation failed: Invalid items array');
                 return res.status(400).json({
                     success: false,
                     message: 'Missing or invalid items array'
@@ -270,11 +257,9 @@ class MasterController {
             }
 
             // Step 1: Bulk delete existing BB records
-            console.log('Starting bulk delete of BB records...');
             const deleteResult = await bulkDeleteBBHargaBahan();
             
             // Step 2: Bulk insert new records
-            console.log('Starting bulk insert of new records...');
             const insertResult = await bulkInsertHargaBahan(items);
             
             res.status(200).json({
@@ -300,21 +285,8 @@ class MasterController {
         try {
             const { items } = req.body;
             
-            // Debug: Log the received request body
-            console.log('=== BAHAN KEMAS BULK IMPORT DEBUG ===');
-            console.log('Request body structure:', {
-                hasItems: !!items,
-                itemsType: Array.isArray(items) ? 'array' : typeof items,
-                itemsLength: Array.isArray(items) ? items.length : 'N/A'
-            });
-            
-            if (items && Array.isArray(items) && items.length > 0) {
-                console.log('First 3 items sample:', JSON.stringify(items.slice(0, 3), null, 2));
-            }
-            
             // Validate required fields
             if (!items || !Array.isArray(items) || items.length === 0) {
-                console.log('Validation failed: Invalid items array');
                 return res.status(400).json({
                     success: false,
                     message: 'Missing or invalid items array'
@@ -366,11 +338,9 @@ class MasterController {
             }
 
             // Step 1: Bulk delete existing BK records
-            console.log('Starting bulk delete of BK records...');
             const deleteResult = await bulkDeleteBKHargaBahan();
             
             // Step 2: Bulk insert new records
-            console.log('Starting bulk insert of new BK records...');
             const insertResult = await bulkInsertHargaBahan(items);
             
             res.status(200).json({
@@ -977,7 +947,6 @@ class MasterController {
             
             // Perform bulk delete first, then bulk insert
             const deleteResult = await bulkDeleteGenerikGroups(userId);
-            console.log(`Deleted ${deleteResult.rowsAffected} existing Generik groups`);
             
             // Transform data for bulk insert - productName removed as per user request
             const insertData = generikData.map(row => ({
@@ -1208,11 +1177,27 @@ class MasterController {
             for (let i = 0; i < pembebanانData.length; i++) {
                 const row = pembebanانData[i];
                 
-                // Check required fields
-                if (!row.groupProductID || !row.groupPNCategoryID || !row.groupPNCategoryName) {
+                // Check required fields - groupProductID can be null for default rates
+                if (!row.groupPNCategoryID || !row.groupPNCategoryName) {
                     return res.status(400).json({
                         success: false,
-                        message: `Row ${i + 1}: Missing required fields (groupProductID, groupPNCategoryID, groupPNCategoryName)`
+                        message: `Row ${i + 1}: Missing required fields (groupPNCategoryID, groupPNCategoryName)`
+                    });
+                }
+                
+                // For custom rates (non-default), groupProductID is required
+                if (!row.isDefaultRate && !row.groupProductID) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Row ${i + 1}: groupProductID is required for custom rates`
+                    });
+                }
+                
+                // For default rates, groupProductID should be null
+                if (row.isDefaultRate && row.groupProductID) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Row ${i + 1}: Default rates should not have groupProductID`
                     });
                 }
                 
@@ -1228,15 +1213,14 @@ class MasterController {
                 }
             }
             
-            // Perform bulk delete first (only entries with Product ID), then bulk insert
+            // Perform bulk delete first (now deletes ALL entries including defaults), then bulk insert
             const deleteResult = await bulkDeletePembebanانWithProductID(userId);
-            console.log(`Deleted ${deleteResult.rowsAffected} existing pembebanan entries with Product ID`);
             
-            // Transform data for bulk insert
+            // Transform data for bulk insert - handle both default rates and custom rates
             const insertData = pembebanانData.map(row => ({
                 groupPNCategoryID: String(row.groupPNCategoryID),
                 groupPNCategoryName: String(row.groupPNCategoryName),
-                groupProductID: String(row.groupProductID),
+                groupProductID: row.isDefaultRate ? null : String(row.groupProductID), // null for default rates
                 groupProsesRate: parseFloat(row.groupProsesRate) || 0,
                 groupKemasRate: parseFloat(row.groupKemasRate) || 0,
                 groupGenerikRate: parseFloat(row.groupGenerikRate) || 0,
@@ -1246,13 +1230,19 @@ class MasterController {
             
             const insertResult = await bulkInsertPembebanan(insertData, userId);
             
+            // Count default vs custom rates
+            const defaultRatesCount = pembebanانData.filter(row => row.isDefaultRate).length;
+            const customRatesCount = pembebanانData.filter(row => !row.isDefaultRate).length;
+            
             res.status(200).json({
                 success: true,
-                message: `Bulk import completed successfully. Deleted ${deleteResult.rowsAffected} old records (excluding default rates), inserted ${insertResult.rowsAffected} new records.`,
+                message: `Bulk import completed successfully. Deleted ${deleteResult.rowsAffected} old records (including default rates), inserted ${insertResult.rowsAffected} new records (${defaultRatesCount} default rates, ${customRatesCount} custom rates).`,
                 data: {
                     deleted: deleteResult.rowsAffected,
                     inserted: insertResult.rowsAffected,
-                    processed: pembebanانData.length
+                    processed: pembebanانData.length,
+                    defaultRates: defaultRatesCount,
+                    customRates: customRatesCount
                 }
             });
             
