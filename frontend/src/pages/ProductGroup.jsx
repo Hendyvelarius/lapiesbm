@@ -120,6 +120,7 @@ const ProductGroup = () => {
         mhtBK: item.Group_MHT_BK || 0,
         mhAnalisa: item.Group_MH_Analisa || 0,
         kwhMesin: item.Group_KWH_Mesin || 0,
+        reagenRate: item.Reagen_Rate || 0,
         sumberData: item.Sumber_Data || 'LMS' // Add source data with fallback
       }));
 
@@ -609,7 +610,8 @@ const ProductGroup = () => {
         'MHT BB': parseFloat(item.mhtBB) || 0,
         'MHT BK': parseFloat(item.mhtBK) || 0,
         'MH Analisa': parseFloat(item.mhAnalisa) || 0,
-        'KWH Mesin': parseFloat(item.kwhMesin) || 0
+        'KWH Mesin': parseFloat(item.kwhMesin) || 0,
+        'Reagen Rate': parseFloat(item.reagenRate) || 0
       }));
       
       // Create a new workbook
@@ -631,12 +633,13 @@ const ProductGroup = () => {
         { wch: 12 }, // MHT BB
         { wch: 12 }, // MHT BK
         { wch: 12 }, // MH Analisa
-        { wch: 12 }  // KWH Mesin
+        { wch: 12 }, // KWH Mesin
+        { wch: 12 }  // Reagen Rate
       ];
       worksheet['!cols'] = columnWidths;
       
       // Apply header formatting
-      const headerCells = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1', 'L1'];
+      const headerCells = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1', 'L1', 'M1'];
       headerCells.forEach(cell => {
         if (worksheet[cell]) {
           worksheet[cell].s = {
@@ -647,10 +650,10 @@ const ProductGroup = () => {
         }
       });
       
-      // Apply number formatting to numeric columns (E-H)
+      // Apply number formatting to numeric columns (E-G, I-M)
       const range = XLSX.utils.decode_range(worksheet['!ref']);
       for (let row = range.s.r + 1; row <= range.e.r; row++) {
-        ['E', 'F', 'G', 'I', 'J', 'K', 'L'].forEach(col => {
+        ['E', 'F', 'G', 'I', 'J', 'K', 'L', 'M'].forEach(col => {
           const cellAddress = col + (row + 1);
           if (worksheet[cellAddress]) {
             worksheet[cellAddress].s = {

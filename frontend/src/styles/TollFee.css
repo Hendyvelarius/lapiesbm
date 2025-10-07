@@ -787,7 +787,7 @@
 
 /* Import Button Style */
 .toll-fee-btn-import {
-  background-color: #fd7e14;
+  background-color: #007bff;
   color: white;
   border: none;
   padding: 8px 16px;
@@ -802,7 +802,7 @@
 }
 
 .toll-fee-btn-import:hover:not(:disabled) {
-  background-color: #e66310;
+  background-color: #0056b3;
   transform: translateY(-1px);
 }
 
