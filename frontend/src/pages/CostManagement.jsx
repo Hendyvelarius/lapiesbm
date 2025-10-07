@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
-import { Calculator, Users, Layers, CalendarX, FlaskConical } from 'lucide-react';
+import { Calculator, Users, Layers, CalendarX, FlaskConical, Truck } from 'lucide-react';
 import BiayaLain from './BiayaLain';
 import ProductGroup from './ProductGroup';
 import Pembebanan from './Pembebanan';
 import ExpiryCost from './ExpiryCost';
 import Reagen from './Reagen';
+import TollFee from './TollFee';
 import '../styles/CostManagement.css';
 
 const CostManagement = ({ user }) => {
@@ -15,7 +16,7 @@ const CostManagement = ({ user }) => {
   // Initialize active tab from URL parameters
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
-    const validTabs = ['general-costs', 'product-group', 'cost-allocation', 'expiry-cost', 'reagen'];
+    const validTabs = ['general-costs', 'product-group', 'cost-allocation', 'expiry-cost', 'reagen', 'toll-fee'];
     if (tabFromUrl && validTabs.includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     }
@@ -51,6 +52,12 @@ const CostManagement = ({ user }) => {
       label: 'Reagen',
       icon: FlaskConical,
       component: Reagen
+    },
+    {
+      id: 'toll-fee',
+      label: 'Toll Fee',
+      icon: Truck,
+      component: TollFee
     }
   ];
 
