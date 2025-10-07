@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { X, TrendingUp, TrendingDown, Minus, Download } from "lucide-react";
 import { hppAPI } from "../services/api";
 import LoadingSpinner from "./LoadingSpinner";
 import "../styles/AffectedProductsModal.css";
@@ -93,6 +93,114 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
     return <Minus size={16} className="trend-neutral" />;
   };
 
+  // Export affected products to Excel
+  const handleExportToExcel = async () => {
+    try {
+      if (!affectedProducts || affectedProducts.length === 0) {
+        return;
+      }
+
+      // Import XLSX library dynamically
+      const XLSX = await import('xlsx');
+
+      // Prepare data for Excel export with proper formatting
+      const excelData = affectedProducts.map(product => ({
+        'Product ID': product.Product_ID || '',
+        'Product Name': product.Product_Name || '',
+        'Material Cost Before': parseFloat(product.totalBahanSebelum || 0),
+        'Material Cost After': parseFloat(product.totalBahanSesudah || 0),
+        'Cost Change': parseFloat(product.totalBahanSesudah || 0) - parseFloat(product.totalBahanSebelum || 0),
+        'HNA (Sales Price)': parseFloat(product.Product_SalesHNA || 0),
+        'HPP Before': parseFloat(product.HPPSebelum || 0),
+        'HPP After': parseFloat(product.HPPSesudah || 0),
+        'HPP Change': parseFloat(product.HPPSesudah || 0) - parseFloat(product.HPPSebelum || 0),
+        'HPP Ratio Before (%)': parseFloat(product.Rasio_HPP_Sebelum || 0) * 100,
+        'HPP Ratio After (%)': parseFloat(product.Rasio_HPP_Sesudah || 0) * 100,
+        'Impact (%)': parseFloat(product.persentase_perubahan || 0),
+        'Price Change Description': priceChangeDescription || '',
+        'Price Change Date': priceChangeDate ? new Date(priceChangeDate).toLocaleDateString() : ''
+      }));
+
+      // Create a new workbook
+      const workbook = XLSX.utils.book_new();
+
+      // Create worksheet from data
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+      // Set column widths for better formatting
+      const columnWidths = [
+        { wch: 15 }, // Product ID
+        { wch: 40 }, // Product Name
+        { wch: 18 }, // Material Cost Before
+        { wch: 18 }, // Material Cost After
+        { wch: 15 }, // Cost Change
+        { wch: 18 }, // HNA (Sales Price)
+        { wch: 15 }, // HPP Before
+        { wch: 15 }, // HPP After
+        { wch: 15 }, // HPP Change
+        { wch: 18 }, // HPP Ratio Before (%)
+        { wch: 18 }, // HPP Ratio After (%)
+        { wch: 12 }, // Impact (%)
+        { wch: 30 }, // Price Change Description
+        { wch: 18 }  // Price Change Date
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      // Apply header formatting
+      const headerCells = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1', 'L1', 'M1', 'N1'];
+      headerCells.forEach(cell => {
+        if (worksheet[cell]) {
+          worksheet[cell].s = {
+            font: { bold: true, color: { rgb: "FFFFFF" } },
+            fill: { fgColor: { rgb: "366092" } },
+            alignment: { horizontal: "center" }
+          };
+        }
+      });
+
+      // Apply number formatting to numeric columns
+      const range = XLSX.utils.decode_range(worksheet['!ref']);
+      for (let row = range.s.r + 1; row <= range.e.r; row++) {
+        // Currency columns (C, D, E, F, G, H, I)
+        ['C', 'D', 'E', 'F', 'G', 'H', 'I'].forEach(col => {
+          const cellAddress = col + (row + 1);
+          if (worksheet[cellAddress]) {
+            worksheet[cellAddress].s = {
+              numFmt: '#,##0.00',
+              alignment: { horizontal: "right" }
+            };
+          }
+        });
+        
+        // Percentage columns (J, K, L)
+        ['J', 'K', 'L'].forEach(col => {
+          const cellAddress = col + (row + 1);
+          if (worksheet[cellAddress]) {
+            worksheet[cellAddress].s = {
+              numFmt: '0.00',
+              alignment: { horizontal: "right" }
+            };
+          }
+        });
+      }
+
+      // Add the worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Affected Products');
+
+      // Generate filename with current date and description
+      const dateStr = new Date().toISOString().split('T')[0];
+      const descStr = (priceChangeDescription || 'PriceChange').replace(/[^a-zA-Z0-9]/g, '_');
+      const fileName = `AffectedProducts_${descStr}_${dateStr}.xlsx`;
+
+      // Write and download the file
+      XLSX.writeFile(workbook, fileName);
+
+    } catch (error) {
+      console.error('Error exporting affected products:', error);
+      // You might want to show a user-friendly error message here
+    }
+  };
+
   // Effect to fetch data when modal opens
   useEffect(() => {
     if (isOpen && priceChangeDescription && priceChangeDate) {
@@ -110,9 +218,22 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
       <div className="affected-products-modal">
         <div className="modal-header">
           <h2>Products Affected by Price Change</h2>
-          <button className="close-btn" onClick={onClose} aria-label="Close">
-            <X size={20} />
-          </button>
+          <div className="modal-header-actions">
+            {!loading && !error && affectedProducts.length > 0 && (
+              <button 
+                className="export-btn" 
+                onClick={handleExportToExcel}
+                title="Export to Excel"
+                aria-label="Export affected products to Excel"
+              >
+                <Download size={16} />
+                <span>Export</span>
+              </button>
+            )}
+            <button className="close-btn" onClick={onClose} aria-label="Close">
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         <div className="modal-body">

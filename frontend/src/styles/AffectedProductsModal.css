@@ -43,6 +43,38 @@
   font-family: "Inter", sans-serif;
 }
 
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.export-btn {
+  background: rgba(16, 185, 129, 0.9);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: "Inter", sans-serif;
+}
+
+.export-btn:hover {
+  background: rgba(16, 185, 129, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+.export-btn:active {
+  transform: translateY(0);
+}
+
 .close-btn {
   background: rgba(255, 255, 255, 0.2);
   border: none;
@@ -391,6 +423,19 @@
   .modal-header,
   .modal-footer {
     padding: 16px 20px;
+  }
+
+  .modal-header-actions {
+    gap: 8px;
+  }
+
+  .export-btn {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+
+  .export-btn span {
+    display: none; /* Hide text on mobile, show only icon */
   }
 
   .modal-body {

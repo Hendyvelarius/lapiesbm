@@ -6182,7 +6182,7 @@ export default function HPPSimulation() {
                   onClick={addCustomMaterial}
                   type="button"
                 >
-                  + Add Custom Material
+                  + Add New Item
                 </button>
                 <p className="custom-material-hint">
                   Create a custom material with your own specifications
