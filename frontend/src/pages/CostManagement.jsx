@@ -25,25 +25,25 @@ const CostManagement = ({ user }) => {
   const tabs = [
     {
       id: 'general-costs',
-      label: 'General Costs',
+      label: 'Generik Operational',
       icon: Calculator,
       component: BiayaLain
     },
     {
       id: 'product-group',
-      label: 'Product Group',
+      label: 'Manhour & Yield',
       icon: Users,
       component: ProductGroup
     },
     {
       id: 'cost-allocation',
-      label: 'Cost Allocation',
+      label: 'Rates',
       icon: Layers,
       component: Pembebanan
     },
     {
       id: 'expiry-cost',
-      label: 'Expiry Cost',
+      label: 'Expiry',
       icon: CalendarX,
       component: ExpiryCost
     },

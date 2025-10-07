@@ -114,7 +114,7 @@ const FormulaAssignment = () => {
       ]);
 
       setChosenFormulas(chosenRes || []);
-      setProductList(productsRes || []);
+      setProductList(productsRes?.data || []);
 
     } catch (err) {
       console.error('Error loading data:', err);
