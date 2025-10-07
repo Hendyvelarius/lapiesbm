@@ -4,7 +4,7 @@ import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import * as XLSX from 'xlsx';
 import LoadingSpinner from '../components/LoadingSpinner';
-// import { tollFeeAPI, masterAPI } from '../services/api'; // TODO: implement API
+import { tollFeeAPI, masterAPI } from '../services/api';
 import '../styles/TollFee.css';
 
 // Initialize awesome-notifications
@@ -137,34 +137,17 @@ const TollFee = ({ user }) => {
     try {
       setLoading(true);
       
-      // TODO: Replace with actual API call
-      // const result = await tollFeeAPI.getAll();
-      
-      // For now, use mock data
-      const result = {
-        success: true,
-        data: mockTollFeeData.map(item => ({
-          pk_id: item.pk_id,
-          ProductID: item.productId,
-          TollFee_Rate: item.tollFeeRate,
-          user_id: item.userId,
-          delegated_to: item.delegatedTo,
-          process_date: item.processDate,
-          flag_update: item.flagUpdate,
-          from_update: item.fromUpdate
-        }))
-      };
+      const result = await tollFeeAPI.getAll();
       
       if (result && result.success && Array.isArray(result.data)) {
         // Map the data to include product names
         const mappedData = result.data.map(item => {
           const productInfo = productNames.find(p => p.Product_ID === item.ProductID);
-          const mockInfo = mockTollFeeData.find(m => m.pk_id === item.pk_id);
           return {
             pk_id: item.pk_id,
             productId: item.ProductID,
-            productName: productInfo ? productInfo.Product_Name : (mockInfo ? mockInfo.productName : `Product ${item.ProductID}`),
-            tollFeeRate: item.TollFee_Rate,
+            productName: productInfo ? productInfo.Product_Name : `Product ${item.ProductID}`,
+            tollFeeRate: item.Toll_Fee,
             userId: item.user_id,
             delegatedTo: item.delegated_to,
             processDate: item.process_date,
@@ -193,39 +176,7 @@ const TollFee = ({ user }) => {
   // Load product data from group API
   const loadProductNames = async () => {
     try {
-      // TODO: Replace with actual API call
-      // const result = await masterAPI.getGroup();
-      
-      // For now, use mock product data
-      const result = {
-        success: true,
-        data: [
-          {
-            Group_ProductID: 'G5',
-            Product_Name: 'LAMESON-125 mg/2 mL injeksi',
-            Group_PNCategory: 8,
-            LOB: 'ETHICAL',
-            Jenis_Sediaan: 'INJEKSI',
-            Group_Dept: 'STERILE'
-          },
-          {
-            Group_ProductID: 'G6',
-            Product_Name: 'LAPIBAL-500 µG INJEKSI',
-            Group_PNCategory: 8,
-            LOB: 'ETHICAL',
-            Jenis_Sediaan: 'INJEKSI',
-            Group_Dept: 'STERILE'
-          },
-          {
-            Group_ProductID: 'G8',
-            Product_Name: 'LAPIMOX-125mg/5ml Dry Syrup',
-            Group_PNCategory: 8,
-            LOB: 'ETHICAL',
-            Jenis_Sediaan: 'SYRUP',
-            Group_Dept: 'NON-STERILE'
-          }
-        ]
-      };
+      const result = await masterAPI.getGroup();
       
       if (result && result.success && Array.isArray(result.data)) {
         // Transform group data to match expected format
@@ -264,7 +215,7 @@ const TollFee = ({ user }) => {
     }
   };
 
-  // Load available products for Add New (Group_PNCategory = 8 and excluding existing toll fee entries)
+  // Load available products for Add New (Group_PNCategory = 6 or 7 and excluding existing toll fee entries)
   const loadAvailableProducts = async () => {
     try {
       if (productNames.length === 0) return;
@@ -272,14 +223,14 @@ const TollFee = ({ user }) => {
       // Get existing product IDs that already have toll fee rates
       const existingProductIds = tollFeeData.map(item => item.productId);
       
-      // Filter for Group_PNCategory = 8 and exclude products that already have toll fee entries
+      // Filter for Group_PNCategory = 6 or 7 and exclude products that already have toll fee entries
       const available = productNames.filter(product => 
-        product.Group_PNCategory === 8 && 
+        (product.Group_PNCategory === 6 || product.Group_PNCategory === 7) && 
         !existingProductIds.includes(product.Product_ID)
       );
       
       setAvailableProducts(available);
-      console.log(`Available products for toll fee (Group_PNCategory=8): ${available.length} items`);
+      console.log(`Available products for toll fee (Group_PNCategory=6 or 7): ${available.length} items`);
     } catch (err) {
       console.error('Error loading available products:', err);
       setAvailableProducts([]);
@@ -411,11 +362,7 @@ const TollFee = ({ user }) => {
         processDate: new Date().toISOString()
       };
       
-      // TODO: Replace with actual API call
-      // const result = await tollFeeAPI.update(editingRowId, updateData);
-      
-      // For now, simulate success
-      const result = { success: true };
+      const result = await tollFeeAPI.update(editingRowId, updateData);
       
       if (result.success) {
         // Refresh data and close edit mode
@@ -481,11 +428,7 @@ const TollFee = ({ user }) => {
         processDate: new Date().toISOString()
       };
       
-      // TODO: Replace with actual API call
-      // const result = await tollFeeAPI.create(newEntry);
-      
-      // For now, simulate success
-      const result = { success: true };
+      const result = await tollFeeAPI.create(newEntry);
       
       if (result.success) {
         // Refresh data and close modal
@@ -518,11 +461,7 @@ const TollFee = ({ user }) => {
   const handleDelete = async (item) => {
     if (window.confirm(`Are you sure you want to delete toll fee entry for ${item.productId} - ${item.productName}?`)) {
       try {
-        // TODO: Replace with actual API call
-        // const result = await tollFeeAPI.delete(item.pk_id);
-        
-        // For now, simulate success
-        const result = { success: true };
+        const result = await tollFeeAPI.delete(item.pk_id);
         
         if (result.success) {
           await loadTollFeeData();
@@ -680,15 +619,15 @@ const TollFee = ({ user }) => {
           continue;
         }
 
-        // Check if Product ID exists in Group PNCategory 8
+        // Check if Product ID exists in Group PNCategory 6 or 7
         const productInfo = productNames.find(p => 
-          p.Product_ID === productId && p.Group_PNCategory === 8
+          p.Product_ID === productId && (p.Group_PNCategory === 6 || p.Group_PNCategory === 7)
         );
 
         if (!productInfo) {
           const generalProduct = productNames.find(p => p.Product_ID === productId);
           if (generalProduct) {
-            errors.push(`Row ${rowNum}: Product ID "${productId}" does not belong to Group PNCategory 8 (found in category ${generalProduct.Group_PNCategory})`);
+            errors.push(`Row ${rowNum}: Product ID "${productId}" does not belong to Group PNCategory 6 or 7 (found in category ${generalProduct.Group_PNCategory})`);
           } else {
             errors.push(`Row ${rowNum}: Product ID "${productId}" does not exist in the system`);
           }
@@ -747,11 +686,10 @@ const TollFee = ({ user }) => {
       // Step 2: Bulk delete existing entries if any exist
       if (existingIds.length > 0) {
         notifier.info('Removing existing data...');
-        // TODO: Replace with actual API call
-        // const deleteResult = await tollFeeAPI.bulkDelete(existingIds);
-        // if (!deleteResult.success) {
-        //   throw new Error(deleteResult.message || 'Failed to delete existing entries');
-        // }
+        const deleteResult = await tollFeeAPI.bulkDelete(existingIds);
+        if (!deleteResult.success) {
+          throw new Error(deleteResult.message || 'Failed to delete existing entries');
+        }
       }
 
       // Step 3: Prepare entries for bulk insert
@@ -765,11 +703,11 @@ const TollFee = ({ user }) => {
 
       // Step 4: Bulk insert new entries
       notifier.info('Inserting new data...');
-      // TODO: Replace with actual API call
-      // const insertResult = await tollFeeAPI.bulkInsert(entriesToInsert);
-      // if (!insertResult.success) {
-      //   throw new Error(insertResult.message || 'Failed to insert new entries');
-      // }
+      const insertResult = await tollFeeAPI.bulkInsert(entriesToInsert);
+      
+      if (!insertResult.success) {
+        throw new Error(insertResult.message || 'Failed to insert new entries');
+      }
 
       // Step 5: Reload data and notify success
       await loadTollFeeData();
@@ -819,7 +757,7 @@ const TollFee = ({ user }) => {
           <div className="toll-fee-header-actions">
             <button 
               onClick={handleExportExcel}
-              className="toll-fee-btn-secondary toll-fee-export-btn"
+              className="toll-fee-btn-export"
               disabled={loading || tollFeeData.length === 0}
               title="Export toll fee data to Excel"
             >
@@ -828,7 +766,7 @@ const TollFee = ({ user }) => {
             </button>
             <button 
               onClick={handleImportExcel}
-              className="toll-fee-btn-secondary toll-fee-import-btn"
+              className="toll-fee-btn-import"
               disabled={loading || productNames.length === 0}
               title={productNames.length === 0 ? "Please wait for product data to load" : "Import toll fee data from Excel (replaces all existing data)"}
             >
@@ -1029,8 +967,8 @@ const TollFee = ({ user }) => {
                       {filteredProducts.length === 0 ? (
                         <div className="toll-fee-dropdown-item toll-fee-no-results">
                           {productSearchTerm 
-                            ? 'No Group PNCategory 8 products found matching your search' 
-                            : 'Type to search Group PNCategory 8 products'
+                            ? 'No Group PNCategory 6 or 7 products found matching your search' 
+                            : 'Type to search Group PNCategory 6 or 7 products'
                           }
                         </div>
                       ) : (
@@ -1083,7 +1021,7 @@ const TollFee = ({ user }) => {
                   * Required fields<br/>
                   • Select a product from the dropdown<br/>
                   • Toll Fee Rate must be 0 or greater<br/>
-                  • Only Group PNCategory 8 products without existing toll fee entries are shown
+                  • Only Group PNCategory 6 or 7 products without existing toll fee entries are shown
                 </small>
               </div>
             </div>
@@ -1152,7 +1090,7 @@ const TollFee = ({ user }) => {
                   <li>Column B: <strong>Product Name</strong> (reference only, will be ignored)</li>
                   <li>Column C: <strong>Toll Fee Rate</strong> (required, must be 0 or greater)</li>
                   <li>First row must contain headers</li>
-                  <li>All Product IDs must belong to <strong>Group PNCategory 8</strong></li>
+                  <li>All Product IDs must belong to <strong>Group PNCategory 6 or 7</strong></li>
                   <li>Product IDs must exist in the system</li>
                   <li>Empty rows will be ignored</li>
                 </ul>
@@ -1201,7 +1139,7 @@ const TollFee = ({ user }) => {
                 <h3>✅ Validation Successful!</h3>
                 <ul>
                   <li><strong>{importConfirmData.validEntries.length}</strong> valid entries ready to import</li>
-                  <li>All Product IDs belong to Group PNCategory 8</li>
+                  <li>All Product IDs belong to Group PNCategory 6 or 7</li>
                   <li>All Toll Fee Rates are valid numbers</li>
                 </ul>
               </div>

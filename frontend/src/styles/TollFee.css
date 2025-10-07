@@ -758,6 +758,60 @@
   opacity: 0.6;
 }
 
+/* Export Button Style */
+.toll-fee-btn-export {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.toll-fee-btn-export:hover:not(:disabled) {
+  background-color: #218838;
+  transform: translateY(-1px);
+}
+
+.toll-fee-btn-export:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Import Button Style */
+.toll-fee-btn-import {
+  background-color: #fd7e14;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.toll-fee-btn-import:hover:not(:disabled) {
+  background-color: #e66310;
+  transform: translateY(-1px);
+}
+
+.toll-fee-btn-import:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 /* Pagination */
 .toll-fee-pagination {
   display: flex;

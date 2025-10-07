@@ -7,6 +7,7 @@ const hppRoutes = require('./hppRoutes');
 const masterRoutes = require('./masterRoutes');
 const expiryCostRoutes = require('./expiryCostRoutes');
 const reagenRoutes = require('./reagenRoutes');
+const tollFeeRoutes = require('./tollFeeRoutes');
 
 // Use routes
 router.use('/products', productRoutes);
@@ -14,6 +15,7 @@ router.use('/hpp', hppRoutes);
 router.use('/master', masterRoutes);
 router.use('/expiry-cost', expiryCostRoutes);
 router.use('/reagen', reagenRoutes);
+router.use('/toll-fee', tollFeeRoutes);
 
 // Health check endpoint
 router.get('/health', (req, res) => {

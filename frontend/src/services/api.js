@@ -487,6 +487,56 @@ export const reagenAPI = {
   getAllWithProductInfo: () => apiRequest('/reagen?withProductInfo=true'),
 };
 
+// TollFee API
+export const tollFeeAPI = {
+  // Get all toll fee entries (with optional filters and product info)
+  getAll: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/toll-fee${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Get toll fee entry by ID
+  getById: (id) => apiRequest(`/toll-fee/${id}`),
+
+  // Create new toll fee entry
+  create: (tollFeeData) => apiRequest('/toll-fee', {
+    method: 'POST',
+    body: JSON.stringify(tollFeeData),
+  }),
+
+  // Update toll fee entry
+  update: (id, tollFeeData) => apiRequest(`/toll-fee/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(tollFeeData),
+  }),
+
+  // Delete toll fee entry
+  delete: (id) => apiRequest(`/toll-fee/${id}`, {
+    method: 'DELETE',
+  }),
+
+  // Bulk delete toll fee entries
+  bulkDelete: (ids) => apiRequest('/toll-fee/bulk/delete', {
+    method: 'DELETE',
+    body: JSON.stringify({ ids }),
+  }),
+
+  // Bulk insert toll fee entries (for import)
+  bulkInsert: (entries, userId = null) => apiRequest('/toll-fee/bulk/insert', {
+    method: 'POST',
+    body: JSON.stringify({ entries, userId }),
+  }),
+
+  // Validate Product ID
+  validateProductId: (productId) => apiRequest(`/toll-fee/validate/${productId}`),
+
+  // Get toll fee entries with product information
+  getAllWithProductInfo: () => apiRequest('/toll-fee?withProductInfo=true'),
+
+  // Get toll fee statistics (bonus endpoint for reporting)
+  getStats: () => apiRequest('/toll-fee/stats'),
+};
+
 // Health check
 export const healthAPI = {
   check: () => apiRequest('/health', { method: 'GET' }),
@@ -498,5 +548,6 @@ export default {
   hppService,
   master: masterAPI,
   reagen: reagenAPI,
+  tollFee: tollFeeAPI,
   health: healthAPI,
 };
