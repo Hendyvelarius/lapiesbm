@@ -1,10 +1,20 @@
 const { connect } = require("../../config/sqlserver");
 const sql = require("mssql");
 
-async function getHPP() {
+async function getHPP(year = null) {
   try {
     const db = await connect();
-    const result = await db.request().query(`exec sp_COGS_HPP_List`);
+    let query;
+    let request = db.request();
+    
+    if (year) {
+      query = `exec sp_COGS_HPP_List @year`;
+      request = request.input('year', sql.VarChar(4), year);
+    } else {
+      query = `exec sp_COGS_HPP_List`;
+    }
+    
+    const result = await request.query(query);
 
     // The stored procedure returns multiple result sets
     return {

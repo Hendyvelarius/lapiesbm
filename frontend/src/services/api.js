@@ -117,7 +117,10 @@ export const productsAPI = {
 // HPP API
 export const hppAPI = {
   // Get HPP calculation results (three tables: ethical, generik1, generik2)
-  getResults: () => apiRequest('/hpp/data'),
+  getResults: (year = null) => {
+    const queryString = year ? `?year=${year}` : '';
+    return apiRequest(`/hpp/data${queryString}`);
+  },
 
   // Generate HPP calculation
   generateCalculation: (periode) => apiRequest('/hpp/generate', {

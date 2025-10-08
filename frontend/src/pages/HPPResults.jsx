@@ -336,6 +336,7 @@ const HPPResults = () => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('ethical');
   const [exporting, setExporting] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
   // Product HPP Report modal state
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -359,10 +360,10 @@ const HPPResults = () => {
     fetchHPPResults();
   }, []);
 
-  const fetchHPPResults = async () => {
+  const fetchHPPResults = async (year = selectedYear) => {
     try {
       setLoading(true);
-      const response = await hppAPI.getResults();
+      const response = await hppAPI.getResults(year);
       setHppData(response);
     } catch (error) {
       console.error('Error fetching HPP results:', error);
@@ -370,6 +371,23 @@ const HPPResults = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Generate year options (current year ± 3 years = 7 years total)
+  const generateYearOptions = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = currentYear - 3; i <= currentYear + 3; i++) {
+      years.push(i);
+    }
+    return years;
+  };
+
+  // Handle year selection change
+  const handleYearChange = (event) => {
+    const newYear = parseInt(event.target.value);
+    setSelectedYear(newYear);
+    fetchHPPResults(newYear);
   };
 
   // Handle opening product report
@@ -470,6 +488,10 @@ const HPPResults = () => {
 
   // Navigate to Generate HPP page for data refresh
   const handleRefreshData = () => {
+    fetchHPPResults(selectedYear);
+  };
+
+  const handleGenerateNewHPP = () => {
     navigate('/generate-hpp');
   };
 
@@ -614,7 +636,19 @@ const HPPResults = () => {
   return (
     <div className="hpp-results-page">
       <div className="hpp-results-header">
-        <h1>HPP Calculation Results</h1>
+        <div className="hpp-year-selector">
+          <label htmlFor="year-select">Year:</label>
+          <select 
+            id="year-select" 
+            value={selectedYear} 
+            onChange={handleYearChange}
+            disabled={loading}
+          >
+            {generateYearOptions().map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </div>
         <div className="hpp-header-actions">
           <button 
             className="hpp-export-btn"
@@ -634,7 +668,7 @@ const HPPResults = () => {
             )}
           </button>
           <button 
-            onClick={handleRefreshData} 
+            onClick={handleGenerateNewHPP} 
             className="hpp-refresh-btn"
             disabled={loading}
           >

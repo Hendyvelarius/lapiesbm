@@ -4,7 +4,8 @@ class HPPController {
   // Get all HPP records
   static async getHPP(req, res) {
     try {
-      const hpp = await getHPP();
+      const { year } = req.query;
+      const hpp = await getHPP(year);
       res.status(200).json(hpp);
     } catch (error) {
       res.status(500).json({
