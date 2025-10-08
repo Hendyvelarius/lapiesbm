@@ -89,7 +89,7 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
       setValidationData({
         chosenFormulas: chosenRes || [],
         availableFormulas: formulaRes || [],
-        productList: productRes || []
+        productList: productRes?.data || []
       });
     } catch (error) {
       console.error('Error loading validation data:', error);
