@@ -99,7 +99,7 @@ const ProductFormula = () => {
         api.master.getUnit()
       ]);
 
-      setProductList(productsRes || []);
+      setProductList(productsRes?.data || []);
       setMaterialData(materialsRes || []);
       setUnitsData(unitsRes || []);
     } catch (err) {
