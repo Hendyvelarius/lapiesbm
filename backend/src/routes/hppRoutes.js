@@ -9,6 +9,10 @@ router.get('/data', HPPController.getHPP);
 // Body: { periode: "2025" }
 router.post('/generate', HPPController.generateHPPCalculation);
 
+// GET /api/hpp/check-data-exists - Check if HPP data exists for a given year
+// Query: ?year=2025
+router.get('/check-data-exists', HPPController.checkHPPDataExists);
+
 // POST /api/hpp/simulate-existing - Generate HPP simulation for existing product
 // Body: { productId: "01", formulaString: "GLC#-#B#A" }
 router.post('/simulate-existing', HPPController.generateHPPSimulation);

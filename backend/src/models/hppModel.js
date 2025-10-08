@@ -47,6 +47,35 @@ async function generateHPPCalculation(periode = "2025") {
   }
 }
 
+// Check if HPP data exists for a given year
+async function checkHPPDataExists(year) {
+  try {
+    const db = await connect();
+    let query;
+    let request = db.request();
+    
+    if (year) {
+      query = `exec sp_COGS_HPP_List @year`;
+      request = request.input('year', sql.VarChar(4), year);
+    } else {
+      query = `exec sp_COGS_HPP_List`;
+    }
+    
+    const result = await request.query(query);
+
+    // Check if any recordset has data
+    const hasData = result.recordsets.some(recordset => recordset && recordset.length > 0);
+    
+    return {
+      hasData,
+      totalRecords: result.recordsets.reduce((sum, recordset) => sum + (recordset ? recordset.length : 0), 0)
+    };
+  } catch (error) {
+    console.error("Error checking HPP data existence:", error);
+    throw error;
+  }
+}
+
 // Generate HPP simulation for existing product with selected formulas
 async function generateHPPSimulation(productId, formulaString) {
   try {
@@ -668,4 +697,5 @@ module.exports = {
   getPriceChangeAffectedProducts,
   bulkDeletePriceChangeGroup,
   getSimulationSummary,
+  checkHPPDataExists,
 };

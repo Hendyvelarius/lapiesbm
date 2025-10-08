@@ -1,4 +1,4 @@
-const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, deleteSimulation, createSimulationHeader, generatePriceChangeSimulation } = require('../models/hppModel');
+const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, deleteSimulation, createSimulationHeader, generatePriceChangeSimulation, checkHPPDataExists } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
@@ -46,6 +46,41 @@ class HPPController {
       res.status(500).json({
         success: false,
         message: 'Error generating HPP calculation',
+        error: error.message
+      });
+    }
+  }
+
+  // Check if HPP data exists for a given year
+  static async checkHPPDataExists(req, res) {
+    try {
+      const { year } = req.query;
+      
+      if (!year) {
+        return res.status(400).json({
+          success: false,
+          message: 'Year parameter is required'
+        });
+      }
+      
+      // Validate year format
+      if (!/^\d{4}$/.test(year)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Year must be a 4-digit year (e.g., 2025)'
+        });
+      }
+      
+      const result = await checkHPPDataExists(year);
+      
+      res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error checking HPP data existence',
         error: error.message
       });
     }

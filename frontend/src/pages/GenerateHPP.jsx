@@ -47,8 +47,26 @@ export default function GenerateHPP() {
   });
   const [loading, setLoading] = useState(false);
   const [showValidationModal, setShowValidationModal] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [showOverwriteModal, setShowOverwriteModal] = useState(false);
 
   const currentYear = new Date().getFullYear().toString();
+
+  // Generate year options (current year ± 3 years = 7 years total)
+  const generateYearOptions = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = currentYear - 3; i <= currentYear + 3; i++) {
+      years.push(i);
+    }
+    return years;
+  };
+
+  // Handle year selection change
+  const handleYearChange = (event) => {
+    const newYear = parseInt(event.target.value);
+    setSelectedYear(newYear);
+  };
 
   const steps = [
     {
@@ -121,9 +139,38 @@ export default function GenerateHPP() {
       setLoading(true);
       setStepStatus(prev => ({ ...prev, calculation: 'running' }));
 
-      // Call the backend to execute sp_COGS_GenerateHPP with hardcoded parameters
+      // First check if data exists for the selected year
+      const existingDataCheck = await apiCall(`/hpp/check-data-exists?year=${selectedYear}`);
+      
+      if (existingDataCheck.success && existingDataCheck.data.hasData) {
+        // Data exists, show confirmation modal
+        setLoading(false);
+        setStepStatus(prev => ({ ...prev, calculation: 'pending' }));
+        setShowOverwriteModal(true);
+        return;
+      }
+
+      // No existing data, proceed with calculation
+      await performHPPCalculation();
+    } catch (error) {
+      console.error('Error checking existing data:', error);
+      // If check fails, proceed with calculation anyway
+      await performHPPCalculation();
+    }
+  };
+
+  const confirmHPPCalculation = async () => {
+    setShowOverwriteModal(false);
+    setLoading(true);
+    setStepStatus(prev => ({ ...prev, calculation: 'running' }));
+    await performHPPCalculation();
+  };
+
+  const performHPPCalculation = async () => {
+    try {
+      // Call the backend to execute sp_COGS_GenerateHPP with selected year
       const response = await apiCall('/hpp/generate', 'POST', {
-        periode: currentYear
+        periode: selectedYear.toString()
       });
 
       if (response.success) {
@@ -204,6 +251,21 @@ export default function GenerateHPP() {
                 </div>
                 
                 <div className="step-actions">
+                  {step.number === 2 && (
+                    <div className="year-selector">
+                      <label htmlFor="step2-year-select">Year:</label>
+                      <select 
+                        id="step2-year-select" 
+                        value={selectedYear} 
+                        onChange={handleYearChange}
+                        disabled={loading || step.status === 'running'}
+                      >
+                        {generateYearOptions().map(year => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <button
                     className={`btn-step ${statusClass}`}
                     onClick={() => handleStepAction(step.number)}
@@ -226,6 +288,41 @@ export default function GenerateHPP() {
             );
           })}
         </div>
+
+        {/* Overwrite confirmation modal */}
+        {showOverwriteModal && (
+          <div className="modal-overlay">
+            <div className="overwrite-modal">
+              <div className="modal-header">
+                <AlertTriangle className="warning-icon" size={24} />
+                <h3>Data Overwrite Warning</h3>
+              </div>
+              <div className="modal-content">
+                <p>
+                  HPP data for year <strong>{selectedYear}</strong> already exists. 
+                  Proceeding will overwrite all existing HPP calculations for this year.
+                </p>
+                <p>Are you sure you want to continue?</p>
+              </div>
+              <div className="modal-actions">
+                <button 
+                  className="btn-cancel"
+                  onClick={() => setShowOverwriteModal(false)}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="btn-confirm"
+                  onClick={confirmHPPCalculation}
+                  disabled={loading}
+                >
+                  {loading ? 'Processing...' : 'Proceed & Overwrite'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="process-info">
           <div className="info-card">
