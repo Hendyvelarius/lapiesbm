@@ -74,23 +74,54 @@ const createPriceChangeGroupKey = (description, simulasiDate) => {
   return `${desc}|${dateKey}`;
 };
 
-// Extract description from group key
-const getDescriptionFromGroupKey = (groupKey) => {
-  return groupKey.split('|')[0];
-};
+  // Extract description from group key
+  const getDescriptionFromGroupKey = (groupKey) => {
+    return groupKey.split('|')[0];
+  };
 
-// Extract formatted date from group key for display
-const getDateFromGroupKey = (groupKey) => {
-  const dateStr = groupKey.split('|')[1];
-  const date = new Date(dateStr);
-  return date.toLocaleString('id-ID', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
+  // Extract formatted date from group key for display
+  const getDateFromGroupKey = (groupKey) => {
+    const dateStr = groupKey.split('|')[1];
+    const date = new Date(dateStr);
+    return date.toLocaleString('id-ID', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Extract material IDs from price change description (reused from AffectedProductsModal)
+  const extractMaterialIds = (description) => {
+    if (!description) return [];
+    
+    const materialIds = [];
+    
+    // Find content after "Price Changes :" and before first ":"
+    const afterPriceChanges = description.indexOf("Price Changes :");
+    if (afterPriceChanges !== -1) {
+      const startSearch = afterPriceChanges + "Price Changes :".length;
+      const restOfString = description.substring(startSearch);
+      
+      // Split by ";" to get each price change entry
+      const entries = restOfString.split(';');
+      
+      entries.forEach(entry => {
+        const colonIndex = entry.indexOf(':');
+        if (colonIndex !== -1) {
+          // Get content before the first colon in this entry
+          const materialId = entry.substring(0, colonIndex).trim();
+          if (materialId) {
+            materialIds.push(materialId);
+          }
+        }
+      });
+    }
+    
+    // Remove duplicates and return unique material IDs
+    return [...new Set(materialIds)];
+  };
 
 export default function HPPSimulation() {
   const [step, setStep] = useState(0); // Start with simulation list view
@@ -133,6 +164,9 @@ export default function HPPSimulation() {
   const [selectedPriceChangeDescription, setSelectedPriceChangeDescription] =
     useState("");
   const [selectedPriceChangeDate, setSelectedPriceChangeDate] = useState("");
+
+  // Material names cache for Price Changes groups
+  const [groupMaterialNames, setGroupMaterialNames] = useState({}); // Cache material names by group key
 
   // Bulk delete confirmation modal states
   const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
@@ -232,6 +266,52 @@ export default function HPPSimulation() {
   const [addMaterialType, setAddMaterialType] = useState(""); // 'BB' or 'BK'
   const [materialSearchQuery, setMaterialSearchQuery] = useState("");
   const [randomMaterialSample, setRandomMaterialSample] = useState([]); // Stable random sample
+
+  // Fetch material names for a group and cache the result
+  const fetchMaterialNamesForGroup = async (groupKey, description) => {
+    try {
+      const materialIds = extractMaterialIds(description);
+      
+      if (materialIds.length === 0) {
+        return [];
+      }
+
+      // Fetch all materials from API
+      const materialsResponse = await masterAPI.getMaterial();
+      
+      // Handle different response formats
+      let allMaterials = [];
+      if (Array.isArray(materialsResponse)) {
+        allMaterials = materialsResponse;
+      } else if (materialsResponse && materialsResponse.data) {
+        allMaterials = materialsResponse.data;
+      } else if (materialsResponse) {
+        allMaterials = materialsResponse;
+      }
+      
+      // Remove spaces from extracted IDs for comparison
+      const normalizedExtractedIds = materialIds.map(id => id.replace(/\s/g, ''));
+      
+      // Find materials that match the extracted IDs (comparing without spaces)
+      const matchedMaterials = allMaterials.filter(material => {
+        const normalizedMaterialId = material.ITEM_ID.replace(/\s/g, '');
+        return normalizedExtractedIds.includes(normalizedMaterialId);
+      });
+
+      // Cache the result
+      const materialNames = matchedMaterials.map(material => material.Item_Name);
+      
+      setGroupMaterialNames(prev => ({
+        ...prev,
+        [groupKey]: materialNames
+      }));
+
+      return materialNames;
+    } catch (error) {
+      console.error('Error fetching material names for group:', error);
+      return [];
+    }
+  };
 
   // Load simulation list and groups data on component mount
   useEffect(() => {
@@ -398,6 +478,13 @@ export default function HPPSimulation() {
     });
 
     setGroupedSimulations(grouped);
+
+    // Fetch material names for new groups
+    Object.keys(grouped).forEach(async (groupKey) => {
+      if (!groupMaterialNames[groupKey]) {
+        await fetchMaterialNamesForGroup(groupKey, grouped[groupKey].description);
+      }
+    });
   }, [filteredSimulationList]);
 
   // Create final paginated list that handles both grouped and regular simulations
@@ -2694,6 +2781,15 @@ export default function HPPSimulation() {
                                     >
                                       {item.description}
                                     </span>
+                                    {/* Display affected materials */}
+                                    {groupMaterialNames[item.groupKey] && groupMaterialNames[item.groupKey].length > 0 && (
+                                      <div className="group-materials">
+                                        <span className="materials-label">Affected Materials:</span>
+                                        <span className="materials-list">
+                                          {groupMaterialNames[item.groupKey].join(', ')}
+                                        </span>
+                                      </div>
+                                    )}
                                     <div className="group-meta">
                                       <div className="group-meta-left">
                                         <span className="group-date">
