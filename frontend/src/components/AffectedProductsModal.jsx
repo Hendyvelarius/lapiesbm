@@ -83,6 +83,16 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
     return `${currency} (${ratioPercent})`;
   };
 
+  // Calculate Impact HNA: (HPP After - HPP Before) / HPP After * 100
+  const calculateImpactHNA = (hppBefore, hppAfter) => {
+    const before = parseFloat(hppBefore || 0);
+    const after = parseFloat(hppAfter || 0);
+    
+    if (after === 0) return 0; // Avoid division by zero
+    
+    return ((after - before) / after) * 100;
+  };
+
   // Get trend icon based on percentage change
   const getTrendIcon = (percent) => {
     if (percent > 0) {
@@ -116,7 +126,8 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
         'HPP Change': parseFloat(product.HPPSesudah || 0) - parseFloat(product.HPPSebelum || 0),
         'HPP Ratio Before (%)': parseFloat(product.Rasio_HPP_Sebelum || 0) * 100,
         'HPP Ratio After (%)': parseFloat(product.Rasio_HPP_Sesudah || 0) * 100,
-        'Impact (%)': parseFloat(product.persentase_perubahan || 0),
+        'Impact HPP (%)': parseFloat(product.persentase_perubahan || 0),
+        'Impact HNA (%)': calculateImpactHNA(product.HPPSebelum, product.HPPSesudah),
         'Price Change Description': priceChangeDescription || '',
         'Price Change Date': priceChangeDate ? new Date(priceChangeDate).toLocaleDateString() : ''
       }));
@@ -140,14 +151,15 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
         { wch: 15 }, // HPP Change
         { wch: 18 }, // HPP Ratio Before (%)
         { wch: 18 }, // HPP Ratio After (%)
-        { wch: 12 }, // Impact (%)
+        { wch: 14 }, // Impact HPP (%)
+        { wch: 14 }, // Impact HNA (%)
         { wch: 30 }, // Price Change Description
         { wch: 18 }  // Price Change Date
       ];
       worksheet['!cols'] = columnWidths;
 
       // Apply header formatting
-      const headerCells = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1', 'L1', 'M1', 'N1'];
+      const headerCells = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1', 'L1', 'M1', 'N1', 'O1'];
       headerCells.forEach(cell => {
         if (worksheet[cell]) {
           worksheet[cell].s = {
@@ -294,7 +306,8 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
                             <th>HNA</th>
                             <th>HPP Before</th>
                             <th>HPP After</th>
-                            <th>Impact</th>
+                            <th>Impact HPP</th>
+                            <th>Impact HNA</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -331,6 +344,29 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
                                   >
                                     {formatPercentage(parseFloat(product.persentase_perubahan || 0))}
                                   </span>
+                                </div>
+                              </td>
+                              <td className="impact-hna-cell">
+                                <div className="impact-indicator">
+                                  {(() => {
+                                    const impactHNA = calculateImpactHNA(product.HPPSebelum, product.HPPSesudah);
+                                    return (
+                                      <>
+                                        {getTrendIcon(impactHNA)}
+                                        <span
+                                          className={`percentage ${
+                                            impactHNA > 0
+                                              ? "increase"
+                                              : impactHNA < 0
+                                              ? "decrease"
+                                              : "neutral"
+                                          }`}
+                                        >
+                                          {formatPercentage(impactHNA)}
+                                        </span>
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                               </td>
                             </tr>
