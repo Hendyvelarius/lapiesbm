@@ -190,11 +190,11 @@ export const authenticateFromURL = (url) => {
       };
     }
 
-    // Step 5: Check if user has required department access (NT)
-    if (userInfo.empDeptID !== 'NT') {
+    // Step 5: Check if user has required department access (NT or PL)
+    if (!['NT', 'PL'].includes(userInfo.empDeptID)) {
       return {
         success: false,
-        message: `Access denied. This application is restricted to NT department staff only. Your department: ${userInfo.empDeptID || 'Unknown'}. Please contact your administrator if you believe this is an error.`,
+        message: `Access denied. This application is restricted to NT and PL department staff only. Your department: ${userInfo.empDeptID || 'Unknown'}. Please contact your administrator if you believe this is an error.`,
         user: userInfo,
         token: authToken,
         unauthorizedReason: 'department_restriction'
@@ -283,12 +283,12 @@ export const isAuthenticated = () => {
 
 /**
  * Check if user has required department access
- * @param {string} requiredDept - Required department ID (default: 'NT')
+ * @param {string[]} requiredDepts - Required department IDs (default: ['NT', 'PL'])
  * @returns {boolean} - True if user has access, false otherwise
  */
-export const hasDesktopAccess = (requiredDept = 'NT') => {
+export const hasDesktopAccess = (requiredDepts = ['NT', 'PL']) => {
   const user = getCurrentUser();
-  return user && user.empDeptID === requiredDept;
+  return user && requiredDepts.includes(user.empDeptID);
 };
 
 /**

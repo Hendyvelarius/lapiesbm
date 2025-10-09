@@ -187,14 +187,14 @@ function AppContent() {
               <div className="auth-info">
                 <p><strong>🚫 Department Access Restriction:</strong></p>
                 <ul>
-                  <li>This application is restricted to <strong>NT department</strong> staff only</li>
+                  <li>This application is restricted to <strong>NT and PL department</strong> staff only</li>
                   <li>Your current department does not have access to this system</li>
                   <li>If you believe this is an error, please contact your system administrator</li>
-                  <li>Only users with empDeptID "NT" can access the Manufacturing Cost System</li>
+                  <li>Only users with empDeptID "NT" or "PL" can access the Manufacturing Cost System</li>
                 </ul>
                 <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '4px' }}>
                   <p style={{ margin: 0, color: '#dc2626', fontWeight: 'bold' }}>
-                    ⚠️ Access is limited to authorized NT department personnel only
+                    ⚠️ Access is limited to authorized NT and PL department personnel only
                   </p>
                 </div>
               </div>
