@@ -167,6 +167,7 @@ export default function HPPSimulation() {
 
   // Material names cache for Price Changes groups
   const [groupMaterialNames, setGroupMaterialNames] = useState({}); // Cache material names by group key
+  const [allMaterials, setAllMaterials] = useState([]); // Cache all materials to avoid repeated API calls
 
   // Bulk delete confirmation modal states
   const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
@@ -267,33 +268,20 @@ export default function HPPSimulation() {
   const [materialSearchQuery, setMaterialSearchQuery] = useState("");
   const [randomMaterialSample, setRandomMaterialSample] = useState([]); // Stable random sample
 
-  // Fetch material names for a group and cache the result
-  const fetchMaterialNamesForGroup = async (groupKey, description) => {
+  // Fetch material names for a group and cache the result (using cached materials)
+  const fetchMaterialNamesForGroup = (groupKey, description, materialsData = allMaterials) => {
     try {
       const materialIds = extractMaterialIds(description);
       
-      if (materialIds.length === 0) {
+      if (materialIds.length === 0 || materialsData.length === 0) {
         return [];
-      }
-
-      // Fetch all materials from API
-      const materialsResponse = await masterAPI.getMaterial();
-      
-      // Handle different response formats
-      let allMaterials = [];
-      if (Array.isArray(materialsResponse)) {
-        allMaterials = materialsResponse;
-      } else if (materialsResponse && materialsResponse.data) {
-        allMaterials = materialsResponse.data;
-      } else if (materialsResponse) {
-        allMaterials = materialsResponse;
       }
       
       // Remove spaces from extracted IDs for comparison
       const normalizedExtractedIds = materialIds.map(id => id.replace(/\s/g, ''));
       
       // Find materials that match the extracted IDs (comparing without spaces)
-      const matchedMaterials = allMaterials.filter(material => {
+      const matchedMaterials = materialsData.filter(material => {
         const normalizedMaterialId = material.ITEM_ID.replace(/\s/g, '');
         return normalizedExtractedIds.includes(normalizedMaterialId);
       });
@@ -313,10 +301,32 @@ export default function HPPSimulation() {
     }
   };
 
-  // Load simulation list and groups data on component mount
+  // Load all materials once to avoid repeated API calls
+  const loadAllMaterials = async () => {
+    try {
+      const materialsResponse = await masterAPI.getMaterial();
+      
+      // Handle different response formats
+      let materials = [];
+      if (Array.isArray(materialsResponse)) {
+        materials = materialsResponse;
+      } else if (materialsResponse && materialsResponse.data) {
+        materials = materialsResponse.data;
+      } else if (materialsResponse) {
+        materials = materialsResponse;
+      }
+      
+      setAllMaterials(materials);
+    } catch (error) {
+      console.error('Error loading all materials:', error);
+    }
+  };
+
+  // Load simulation list, groups data, and materials on component mount
   useEffect(() => {
     loadSimulationList();
     loadGroupsData();
+    loadAllMaterials();
   }, []);
 
   // Generate random sample when materials are loaded and modal type is set
@@ -479,13 +489,15 @@ export default function HPPSimulation() {
 
     setGroupedSimulations(grouped);
 
-    // Fetch material names for new groups
-    Object.keys(grouped).forEach(async (groupKey) => {
-      if (!groupMaterialNames[groupKey]) {
-        await fetchMaterialNamesForGroup(groupKey, grouped[groupKey].description);
-      }
-    });
-  }, [filteredSimulationList]);
+    // Fetch material names for new groups (only if materials are loaded)
+    if (allMaterials.length > 0) {
+      Object.keys(grouped).forEach((groupKey) => {
+        if (!groupMaterialNames[groupKey]) {
+          fetchMaterialNamesForGroup(groupKey, grouped[groupKey].description, allMaterials);
+        }
+      });
+    }
+  }, [filteredSimulationList, allMaterials]);
 
   // Create final paginated list that handles both grouped and regular simulations
   const paginatedDisplayList = useMemo(() => {
@@ -940,14 +952,19 @@ export default function HPPSimulation() {
     setError("");
 
     try {
-      // Fetch both APIs in parallel
-      const [priceResponse, materialResponse] = await Promise.all([
-        masterAPI.getHargaBahan(),
-        masterAPI.getMaterial(),
-      ]);
-
+      // Fetch price data and use cached materials if available
+      const priceResponse = await masterAPI.getHargaBahan();
       const priceData = priceResponse.data || priceResponse;
-      const materialData = materialResponse.data || materialResponse;
+      
+      let materialData;
+      if (allMaterials.length > 0) {
+        // Use cached materials
+        materialData = allMaterials;
+      } else {
+        // Fallback to API call if cache not available
+        const materialResponse = await masterAPI.getMaterial();
+        materialData = materialResponse.data || materialResponse;
+      }
 
 
 
@@ -1475,14 +1492,19 @@ export default function HPPSimulation() {
     setError("");
 
     try {
-      // Load both recipe data and material data in parallel
-      const [recipeResponse, materialResponse] = await Promise.all([
-        productsAPI.getRecipe(productId),
-        masterAPI.getMaterial(),
-      ]);
-
+      // Load recipe data and use cached materials if available
+      const recipeResponse = await productsAPI.getRecipe(productId);
       const recipeData = recipeResponse.data || recipeResponse;
-      const materialData = materialResponse.data || materialResponse;
+      
+      let materialData;
+      if (allMaterials.length > 0) {
+        // Use cached materials
+        materialData = allMaterials;
+      } else {
+        // Fallback to API call if cache not available
+        const materialResponse = await masterAPI.getMaterial();
+        materialData = materialResponse.data || materialResponse;
+      }
 
       setRecipeData(recipeData);
       setMaterialData(materialData);
@@ -2362,8 +2384,14 @@ export default function HPPSimulation() {
 
   const loadMasterMaterials = async () => {
     try {
-      const response = await masterAPI.getMaterial();
-      setMasterMaterials(response.data || response || []);
+      if (allMaterials.length > 0) {
+        // Use cached materials
+        setMasterMaterials(allMaterials);
+      } else {
+        // Fallback to API call if cache not available
+        const response = await masterAPI.getMaterial();
+        setMasterMaterials(response.data || response || []);
+      }
     } catch (error) {
       console.error("Error loading master materials:", error);
     }

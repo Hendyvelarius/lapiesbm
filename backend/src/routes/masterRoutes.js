@@ -37,6 +37,7 @@ router.delete('/pembebanan/:id', MasterController.deletePembebanan);
 router.post('/pembebanan/bulk-import', MasterController.bulkImportPembebanan);
 router.get('/material', MasterController.getMaterial);
 router.get('/materialUsage', MasterController.getMaterialUsage);
+router.get('/materialUsage/:year', MasterController.getMaterialUsageByYear);
 
 // Formula manual routes
 router.post('/formula', MasterController.addFormulaManual);

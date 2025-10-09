@@ -400,6 +400,9 @@ export const masterAPI = {
   // Get material usage data
   getMaterialUsage: () => apiRequest('/master/materialUsage'),
   
+  // Get material usage data filtered by year
+  getMaterialUsageByYear: (year) => apiRequest(`/master/materialUsage/${year}`),
+  
   // === FORMULA MANUAL CUD OPERATIONS ===
   
   // Add new formula ingredient

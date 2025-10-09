@@ -391,8 +391,13 @@ const HPPResults = () => {
   };
 
   // Handle opening product report
-  const handleProductClick = (product) => {
-    setSelectedProduct(product);
+  const handleProductClick = (product, sourceTab = null) => {
+    // Add source tab context to the product data
+    const productWithContext = {
+      ...product,
+      _sourceTab: sourceTab || activeTab // Use provided sourceTab or current activeTab
+    };
+    setSelectedProduct(productWithContext);
     setShowProductReport(true);
   };
 
@@ -606,7 +611,7 @@ const HPPResults = () => {
       pagination: currentPagination,
       onPageChange: (page) => handlePageChange(activeTab, page),
       totalPages: currentData.totalPages,
-      onProductClick: handleProductClick
+      onProductClick: (product) => handleProductClick(product, activeTab) // Pass activeTab as sourceTab
     };
 
     switch (activeTab) {
@@ -722,6 +727,7 @@ const HPPResults = () => {
         product={selectedProduct}
         isOpen={showProductReport}
         onClose={handleCloseProductReport}
+        selectedYear={selectedYear}
       />
     </div>
   );

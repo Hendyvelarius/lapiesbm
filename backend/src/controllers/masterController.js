@@ -1,4 +1,4 @@
-const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, bulkDeleteBBHargaBahan, bulkDeleteBKHargaBahan, bulkInsertHargaBahan, getUnit, getManufacturingItems, getParameter, updateParameter, getGeneralCostsPerSediaan, addGeneralCostPerSediaan, updateGeneralCostPerSediaan, deleteGeneralCostPerSediaan, bulkInsertGeneralCostsPerSediaan, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, bulkDeleteGenerikGroups, bulkInsertGenerikGroups, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, bulkDeletePembebanانWithProductID, bulkInsertPembebanan, getMaterial, getMaterialUsage, exportAllFormulaDetail, exportAllFormulaDetailSumPerSubID, addFormulaManual, addBatchFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
+const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, bulkDeleteBBHargaBahan, bulkDeleteBKHargaBahan, bulkInsertHargaBahan, getUnit, getManufacturingItems, getParameter, updateParameter, getGeneralCostsPerSediaan, addGeneralCostPerSediaan, updateGeneralCostPerSediaan, deleteGeneralCostPerSediaan, bulkInsertGeneralCostsPerSediaan, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, bulkDeleteGenerikGroups, bulkInsertGenerikGroups, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, bulkDeletePembebanانWithProductID, bulkInsertPembebanan, getMaterial, getMaterialUsage, getMaterialUsageByYear, exportAllFormulaDetail, exportAllFormulaDetailSumPerSubID, addFormulaManual, addBatchFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
 
 class MasterController {
     static async getCurrency(req, res) {
@@ -1279,6 +1279,37 @@ class MasterController {
             res.status(500).json({
                 success: false,
                 message: 'Failed to retrieve material usage',
+                error: error.message
+            });
+        }
+    }
+
+    static async getMaterialUsageByYear(req, res) {
+        try {
+            const { year } = req.params;
+            
+            if (!year) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Year parameter is required'
+                });
+            }
+            
+            // Validate year format (4-digit year)
+            if (!/^\d{4}$/.test(year)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Year must be a 4-digit year (e.g., 2025)'
+                });
+            }
+            
+            const result = await getMaterialUsageByYear(year);
+            res.status(200).json(result);
+        } catch (error) {
+            console.error('Error in getMaterialUsageByYear endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to retrieve material usage for the specified year',
                 error: error.message
             });
         }
