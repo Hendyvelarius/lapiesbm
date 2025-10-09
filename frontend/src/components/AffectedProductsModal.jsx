@@ -83,14 +83,12 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
     return `${currency} (${ratioPercent})`;
   };
 
-  // Calculate Impact HNA: (HPP After - HPP Before) / HPP After * 100
-  const calculateImpactHNA = (hppBefore, hppAfter) => {
-    const before = parseFloat(hppBefore || 0);
-    const after = parseFloat(hppAfter || 0);
+  // Calculate Impact HNA: HPP Ratio After (%) - HPP Ratio Before (%)
+  const calculateImpactHNA = (ratioHPPBefore, ratioHPPAfter) => {
+    const ratioBefore = parseFloat(ratioHPPBefore || 0) * 100; // Convert to percentage
+    const ratioAfter = parseFloat(ratioHPPAfter || 0) * 100;   // Convert to percentage
     
-    if (after === 0) return 0; // Avoid division by zero
-    
-    return ((after - before) / after) * 100;
+    return ratioAfter - ratioBefore; // Difference in percentage points
   };
 
   // Get trend icon based on percentage change
@@ -127,7 +125,7 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
         'HPP Ratio Before (%)': parseFloat(product.Rasio_HPP_Sebelum || 0) * 100,
         'HPP Ratio After (%)': parseFloat(product.Rasio_HPP_Sesudah || 0) * 100,
         'Impact HPP (%)': parseFloat(product.persentase_perubahan || 0),
-        'Impact HNA (%)': calculateImpactHNA(product.HPPSebelum, product.HPPSesudah),
+        'Impact HNA (%)': calculateImpactHNA(product.Rasio_HPP_Sebelum, product.Rasio_HPP_Sesudah),
         'Price Change Description': priceChangeDescription || '',
         'Price Change Date': priceChangeDate ? new Date(priceChangeDate).toLocaleDateString() : ''
       }));
@@ -349,7 +347,7 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
                               <td className="impact-hna-cell">
                                 <div className="impact-indicator">
                                   {(() => {
-                                    const impactHNA = calculateImpactHNA(product.HPPSebelum, product.HPPSesudah);
+                                    const impactHNA = calculateImpactHNA(product.Rasio_HPP_Sebelum, product.Rasio_HPP_Sesudah);
                                     return (
                                       <>
                                         {getTrendIcon(impactHNA)}
