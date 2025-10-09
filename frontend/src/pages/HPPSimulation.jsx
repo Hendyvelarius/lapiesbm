@@ -721,7 +721,7 @@ export default function HPPSimulation() {
       const defaultGroups = data.filter(item => item.Group_ProductID === null);
       setGroupsData(defaultGroups);
       
-      console.log("Loaded pembebanan data:", defaultGroups.length, "groups");
+
     } catch (error) {
       console.error("Error loading pembebanan data:", error);
     } finally {
@@ -764,7 +764,7 @@ export default function HPPSimulation() {
       }));
     }
     
-    console.log("Updated overhead costs for group:", selectedGroupData.Group_PNCategory_Name);
+
   };
 
   // Delete simulation
@@ -949,8 +949,7 @@ export default function HPPSimulation() {
       const priceData = priceResponse.data || priceResponse;
       const materialData = materialResponse.data || materialResponse;
 
-      console.log("Loaded price data:", priceData.length, "items");
-      console.log("Loaded material data:", materialData.length, "items");
+
 
       // Create a map of material names for quick lookup
       const materialNameMap = {};
@@ -969,13 +968,7 @@ export default function HPPSimulation() {
         CURRENCY: priceItem.ITEM_CURRENCY || "IDR", // Add currency with fallback
       }));
 
-      console.log(
-        "Merged materials:",
-        mergedMaterials.length,
-        "items with names"
-      );
-      // Log sample for debugging
-      console.log("Sample merged material:", mergedMaterials[0]);
+
       setPriceMaterials(mergedMaterials);
       setFilteredMaterials(mergedMaterials); // Initialize filtered materials
       setCurrentMaterialPage(1); // Reset pagination
@@ -1038,9 +1031,6 @@ export default function HPPSimulation() {
 
   // Generate price change simulation
   const handleGenerateSimulation = async () => {
-    console.log("handleGenerateSimulation called!");
-    console.log("selectedMaterials:", selectedMaterials);
-
     if (selectedMaterials.length === 0) {
       setError(
         "Please select at least one material for price change simulation."
@@ -1053,8 +1043,6 @@ export default function HPPSimulation() {
       const newPrice = material.newPrice;
       return !newPrice || newPrice <= 0;
     });
-
-    console.log("missingPrices:", missingPrices);
 
     if (missingPrices.length > 0) {
       setError("Please enter valid new prices for all selected materials.");
@@ -1071,17 +1059,10 @@ export default function HPPSimulation() {
         newPrice: material.newPrice,
       }));
 
-      console.log(
-        "Generating simulation with material price changes:",
-        materialPriceChanges
-      );
-
       // Call the backend API
       const result = await hppAPI.generatePriceChangeSimulation(
         materialPriceChanges
       );
-
-      console.log("Simulation result:", result);
 
       // Store the materials that were changed for finding the created simulation
       const changedMaterialIds = selectedMaterials.map(m => m.ITEM_ID);
@@ -1126,7 +1107,6 @@ export default function HPPSimulation() {
           }
           
           if (matchingSimulation) {
-            console.log("Found matching simulation:", matchingSimulation);
             setSelectedPriceChangeDescription(matchingSimulation.Simulasi_Deskripsi);
             setSelectedPriceChangeDate(matchingSimulation.Simulasi_Date);
             setAffectedProductsModalOpen(true);

@@ -16,14 +16,7 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
       setLoading(true);
       setError("");
 
-      console.log('=== Fetching Affected Products ===');
-      console.log('Description:', description);
-      console.log('SimulasiDate:', simulasiDate);
-
       const response = await hppAPI.getPriceChangeAffectedProducts(description, simulasiDate);
-
-      console.log('=== API Response ===');
-      console.log('Response:', response);
 
       if (response.success && response.data) {
         setAffectedProducts(response.data);
@@ -183,12 +176,12 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
 
       // Create material names string from affected materials
       const materialNamesStr = affectedMaterials.length > 0 
-        ? affectedMaterials.map(material => material.ITEM_NAME).join(', ')
+        ? affectedMaterials.map(material => material.Item_Name || material.ITEM_NAME).join(', ')
         : 'Materials';
 
       // Create enhanced price change description with material names
       let enhancedDescription = priceChangeDescription || '';
-      if (materialNamesStr && enhancedDescription.includes('Price Changes :')) {
+      if (materialNamesStr && materialNamesStr !== 'Materials' && enhancedDescription.includes('Price Changes :')) {
         enhancedDescription = enhancedDescription.replace('Price Changes :', `${materialNamesStr} :`);
       }
 
@@ -284,7 +277,7 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
       // Create a clean filename part from material names or fallback to description
       let fileNamePart = '';
       if (affectedMaterials.length > 0) {
-        const materialNames = affectedMaterials.map(material => material.ITEM_NAME).join('_');
+        const materialNames = affectedMaterials.map(material => material.Item_Name || material.ITEM_NAME).join('_');
         fileNamePart = materialNames.replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 50); // Limit length
       } else {
         fileNamePart = (priceChangeDescription || 'PriceChange').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);
