@@ -60,22 +60,24 @@ const detectProductType = (product) => {
   }
   
   // Fallback to field detection for backwards compatibility
-  // Check if it's Generic 2 first (has Factory_Over_Head_50 field)
-  if (product.Factory_Over_Head_50 !== undefined) {
+  // Check if it's Generic 2 first (has Factory_Over_Head or Direct_Labor fields)
+  if (product.Factory_Over_Head !== undefined || product.Direct_Labor !== undefined || 
+      product.Factory_Over_Head_50 !== undefined) {
     return 'Generic2';
   }
   
-  // Check if it's Ethical (has specific Ethical fields)
-  if (product.totalBB !== undefined && product.totalBK !== undefined && 
+  // Check if it's Ethical (has specific Ethical fields without Generic fields)
+  if (product.totalBB !== undefined && product.totalBB !== undefined && 
       product.MH_Proses_Std !== undefined && product.MH_Kemas_Std !== undefined &&
       product.Biaya_Proses !== undefined && product.Biaya_Kemas !== undefined &&
-      !product.MH_Analisa_Std && !product.Biaya_Generik) {
+      !product.MH_Analisa_Std && !product.MH_Timbang_BB && !product.MH_Timbang_BK) {
     return 'Ethical';
   }
   
-  // Check if it's Generic 1 (has Biaya_Generik and related fields)
-  if (product.Biaya_Generik !== undefined && product.MH_Analisa_Std !== undefined &&
-      product.MH_Timbang_BB !== undefined && product.MH_Timbang_BK !== undefined) {
+  // Check if it's Generic 1 (has Generic-specific fields like MH_Timbang_BB, MH_Analisa_Std, but not Generic 2 fields)
+  if ((product.MH_Timbang_BB !== undefined || product.MH_Timbang_BK !== undefined || 
+       product.MH_Analisa_Std !== undefined || product.Biaya_Reagen !== undefined) &&
+      !product.Factory_Over_Head && !product.Direct_Labor && !product.Factory_Over_Head_50) {
     return 'Generic1';
   }
   
@@ -158,32 +160,8 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
   const bahanBaku = materialUsage.filter(item => item.item_type === 'BB');
   const bahanKemas = materialUsage.filter(item => item.item_type === 'BK');
 
-  // Determine product type based on available fields
-  const productType = (() => {
-    if (!product) return 'Generic2'; // Default fallback
-    
-    // Check if it's Generic 2 first (has Factory_Over_Head_50 field)
-    if (product.Factory_Over_Head_50 !== undefined) {
-      return 'Generic2';
-    }
-    
-    // Check if it's Ethical (has specific Ethical fields)
-    if (product.totalBB !== undefined && product.totalBK !== undefined && 
-        product.MH_Proses_Std !== undefined && product.MH_Kemas_Std !== undefined &&
-        product.Biaya_Proses !== undefined && product.Biaya_Kemas !== undefined &&
-        !product.MH_Analisa_Std && !product.Biaya_Generik) {
-      return 'Ethical';
-    }
-    
-    // Check if it's Generic 1 (has Biaya_Generik and related fields)
-    if (product.Biaya_Generik !== undefined && product.MH_Analisa_Std !== undefined &&
-        product.MH_Timbang_BB !== undefined && product.MH_Timbang_BK !== undefined) {
-      return 'Generic1';
-    }
-    
-    // Default to Generic 2
-    return 'Generic2';
-  })();
+  // Determine product type using the same detection function
+  const productType = detectProductType(product);
 
   // Calculate totals and per pack costs only if product exists
   let totalBB = 0;
@@ -328,14 +306,15 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
         XLSX.utils.sheet_add_aoa(ws, [
           ['Resource Scheduling', 'Nama Material', 'Qty', 'Mhrs/machine hours', 'Cost/unit', 'Extended Cost', 'Per pack'],
           ['Overhead', '', '', '', '', '', ''],
-          ['1', 'TIMBANG BB', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Timbang_BB || 0), 'HRS', formatNumber(product.Biaya_Proses || 0), formatNumber((product.MH_Timbang_BB || 0) * (product.Biaya_Proses || 0)), formatNumber(((product.MH_Timbang_BB || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)],
-          ['2', 'TIMBANG BK', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Timbang_BK || 0), 'HRS', formatNumber(product.Biaya_Proses || 0), formatNumber((product.MH_Timbang_BK || 0) * (product.Biaya_Proses || 0)), formatNumber(((product.MH_Timbang_BK || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)],
-          ['3', 'PENGOLAHAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Biaya_Proses || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)],
-          ['4', 'PENGEMASAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Biaya_Kemas || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)],
-          ['5', 'ANALISA', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Analisa_Std || 0), 'HRS', formatNumber(product.Biaya_Reagen || 0), formatNumber((product.MH_Analisa_Std || 0) * (product.Biaya_Reagen || 0)), formatNumber(((product.MH_Analisa_Std || 0) * (product.Biaya_Reagen || 0)) / batchSizeActual)],
-          ['6', 'MESIN', 'MESIN OPERATION', formatNumber(product.MH_Mesin_Std || 0), 'HRS', formatNumber(product.Rate_PLN || 0), formatNumber((product.MH_Mesin_Std || 0) * (product.Rate_PLN || 0)), formatNumber(((product.MH_Mesin_Std || 0) * (product.Rate_PLN || 0)) / batchSizeActual)],
-          ['7', 'REAGEN', 'ANALISA REAGENT', '1', 'LOT', formatNumber(product.Biaya_Analisa || 0), formatNumber(product.Biaya_Analisa || 0), formatNumber((product.Biaya_Analisa || 0) / batchSizeActual)],
-          ['', '', '', '', 'Total Cost', formatNumber(totalOverheadCost), formatNumber(totalOverheadPerPack)]
+          ['1', 'TIMBANG BAHAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Timbang_BB || 0), 'HRS', formatNumber(product.Biaya_Proses || 0), formatNumber((product.MH_Timbang_BB || 0) * (product.Biaya_Proses || 0)), formatNumber(((product.MH_Timbang_BB || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)],
+          ['2', 'TIMBANG KEMAS', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Timbang_BK || 0), 'HRS', formatNumber(product.Biaya_Kemas || 0), formatNumber((product.MH_Timbang_BK || 0) * (product.Biaya_Kemas || 0)), formatNumber(((product.MH_Timbang_BK || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)],
+          ['3', 'BIAYA PROSES', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Biaya_Proses || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)],
+          ['4', 'BIAYA KEMAS', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Biaya_Kemas || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)],
+          ['5', 'BIAYA ANALISA', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Analisa_Std || 0), 'HRS', formatNumber(product.Biaya_Analisa || 0), formatNumber((product.MH_Analisa_Std || 0) * (product.Biaya_Analisa || 0)), formatNumber(((product.MH_Analisa_Std || 0) * (product.Biaya_Analisa || 0)) / batchSizeActual)],
+          ['6', 'BIAYA MESIN', 'MESIN OPERATION', formatNumber(product.MH_Mesin_Std || 0), 'HRS', formatNumber(product.Rate_PLN || 0), formatNumber((product.MH_Mesin_Std || 0) * (product.Rate_PLN || 0)), formatNumber(((product.MH_Mesin_Std || 0) * (product.Rate_PLN || 0)) / batchSizeActual)],
+          ['7', 'BIAYA REAGEN', 'ANALISA REAGENT', '-', '-', formatNumber(product.Biaya_Reagen || 0), formatNumber(product.Biaya_Reagen || 0), formatNumber((product.Biaya_Reagen || 0) / batchSizeActual)],
+          ['8', 'BEBAN EXPIRY', '-', '-', '-', formatNumber(product.Beban_Sisa_Bahan_Exp || 0), formatNumber(product.Beban_Sisa_Bahan_Exp || 0), formatNumber((product.Beban_Sisa_Bahan_Exp || 0) / batchSizeActual)],
+          ['', '', '', '', 'Total Overhead', formatNumber(totalOverheadCost), formatNumber(totalOverheadPerPack)]
         ], { origin: `A${currentRow}` });
         currentRow += 10;
       } else { // Generic2
@@ -776,7 +755,7 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
                       </thead>
                       <tbody>
                       <tr>
-                        <td>1 TIMBANG BB</td>
+                        <td>1 TIMBANG BAHAN</td>
                         <td>OPERATOR PROSES LINE PN1/PN2</td>
                         <td className="number">{formatNumber(product.MH_Timbang_BB || 0)}</td>
                         <td>HRS</td>
@@ -785,16 +764,16 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
                         <td className="number">{formatNumber(((product.MH_Timbang_BB || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)}</td>
                       </tr>
                       <tr>
-                        <td>2 TIMBANG BK</td>
+                        <td>2 TIMBANG KEMAS</td>
                         <td>OPERATOR PROSES LINE PN1/PN2</td>
                         <td className="number">{formatNumber(product.MH_Timbang_BK || 0)}</td>
                         <td>HRS</td>
-                        <td className="number">{formatNumber(product.Biaya_Proses || 0)}</td>
-                        <td className="number">{formatNumber((product.MH_Timbang_BK || 0) * (product.Biaya_Proses || 0))}</td>
-                        <td className="number">{formatNumber(((product.MH_Timbang_BK || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)}</td>
+                        <td className="number">{formatNumber(product.Biaya_Kemas || 0)}</td>
+                        <td className="number">{formatNumber((product.MH_Timbang_BK || 0) * (product.Biaya_Kemas || 0))}</td>
+                        <td className="number">{formatNumber(((product.MH_Timbang_BK || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)}</td>
                       </tr>
                       <tr>
-                        <td>3 PENGOLAHAN</td>
+                        <td>3 BIAYA PROSES</td>
                         <td>OPERATOR PROSES LINE PN1/PN2</td>
                         <td className="number">{formatNumber(product.MH_Proses_Std || 0)}</td>
                         <td>HRS</td>
@@ -803,7 +782,7 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
                         <td className="number">{formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)}</td>
                       </tr>
                       <tr>
-                        <td>4 PENGEMASAN</td>
+                        <td>4 BIAYA KEMAS</td>
                         <td>OPERATOR PROSES LINE PN1/PN2</td>
                         <td className="number">{formatNumber(product.MH_Kemas_Std || 0)}</td>
                         <td>HRS</td>
@@ -812,16 +791,16 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
                         <td className="number">{formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)}</td>
                       </tr>
                       <tr>
-                        <td>5 ANALISA</td>
+                        <td>5 BIAYA ANALISA</td>
                         <td>OPERATOR PROSES LINE PN1/PN2</td>
                         <td className="number">{formatNumber(product.MH_Analisa_Std || 0)}</td>
                         <td>HRS</td>
-                        <td className="number">{formatNumber(product.Biaya_Reagen || 0)}</td>
-                        <td className="number">{formatNumber((product.MH_Analisa_Std || 0) * (product.Biaya_Reagen || 0))}</td>
-                        <td className="number">{formatNumber(((product.MH_Analisa_Std || 0) * (product.Biaya_Reagen || 0)) / batchSizeActual)}</td>
+                        <td className="number">{formatNumber(product.Biaya_Analisa || 0)}</td>
+                        <td className="number">{formatNumber((product.MH_Analisa_Std || 0) * (product.Biaya_Analisa || 0))}</td>
+                        <td className="number">{formatNumber(((product.MH_Analisa_Std || 0) * (product.Biaya_Analisa || 0)) / batchSizeActual)}</td>
                       </tr>
                       <tr>
-                        <td>6 MESIN</td>
+                        <td>6 BIAYA MESIN</td>
                         <td>MESIN OPERATION</td>
                         <td className="number">{formatNumber(product.MH_Mesin_Std || 0)}</td>
                         <td>HRS</td>
@@ -830,16 +809,16 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
                         <td className="number">{formatNumber(((product.MH_Mesin_Std || 0) * (product.Rate_PLN || 0)) / batchSizeActual)}</td>
                       </tr>
                       <tr>
-                        <td>7 REAGEN</td>
+                        <td>7 BIAYA REAGEN</td>
                         <td>ANALISA REAGENT</td>
-                        <td className="number">1</td>
-                        <td>LOT</td>
-                        <td className="number">{formatNumber(product.Biaya_Analisa || 0)}</td>
-                        <td className="number">{formatNumber(product.Biaya_Analisa || 0)}</td>
-                        <td className="number">{formatNumber((product.Biaya_Analisa || 0) / batchSizeActual)}</td>
+                        <td className="number">-</td>
+                        <td>-</td>
+                        <td className="number">{formatNumber(product.Biaya_Reagen || 0)}</td>
+                        <td className="number">{formatNumber(product.Biaya_Reagen || 0)}</td>
+                        <td className="number">{formatNumber((product.Biaya_Reagen || 0) / batchSizeActual)}</td>
                       </tr>
                       <tr>
-                        <td>8 EXPIRY COST</td>
+                        <td>8 BEBAN EXPIRY</td>
                         <td>-</td>
                         <td className="number">-</td>
                         <td>-</td>
@@ -848,25 +827,25 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
                         <td className="number">{formatNumber((product.Beban_Sisa_Bahan_Exp || 0) / batchSizeActual)}</td>
                       </tr>
                       <tr className="total-row">
-                        <td colSpan="5"><strong>Total Cost</strong></td>
+                        <td colSpan="5"><strong>Total Overhead</strong></td>
                         <td className="number total"><strong>{formatNumber(
-                          ((product.MH_Timbang_BB || 0) * (product.Biaya_Generik || 0)) +
-                          ((product.MH_Timbang_BK || 0) * (product.Biaya_Generik || 0)) +
-                          ((product.MH_Proses_Std || 0) * (product.Biaya_Generik || 0)) +
-                          ((product.MH_Kemas_Std || 0) * (product.Biaya_Generik || 0)) +
-                          ((product.MH_Analisa_Std || 0) * (product.Biaya_Generik || 0)) +
+                          ((product.MH_Timbang_BB || 0) * (product.Biaya_Proses || 0)) +
+                          ((product.MH_Timbang_BK || 0) * (product.Biaya_Kemas || 0)) +
+                          ((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) +
+                          ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) +
+                          ((product.MH_Analisa_Std || 0) * (product.Biaya_Analisa || 0)) +
                           ((product.MH_Mesin_Std || 0) * (product.Rate_PLN || 0)) +
-                          (product.Biaya_Analisa || 0) +
+                          (product.Biaya_Reagen || 0) +
                           (product.Beban_Sisa_Bahan_Exp || 0)
                         )}</strong></td>
                         <td className="number total"><strong>{formatNumber((
-                          ((product.MH_Timbang_BB || 0) * (product.Biaya_Generik || 0)) +
-                          ((product.MH_Timbang_BK || 0) * (product.Biaya_Generik || 0)) +
-                          ((product.MH_Proses_Std || 0) * (product.Biaya_Generik || 0)) +
-                          ((product.MH_Kemas_Std || 0) * (product.Biaya_Generik || 0)) +
-                          ((product.MH_Analisa_Std || 0) * (product.Biaya_Generik || 0)) +
+                          ((product.MH_Timbang_BB || 0) * (product.Biaya_Proses || 0)) +
+                          ((product.MH_Timbang_BK || 0) * (product.Biaya_Kemas || 0)) +
+                          ((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) +
+                          ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) +
+                          ((product.MH_Analisa_Std || 0) * (product.Biaya_Analisa || 0)) +
                           ((product.MH_Mesin_Std || 0) * (product.Rate_PLN || 0)) +
-                          (product.Biaya_Analisa || 0) +
+                          (product.Biaya_Reagen || 0) +
                           (product.Beban_Sisa_Bahan_Exp || 0)
                         ) / batchSizeActual)}</strong></td>
                       </tr>

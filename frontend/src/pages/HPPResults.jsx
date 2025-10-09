@@ -204,7 +204,9 @@ const Generik1Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
             <th>MH Analisa Std</th>
             <th>MH Timbang BB</th>
             <th>MH Timbang BK</th>
-            <th>Biaya Generik</th>
+            <th>Biaya Proses</th>
+            <th>Biaya Kemas</th>
+            <th>Biaya Reagen</th>
             <th>Biaya Analisa</th>
             <th>MH Mesin Std</th>
             <th>Rate PLN</th>
@@ -228,7 +230,9 @@ const Generik1Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
               <td>{formatNumber(item.MH_Analisa_Std)}</td>
               <td>{formatNumber(item.MH_Timbang_BB)}</td>
               <td>{formatNumber(item.MH_Timbang_BK)}</td>
-              <td>{formatCurrency(item.Biaya_Generik)}</td>
+              <td>{formatCurrency(item.Biaya_Proses)}</td>
+              <td>{formatCurrency(item.Biaya_Kemas)}</td>
+              <td>{formatCurrency(item.Biaya_Reagen)}</td>
               <td>{formatCurrency(item.Biaya_Analisa)}</td>
               <td>{formatNumber(item.MH_Mesin_Std)}</td>
               <td>{formatCurrency(item.Rate_PLN)}</td>
@@ -508,8 +512,8 @@ const HPPResults = () => {
       // Create a new workbook
       const workbook = XLSX.utils.book_new();
       
-      // Define column mapping from API field names to desired Excel column headers
-      const columnMapping = {
+      // Define column mappings for each product type
+      const ethicalColumnMapping = {
         'Product_ID': 'Product_ID',
         'Product_Name': 'Product_Name', 
         'Sediaan': 'Sediaan',
@@ -532,8 +536,64 @@ const HPPResults = () => {
         'Formula': 'Formula'
       };
 
+      const generik1ColumnMapping = {
+        'Product_ID': 'Product_ID',
+        'Product_Name': 'Product_Name', 
+        'Sediaan': 'Sediaan',
+        'Group_PNCategory_Dept': 'Line Production',
+        'LOB': 'LOB',
+        'Group_PNCategory': 'Group_PNCategory',
+        'Group_PNCategory_Name': 'Group_PNCategory_Name',
+        'Batch_Size': 'Batch_Size',
+        'Group_Rendemen': 'Group_Rendemen',
+        'totalBB': 'totalBB',
+        'totalBK': 'totalBK',
+        'MH_Proses_Std': 'MH_Proses_Std',
+        'MH_Kemas_Std': 'MH_Kemas_Std',
+        'MH_Analisa_Std': 'MH_Analisa_Std',
+        'MH_Timbang_BB': 'MH_Timbang_BB',
+        'MH_Timbang_BK': 'MH_Timbang_BK',
+        'Biaya_Proses': 'Biaya_Proses',
+        'Biaya_Kemas': 'Biaya_Kemas',
+        'Biaya_Reagen': 'Biaya_Reagen',
+        'Biaya_Analisa': 'Biaya_Analisa',
+        'MH_Mesin_Std': 'MH_Mesin_Std',
+        'Rate_PLN': 'Rate_PLN',
+        'Beban_Sisa_Bahan_Exp': 'Beban_Sisa_Bahan_Exp',
+        'HPP': 'HPP',
+        'Product_SalesHNA': 'Product_SalesHNA',
+        'HPP_Ratio': 'HPP_Ratio',
+        'Formula': 'Formula'
+      };
+
+      const generik2ColumnMapping = {
+        'Product_ID': 'Product_ID',
+        'Product_Name': 'Product_Name', 
+        'Sediaan': 'Sediaan',
+        'Group_PNCategory_Dept': 'Line Production',
+        'LOB': 'LOB',
+        'Group_PNCategory': 'Group_PNCategory',
+        'Group_PNCategory_Name': 'Group_PNCategory_Name',
+        'Batch_Size': 'Batch_Size',
+        'Group_Rendemen': 'Group_Rendemen',
+        'totalBB': 'totalBB',
+        'totalBK': 'totalBK',
+        'MH_Proses_Std': 'MH_Proses_Std',
+        'MH_Kemas_Std': 'MH_Kemas_Std',
+        'Biaya_Proses': 'Biaya_Proses',
+        'Biaya_Kemas': 'Biaya_Kemas',
+        'Direct_Labor': 'Direct_Labor',
+        'Factory_Over_Head': 'Factory_Over_Head',
+        'Depresiasi': 'Depresiasi',
+        'Beban_Sisa_Bahan_Exp': 'Beban_Sisa_Bahan_Exp',
+        'HPP': 'HPP',
+        'Product_SalesHNA': 'Product_SalesHNA',
+        'HPP_Ratio': 'HPP_Ratio',
+        'Formula': 'Formula'
+      };
+
       // Transform data function to rename columns
-      const transformDataForExport = (data) => {
+      const transformDataForExport = (data, columnMapping) => {
         return data.map(item => {
           const transformedItem = {};
           Object.keys(columnMapping).forEach(apiField => {
@@ -551,19 +611,19 @@ const HPPResults = () => {
 
       // Create worksheets for each table with transformed data
       if (hppData.ethical && hppData.ethical.length > 0) {
-        const transformedEthical = transformDataForExport(hppData.ethical);
+        const transformedEthical = transformDataForExport(hppData.ethical, ethicalColumnMapping);
         const ethicalWS = XLSX.utils.json_to_sheet(transformedEthical);
         XLSX.utils.book_append_sheet(workbook, ethicalWS, 'Ethical OTC');
       }
       
       if (hppData.generik1 && hppData.generik1.length > 0) {
-        const transformedGenerik1 = transformDataForExport(hppData.generik1);
+        const transformedGenerik1 = transformDataForExport(hppData.generik1, generik1ColumnMapping);
         const generik1WS = XLSX.utils.json_to_sheet(transformedGenerik1);
         XLSX.utils.book_append_sheet(workbook, generik1WS, 'Generic Type 1');
       }
       
       if (hppData.generik2 && hppData.generik2.length > 0) {
-        const transformedGenerik2 = transformDataForExport(hppData.generik2);
+        const transformedGenerik2 = transformDataForExport(hppData.generik2, generik2ColumnMapping);
         const generik2WS = XLSX.utils.json_to_sheet(transformedGenerik2);
         XLSX.utils.book_append_sheet(workbook, generik2WS, 'Generic Type 2');
       }
