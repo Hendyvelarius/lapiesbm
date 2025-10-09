@@ -25,10 +25,10 @@ const formatNumber = (value, decimals = 0) => {
   }).format(value);
 };
 
-// Format HPP ratio as percentage (e.g., 0.296500 -> 29.65%)
+// Format HPP ratio as percentage (API already returns percentage values)
 const formatHPPRatio = (ratio) => {
   if (!ratio || isNaN(ratio)) return '0,00%';
-  const percentage = (parseFloat(ratio) * 100).toFixed(2);
+  const percentage = parseFloat(ratio).toFixed(2);
   return `${percentage.replace('.', ',')}%`;
 };
 
@@ -503,51 +503,63 @@ const HPPResults = () => {
       // Create a new workbook
       const workbook = XLSX.utils.book_new();
       
-      // Define columns for each table type
-      const ethicalColumns = [
-        'Product_ID', 'Product_Name', 'totalBB', 'totalBK', 'MH_Proses_Std', 
-        'MH_Kemas_Std', 'Biaya_Proses', 'Biaya_Kemas', 'Beban_Sisa_Bahan_Exp',
-        'Group_Rendemen', 'Batch_Size', 'HPP', 'Product_SalesHNA', 'HPP_Ratio'
-      ];
-      
-      const generik1Columns = [
-        'Product_ID', 'Product_Name', 'totalBB', 'totalBK', 'MH_Proses_Std',
-        'MH_Kemas_Std', 'MH_Analisa_Std', 'MH_Timbang_BB', 'MH_Timbang_BK',
-        'Biaya_Generik', 'Biaya_Analisa', 'MH_Mesin_Std', 'Rate_PLN',
-        'Beban_Sisa_Bahan_Exp', 'Group_Rendemen', 'Batch_Size', 'HPP', 'Product_SalesHNA', 'HPP_Ratio'
-      ];
-      
-      const generik2Columns = [
-        'Product_ID', 'Product_Name', 'totalBB', 'totalBK', 'MH_Proses_Std',
-        'MH_Kemas_Std', 'Direct_Labor',
-        'Factory_Over_Head_50', 'Depresiasi', 'Beban_Sisa_Bahan_Exp', 'Group_Rendemen', 
-        'Batch_Size', 'HPP', 'Product_SalesHNA', 'HPP_Ratio'
-      ];
+      // Define column mapping from API field names to desired Excel column headers
+      const columnMapping = {
+        'Product_ID': 'Product_ID',
+        'Product_Name': 'Product_Name', 
+        'Sediaan': 'Sediaan',
+        'Group_PNCategory_Dept': 'Line Production',
+        'LOB': 'LOB',
+        'Group_PNCategory': 'Group_PNCategory',
+        'Group_PNCategory_Name': 'Group_PNCategory_Name',
+        'Batch_Size': 'Batch_Size',
+        'Group_Rendemen': 'Group_Rendemen',
+        'totalBB': 'totalBB',
+        'totalBK': 'totalBK',
+        'MH_Proses_Std': 'MH_Proses_Std',
+        'MH_Kemas_Std': 'MH_Kemas_Std',
+        'Biaya_Proses': 'Biaya_Proses',
+        'Biaya_Kemas': 'Biaya_Kemas',
+        'Beban_Sisa_Bahan_Exp': 'Beban_Sisa_Bahan_Exp',
+        'HPP': 'HPP',
+        'Product_SalesHNA': 'Product_SalesHNA',
+        'HPP_Ratio': 'HPP_Ratio',
+        'Formula': 'Formula'
+      };
+
+      // Transform data function to rename columns
+      const transformDataForExport = (data) => {
+        return data.map(item => {
+          const transformedItem = {};
+          Object.keys(columnMapping).forEach(apiField => {
+            const excelHeader = columnMapping[apiField];
+            transformedItem[excelHeader] = item[apiField];
+          });
+          return transformedItem;
+        });
+      };
 
       const materialUsageColumns = [
         'product_id', 'item_type', 'PPI_ItemID', 'Item_Name', 'PPI_QTY',
         'PPI_UnitID', 'Item_unit', 'total'
       ];
 
-      // Create worksheets for each table
+      // Create worksheets for each table with transformed data
       if (hppData.ethical && hppData.ethical.length > 0) {
-        const ethicalWS = XLSX.utils.json_to_sheet(hppData.ethical, { 
-          header: ethicalColumns 
-        });
+        const transformedEthical = transformDataForExport(hppData.ethical);
+        const ethicalWS = XLSX.utils.json_to_sheet(transformedEthical);
         XLSX.utils.book_append_sheet(workbook, ethicalWS, 'Ethical OTC');
       }
       
       if (hppData.generik1 && hppData.generik1.length > 0) {
-        const generik1WS = XLSX.utils.json_to_sheet(hppData.generik1, { 
-          header: generik1Columns 
-        });
+        const transformedGenerik1 = transformDataForExport(hppData.generik1);
+        const generik1WS = XLSX.utils.json_to_sheet(transformedGenerik1);
         XLSX.utils.book_append_sheet(workbook, generik1WS, 'Generic Type 1');
       }
       
       if (hppData.generik2 && hppData.generik2.length > 0) {
-        const generik2WS = XLSX.utils.json_to_sheet(hppData.generik2, { 
-          header: generik2Columns 
-        });
+        const transformedGenerik2 = transformDataForExport(hppData.generik2);
+        const generik2WS = XLSX.utils.json_to_sheet(transformedGenerik2);
         XLSX.utils.book_append_sheet(workbook, generik2WS, 'Generic Type 2');
       }
 
