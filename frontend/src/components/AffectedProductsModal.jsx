@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X, TrendingUp, TrendingDown, Minus, Download } from "lucide-react";
-import { hppAPI } from "../services/api";
+import { hppAPI, masterAPI } from "../services/api";
 import LoadingSpinner from "./LoadingSpinner";
 import "../styles/AffectedProductsModal.css";
 
@@ -8,6 +8,7 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
   const [loading, setLoading] = useState(false);
   const [affectedProducts, setAffectedProducts] = useState([]);
   const [error, setError] = useState("");
+  const [affectedMaterials, setAffectedMaterials] = useState([]);
 
   // Fetch affected products using stored procedure
   const fetchAffectedProducts = async (description, simulasiDate) => {
@@ -26,9 +27,13 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
 
       if (response.success && response.data) {
         setAffectedProducts(response.data);
+        
+        // Also fetch affected materials information
+        await fetchAffectedMaterials(description);
       } else {
         setError("Failed to fetch affected products");
         setAffectedProducts([]);
+        setAffectedMaterials([]);
       }
 
     } catch (err) {
@@ -101,6 +106,71 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
     return <Minus size={16} className="trend-neutral" />;
   };
 
+  // Extract material IDs from price change description
+  const extractMaterialIds = (description) => {
+    if (!description) return [];
+    
+    // Example descriptions:
+    // "Price Changes : AC 009C: 4.8 -> 6; AC 015B: 19.8 -> 23;"
+    // "Price Changes : IN 003: 22000 -> 32000;"
+    
+    const materialIds = [];
+    
+    // Find content after "Price Changes :" and before first ":"
+    const afterPriceChanges = description.indexOf("Price Changes :");
+    if (afterPriceChanges !== -1) {
+      const startSearch = afterPriceChanges + "Price Changes :".length;
+      const restOfString = description.substring(startSearch);
+      
+      // Split by ";" to get each price change entry
+      const entries = restOfString.split(';');
+      
+      entries.forEach(entry => {
+        const colonIndex = entry.indexOf(':');
+        if (colonIndex !== -1) {
+          // Get content before the first colon in this entry
+          const materialId = entry.substring(0, colonIndex).trim();
+          if (materialId) {
+            materialIds.push(materialId);
+          }
+        }
+      });
+    }
+    
+    // Remove duplicates and return unique material IDs
+    return [...new Set(materialIds)];
+  };
+
+  // Fetch material data and find affected materials
+  const fetchAffectedMaterials = async (description) => {
+    try {
+      const materialIds = extractMaterialIds(description);
+      
+      if (materialIds.length === 0) {
+        setAffectedMaterials([]);
+        return;
+      }
+
+      // Fetch all materials from API
+      const materialsResponse = await masterAPI.getMaterial();
+      const allMaterials = materialsResponse || [];
+      
+      // Remove spaces from extracted IDs for comparison
+      const normalizedExtractedIds = materialIds.map(id => id.replace(/\s/g, ''));
+      
+      // Find materials that match the extracted IDs (comparing without spaces)
+      const matchedMaterials = allMaterials.filter(material => {
+        const normalizedMaterialId = material.ITEM_ID.replace(/\s/g, '');
+        return normalizedExtractedIds.includes(normalizedMaterialId);
+      });
+
+      setAffectedMaterials(matchedMaterials);
+    } catch (error) {
+      console.error('Error fetching affected materials:', error);
+      setAffectedMaterials([]);
+    }
+  };
+
   // Export affected products to Excel
   const handleExportToExcel = async () => {
     try {
@@ -110,6 +180,17 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
 
       // Import XLSX library dynamically
       const XLSX = await import('xlsx');
+
+      // Create material names string from affected materials
+      const materialNamesStr = affectedMaterials.length > 0 
+        ? affectedMaterials.map(material => material.ITEM_NAME).join(', ')
+        : 'Materials';
+
+      // Create enhanced price change description with material names
+      let enhancedDescription = priceChangeDescription || '';
+      if (materialNamesStr && enhancedDescription.includes('Price Changes :')) {
+        enhancedDescription = enhancedDescription.replace('Price Changes :', `${materialNamesStr} :`);
+      }
 
       // Prepare data for Excel export with proper formatting
       const excelData = affectedProducts.map(product => ({
@@ -126,7 +207,7 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
         'HPP Ratio After (%)': parseFloat(product.Rasio_HPP_Sesudah || 0) * 100,
         'Impact HPP (%)': parseFloat(product.persentase_perubahan || 0),
         'Impact HNA (%)': calculateImpactHNA(product.Rasio_HPP_Sebelum, product.Rasio_HPP_Sesudah),
-        'Price Change Description': priceChangeDescription || '',
+        'Price Change Description': enhancedDescription,
         'Price Change Date': priceChangeDate ? new Date(priceChangeDate).toLocaleDateString() : ''
       }));
 
@@ -197,10 +278,19 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
       // Add the worksheet to workbook
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Affected Products');
 
-      // Generate filename with current date and description
+      // Generate filename with current date and material names
       const dateStr = new Date().toISOString().split('T')[0];
-      const descStr = (priceChangeDescription || 'PriceChange').replace(/[^a-zA-Z0-9]/g, '_');
-      const fileName = `AffectedProducts_${descStr}_${dateStr}.xlsx`;
+      
+      // Create a clean filename part from material names or fallback to description
+      let fileNamePart = '';
+      if (affectedMaterials.length > 0) {
+        const materialNames = affectedMaterials.map(material => material.ITEM_NAME).join('_');
+        fileNamePart = materialNames.replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 50); // Limit length
+      } else {
+        fileNamePart = (priceChangeDescription || 'PriceChange').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);
+      }
+      
+      const fileName = `AffectedProducts_${fileNamePart}_${dateStr}.xlsx`;
 
       // Write and download the file
       XLSX.writeFile(workbook, fileName);
@@ -259,6 +349,22 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
               </span>
             </div>
           </div>
+
+          {/* Affected Materials Info */}
+          {affectedMaterials.length > 0 && (
+            <div className="affected-materials-info">
+              <h3>Affected Materials</h3>
+              <div className="materials-list">
+                {affectedMaterials.map((material, index) => (
+                  <div key={material.ITEM_ID} className="material-item">
+                    <span className="material-id">{material.ITEM_ID}</span>
+                    <span className="material-name">{material.Item_Name}</span>
+                    <span className="material-type">{material.ITEM_TYPE}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Loading State */}
           {loading && (
