@@ -14,7 +14,7 @@ export default function Sidebar({ user }) {
         {/* Sticky Top Section */}
         <div className="sidebar-top">
           <div className="sidebar-logo">
-            <img src="/LAPILOGO_White.png" alt="LAPI Logo" className="logo-image" />
+            <img src="./LAPILOGO_White.png" alt="LAPI Logo" className="logo-image" />
           </div>
           <div className="sidebar-header">
             <div className="sidebar-site-title">e-Sistem Biaya Manufaktur</div>
