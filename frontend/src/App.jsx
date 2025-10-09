@@ -280,6 +280,7 @@ function AppContent() {
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Dashboard user={authState.user} />} />
+          <Route path="/eSistemBiayaManufaktur" element={<Dashboard user={authState.user} />} />
           <Route path="/hpp-simulation" element={<HPPSimulation user={authState.user} />} />
           <Route path="/currency" element={<Currency user={authState.user} />} />
           <Route path="/harga-bahan" element={<HargaBahan user={authState.user} />} />
