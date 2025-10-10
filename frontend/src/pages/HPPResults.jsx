@@ -132,6 +132,7 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
             <th>MH Kemas Std</th>
             <th>Biaya Proses</th>
             <th>Biaya Kemas</th>
+            <th>Toll Fee</th>
             <th>Expiry Cost</th>
             <th>Group Rendemen</th>
             <th>Batch Size</th>
@@ -151,6 +152,7 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
               <td>{formatNumber(item.MH_Kemas_Std)}</td>
               <td>{formatCurrency(item.Biaya_Proses)}</td>
               <td>{formatCurrency(item.Biaya_Kemas)}</td>
+              <td>{formatCurrency(item.toll_fee)}</td>
               <td>{formatCurrency(item.Beban_Sisa_Bahan_Exp)}</td>
               <td>{formatNumber(item.Group_Rendemen)}%</td>
               <td>{formatNumber(item.Batch_Size)}</td>
@@ -529,6 +531,7 @@ const HPPResults = () => {
         'MH_Kemas_Std': 'MH_Kemas_Std',
         'Biaya_Proses': 'Biaya_Proses',
         'Biaya_Kemas': 'Biaya_Kemas',
+        'toll_fee': 'Toll_Fee',
         'Beban_Sisa_Bahan_Exp': 'Beban_Sisa_Bahan_Exp',
         'HPP': 'HPP',
         'Product_SalesHNA': 'Product_SalesHNA',
