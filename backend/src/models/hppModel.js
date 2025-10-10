@@ -153,6 +153,7 @@ async function updateSimulationHeader(simulasiId, headerData) {
         MH_Mesin_Std = @MHMesinStd,
         Biaya_Proses = @BiayaProses,
         Biaya_Kemas = @BiayaKemas,
+        Biaya_Analisa = @BiayaAnalisa,
         Biaya_Generik = @BiayaGenerik,
         Biaya_Reagen = @BiayaReagen,
         Toll_Fee = @TollFee,
@@ -188,6 +189,7 @@ async function updateSimulationHeader(simulasiId, headerData) {
       .input("MHMesinStd", sql.Decimal(10, 2), headerData.MH_Mesin_Std || 0)
       .input("BiayaProses", sql.Decimal(18, 2), headerData.Biaya_Proses || 0)
       .input("BiayaKemas", sql.Decimal(18, 2), headerData.Biaya_Kemas || 0)
+      .input("BiayaAnalisa", sql.Decimal(18, 2), headerData.Biaya_Analisa || 0)
       .input(
         "BiayaGenerik",
         sql.Decimal(18, 2),
@@ -232,14 +234,14 @@ async function createSimulationHeader(headerData) {
         Simulasi_ID, Product_ID, Product_Name, Formula, Group_PNCategory, Group_PNCategory_Dept, Periode,
         Simulasi_Deskripsi, Simulasi_Date, Simulasi_Type, Group_Rendemen, Batch_Size, LOB, Versi,
         MH_Proses_Std, MH_Kemas_Std, MH_Analisa_Std, MH_Timbang_BB, MH_Timbang_BK, MH_Mesin_Std,
-        Biaya_Proses, Biaya_Kemas, Biaya_Generik, Biaya_Reagen, Toll_Fee, Rate_PLN,
+        Biaya_Proses, Biaya_Kemas, Biaya_Analisa, Biaya_Generik, Biaya_Reagen, Toll_Fee, Rate_PLN,
         Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp
       ) 
       VALUES (
         @SimulasiID, @ProductID, @ProductName, @Formula, @GroupPNCategory, @GroupPNCategoryDept, @Periode,
         @SimulasiDeskripsi, @SimulasiDate, @SimulasiType, @GroupRendemen, @BatchSize, @LOB, @Versi,
         @MHProsesStd, @MHKemasStd, @MHAnalisaStd, @MHTimbangBB, @MHTimbangBK, @MHMesinStd,
-        @BiayaProses, @BiayaKemas, @BiayaGenerik, @BiayaReagen, @TollFee, @RatePLN,
+        @BiayaProses, @BiayaKemas, @BiayaAnalisa, @BiayaGenerik, @BiayaReagen, @TollFee, @RatePLN,
         @DirectLabor, @FactoryOverHead, @Depresiasi, @BebanSisaBahanExp
       )
     `;
@@ -284,6 +286,7 @@ async function createSimulationHeader(headerData) {
       .input("MHMesinStd", sql.Decimal(10, 2), headerData.MH_Mesin_Std || 0)
       .input("BiayaProses", sql.Decimal(18, 2), headerData.Biaya_Proses || 0)
       .input("BiayaKemas", sql.Decimal(18, 2), headerData.Biaya_Kemas || 0)
+      .input("BiayaAnalisa", sql.Decimal(18, 2), headerData.Biaya_Analisa || 0)
       .input(
         "BiayaGenerik",
         sql.Decimal(18, 2),
@@ -681,6 +684,83 @@ async function getSimulationSummary(simulasiId) {
   }
 }
 
+// Clone simulation (duplicate all data)
+async function cloneSimulation(originalSimulasiId, cloneDescription) {
+  try {
+    const db = await connect();
+    
+    // Start a transaction
+    const transaction = new sql.Transaction(db);
+    await transaction.begin();
+    
+    try {
+      // Get the next Simulasi_ID
+      const maxIdQuery = `SELECT ISNULL(MAX(Simulasi_ID), 0) + 1 as NextId FROM t_COGS_HPP_Product_Header_Simulasi`;
+      const maxIdResult = await transaction.request().query(maxIdQuery);
+      const newSimulasiId = maxIdResult.recordset[0].NextId;
+      
+      // Clone the header - copy ALL columns except Simulasi_ID and update description and date
+      const cloneHeaderQuery = `
+        INSERT INTO t_COGS_HPP_Product_Header_Simulasi (
+          Simulasi_ID, Product_ID, Product_Name, Formula, Group_PNCategory, Group_PNCategory_Dept, Periode,
+          Simulasi_Deskripsi, Simulasi_Date, Simulasi_Type, Group_Rendemen, Batch_Size, LOB, Versi,
+          MH_Proses_Std, MH_Kemas_Std, MH_Analisa_Std, MH_Timbang_BB, MH_Timbang_BK, MH_Mesin_Std,
+          Biaya_Proses, Biaya_Kemas, Biaya_Analisa, Biaya_Generik, Biaya_Reagen, Toll_Fee, Rate_PLN,
+          Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp
+        )
+        SELECT 
+          @NewSimulasiId, Product_ID, Product_Name, Formula, Group_PNCategory, Group_PNCategory_Dept, Periode,
+          @CloneDescription, GETDATE(), Simulasi_Type, Group_Rendemen, Batch_Size, LOB, Versi,
+          MH_Proses_Std, MH_Kemas_Std, MH_Analisa_Std, MH_Timbang_BB, MH_Timbang_BK, MH_Mesin_Std,
+          Biaya_Proses, Biaya_Kemas, Biaya_Analisa, Biaya_Generik, Biaya_Reagen, Toll_Fee, Rate_PLN,
+          Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp
+        FROM t_COGS_HPP_Product_Header_Simulasi 
+        WHERE Simulasi_ID = @OriginalSimulasiId
+      `;
+      
+      // Generate clone description if not provided
+      const finalCloneDescription = cloneDescription || `Clone of Simulasi_ID ${originalSimulasiId}`;
+      
+      await transaction.request()
+        .input('NewSimulasiId', sql.Int, newSimulasiId)
+        .input('OriginalSimulasiId', sql.Int, originalSimulasiId)
+        .input('CloneDescription', sql.VarChar(255), finalCloneDescription)
+        .query(cloneHeaderQuery);
+      
+      // Clone the materials - copy ALL columns except change Simulasi_ID and generate new Seq_ID
+      const cloneMaterialsQuery = `
+        INSERT INTO t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan (
+          Periode, Simulasi_ID, Seq_ID, Tipe_Bahan, Item_ID, Item_Name, Item_QTY, Item_Unit, Item_Unit_Price
+        )
+        SELECT 
+          Periode, @NewSimulasiId, ROW_NUMBER() OVER (ORDER BY Seq_ID), Tipe_Bahan, Item_ID, Item_Name, Item_QTY, Item_Unit, Item_Unit_Price
+        FROM t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan 
+        WHERE Simulasi_ID = @OriginalSimulasiId
+        ORDER BY Seq_ID
+      `;
+      
+      await transaction.request()
+        .input('NewSimulasiId', sql.Int, newSimulasiId)
+        .input('OriginalSimulasiId', sql.Int, originalSimulasiId)
+        .query(cloneMaterialsQuery);
+      
+      // Commit the transaction
+      await transaction.commit();
+      
+      return newSimulasiId;
+      
+    } catch (error) {
+      // Rollback the transaction on error
+      await transaction.rollback();
+      throw error;
+    }
+    
+  } catch (error) {
+    console.error("Error cloning simulation:", error);
+    throw error;
+  }
+}
+
 module.exports = {
   getHPP,
   generateHPPCalculation,
@@ -693,6 +773,7 @@ module.exports = {
   insertSimulationMaterials,
   getSimulationList,
   deleteSimulation,
+  cloneSimulation,
   generatePriceChangeSimulation,
   getPriceChangeAffectedProducts,
   bulkDeletePriceChangeGroup,

@@ -18,6 +18,7 @@ import {
   ChevronsUpDown,
   BarChart3,
   Trash,
+  Copy,
 } from "lucide-react";
 import AffectedProductsModal from "../components/AffectedProductsModal";
 
@@ -812,6 +813,30 @@ export default function HPPSimulation() {
     );
   };
 
+  // Clone simulation
+  const handleCloneSimulation = async (simulation) => {
+    try {
+      setLoading(true);
+      
+      // Generate clone description
+      const cloneDescription = `Clone of: ${simulation.Simulasi_Deskripsi || simulation.Formula || `Simulasi_ID ${simulation.Simulasi_ID}`}`;
+      
+      // Use the new clone API that copies everything
+      const response = await hppAPI.cloneSimulation(simulation.Simulasi_ID, cloneDescription);
+      
+      // Reload simulation list
+      await loadSimulationList();
+      
+      notifier.success(`Simulation cloned successfully! New simulation ID: ${response.data.newSimulasiId}`);
+      
+    } catch (error) {
+      console.error("Error cloning simulation:", error);
+      notifier.alert("Failed to clone simulation. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Start new simulation
   const handleNewSimulation = () => {
     setStep(1);
@@ -884,6 +909,7 @@ export default function HPPSimulation() {
       MH_Mesin_Std: 0,
       Biaya_Proses: 0,
       Biaya_Kemas: 0,
+      Biaya_Analisa: 0,
       Biaya_Generik: 0,
       Biaya_Reagen: 0,
       Toll_Fee: 0,
@@ -915,6 +941,7 @@ export default function HPPSimulation() {
       MH_Mesin_Std: 0,
       Biaya_Proses: 0,
       Biaya_Kemas: 0,
+      Biaya_Analisa: 0,
       Biaya_Generik: 0,
       Biaya_Reagen: 0,
       Toll_Fee: 0,
@@ -1315,6 +1342,7 @@ export default function HPPSimulation() {
         MH_Mesin_Std: headerData.MH_Mesin_Std || 0,
         Biaya_Proses: headerData.Biaya_Proses || 0,
         Biaya_Kemas: headerData.Biaya_Kemas || 0,
+        Biaya_Analisa: headerData.Biaya_Analisa || 0,
         Biaya_Generik: headerData.Biaya_Generik || 0,
         Biaya_Reagen: headerData.Biaya_Reagen || 0,
         Toll_Fee: headerData.Toll_Fee || 0,
@@ -1789,6 +1817,7 @@ export default function HPPSimulation() {
           MH_Mesin_Std: editableOverheadData.MH_Mesin_Std || 0,
           Biaya_Proses: editableOverheadData.Biaya_Proses || 0,
           Biaya_Kemas: editableOverheadData.Biaya_Kemas || 0,
+          Biaya_Analisa: editableOverheadData.Biaya_Analisa || 0,
           Biaya_Generik: editableOverheadData.Biaya_Generik || 0,
           Biaya_Reagen: editableOverheadData.Biaya_Reagen || 0,
           Toll_Fee: editableOverheadData.Toll_Fee || 0,
@@ -1877,6 +1906,10 @@ export default function HPPSimulation() {
           Biaya_Kemas:
             editableOverheadData.Biaya_Kemas ||
             simulationResults[0].Biaya_Kemas ||
+            0,
+          Biaya_Analisa:
+            editableOverheadData.Biaya_Analisa ||
+            simulationResults[0].Biaya_Analisa ||
             0,
           Biaya_Generik:
             editableOverheadData.Biaya_Generik ||
@@ -2060,7 +2093,7 @@ export default function HPPSimulation() {
       return 0;
     return (
       (editableOverheadData.MH_Timbang_BB || 0) *
-      (editableOverheadData.Biaya_Generik || 0)
+      (editableOverheadData.Biaya_Proses || 0)
     );
   };
 
@@ -2076,7 +2109,7 @@ export default function HPPSimulation() {
       return 0;
     return (
       (editableOverheadData.MH_Timbang_BK || 0) *
-      (editableOverheadData.Biaya_Generik || 0)
+      (editableOverheadData.Biaya_Kemas || 0)
     );
   };
 
@@ -2092,7 +2125,7 @@ export default function HPPSimulation() {
       return 0;
     return (
       (editableOverheadData.MH_Proses_Std || 0) *
-      (editableOverheadData.Biaya_Generik || 0)
+      (editableOverheadData.Biaya_Proses || 0)
     );
   };
 
@@ -2108,7 +2141,7 @@ export default function HPPSimulation() {
       return 0;
     return (
       (editableOverheadData.MH_Kemas_Std || 0) *
-      (editableOverheadData.Biaya_Generik || 0)
+      (editableOverheadData.Biaya_Kemas || 0)
     );
   };
 
@@ -2124,7 +2157,7 @@ export default function HPPSimulation() {
       return 0;
     return (
       (editableOverheadData.MH_Analisa_Std || 0) *
-      (editableOverheadData.Biaya_Generik || 0)
+      (editableOverheadData.Biaya_Analisa || 0)
     );
   };
 
@@ -2880,6 +2913,18 @@ export default function HPPSimulation() {
                                 >
                                   {loading ? "⏳" : <Edit size={16} />}
                                 </button>
+                                {simulation.Simulasi_Type !== "Price Changes" && (
+                                  <button
+                                    className="clone-btn"
+                                    onClick={() =>
+                                      handleCloneSimulation(simulation)
+                                    }
+                                    disabled={loading}
+                                    title="Clone Simulation"
+                                  >
+                                    <Copy size={16} />
+                                  </button>
+                                )}
                                 <button
                                   className="delete-btn"
                                   onClick={() =>
@@ -4167,14 +4212,14 @@ export default function HPPSimulation() {
                             <span className="formula-part">MH × Rp</span>
                             <input
                               type="number"
-                              value={editableOverheadData.Biaya_Generik || 0}
-                              onChange={(e) =>
+                              value={editableOverheadData.Biaya_Proses || 0}
+                              onChange={(e) => {
+                                const newValue = parseFloat(e.target.value) || 0;
                                 setEditableOverheadData({
                                   ...editableOverheadData,
-                                  Biaya_Generik:
-                                    parseFloat(e.target.value) || 0,
+                                  Biaya_Proses: newValue,
                                 })
-                              }
+                              }}
                               className="overhead-edit-input"
                               step="0.01"
                               min="0"
@@ -4208,14 +4253,14 @@ export default function HPPSimulation() {
                             <span className="formula-part">MH × Rp</span>
                             <input
                               type="number"
-                              value={editableOverheadData.Biaya_Generik || 0}
-                              onChange={(e) =>
+                              value={editableOverheadData.Biaya_Kemas || 0}
+                              onChange={(e) => {
+                                const newValue = parseFloat(e.target.value) || 0;
                                 setEditableOverheadData({
                                   ...editableOverheadData,
-                                  Biaya_Generik:
-                                    parseFloat(e.target.value) || 0,
+                                  Biaya_Kemas: newValue,
                                 })
-                              }
+                              }}
                               className="overhead-edit-input"
                               step="0.01"
                               min="0"
@@ -4249,14 +4294,14 @@ export default function HPPSimulation() {
                             <span className="formula-part">MH × Rp</span>
                             <input
                               type="number"
-                              value={editableOverheadData.Biaya_Generik || 0}
-                              onChange={(e) =>
+                              value={editableOverheadData.Biaya_Proses || 0}
+                              onChange={(e) => {
+                                const newValue = parseFloat(e.target.value) || 0;
                                 setEditableOverheadData({
                                   ...editableOverheadData,
-                                  Biaya_Generik:
-                                    parseFloat(e.target.value) || 0,
+                                  Biaya_Proses: newValue,
                                 })
-                              }
+                              }}
                               className="overhead-edit-input"
                               step="0.01"
                               min="0"
@@ -4290,14 +4335,14 @@ export default function HPPSimulation() {
                             <span className="formula-part">MH × Rp</span>
                             <input
                               type="number"
-                              value={editableOverheadData.Biaya_Generik || 0}
-                              onChange={(e) =>
+                              value={editableOverheadData.Biaya_Kemas || 0}
+                              onChange={(e) => {
+                                const newValue = parseFloat(e.target.value) || 0;
                                 setEditableOverheadData({
                                   ...editableOverheadData,
-                                  Biaya_Generik:
-                                    parseFloat(e.target.value) || 0,
+                                  Biaya_Kemas: newValue,
                                 })
-                              }
+                              }}
                               className="overhead-edit-input"
                               step="0.01"
                               min="0"
@@ -4330,11 +4375,11 @@ export default function HPPSimulation() {
                             <span className="formula-part">MH × Rp</span>
                             <input
                               type="number"
-                              value={editableOverheadData.Biaya_Generik || 0}
+                              value={editableOverheadData.Biaya_Analisa || 0}
                               onChange={(e) =>
                                 setEditableOverheadData({
                                   ...editableOverheadData,
-                                  Biaya_Generik:
+                                  Biaya_Analisa:
                                     parseFloat(e.target.value) || 0,
                                 })
                               }
@@ -5332,11 +5377,12 @@ export default function HPPSimulation() {
                             <td>
                               (
                               {formatNumber(
-                                editableOverheadData.MH_Timbang_BB || 0
+                                editableOverheadData.MH_Timbang_BB || 0,
+                                2
                               )}{" "}
                               MH × Rp{" "}
                               {formatNumber(
-                                editableOverheadData.Biaya_Generik || 0,
+                                editableOverheadData.Biaya_Proses || 0,
                                 2
                               )}
                               )
@@ -5358,14 +5404,14 @@ export default function HPPSimulation() {
                             <td>Packaging Weighing</td>
                             <td>Packaging Weighing Cost</td>
                             <td>
-                              (Rp{" "}
+                              (
                               {formatNumber(
-                                editableOverheadData.Biaya_Generik || 0,
+                                editableOverheadData.MH_Timbang_BK || 0,
                                 2
                               )}{" "}
-                              ×{" "}
+                              MH × Rp{" "}
                               {formatNumber(
-                                editableOverheadData.Faktor_A || 0,
+                                editableOverheadData.Biaya_Kemas || 0,
                                 2
                               )}
                               )
@@ -5386,14 +5432,14 @@ export default function HPPSimulation() {
                             <td>Processing Cost</td>
                             <td>Production Processing Cost</td>
                             <td>
-                              (Rp{" "}
+                              (
                               {formatNumber(
-                                editableOverheadData.Biaya_Generik || 0,
+                                editableOverheadData.MH_Proses_Std || 0,
                                 2
                               )}{" "}
-                              ×{" "}
+                              MH × Rp{" "}
                               {formatNumber(
-                                editableOverheadData.Faktor_B || 0,
+                                editableOverheadData.Biaya_Proses || 0,
                                 2
                               )}
                               )
@@ -5418,14 +5464,14 @@ export default function HPPSimulation() {
                             <td>Packaging Cost</td>
                             <td>Packaging Processing Cost</td>
                             <td>
-                              (Rp{" "}
+                              (
                               {formatNumber(
-                                editableOverheadData.Biaya_Generik || 0,
+                                editableOverheadData.MH_Kemas_Std || 0,
                                 2
                               )}{" "}
-                              ×{" "}
+                              MH × Rp{" "}
                               {formatNumber(
-                                editableOverheadData.Faktor_C || 0,
+                                editableOverheadData.Biaya_Kemas || 0,
                                 2
                               )}
                               )
@@ -5447,14 +5493,14 @@ export default function HPPSimulation() {
                             <td>Analysis Fee</td>
                             <td>Quality Control Analysis</td>
                             <td>
-                              (Rp{" "}
+                              (
                               {formatNumber(
-                                editableOverheadData.Biaya_Generik || 0,
+                                editableOverheadData.MH_Analisa_Std || 0,
                                 2
                               )}{" "}
-                              ×{" "}
+                              MH × Rp{" "}
                               {formatNumber(
-                                editableOverheadData.Faktor_D || 0,
+                                editableOverheadData.Biaya_Analisa || 0,
                                 2
                               )}
                               )
@@ -5476,11 +5522,12 @@ export default function HPPSimulation() {
                             <td>
                               (
                               {formatNumber(
-                                editableOverheadData.MH_Proses_Std || 0
+                                editableOverheadData.MH_Mesin_Std || 0,
+                                2
                               )}{" "}
                               MH × Rp{" "}
                               {formatNumber(
-                                editableOverheadData.Biaya_Mesin || 0,
+                                editableOverheadData.Rate_PLN || 0,
                                 2
                               )}
                               )

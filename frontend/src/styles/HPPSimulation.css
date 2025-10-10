@@ -7,7 +7,7 @@
   flex-direction: column;
   align-items: center;
   gap: 24px;
-  max-width: 1200px;
+  max-width: 1400px;
   min-height: 100vh; /* Use viewport height but allow expansion */
 }
 
@@ -2083,10 +2083,16 @@
 
 .actions-cell {
   text-align: center;
-  width: 100px;
+  width: 140px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
 }
 
 .edit-btn,
+.clone-btn,
 .delete-btn {
   background: none;
   border: none;
@@ -2094,13 +2100,14 @@
   border-radius: 6px;
   cursor: pointer;
   font-size: 16px;
-  margin: 0 4px;
+  margin: 0;
   transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 32px;
   height: 32px;
+  flex-shrink: 0;
 }
 
 .edit-btn:hover {
@@ -2108,7 +2115,13 @@
   transform: scale(1.1);
 }
 
-.edit-btn:disabled {
+.clone-btn:hover:not(:disabled) {
+  background: #f0f9ff;
+  transform: scale(1.1);
+}
+
+.edit-btn:disabled,
+.clone-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
@@ -2121,6 +2134,7 @@
 
 /* Lucide icon styling */
 .edit-btn svg,
+.clone-btn svg,
 .delete-btn svg {
   width: 16px;
   height: 16px;

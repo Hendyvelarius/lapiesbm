@@ -152,6 +152,12 @@ export const hppAPI = {
     body: JSON.stringify({ headerData, materials }),
   }),
 
+  // Clone simulation (duplicate existing simulation)
+  cloneSimulation: (simulasiId, cloneDescription) => apiRequest(`/hpp/simulation/clone/${simulasiId}`, {
+    method: 'POST',
+    body: JSON.stringify({ cloneDescription }),
+  }),
+
   // Get list of all simulation records
   getSimulationList: () => apiRequest('/hpp/simulation/list'),
 

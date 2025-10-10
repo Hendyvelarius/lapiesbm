@@ -31,6 +31,10 @@ router.put('/simulation/save', HPPController.saveSimulation);
 // Body: { headerData: {...}, materials: [...] }
 router.post('/simulation/create-custom', HPPController.createCustomSimulation);
 
+// POST /api/hpp/simulation/clone/:simulasiId - Clone simulation (duplicate header and materials)
+// Body: { cloneDescription?: "Custom description for the clone" }
+router.post('/simulation/clone/:simulasiId', HPPController.cloneSimulation);
+
 // GET /api/hpp/simulation/list - Get list of all simulation records
 router.get('/simulation/list', HPPController.getSimulationList);
 

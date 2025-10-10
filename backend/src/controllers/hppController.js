@@ -318,6 +318,41 @@ class HPPController {
     }
   }
 
+  // Clone simulation (duplicate header and materials)
+  static async cloneSimulation(req, res) {
+    try {
+      const { simulasiId } = req.params;
+      const { cloneDescription } = req.body;
+      
+      // Validate required parameter
+      if (!simulasiId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Simulasi ID is required'
+        });
+      }
+      
+      const { cloneSimulation } = require('../models/hppModel');
+      const newSimulasiId = await cloneSimulation(simulasiId, cloneDescription);
+      
+      res.status(201).json({
+        success: true,
+        message: `Simulation cloned successfully with new ID ${newSimulasiId}`,
+        data: {
+          originalSimulasiId: parseInt(simulasiId),
+          newSimulasiId: newSimulasiId
+        }
+      });
+    } catch (error) {
+      console.error('Clone Simulation Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error cloning simulation',
+        error: error.message
+      });
+    }
+  }
+
   // Generate price change simulation using stored procedure
   static async generatePriceChangeSimulation(req, res) {
     try {
