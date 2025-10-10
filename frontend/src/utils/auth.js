@@ -136,6 +136,49 @@ export const extractUserInfo = (payload) => {
 };
 
 /**
+ * Check if user has department access based on department and job level rules
+ * @param {object} userInfo - User information object
+ * @returns {object} - Access result with allowed status and message
+ */
+const checkDepartmentAccess = (userInfo) => {
+  const empDeptID = userInfo.empDeptID;
+  const empJobLevelID = userInfo.empJobLevelID;
+  
+  // NT and PL have full access regardless of job level
+  if (['NT', 'PL'].includes(empDeptID)) {
+    return {
+      allowed: true,
+      message: 'Access granted',
+      reason: null
+    };
+  }
+  
+  // RD1 and RD2 have access only if job level is MGR
+  if (['RD1', 'RD2'].includes(empDeptID)) {
+    if (empJobLevelID === 'MGR') {
+      return {
+        allowed: true,
+        message: 'Access granted for manager level',
+        reason: null
+      };
+    } else {
+      return {
+        allowed: false,
+        message: `Access denied. RD1 and RD2 department staff require Manager level access. Your department: ${empDeptID}, Job Level: ${empJobLevelID || 'Unknown'}. Please contact your administrator if you believe this is an error.`,
+        reason: 'job_level_restriction'
+      };
+    }
+  }
+  
+  // All other departments are denied
+  return {
+    allowed: false,
+    message: `Access denied. This application is restricted to NT, PL department staff, and RD1/RD2 managers only. Your department: ${empDeptID || 'Unknown'}. Please contact your administrator if you believe this is an error.`,
+    reason: 'department_restriction'
+  };
+};
+
+/**
  * Complete authentication flow - extract token from URL and decode user info
  * @param {string} url - The current URL (optional)
  * @returns {object} - Authentication result with user info and status
@@ -190,14 +233,15 @@ export const authenticateFromURL = (url) => {
       };
     }
 
-    // Step 5: Check if user has required department access (NT or PL)
-    if (!['NT', 'PL'].includes(userInfo.empDeptID)) {
+    // Step 5: Check if user has required department access
+    const hasAccess = checkDepartmentAccess(userInfo);
+    if (!hasAccess.allowed) {
       return {
         success: false,
-        message: `Access denied. This application is restricted to NT and PL department staff only. Your department: ${userInfo.empDeptID || 'Unknown'}. Please contact your administrator if you believe this is an error.`,
+        message: hasAccess.message,
         user: userInfo,
         token: authToken,
-        unauthorizedReason: 'department_restriction'
+        unauthorizedReason: hasAccess.reason
       };
     }
     
@@ -283,12 +327,14 @@ export const isAuthenticated = () => {
 
 /**
  * Check if user has required department access
- * @param {string[]} requiredDepts - Required department IDs (default: ['NT', 'PL'])
  * @returns {boolean} - True if user has access, false otherwise
  */
-export const hasDesktopAccess = (requiredDepts = ['NT', 'PL']) => {
+export const hasDesktopAccess = () => {
   const user = getCurrentUser();
-  return user && requiredDepts.includes(user.empDeptID);
+  if (!user) return false;
+  
+  const accessCheck = checkDepartmentAccess(user);
+  return accessCheck.allowed;
 };
 
 /**
