@@ -813,21 +813,182 @@ export default function HPPSimulation() {
     );
   };
 
-  // Clone simulation
+  // Clone simulation and enter edit mode
   const handleCloneSimulation = async (simulation) => {
     try {
       setLoading(true);
+      setLoadingDetails(false);
+      setError("");
       
       // Generate clone description
       const cloneDescription = `Clone of: ${simulation.Simulasi_Deskripsi || simulation.Formula || `Simulasi_ID ${simulation.Simulasi_ID}`}`;
       
       // Use the new clone API that copies everything
       const response = await hppAPI.cloneSimulation(simulation.Simulasi_ID, cloneDescription);
+      const newSimulasiId = response.data.newSimulasiId;
       
-      // Reload simulation list
-      await loadSimulationList();
+      // Load the cloned simulation data for editing
+      const [headerResponse, materialsResponse, summaryResponse] = await Promise.all([
+        hppAPI.getSimulationHeader(newSimulasiId),
+        hppAPI.getSimulationDetailBahan(newSimulasiId),
+        hppAPI.getSimulationSummary(newSimulasiId),
+      ]);
+
+      const headerData = headerResponse.data[0]; // API returns array, take first element
+      const materialsData = materialsResponse.data;
+      const summaryData = summaryResponse.data[0]; // API returns array, take first element
       
-      notifier.success(`Simulation cloned successfully! New simulation ID: ${response.data.newSimulasiId}`);
+      // Set simulation summary for HNA and HPP ratio display
+      setSimulationSummary(summaryData);
+
+      // Parse Formula to extract individual formulas
+      const parseFormula = (formula) => {
+        if (!formula) return { pi: "", ps: "", kp: "", ks: "" };
+        const parts = formula.split("#");
+        return {
+          pi: parts[0] || "",
+          ps: parts[1] === "-" ? "" : parts[1] || "",
+          kp: parts[2] || "",
+          ks: parts[3] || "",
+        };
+      };
+
+      const formulaParts = parseFormula(headerData.Formula);
+
+      // Set up the simulation results with properly mapped data (same as handleEditSimulation)
+      setSimulationResults([
+        {
+          Simulasi_ID: newSimulasiId,
+          Product_ID: headerData.Product_ID,
+          Product_Name: headerData.Product_Name,
+          Simulasi_Deskripsi: headerData.Simulasi_Deskripsi,
+          LOB: headerData.LOB,
+          Versi: headerData.Versi,
+          Formula: headerData.Formula,
+          Batch_Size: headerData.Batch_Size,
+          Group_Rendemen: headerData.Group_Rendemen,
+          Group_PNCategory_Dept: headerData.Group_PNCategory_Dept,
+          Line: headerData.Group_PNCategory_Dept,
+
+          // Map Selected Formulas from Formula field
+          SelectedFormulas: {
+            PI: formulaParts.pi,
+            PS: formulaParts.ps,
+            KP: formulaParts.kp,
+            KS: formulaParts.ks,
+          },
+
+          // Map Processing and Packaging costs with manhours
+          ProcessingCost: {
+            cost: headerData.Biaya_Proses || 0,
+            manhours: headerData.MH_Proses_Std || 0,
+          },
+          PackagingCost: {
+            cost: headerData.Biaya_Kemas || 0,
+            manhours: headerData.MH_Kemas_Std || 0,
+          },
+          ExpiryCost: {
+            cost: headerData.Beban_Sisa_Bahan_Exp || 0,
+            manhours: 0, // No specific manhours for expiry cost
+          },
+
+          // Map other overhead data
+          MH_Analisa_Std: headerData.MH_Analisa_Std || 0,
+          MH_Timbang_BB: headerData.MH_Timbang_BB || 0,
+          MH_Timbang_BK: headerData.MH_Timbang_BK || 0,
+          MH_Mesin_Std: headerData.MH_Mesin_Std || 0,
+          Biaya_Generik: headerData.Biaya_Generik || 0,
+          Biaya_Reagen: headerData.Biaya_Reagen || 0,
+          Toll_Fee: headerData.Toll_Fee || 0,
+          Rate_PLN: headerData.Rate_PLN || 0,
+          Direct_Labor: headerData.Direct_Labor || 0,
+          Factory_Over_Head: headerData.Factory_Over_Head || 0,
+          Depresiasi: headerData.Depresiasi || 0,
+        },
+      ]);
+
+      // Set up editable state with loaded data
+      setEditableLOB(headerData.LOB || "");
+      setEditableVersion(headerData.Versi || "");
+      setEditableBatchSize(headerData.Batch_Size || 0);
+      setEditableRendemen(headerData.Group_Rendemen || 0);
+      setEditableDescription(headerData.Simulasi_Deskripsi || "");
+      
+      // Set up editable overhead data
+      setEditableOverheadData({
+        MH_Proses_Std: headerData.MH_Proses_Std || 0,
+        MH_Kemas_Std: headerData.MH_Kemas_Std || 0,
+        MH_Analisa_Std: headerData.MH_Analisa_Std || 0,
+        MH_Timbang_BB: headerData.MH_Timbang_BB || 0,
+        MH_Timbang_BK: headerData.MH_Timbang_BK || 0,
+        MH_Mesin_Std: headerData.MH_Mesin_Std || 0,
+        Biaya_Proses: headerData.Biaya_Proses || 0,
+        Biaya_Kemas: headerData.Biaya_Kemas || 0,
+        Biaya_Analisa: headerData.Biaya_Analisa || 0,
+        Biaya_Generik: headerData.Biaya_Generik || 0,
+        Biaya_Reagen: headerData.Biaya_Reagen || 0,
+        Toll_Fee: headerData.Toll_Fee || 0,
+        Rate_PLN: headerData.Rate_PLN || 0,
+        Direct_Labor: headerData.Direct_Labor || 0,
+        Factory_Over_Head: headerData.Factory_Over_Head || 0,
+        Depresiasi: headerData.Depresiasi || 0,
+        Beban_Sisa_Bahan_Exp: headerData.Beban_Sisa_Bahan_Exp || 0,
+      });
+
+      // Set up materials data with proper mapping
+      const formattedMaterials = materialsData?.map((material) => ({
+        product_id: material.Item_ID,
+        product_code: material.Item_ID,
+        product_name: material.Item_Name,
+        qty: material.Item_QTY,
+        uom: material.Item_Unit,
+        harga: material.Item_Unit_Price,
+        total: (material.Item_QTY || 0) * (material.Item_Unit_Price || 0),
+        // Keep API field names for compatibility
+        Item_ID: material.Item_ID,
+        Item_Name: material.Item_Name,
+        Item_QTY: material.Item_QTY,
+        Item_Unit: material.Item_Unit,
+        Item_Unit_Price: material.Item_Unit_Price,
+        Tipe_Bahan: material.Tipe_Bahan,
+      })) || [];
+
+      setEditableMaterialData(formattedMaterials);
+
+      // Also set simulationDetailBahan for display purposes
+      setSimulationDetailBahan(materialsData || []);
+
+      // Set simulationHeader for detailed report functionality
+      setSimulationHeader([headerData]);
+
+      // Set the selected formulas state for display
+      setSelectedFormulas({
+        PI: formulaParts.pi,
+        PS: formulaParts.ps,
+        KP: formulaParts.kp,
+        KS: formulaParts.ks,
+      });
+
+      // Set simulation type and selected product info for context
+      setSimulationType("existing");
+      setSelectedProduct({
+        Product_ID: headerData.Product_ID,
+        Product_Name: headerData.Product_Name,
+      });
+
+      // Set edit mode
+      setIsEditMode(true);
+
+      // Reset custom formula state
+      setIsCustomFormula(false);
+      
+      // Go directly to Step 4: Simulation Results for editing
+      setStep(4);
+      
+      // Reload simulation list in background for updated list
+      loadSimulationList();
+      
+      notifier.success(`Simulation cloned successfully! Now editing clone with ID: ${newSimulasiId}`);
       
     } catch (error) {
       console.error("Error cloning simulation:", error);
