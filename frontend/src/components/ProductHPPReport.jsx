@@ -37,7 +37,7 @@ const formatNumber = (value, decimals = 2) => {
 
 const formatHPPRatio = (value) => {
   if (value === null || value === undefined) return '-';
-  const percentage = (parseFloat(value) * 100).toFixed(2);
+  const percentage = parseFloat(value).toFixed(2);
   return `${percentage.replace('.', ',')}%`;
 };
 
