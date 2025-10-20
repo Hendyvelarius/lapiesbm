@@ -3,7 +3,7 @@ import { masterAPI } from '../services/api';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import '../styles/HargaBahan.css';
-import { Plus, Search, Filter, Edit, Trash2, Package, ChevronLeft, ChevronRight, X, Check, Upload } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Package, ChevronLeft, ChevronRight, X, Check, Upload, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -56,6 +56,7 @@ const HargaBahan = () => {
   const [importLoading, setImportLoading] = useState(false);
   const [showFormatModal, setShowFormatModal] = useState(false); // For Bahan Kemas format modal
   const [showBahanBakuFormatModal, setShowBahanBakuFormatModal] = useState(false); // For Bahan Baku format modal
+  const [showExportWarningModal, setShowExportWarningModal] = useState(false); // For export warning modal
   
   // Import pagination states
   const [importCurrentPage, setImportCurrentPage] = useState(1);
@@ -1272,6 +1273,56 @@ const HargaBahan = () => {
     setShowDeleteModal(true);
   };
 
+  const handleExportAllMaterials = () => {
+    setShowExportWarningModal(false);
+    
+    try {
+      // Prepare data for export - use all materials data
+      const exportData = materialData.map(item => ({
+        'Item ID': item.itemId || '',
+        'Item Name': item.itemName || '',
+        'Item Type': item.itemType || '',
+        'Raw Type': item.rawType || '',
+        'Unit': item.unit || '',
+        'Price': item.price || 0,
+        'Currency': item.currency || '',
+        'Rate': item.rate || 0,
+        'Last Updated': item.lastUpdated ? new Date(item.lastUpdated).toLocaleString('id-ID') : ''
+      }));
+
+      // Create workbook
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'All Materials');
+
+      // Auto-size columns
+      const colWidths = [
+        { wch: 15 }, // Item ID
+        { wch: 40 }, // Item Name
+        { wch: 15 }, // Item Type
+        { wch: 10 }, // Raw Type
+        { wch: 10 }, // Unit
+        { wch: 15 }, // Price
+        { wch: 10 }, // Currency
+        { wch: 15 }, // Rate
+        { wch: 20 }  // Last Updated
+      ];
+      ws['!cols'] = colWidths;
+
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const filename = `Material_Prices_Export_${timestamp}.xlsx`;
+
+      // Save file
+      XLSX.writeFile(wb, filename);
+      
+      notifier.success(`Successfully exported ${exportData.length} materials to ${filename}`);
+    } catch (error) {
+      console.error('Export error:', error);
+      notifier.alert('Failed to export materials: ' + error.message);
+    }
+  };
+
   const handleFormChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
@@ -1549,6 +1600,11 @@ const HargaBahan = () => {
           <button className="import-btn" onClick={handleImportMaterial}>
             <Upload size={20} />
             Import Bahan Baku
+          </button>
+          
+          <button className="export-btn" onClick={() => setShowExportWarningModal(true)}>
+            <Download size={20} />
+            Export
           </button>
           
           <button className="add-btn" onClick={handleAddMaterial}>
@@ -2460,6 +2516,74 @@ const HargaBahan = () => {
                 >
                   <Upload size={16} />
                   Continue with Import
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Warning Modal */}
+      {showExportWarningModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Export All Materials</h2>
+              <button className="modal-close" onClick={() => setShowExportWarningModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="format-guide">
+                <div style={{ backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '8px', padding: '15px', marginBottom: '20px' }}>
+                  <h3 style={{ color: '#92400e', margin: '0 0 10px 0' }}>⚠️ Important Notice</h3>
+                  <p style={{ margin: '0 0 10px 0', color: '#92400e', fontWeight: '500' }}>
+                    <strong>The exported Excel format is NOT meant for re-importing into the system.</strong>
+                  </p>
+                  <p style={{ margin: '0', color: '#92400e', lineHeight: '1.6' }}>
+                    This export is designed for reporting and data analysis purposes only. 
+                    The column structure differs from the import format required by the system.
+                  </p>
+                </div>
+
+                <div style={{ backgroundColor: '#f0f9ff', border: '1px solid #0ea5e9', borderRadius: '8px', padding: '15px', marginBottom: '15px' }}>
+                  <h4 style={{ color: '#0369a1', margin: '0 0 10px 0' }}>📊 Export Contents</h4>
+                  <p style={{ margin: '0 0 10px 0', color: '#0c4a6e' }}>
+                    The exported file will include all materials currently in the database with the following information:
+                  </p>
+                  <ul style={{ paddingLeft: '20px', lineHeight: '1.8', color: '#0c4a6e', margin: '0' }}>
+                    <li>Item ID and Name</li>
+                    <li>Item Type (Bahan Kemas / Bahan Baku)</li>
+                    <li>Unit of Measurement</li>
+                    <li>Price and Currency</li>
+                    <li>Exchange Rate</li>
+                    <li>Last Updated Date</li>
+                  </ul>
+                </div>
+
+                <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #22c55e', borderRadius: '8px', padding: '15px' }}>
+                  <h4 style={{ color: '#166534', margin: '0 0 10px 0' }}>💡 For Import Requirements</h4>
+                  <p style={{ margin: '0', color: '#166534', lineHeight: '1.6' }}>
+                    If you need to import materials into the system, please use the <strong>"Import Bahan Kemas"</strong> or <strong>"Import Bahan Baku"</strong> buttons above. 
+                    Click on either button to see the required import format specifications.
+                  </p>
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button 
+                  className="modal-btn secondary" 
+                  onClick={() => setShowExportWarningModal(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="modal-btn primary" 
+                  onClick={handleExportAllMaterials}
+                >
+                  <Download size={16} />
+                  Proceed with Export
                 </button>
               </div>
             </div>
