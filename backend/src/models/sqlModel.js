@@ -1101,22 +1101,30 @@ async function getMaterialUsage() {
     d.product_id, d.item_type, d.PPI_ItemID, m.Item_Name, d.PPI_QTY, 
     d.PPI_UnitID, ROUND(d.total * 1.0 / d.PPI_QTY, 3) AS Item_unit, d.total
     FROM t_COGS_HPP_Product_Detail_Formula d
-LEFT JOIN (
-    SELECT DISTINCT 
-        CASE 
-            WHEN item_id LIKE '%.%' 
-            THEN LEFT(item_id, LEN(item_id) - 4) 
-            ELSE item_id 
-        END AS Item_ID,
-        item_name
-    FROM m_item_manufacturing
-    WHERE isActive = 1
-) m 
+	LEFT JOIN (
+	    
+		SELECT 
+			CASE 
+				WHEN item_id LIKE '%.%' 
+				THEN LEFT(item_id, LEN(item_id) - 4) 
+				ELSE item_id 
+			END AS Item_ID,
+			MAX(item_name) AS item_name
+		FROM m_item_manufacturing
+		WHERE isActive = 1 
+		  --AND item_id LIKE 'K 145%'
+		GROUP BY 
+		CASE 
+			WHEN item_id LIKE '%.%' 
+			THEN LEFT(item_id, LEN(item_id) - 4) 
+			ELSE item_id 
+		END
+	) m 
     ON d.PPI_ItemID = m.Item_ID
-ORDER BY 
+    --where Item_ID='K 145'
+	ORDER BY 
     d.product_id, 
-    d.item_type, 
-    d.PPI_ItemID;`;
+    d.item_type, d.PPI_ItemID;`;
     const result = await db.request().query(query);
     return result.recordset;
   } catch (error) {

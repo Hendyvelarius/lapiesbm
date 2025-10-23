@@ -148,39 +148,19 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
       // Filter materials for this specific product
       const productMaterials = response.filter(item => item.product_id === product.Product_ID);
       
-      // Deduplicate materials that have the same PPI_ItemID (due to normalization issues)
-      // Keep only one entry per PPI_ItemID, and normalize the Item_Name display
-      const deduplicatedMaterials = deduplicateMaterials(productMaterials);
+      // Normalize Item_Name display (remove .xxx suffix)
+      const normalizedMaterials = productMaterials.map(item => ({
+        ...item,
+        Item_Name: normalizeItemName(item.Item_Name)
+      }));
       
-      setMaterialUsage(deduplicatedMaterials);
+      setMaterialUsage(normalizedMaterials);
     } catch (error) {
       console.error('Error fetching material usage:', error);
       setError('Failed to load material usage data');
     } finally {
       setLoading(false);
     }
-  };
-
-  // Deduplicate materials by PPI_ItemID and normalize Item_Name display
-  const deduplicateMaterials = (materials) => {
-    const materialMap = new Map();
-    
-    materials.forEach(item => {
-      const itemId = item.PPI_ItemID;
-      
-      if (!materialMap.has(itemId)) {
-        // First occurrence - add it with normalized name
-        materialMap.set(itemId, {
-          ...item,
-          Item_Name: normalizeItemName(item.Item_Name)
-        });
-      } else {
-        // Duplicate found - log warning
-        console.warn(`Duplicate material found: ${itemId} - Skipping duplicate entry`);
-      }
-    });
-    
-    return Array.from(materialMap.values());
   };
 
   // Normalize Item_Name by removing .xxx suffix (e.g., "Foodstuffs.000" → "Foodstuffs")
