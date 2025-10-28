@@ -210,7 +210,7 @@ const TollFee = ({ user }) => {
     }
   };
 
-  // Load available products for Add New (Group_PNCategory = 6 or 7 and excluding existing toll fee entries)
+  // Load available products for Add New (excluding existing toll fee entries)
   const loadAvailableProducts = async () => {
     try {
       if (productNames.length === 0) return;
@@ -218,9 +218,8 @@ const TollFee = ({ user }) => {
       // Get existing product IDs that already have toll fee rates
       const existingProductIds = tollFeeData.map(item => item.productId);
       
-      // Filter for Group_PNCategory = 6 or 7 and exclude products that already have toll fee entries
+      // Filter to exclude products that already have toll fee entries
       const available = productNames.filter(product => 
-        (product.Group_PNCategory === 6 || product.Group_PNCategory === 7) && 
         !existingProductIds.includes(product.Product_ID)
       );
       
@@ -613,18 +612,11 @@ const TollFee = ({ user }) => {
           continue;
         }
 
-        // Check if Product ID exists in Group PNCategory 6 or 7
-        const productInfo = productNames.find(p => 
-          p.Product_ID === productId && (p.Group_PNCategory === 6 || p.Group_PNCategory === 7)
-        );
+        // Check if Product ID exists
+        const productInfo = productNames.find(p => p.Product_ID === productId);
 
         if (!productInfo) {
-          const generalProduct = productNames.find(p => p.Product_ID === productId);
-          if (generalProduct) {
-            errors.push(`Row ${rowNum}: Product ID "${productId}" does not belong to Group PNCategory 6 or 7 (found in category ${generalProduct.Group_PNCategory})`);
-          } else {
-            errors.push(`Row ${rowNum}: Product ID "${productId}" does not exist in the system`);
-          }
+          errors.push(`Row ${rowNum}: Product ID "${productId}" does not exist in the system`);
           continue;
         }
 
@@ -961,8 +953,8 @@ const TollFee = ({ user }) => {
                       {filteredProducts.length === 0 ? (
                         <div className="toll-fee-dropdown-item toll-fee-no-results">
                           {productSearchTerm 
-                            ? 'No Group PNCategory 6 or 7 products found matching your search' 
-                            : 'Type to search Group PNCategory 6 or 7 products'
+                            ? 'No products found matching your search' 
+                            : 'Type to search products'
                           }
                         </div>
                       ) : (
@@ -1015,7 +1007,7 @@ const TollFee = ({ user }) => {
                   * Required fields<br/>
                   • Select a product from the dropdown<br/>
                   • Toll Fee Rate must be 0 or greater<br/>
-                  • Only Group PNCategory 6 or 7 products without existing toll fee entries are shown
+                  • Only products without existing toll fee entries are shown
                 </small>
               </div>
             </div>
@@ -1084,7 +1076,6 @@ const TollFee = ({ user }) => {
                   <li>Column B: <strong>Product Name</strong> (reference only, will be ignored)</li>
                   <li>Column C: <strong>Toll Fee Rate</strong> (required, must be 0 or greater)</li>
                   <li>First row must contain headers</li>
-                  <li>All Product IDs must belong to <strong>Group PNCategory 6 or 7</strong></li>
                   <li>Product IDs must exist in the system</li>
                   <li>Empty rows will be ignored</li>
                 </ul>
@@ -1133,7 +1124,7 @@ const TollFee = ({ user }) => {
                 <h3>✅ Validation Successful!</h3>
                 <ul>
                   <li><strong>{importConfirmData.validEntries.length}</strong> valid entries ready to import</li>
-                  <li>All Product IDs belong to Group PNCategory 6 or 7</li>
+                  <li>All Product IDs exist in the system</li>
                   <li>All Toll Fee Rates are valid numbers</li>
                 </ul>
               </div>
