@@ -1438,7 +1438,7 @@ const FormulaAssignment = () => {
                     <div className="formula-loading">
                       <p>Loading formulas for {selectedProduct.Product_Name}...</p>
                     </div>
-                  ) : Object.keys(productFormulas).some(type => productFormulas[type].length > 0) ? (
+                  ) : (
                     <div className="formula-grid">
                       {Object.entries(productFormulas).map(([type, formulas]) => (
                         <div key={type} className="formula-type-section">
@@ -1477,24 +1477,12 @@ const FormulaAssignment = () => {
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <div className="no-formulas-message">
-                      <div className="alert alert-warning">
-                        <h5>⚠️ No Formulas Available</h5>
-                        <p>The selected product <strong>{selectedProduct.Product_ID} - {selectedProduct.Product_Name}</strong> does not have any formulas set up yet.</p>
-                        <p>Please:</p>
-                        <ul>
-                          <li>Create a new formula for this product first, or</li>
-                          <li>Select a different product that has formulas configured</li>
-                        </ul>
-                      </div>
-                    </div>
                   )}
                 </div>
               )}
 
               {/* Standard Output and Important */}
-              {selectedProduct && Object.keys(productFormulas).some(type => productFormulas[type].length > 0) && (
+              {selectedProduct && (
                 <div className="form-section">
                   <h4>3. Set Standard Output</h4>
                   <div className="output-and-cost-section">
@@ -1535,11 +1523,7 @@ const FormulaAssignment = () => {
                 <button 
                   type="submit" 
                   className="btn-primary"
-                  disabled={
-                    !formData.productId || 
-                    loading || 
-                    !Object.keys(productFormulas).some(type => productFormulas[type].length > 0)
-                  }
+                  disabled={!formData.productId || loading}
                 >
                   {loading ? 'Saving...' : 'Save Assignment'}
                 </button>
