@@ -231,7 +231,11 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
     totalOverheadPerPack = totalOverheadCost / batchSizeActual;
 
     // Calculate total HPP per pack (expiry cost is already included in totalOverheadCost for all product types)
+    // For Ethical products, add toll_fee directly to HPP per pack (toll fee is per unit, not batch-based)
     totalHPPPerPack = totalBBPerPack + totalBKPerPack + totalOverheadPerPack;
+    if (productType === 'Ethical' && product.toll_fee && product.toll_fee > 0) {
+      totalHPPPerPack += (product.toll_fee || 0);
+    }
   }
 
   const handleExportToExcel = async () => {
@@ -307,15 +311,22 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
 
       // Dynamic Labor/Overhead section based on product type
       if (productType === 'Ethical') {
-        XLSX.utils.sheet_add_aoa(ws, [
+        const ethicalRows = [
           ['Resource Scheduling', 'Nama Material', 'Qty', 'Mhrs/machine hours', 'Cost/unit', 'Extended Cost', 'Per pack'],
           ['Overhead', '', '', '', '', '', ''],
           ['1', 'PENGOLAHAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Proses_Std || 0), 'HRS', formatNumber(product.Biaya_Proses || 0), formatNumber((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)), formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) / batchSizeActual)],
           ['2', 'PENGEMASAN', `OPERATOR PROSES LINE ${product?.Group_PNCategory_Dept || 'N/A'}`, formatNumber(product.MH_Kemas_Std || 0), 'HRS', formatNumber(product.Biaya_Kemas || 0), formatNumber((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)), formatNumber(((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) / batchSizeActual)],
           ['3', 'EXPIRY COST', '-', '-', '-', formatNumber(product.Beban_Sisa_Bahan_Exp || 0), formatNumber(product.Beban_Sisa_Bahan_Exp || 0), formatNumber((product.Beban_Sisa_Bahan_Exp || 0) / batchSizeActual)],
           ['', '', 'Total Hours', formatNumber((product.MH_Proses_Std || 0) + (product.MH_Kemas_Std || 0)), 'Total Cost', formatNumber(totalOverheadCost), formatNumber(totalOverheadPerPack)]
-        ], { origin: `A${currentRow}` });
-        currentRow += 7;
+        ];
+        
+        // Add toll fee row after total if applicable
+        if (product.toll_fee && product.toll_fee > 0) {
+          ethicalRows.push(['Toll Fee (Per Unit)', '', '', '', '', '', formatNumber(product.toll_fee || 0)]);
+        }
+        
+        XLSX.utils.sheet_add_aoa(ws, ethicalRows, { origin: `A${currentRow}` });
+        currentRow += ethicalRows.length;
       } else if (productType === 'Generic1') {
         XLSX.utils.sheet_add_aoa(ws, [
           ['Resource Scheduling', 'Nama Material', 'Qty', 'Mhrs/machine hours', 'Cost/unit', 'Extended Cost', 'Per pack'],
@@ -743,6 +754,12 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
                         <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Beban_Sisa_Bahan_Exp || 0))}</strong></td>
                         <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Beban_Sisa_Bahan_Exp || 0)) / batchSizeActual)}</strong></td>
                       </tr>
+                      {(product.toll_fee && product.toll_fee > 0) ? (
+                        <tr className="toll-fee-row">
+                          <td colSpan="6"><strong>Toll Fee</strong> <em>(Per Unit)</em></td>
+                          <td className="number total"><strong>{formatNumber(product.toll_fee || 0)}</strong></td>
+                        </tr>
+                      ) : null}
                     </tbody>
                   </table>
                   </div>
