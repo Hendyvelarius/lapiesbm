@@ -754,12 +754,6 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
                         <td className="number total"><strong>{formatNumber(((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Beban_Sisa_Bahan_Exp || 0))}</strong></td>
                         <td className="number total"><strong>{formatNumber((((product.MH_Proses_Std || 0) * (product.Biaya_Proses || 0)) + ((product.MH_Kemas_Std || 0) * (product.Biaya_Kemas || 0)) + (product.Beban_Sisa_Bahan_Exp || 0)) / batchSizeActual)}</strong></td>
                       </tr>
-                      {(product.toll_fee && product.toll_fee > 0) ? (
-                        <tr className="toll-fee-row">
-                          <td colSpan="6"><strong>Toll Fee</strong> <em>(Per Unit)</em></td>
-                          <td className="number total"><strong>{formatNumber(product.toll_fee || 0)}</strong></td>
-                        </tr>
-                      ) : null}
                     </tbody>
                   </table>
                   </div>
@@ -1070,6 +1064,16 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
                       <td className="number final"><strong>{formatCurrency(product?.Product_SalesHNA)}</strong></td>
                       <td className="number final"><strong>{formatHPPRatio(product?.HPP_Ratio)}</strong></td>
                     </tr>
+                    {/* Show Margin + Rounded and Toll Fee for Ethical products with HPP2 */}
+                    {(productType === 'Ethical' && product?.HPP2 && product.HPP2 !== 0) ? (
+                      <tr className="final-total">
+                        <td><strong>Margin + Rounded</strong></td>
+                        <td colSpan="3"></td>
+                        <td><strong>Toll Fee</strong></td>
+                        <td className="number final"><strong>{formatNumber((product.toll_fee || 0) + (parseFloat(product.Rounded) || 0))}</strong></td>
+                        <td className="number final"><strong>{formatNumber(product.HPP2)}</strong></td>
+                      </tr>
+                    ) : null}
                   </tbody>
                 </table>
               </div>

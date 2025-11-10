@@ -160,9 +160,16 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
               <td>
                 {item.toll_fee && item.toll_fee !== 0 ? (
                   <>
-                    Rp {formatNumber(item.toll_fee, 2)}
-                    {item.margin && item.margin !== 0 && item.margin !== '0' && (
-                      <> ({(parseFloat(item.margin) * 100).toFixed(2)}%)</>
+                    {item.margin && parseFloat(item.margin) > 0 ? (
+                      <>
+                        Rp {Number.isInteger(item.toll_fee) ? formatNumber(item.toll_fee, 0) : formatNumber(item.toll_fee, 2)}
+                        {' '}({Number.isInteger(parseFloat(item.margin) * 100) ? (parseFloat(item.margin) * 100) : (parseFloat(item.margin) * 100).toFixed(2)}%)
+                      </>
+                    ) : (
+                      // When margin is 0, display Rounded if available, otherwise calculate and format toll_fee
+                      item.Rounded && item.Rounded !== '0' ? `Rp ${item.Rounded}` : (
+                        Number.isInteger(item.toll_fee) ? `Rp ${formatNumber(item.toll_fee, 0)}` : `Rp ${formatNumber(item.toll_fee, 2)}`
+                      )
                     )}
                   </>
                 ) : '-'}
@@ -546,9 +553,11 @@ const HPPResults = () => {
         'MH_Kemas_Std': 'MH_Kemas_Std',
         'Biaya_Proses': 'Biaya_Proses',
         'Biaya_Kemas': 'Biaya_Kemas',
-        'toll_fee': 'Toll_Fee',
         'Beban_Sisa_Bahan_Exp': 'Beban_Sisa_Bahan_Exp',
+        'toll_fee': 'Margin',
+        'Rounded': 'Rounded',
         'HPP': 'HPP',
+        'HPP2': 'Toll_Fee',
         'Product_SalesHNA': 'Product_SalesHNA',
         'HPP_Ratio': 'HPP_Ratio',
         'Formula': 'Formula'
