@@ -167,14 +167,14 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
                       </>
                     ) : (
                       // When margin is 0, display Rounded if available, otherwise calculate and format toll_fee
-                      item.Rounded && item.Rounded !== '0' ? `Rp ${item.Rounded}` : (
+                      item.rounded && item.rounded !== '0' ? `Rp ${item.rounded}` : (
                         Number.isInteger(item.toll_fee) ? `Rp ${formatNumber(item.toll_fee, 0)}` : `Rp ${formatNumber(item.toll_fee, 2)}`
                       )
                     )}
                   </>
                 ) : '-'}
               </td>
-              <td>{item.Rounded || '-'}</td>
+              <td>{item.rounded || '-'}</td>
               <td className={item.HPP2 && item.HPP2 !== 0 ? '' : 'hpp-value'}>{formatCurrency(item.HPP)}</td>
               <td className={item.HPP2 && item.HPP2 !== 0 ? 'hpp-value' : ''}>
                 {item.HPP2 && item.HPP2 !== 0 ? formatCurrency(item.HPP2) : '-'}
@@ -555,7 +555,7 @@ const HPPResults = () => {
         'Biaya_Kemas': 'Biaya_Kemas',
         'Beban_Sisa_Bahan_Exp': 'Beban_Sisa_Bahan_Exp',
         'toll_fee': 'Margin',
-        'Rounded': 'Rounded',
+        'rounded': 'Rounded',
         'HPP': 'HPP',
         'HPP2': 'Toll_Fee',
         'Product_SalesHNA': 'Product_SalesHNA',

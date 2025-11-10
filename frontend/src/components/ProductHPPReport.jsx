@@ -1053,9 +1053,9 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
                     <tr className="final-total">
                       <td><strong>Total HPP Estimasi</strong></td>
                       <td colSpan="3"></td>
-                      <td><strong>Total HPP</strong></td>
+                      <td><strong>HPP</strong></td>
                       <td className="number final"><strong>{formatNumber(totalBB + totalBK + totalOverheadCost)}</strong></td>
-                      <td className="number final"><strong>{formatNumber(totalHPPPerPack)}</strong></td>
+                      <td className="number final"><strong>{formatCurrency(product?.HPP)}</strong></td>
                     </tr>
                     <tr className="final-total">
                       <td><strong>HNA</strong></td>
@@ -1070,7 +1070,7 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
                         <td><strong>Margin + Rounded</strong></td>
                         <td colSpan="3"></td>
                         <td><strong>Toll Fee</strong></td>
-                        <td className="number final"><strong>{formatNumber((product.toll_fee || 0) + (parseFloat(product.Rounded) || 0))}</strong></td>
+                        <td className="number final"><strong>{formatNumber((product.toll_fee || 0) + (parseFloat(product.rounded) || 0))}</strong></td>
                         <td className="number final"><strong>{formatNumber(product.HPP2)}</strong></td>
                       </tr>
                     ) : null}
