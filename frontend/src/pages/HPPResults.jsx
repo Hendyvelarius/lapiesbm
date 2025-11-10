@@ -132,11 +132,13 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
             <th>MH Kemas Std</th>
             <th>Biaya Proses</th>
             <th>Biaya Kemas</th>
-            <th>Toll Fee</th>
             <th>Expiry Cost</th>
             <th>Group Rendemen</th>
             <th>Batch Size</th>
+            <th>Margin</th>
+            <th>Rounded</th>
             <th>HPP</th>
+            <th>Toll Fee</th>
             <th>HNA</th>
             <th>HPP/HNA</th>
           </tr>
@@ -152,11 +154,24 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
               <td>{formatNumber(item.MH_Kemas_Std)}</td>
               <td>{formatCurrency(item.Biaya_Proses)}</td>
               <td>{formatCurrency(item.Biaya_Kemas)}</td>
-              <td>{formatCurrency(item.toll_fee)}</td>
               <td>{formatCurrency(item.Beban_Sisa_Bahan_Exp)}</td>
               <td>{formatNumber(item.Group_Rendemen)}%</td>
               <td>{formatNumber(item.Batch_Size)}</td>
-              <td className="hpp-value">{formatCurrency(item.HPP)}</td>
+              <td>
+                {item.toll_fee && item.toll_fee !== 0 ? (
+                  <>
+                    Rp {formatNumber(item.toll_fee, 2)}
+                    {item.margin && item.margin !== 0 && item.margin !== '0' && (
+                      <> ({(parseFloat(item.margin) * 100).toFixed(2)}%)</>
+                    )}
+                  </>
+                ) : '-'}
+              </td>
+              <td>{item.Rounded || '-'}</td>
+              <td className={item.HPP2 && item.HPP2 !== 0 ? '' : 'hpp-value'}>{formatCurrency(item.HPP)}</td>
+              <td className={item.HPP2 && item.HPP2 !== 0 ? 'hpp-value' : ''}>
+                {item.HPP2 && item.HPP2 !== 0 ? formatCurrency(item.HPP2) : '-'}
+              </td>
               <td>{formatCurrency(item.Product_SalesHNA)}</td>
               <td>{formatHPPRatio(item.HPP_Ratio)}</td>
             </tr>

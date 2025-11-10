@@ -335,6 +335,18 @@
   color: #059669;
 }
 
+.margin-percentage {
+  font-weight: 600;
+  color: #007bff; /* Blue for percentages */
+  font-family: 'Courier New', monospace;
+}
+
+.margin-numeric {
+  font-weight: 600;
+  color: #28a745; /* Green for plain numbers */
+  font-family: 'Courier New', monospace;
+}
+
 .hpp-loading {
   display: flex;
   flex-direction: column;
