@@ -55,7 +55,7 @@ const CostManagement = ({ user }) => {
     },
     {
       id: 'toll-fee',
-      label: 'Toll Fee',
+      label: 'Margin',
       icon: Truck,
       component: TollFee
     }

@@ -13,6 +13,7 @@ class TollFeeModel {
           pk_id,
           ProductID,
           Toll_Fee,
+          Rounded,
           user_id,
           delegated_to,
           process_date,
@@ -39,6 +40,7 @@ class TollFeeModel {
           pk_id,
           ProductID,
           Toll_Fee,
+          Rounded,
           user_id,
           delegated_to,
           process_date,
@@ -68,6 +70,7 @@ class TollFeeModel {
           pk_id,
           ProductID,
           Toll_Fee,
+          Rounded,
           user_id,
           delegated_to,
           process_date,
@@ -118,6 +121,7 @@ class TollFeeModel {
         INSERT INTO M_COGS_PEMBEBANAN_TollFee (
           ProductID,
           Toll_Fee,
+          Rounded,
           user_id,
           delegated_to,
           process_date,
@@ -128,6 +132,7 @@ class TollFeeModel {
         VALUES (
           @productId,
           @tollFee,
+          @rounded,
           @userId,
           @delegatedTo,
           @processDate,
@@ -138,7 +143,8 @@ class TollFeeModel {
       
       const result = await pool.request()
         .input('productId', sql.NVarChar, tollFeeData.productId)
-        .input('tollFee', sql.Decimal(18,2), tollFeeData.tollFeeRate)
+        .input('tollFee', sql.VarChar, tollFeeData.tollFeeRate) // Changed to VarChar to support "10%" format
+        .input('rounded', sql.VarChar, tollFeeData.rounded || null)
         .input('userId', sql.NVarChar, tollFeeData.userId)
         .input('delegatedTo', sql.NVarChar, tollFeeData.delegatedTo || null)
         .input('processDate', sql.DateTime, tollFeeData.processDate || new Date())
@@ -169,6 +175,7 @@ class TollFeeModel {
         SET 
           ProductID = @productId,
           Toll_Fee = @tollFee,
+          Rounded = @rounded,
           user_id = @userId,
           delegated_to = @delegatedTo,
           process_date = @processDate,
@@ -180,7 +187,8 @@ class TollFeeModel {
       await pool.request()
         .input('id', sql.Int, id)
         .input('productId', sql.NVarChar, tollFeeData.productId)
-        .input('tollFee', sql.Decimal(18,2), tollFeeData.tollFeeRate)
+        .input('tollFee', sql.VarChar, tollFeeData.tollFeeRate) // Changed to VarChar to support "10%" format
+        .input('rounded', sql.VarChar, tollFeeData.rounded || null)
         .input('userId', sql.NVarChar, tollFeeData.userId)
         .input('delegatedTo', sql.NVarChar, tollFeeData.delegatedTo || null)
         .input('processDate', sql.DateTime, tollFeeData.processDate || new Date())
@@ -271,7 +279,8 @@ class TollFeeModel {
       
       // Define columns (excluding pk_id as it's identity)
       table.columns.add('ProductID', sql.NVarChar(50), { nullable: true });
-      table.columns.add('Toll_Fee', sql.Decimal(18,2), { nullable: true });
+      table.columns.add('Toll_Fee', sql.VarChar(50), { nullable: true }); // Changed to VarChar to support "10%" format
+      table.columns.add('Rounded', sql.VarChar(50), { nullable: true });
       table.columns.add('user_id', sql.NVarChar(50), { nullable: true });
       table.columns.add('delegated_to', sql.NVarChar(50), { nullable: true });
       table.columns.add('process_date', sql.DateTime, { nullable: true });
@@ -282,7 +291,8 @@ class TollFeeModel {
       tollFeeEntries.forEach(entry => {
         table.rows.add(
           entry.productId || null,
-          parseFloat(entry.tollFeeRate) || 0,
+          entry.tollFeeRate || null, // Keep as string to support "10%" format
+          entry.rounded || null,
           entry.userId || 'SYSTEM',
           entry.delegatedTo || null,
           entry.processDate || new Date(),
@@ -315,6 +325,7 @@ class TollFeeModel {
           t.pk_id,
           t.ProductID,
           t.Toll_Fee,
+          t.Rounded,
           t.user_id,
           t.delegated_to,
           t.process_date,

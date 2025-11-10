@@ -222,12 +222,17 @@
   min-width: 250px;
 }
 
-.toll-fee-header-cell:nth-child(3) { /* Toll Fee Rate */
+.toll-fee-header-cell:nth-child(3) { /* Margin */
   width: 150px;
   text-align: right !important;
 }
 
-.toll-fee-header-cell:nth-child(4) { /* Actions */
+.toll-fee-header-cell:nth-child(4) { /* Rounded */
+  width: 150px;
+  text-align: right !important;
+}
+
+.toll-fee-header-cell:nth-child(5) { /* Actions */
   width: 120px;
   text-align: center !important;
 }
@@ -286,7 +291,21 @@
 .toll-fee-rate-value {
   font-family: 'Courier New', monospace !important;
   font-weight: 600 !important;
-  color: #28a745 !important;
+}
+
+.toll-fee-rate-value.toll-fee-percentage {
+  color: #007bff !important; /* Blue for percentages */
+}
+
+.toll-fee-rate-value.toll-fee-numeric {
+  color: #28a745 !important; /* Green for plain numbers */
+}
+
+.toll-fee-rounded-cell {
+  width: 150px;
+  text-align: right !important;
+  font-family: 'Courier New', monospace !important;
+  color: #495057 !important;
 }
 
 .toll-fee-actions-cell {

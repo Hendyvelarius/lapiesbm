@@ -61,7 +61,8 @@ const TollFee = ({ user }) => {
       pk_id: 1,
       productId: 'G5',
       productName: 'LAMESON-125 mg/2 mL injeksi',
-      tollFeeRate: 12.50,
+      tollFeeRate: '12.50',
+      rounded: null,
       userId: 'SYSTEM',
       delegatedTo: null,
       processDate: '2024-10-07T10:30:00',
@@ -72,7 +73,8 @@ const TollFee = ({ user }) => {
       pk_id: 2,
       productId: 'G6',
       productName: 'LAPIBAL-500 µG INJEKSI',
-      tollFeeRate: 15.75,
+      tollFeeRate: '10%',
+      rounded: null,
       userId: 'SYSTEM',
       delegatedTo: null,
       processDate: '2024-10-07T10:30:00',
@@ -83,7 +85,8 @@ const TollFee = ({ user }) => {
       pk_id: 3,
       productId: 'G8',
       productName: 'LAPIMOX-125mg/5ml Dry Syrup',
-      tollFeeRate: 8.25,
+      tollFeeRate: '8.25',
+      rounded: null,
       userId: 'SYSTEM',
       delegatedTo: null,
       processDate: '2024-10-07T10:30:00',
@@ -145,7 +148,8 @@ const TollFee = ({ user }) => {
             pk_id: item.pk_id,
             productId: item.ProductID,
             productName: productInfo ? productInfo.Product_Name : `Product ${item.ProductID}`,
-            tollFeeRate: item.Toll_Fee,
+            tollFeeRate: item.Toll_Fee, // Keep as varchar string
+            rounded: item.Rounded || null,
             userId: item.user_id,
             delegatedTo: item.delegated_to,
             processDate: item.process_date,
@@ -344,12 +348,12 @@ const TollFee = ({ user }) => {
       // Get the original item data
       const originalItem = tollFeeData.find(item => item.pk_id === editingRowId);
       if (!originalItem) {
-        throw new Error('Original toll fee entry not found');
+        throw new Error('Original margin entry not found');
       }
       
       const updateData = {
         productId: originalItem.productId,
-        tollFeeRate: parseFloat(editFormData.tollFeeRate) || 0,
+        tollFeeRate: editFormData.tollFeeRate || '', // Keep as string (varchar)
         userId: user?.nama || user?.inisialNama || 'SYSTEM',
         delegatedTo: originalItem.delegatedTo,
         processDate: new Date().toISOString()
@@ -363,13 +367,13 @@ const TollFee = ({ user }) => {
         setEditingRowId(null);
         setEditFormData({});
         
-        notifier.success('Toll fee rate updated successfully');
+        notifier.success('Margin updated successfully');
       } else {
-        throw new Error(result.message || 'Failed to update toll fee rate');
+        throw new Error(result.message || 'Failed to update margin');
       }
     } catch (error) {
-      console.error('Error updating toll fee rate:', error);
-      notifier.alert('Failed to update toll fee rate: ' + error.message);
+      console.error('Error updating margin:', error);
+      notifier.alert('Failed to update margin: ' + error.message);
     } finally {
       setSubmitLoading(false);
     }
@@ -406,8 +410,8 @@ const TollFee = ({ user }) => {
         return;
       }
       
-      if (!addFormData.tollFeeRate || parseFloat(addFormData.tollFeeRate) < 0) {
-        notifier.warning('Please enter a valid Toll Fee Rate (must be 0 or greater)');
+      if (!addFormData.tollFeeRate || addFormData.tollFeeRate.trim() === '') {
+        notifier.warning('Please enter a valid Margin (number or percentage, e.g., 10 or 10%)');
         return;
       }
 
@@ -415,7 +419,7 @@ const TollFee = ({ user }) => {
       
       const newEntry = {
         productId: addFormData.selectedProduct.Product_ID,
-        tollFeeRate: parseFloat(addFormData.tollFeeRate),
+        tollFeeRate: addFormData.tollFeeRate.trim(), // Keep as string (varchar)
         userId: user?.nama || user?.inisialNama || 'SYSTEM',
         delegatedTo: null,
         processDate: new Date().toISOString()
@@ -428,13 +432,13 @@ const TollFee = ({ user }) => {
         await loadTollFeeData();
         handleCancelAdd();
         
-        notifier.success('Toll fee entry added successfully');
+        notifier.success('Margin entry added successfully');
       } else {
-        throw new Error(result.message || 'Failed to add toll fee entry');
+        throw new Error(result.message || 'Failed to add margin entry');
       }
     } catch (error) {
-      console.error('Error adding toll fee entry:', error);
-      notifier.alert('Failed to add toll fee entry: ' + error.message);
+      console.error('Error adding margin entry:', error);
+      notifier.alert('Failed to add margin entry: ' + error.message);
     } finally {
       setSubmitLoading(false);
     }
@@ -452,19 +456,19 @@ const TollFee = ({ user }) => {
 
   // Delete handler
   const handleDelete = async (item) => {
-    if (window.confirm(`Are you sure you want to delete toll fee entry for ${item.productId} - ${item.productName}?`)) {
+    if (window.confirm(`Are you sure you want to delete margin entry for ${item.productId} - ${item.productName}?`)) {
       try {
         const result = await tollFeeAPI.delete(item.pk_id);
         
         if (result.success) {
           await loadTollFeeData();
-          notifier.success('Toll fee entry deleted successfully');
+          notifier.success('Margin entry deleted successfully');
         } else {
-          throw new Error(result.message || 'Failed to delete toll fee entry');
+          throw new Error(result.message || 'Failed to delete margin entry');
         }
       } catch (error) {
-        console.error('Error deleting toll fee entry:', error);
-        notifier.alert('Failed to delete toll fee entry: ' + error.message);
+        console.error('Error deleting margin entry:', error);
+        notifier.alert('Failed to delete margin entry: ' + error.message);
       }
     }
   };
@@ -480,7 +484,8 @@ const TollFee = ({ user }) => {
       const exportData = tollFeeData.map(item => ({
         'Product ID': item.productId,
         'Product Name': item.productName,
-        'Toll Fee Rate': parseFloat(item.tollFeeRate || 0).toFixed(2)
+        'Margin': item.tollFeeRate || '',
+        'Rounded': item.rounded || ''
       }));
 
       const wb = XLSX.utils.book_new();
@@ -490,16 +495,17 @@ const TollFee = ({ user }) => {
       ws['!cols'] = [
         { wch: 15 }, // Product ID
         { wch: 50 }, // Product Name
-        { wch: 15 }  // Toll Fee Rate
+        { wch: 15 }, // Margin
+        { wch: 15 }  // Rounded
       ];
 
-      XLSX.utils.book_append_sheet(wb, ws, 'Toll Fee Data');
+      XLSX.utils.book_append_sheet(wb, ws, 'Margin Data');
 
       const now = new Date();
       const dateStr = now.getFullYear() + 
                      String(now.getMonth() + 1).padStart(2, '0') + 
                      String(now.getDate()).padStart(2, '0');
-      const filename = `TollFee_Data_${dateStr}.xlsx`;
+      const filename = `Margin_Data_${dateStr}.xlsx`;
 
       XLSX.writeFile(wb, filename);
       notifier.success(`Excel file exported successfully! (${exportData.length} entries)`);
@@ -592,7 +598,8 @@ const TollFee = ({ user }) => {
         const rowNum = i + 2; // +2 because we start from row 2 (after header)
         
         const productId = row[0] ? String(row[0]).trim() : '';
-        const tollFeeRate = row[2]; // Column C
+        const tollFeeRate = row[2]; // Column C - Margin
+        const rounded = row[3]; // Column D - Rounded (optional)
 
         // Validate Product ID
         if (!productId) {
@@ -600,17 +607,16 @@ const TollFee = ({ user }) => {
           continue;
         }
 
-        // Validate Toll Fee Rate
-        if (tollFeeRate === undefined || tollFeeRate === null || tollFeeRate === '') {
-          errors.push(`Row ${rowNum}: Toll Fee Rate is required`);
+        // Validate Margin (keep as string, just check not empty)
+        if (tollFeeRate === undefined || tollFeeRate === null || String(tollFeeRate).trim() === '') {
+          errors.push(`Row ${rowNum}: Margin is required`);
           continue;
         }
 
-        const numericRate = parseFloat(tollFeeRate);
-        if (isNaN(numericRate) || numericRate < 0) {
-          errors.push(`Row ${rowNum}: Toll Fee Rate must be a number 0 or greater (got: ${tollFeeRate})`);
-          continue;
-        }
+        const marginValue = String(tollFeeRate).trim();
+        const roundedValue = rounded !== undefined && rounded !== null && String(rounded).trim() !== '' 
+          ? String(rounded).trim() 
+          : null;
 
         // Check if Product ID exists
         const productInfo = productNames.find(p => p.Product_ID === productId);
@@ -629,7 +635,8 @@ const TollFee = ({ user }) => {
 
         validEntries.push({
           productId,
-          tollFeeRate: numericRate,
+          tollFeeRate: marginValue,
+          rounded: roundedValue,
           originalRow: rowNum,
           productName: productInfo.Product_Name
         });
@@ -664,9 +671,9 @@ const TollFee = ({ user }) => {
   const performBulkImport = async (validEntries) => {
     try {
       setLoading(true);
-      notifier.info('Importing toll fee data...');
+      notifier.info('Importing margin data...');
 
-      // Step 1: Get all existing toll fee IDs for bulk delete
+      // Step 1: Get all existing margin IDs for bulk delete
       const existingIds = tollFeeData.map(item => item.pk_id);
 
       // Step 2: Bulk delete existing entries if any exist
@@ -719,7 +726,7 @@ const TollFee = ({ user }) => {
   };
 
   if (loading) {
-    return <LoadingSpinner message="Loading toll fee data..." size="large" />;
+    return <LoadingSpinner message="Loading margin data..." size="large" />;
   }
 
   return (
@@ -729,7 +736,7 @@ const TollFee = ({ user }) => {
         <div className="toll-fee-section-header">
           <div className="toll-fee-section-info">
             <p className="toll-fee-section-description">
-              Manage toll fee rates for products. Set and update toll fee cost allocations.
+              Manage margin rates for products. Set and update margin cost allocations.
             </p>
             <div className="toll-fee-data-summary">
               Total Entries: <span className="toll-fee-count">{tollFeeData.length}</span>
@@ -745,7 +752,7 @@ const TollFee = ({ user }) => {
               onClick={handleExportExcel}
               className="toll-fee-btn-export"
               disabled={loading || tollFeeData.length === 0}
-              title="Export toll fee data to Excel"
+              title="Export margin data to Excel"
             >
               <Download size={16} />
               Export
@@ -754,7 +761,7 @@ const TollFee = ({ user }) => {
               onClick={handleImportExcel}
               className="toll-fee-btn-import"
               disabled={loading || productNames.length === 0}
-              title={productNames.length === 0 ? "Please wait for product data to load" : "Import toll fee data from Excel (replaces all existing data)"}
+              title={productNames.length === 0 ? "Please wait for product data to load" : "Import margin data from Excel (replaces all existing data)"}
             >
               <Upload size={16} />
               Import Excel
@@ -762,7 +769,7 @@ const TollFee = ({ user }) => {
             <button 
               onClick={() => setShowAddModal(true)}
               className="toll-fee-btn-primary toll-fee-add-btn"
-              title="Add new toll fee entry"
+              title="Add new margin entry"
             >
               <Plus size={16} />
               Add New
@@ -813,8 +820,14 @@ const TollFee = ({ user }) => {
                   )}
                 </th>
                 <th onClick={() => handleSort('tollFeeRate')} className="toll-fee-header-cell toll-fee-sortable">
-                  Toll Fee Rate
+                  Margin
                   {sortField === 'tollFeeRate' && (
+                    sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                  )}
+                </th>
+                <th onClick={() => handleSort('rounded')} className="toll-fee-header-cell toll-fee-sortable">
+                  Rounded
+                  {sortField === 'rounded' && (
                     sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   )}
                 </th>
@@ -824,10 +837,10 @@ const TollFee = ({ user }) => {
             <tbody className="toll-fee-table-body">
               {paginatedData.length === 0 ? (
                 <tr className="toll-fee-data-row toll-fee-empty-row">
-                  <td colSpan="4" className="toll-fee-no-data">
+                  <td colSpan="5" className="toll-fee-no-data">
                     {searchTerm 
-                      ? `No toll fee entries found matching "${searchTerm}".`
-                      : "No toll fee entries found. Click 'Add New' to get started."
+                      ? `No margin entries found matching "${searchTerm}".`
+                      : "No margin entries found. Click 'Add New' to get started."
                     }
                   </td>
                 </tr>
@@ -839,17 +852,20 @@ const TollFee = ({ user }) => {
                     <td className="toll-fee-data-cell toll-fee-rate-cell">
                       {editingRowId === item.pk_id ? (
                         <input
-                          type="number"
-                          step="0.01"
-                          min="0"
+                          type="text"
                           value={editFormData.tollFeeRate}
                           onChange={(e) => handleEditChange('tollFeeRate', e.target.value)}
                           className="toll-fee-edit-input"
-                          placeholder="Toll Fee Rate"
+                          placeholder="Margin"
                         />
                       ) : (
-                        <span className="toll-fee-rate-value">{parseFloat(item.tollFeeRate || 0).toFixed(2)}</span>
+                        <span className={`toll-fee-rate-value ${item.tollFeeRate && item.tollFeeRate.includes('%') ? 'toll-fee-percentage' : 'toll-fee-numeric'}`}>
+                          {item.tollFeeRate || ''}
+                        </span>
                       )}
+                    </td>
+                    <td className="toll-fee-data-cell toll-fee-rounded-cell">
+                      {item.rounded || ''}
                     </td>
                     <td className="toll-fee-data-cell toll-fee-actions-cell">
                       {editingRowId === item.pk_id ? (
@@ -876,7 +892,7 @@ const TollFee = ({ user }) => {
                           <button 
                             className="toll-fee-edit-btn"
                             onClick={() => handleEdit(item)}
-                            title="Edit Toll Fee Rate"
+                            title="Edit Margin"
                           >
                             <Edit size={16} />
                           </button>
@@ -930,7 +946,7 @@ const TollFee = ({ user }) => {
         <div className="toll-fee-modal-overlay">
           <div className="toll-fee-modal-content toll-fee-add-modal">
             <div className="toll-fee-modal-header">
-              <h2>Add New Toll Fee Entry</h2>
+              <h2>Add New Margin Entry</h2>
               <button className="toll-fee-modal-close" onClick={handleCancelAdd}>
                 <X size={24} />
               </button>
@@ -990,14 +1006,12 @@ const TollFee = ({ user }) => {
               </div>
               
               <div className="toll-fee-form-group">
-                <label>Toll Fee Rate: *</label>
+                <label>Margin: *</label>
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
                   value={addFormData.tollFeeRate}
                   onChange={(e) => handleAddFormChange('tollFeeRate', e.target.value)}
-                  placeholder="0.00"
+                  placeholder="e.g., 10 or 10%"
                   required
                 />
               </div>
@@ -1006,8 +1020,8 @@ const TollFee = ({ user }) => {
                 <small>
                   * Required fields<br/>
                   • Select a product from the dropdown<br/>
-                  • Toll Fee Rate must be 0 or greater<br/>
-                  • Only products without existing toll fee entries are shown
+                  • Margin can be a number (e.g., 10) or percentage (e.g., 10%)<br/>
+                  • Only products without existing margin entries are shown
                 </small>
               </div>
             </div>
@@ -1036,7 +1050,7 @@ const TollFee = ({ user }) => {
         <div className="toll-fee-modal-overlay">
           <div className="toll-fee-modal-content toll-fee-import-instructions-modal">
             <div className="toll-fee-modal-header">
-              <h2>Import Toll Fee Data</h2>
+              <h2>Import Margin Data</h2>
               <button className="toll-fee-modal-close" onClick={() => setShowImportModal(false)}>
                 <X size={24} />
               </button>
@@ -1050,7 +1064,8 @@ const TollFee = ({ user }) => {
                       <tr>
                         <th>Product ID</th>
                         <th>Product Name</th>
-                        <th>Toll Fee Rate</th>
+                        <th>Margin</th>
+                        <th>Rounded</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1058,11 +1073,13 @@ const TollFee = ({ user }) => {
                         <td>G5</td>
                         <td>LAMESON-125 mg/2 mL injeksi</td>
                         <td>12.50</td>
+                        <td>13</td>
                       </tr>
                       <tr>
                         <td>G6</td>
                         <td>LAPIBAL-500 µG INJEKSI</td>
-                        <td>15.75</td>
+                        <td>10%</td>
+                        <td></td>
                       </tr>
                     </tbody>
                   </table>
@@ -1074,7 +1091,8 @@ const TollFee = ({ user }) => {
                 <ul>
                   <li>Column A: <strong>Product ID</strong> (required)</li>
                   <li>Column B: <strong>Product Name</strong> (reference only, will be ignored)</li>
-                  <li>Column C: <strong>Toll Fee Rate</strong> (required, must be 0 or greater)</li>
+                  <li>Column C: <strong>Margin</strong> (required, can be number or percentage like 10%)</li>
+                  <li>Column D: <strong>Rounded</strong> (optional, can be blank)</li>
                   <li>First row must contain headers</li>
                   <li>Product IDs must exist in the system</li>
                   <li>Empty rows will be ignored</li>
@@ -1084,7 +1102,7 @@ const TollFee = ({ user }) => {
               <div className="toll-fee-instructions-section toll-fee-warning-section">
                 <h3>⚠️ Important Warning:</h3>
                 <ul>
-                  <li><strong>All existing toll fee data will be REPLACED</strong></li>
+                  <li><strong>All existing margin data will be REPLACED</strong></li>
                   <li>This operation cannot be undone</li>
                   <li>Make sure your data is correct before importing</li>
                   <li>Current entries: <strong>{tollFeeData.length}</strong></li>
@@ -1125,7 +1143,7 @@ const TollFee = ({ user }) => {
                 <ul>
                   <li><strong>{importConfirmData.validEntries.length}</strong> valid entries ready to import</li>
                   <li>All Product IDs exist in the system</li>
-                  <li>All Toll Fee Rates are valid numbers</li>
+                  <li>All Margin values are valid</li>
                 </ul>
               </div>
 
@@ -1142,7 +1160,7 @@ const TollFee = ({ user }) => {
                   </div>
                 </div>
                 <p className="toll-fee-warning-text">
-                  This will <strong>permanently replace all existing toll fee data</strong>. 
+                  This will <strong>permanently replace all existing margin data</strong>. 
                   This operation cannot be undone.
                 </p>
               </div>
@@ -1155,7 +1173,8 @@ const TollFee = ({ user }) => {
                       <tr>
                         <th>Product ID</th>
                         <th>Product Name</th>
-                        <th>Toll Fee Rate</th>
+                        <th>Margin</th>
+                        <th>Rounded</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1163,12 +1182,13 @@ const TollFee = ({ user }) => {
                         <tr key={index}>
                           <td className="toll-fee-product-id-cell">{entry.productId}</td>
                           <td className="toll-fee-product-name-cell">{entry.productName}</td>
-                          <td className="toll-fee-toll-fee-rate-cell">{entry.tollFeeRate.toFixed(2)}</td>
+                          <td className="toll-fee-toll-fee-rate-cell">{entry.tollFeeRate}</td>
+                          <td className="toll-fee-toll-fee-rate-cell">{entry.rounded || ''}</td>
                         </tr>
                       ))}
                       {importConfirmData.validEntries.length > 5 && (
                         <tr className="toll-fee-more-rows">
-                          <td colSpan="3">
+                          <td colSpan="4">
                             ... and {importConfirmData.validEntries.length - 5} more entries
                           </td>
                         </tr>
