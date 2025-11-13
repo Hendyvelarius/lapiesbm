@@ -1956,8 +1956,9 @@ const FormulaAssignment = () => {
                       <h5>⚠️ Important Warning</h5>
                       <p>This operation will:</p>
                       <ul>
-                        <li><strong>Delete ALL existing formula assignments</strong> for the current year ({new Date().getFullYear()})</li>
-                        <li><strong>Replace them with the imported data</strong></li>
+                        <li><strong>Delete existing formula assignments</strong> for the current year ({new Date().getFullYear()}) that have at least one assigned formula</li>
+                        <li><strong>Preserve products with entirely NULL assignments</strong> (where all formulas PI, PS, KP, KS are NULL)</li>
+                        <li><strong>Replace deleted assignments with the imported data</strong></li>
                         <li>This action <strong>cannot be undone</strong></li>
                       </ul>
                       <p>Please make sure you have backed up your current assignments by exporting them first.</p>

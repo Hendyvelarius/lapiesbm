@@ -361,10 +361,16 @@ async function bulkImportFormulas(importData) {
         const pool = await connect();
         
         // Step 1: Clear existing assignments for the current period
+        // IMPORTANT: Only delete products that have at least one non-NULL formula
+        // This preserves products with entirely NULL assignments (PI=NULL, PS=NULL, KP=NULL, KS=NULL)
         const currentYear = new Date().getFullYear().toString();
         await pool.request()
             .input('periode', sql.VarChar, currentYear)
-            .query(`DELETE FROM M_COGS_PRODUCT_FORMULA_FIX WHERE Periode = @periode`);
+            .query(`
+                DELETE FROM M_COGS_PRODUCT_FORMULA_FIX 
+                WHERE Periode = @periode 
+                AND (PI IS NOT NULL OR PS IS NOT NULL OR KP IS NOT NULL OR KS IS NOT NULL)
+            `);
         
         // Step 2: Bulk insert new assignments
         if (importData.length > 0) {
