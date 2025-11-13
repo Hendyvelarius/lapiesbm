@@ -91,7 +91,7 @@ class TollFeeController {
   // Create new toll fee entry
   static async createTollFee(req, res) {
     try {
-      const { productId, tollFeeRate, userId, delegatedTo, processDate } = req.body;
+      const { productId, tollFeeRate, rounded, userId, delegatedTo, processDate } = req.body;
       
       // Validation
       if (!productId || productId.trim() === '') {
@@ -101,28 +101,18 @@ class TollFeeController {
         });
       }
       
-      if (tollFeeRate === undefined || tollFeeRate === null || isNaN(tollFeeRate)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Valid toll fee rate is required'
-        });
-      }
-      
-      if (parseFloat(tollFeeRate) < 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Toll fee rate must be 0 or greater'
-        });
-      }
+      // Toll fee rate is now varchar (supports percentages like "10%")
+      // No longer validate as numeric
       
       // Prepare data
       const tollFeeData = {
         productId: productId.trim(),
-        tollFeeRate: parseFloat(tollFeeRate),
+        tollFeeRate: tollFeeRate || '',
+        rounded: rounded || '',
         userId: userId || 'SYSTEM',
         delegatedTo: delegatedTo || null,
         processDate: processDate ? new Date(processDate) : new Date(),
-        flagUpdate: 0,
+        flagUpdate: '0',
         fromUpdate: 'INSERT'
       };
       
@@ -157,7 +147,7 @@ class TollFeeController {
   static async updateTollFee(req, res) {
     try {
       const { id } = req.params;
-      const { productId, tollFeeRate, userId, delegatedTo, processDate } = req.body;
+      const { productId, tollFeeRate, rounded, userId, delegatedTo, processDate } = req.body;
       
       if (!id || isNaN(id)) {
         return res.status(400).json({
@@ -174,28 +164,18 @@ class TollFeeController {
         });
       }
       
-      if (tollFeeRate === undefined || tollFeeRate === null || isNaN(tollFeeRate)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Valid toll fee rate is required'
-        });
-      }
-      
-      if (parseFloat(tollFeeRate) < 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Toll fee rate must be 0 or greater'
-        });
-      }
+      // Toll fee rate is now varchar (supports percentages like "10%")
+      // No longer validate as numeric
       
       // Prepare data
       const tollFeeData = {
         productId: productId.trim(),
-        tollFeeRate: parseFloat(tollFeeRate),
+        tollFeeRate: tollFeeRate || '',
+        rounded: rounded || '',
         userId: userId || 'SYSTEM',
         delegatedTo: delegatedTo || null,
         processDate: processDate ? new Date(processDate) : new Date(),
-        flagUpdate: 1,
+        flagUpdate: '1',
         fromUpdate: 'UPDATE'
       };
       
@@ -323,24 +303,20 @@ class TollFeeController {
           errors.push(`Entry ${index + 1}: Product ID is required`);
         }
         
-        if (entry.tollFeeRate === undefined || entry.tollFeeRate === null || isNaN(entry.tollFeeRate)) {
-          errors.push(`Entry ${index + 1}: Valid toll fee rate is required`);
-        }
-        
-        if (parseFloat(entry.tollFeeRate) < 0) {
-          errors.push(`Entry ${index + 1}: Toll fee rate must be 0 or greater`);
-        }
+        // Toll fee rate is now varchar (supports percentages like "10%")
+        // No longer validate as numeric
         
         if (errors.length > 0) {
           validationErrors.push(...errors);
         } else {
           processedEntries.push({
             productId: entry.productId.trim(),
-            tollFeeRate: parseFloat(entry.tollFeeRate),
+            tollFeeRate: entry.tollFeeRate || '',
+            rounded: entry.rounded || '',
             userId: userId || entry.userId || 'SYSTEM',
             delegatedTo: entry.delegatedTo || null,
             processDate: entry.processDate ? new Date(entry.processDate) : new Date(),
-            flagUpdate: 0,
+            flagUpdate: '0',
             fromUpdate: 'BULK_INSERT'
           });
         }

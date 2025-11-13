@@ -325,7 +325,8 @@ const TollFee = ({ user }) => {
   const handleEdit = (item) => {
     setEditingRowId(item.pk_id);
     setEditFormData({
-      tollFeeRate: item.tollFeeRate || ''
+      tollFeeRate: item.tollFeeRate || '',
+      rounded: item.rounded || ''
     });
   };
 
@@ -354,6 +355,7 @@ const TollFee = ({ user }) => {
       const updateData = {
         productId: originalItem.productId,
         tollFeeRate: editFormData.tollFeeRate || '', // Keep as string (varchar)
+        rounded: editFormData.rounded || '', // Keep as string (varchar)
         userId: user?.nama || user?.inisialNama || 'SYSTEM',
         delegatedTo: originalItem.delegatedTo,
         processDate: new Date().toISOString()
@@ -865,7 +867,17 @@ const TollFee = ({ user }) => {
                       )}
                     </td>
                     <td className="toll-fee-data-cell toll-fee-rounded-cell">
-                      {item.rounded || ''}
+                      {editingRowId === item.pk_id ? (
+                        <input
+                          type="text"
+                          value={editFormData.rounded}
+                          onChange={(e) => handleEditChange('rounded', e.target.value)}
+                          className="toll-fee-edit-input"
+                          placeholder="Rounded"
+                        />
+                      ) : (
+                        item.rounded || ''
+                      )}
                     </td>
                     <td className="toll-fee-data-cell toll-fee-actions-cell">
                       {editingRowId === item.pk_id ? (
