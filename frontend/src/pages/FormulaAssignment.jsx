@@ -694,6 +694,37 @@ const FormulaAssignment = ({ user }) => {
       return;
     }
     
+    // Check if HPP has been generated for this year before locking
+    if (action === 'lock') {
+      try {
+        setLoading(true);
+        const hppData = await api.hpp.getResults(parseInt(selectedYear));
+        
+        // Check if HPP data exists for this year
+        const hasHPPData = hppData && (
+          (hppData.ethical && hppData.ethical.length > 0) ||
+          (hppData.generik1 && hppData.generik1.length > 0) ||
+          (hppData.generik2 && hppData.generik2.length > 0)
+        );
+        
+        if (!hasHPPData) {
+          setLoading(false);
+          notifier.warning(
+            `Cannot lock year ${selectedYear} because HPP has not been generated yet. Please generate HPP first in the Generate HPP page before locking.`,
+            { durations: { warning: 8000 } }
+          );
+          return;
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        setLoading(false);
+        console.error('Error checking HPP data:', error);
+        notifier.alert('Failed to verify HPP data. Please try again.');
+        return;
+      }
+    }
+    
     notifier.confirm(
       `Are you sure you want to ${action} ALL products in year ${selectedYear}? ${lockValue === 1 ? 'This will prevent any modifications to all formula assignments for this year.' : 'This will allow modifications to all formula assignments in this year.'}`,
       async () => {
@@ -1346,7 +1377,7 @@ const FormulaAssignment = ({ user }) => {
                 className="btn-lock-year"
                 title="Lock all products in this year"
               >
-                🔒 Lock All Year
+                🔒 Lock All
               </button>
             )}
             {canUnlock() && (
@@ -1355,7 +1386,7 @@ const FormulaAssignment = ({ user }) => {
                 className="btn-unlock-year"
                 title="Unlock all products in this year"
               >
-                🔓 Unlock All Year
+                🔓 Unlock All
               </button>
             )}
           </div>
