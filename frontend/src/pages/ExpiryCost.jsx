@@ -156,9 +156,9 @@ const ExpiryCost = () => {
           });
 
           if (response.success) {
-            // Reload the page after successful generation
+            // Refetch data after successful generation
             notifier.success('Expiry cost allocation generated successfully!');
-            window.location.reload();
+            await loadData();
           } else {
             setError('Failed to generate expiry cost: ' + response.message);
             notifier.alert('Failed to generate expiry cost: ' + response.message);
