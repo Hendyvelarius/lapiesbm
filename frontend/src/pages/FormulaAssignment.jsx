@@ -7,7 +7,7 @@ import { FileDown, FileUp } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import '../styles/FormulaAssignment.css';
 
-const FormulaAssignment = () => {
+const FormulaAssignment = ({ user }) => {
   // Initialize awesome-notifications inside component to avoid conflicts
   const notifier = useMemo(() => new AWN({
     position: 'top-right',
@@ -19,6 +19,38 @@ const FormulaAssignment = () => {
   const [chosenFormulas, setChosenFormulas] = useState([]);
   const [productList, setProductList] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Year selection states
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [availableYears, setAvailableYears] = useState([]);
+  const [importYear, setImportYear] = useState(new Date().getFullYear().toString());
+  const [addYear, setAddYear] = useState(new Date().getFullYear().toString());
+  
+  // Generate year range for imports (current year +/- 2)
+  const getImportYearRange = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = currentYear - 2; i <= currentYear + 2; i++) {
+      years.push(i.toString());
+    }
+    return years;
+  };
+  
+  const importYearRange = useMemo(() => getImportYearRange(), []);
+  
+  // Permission checks
+  const canLock = () => {
+    // Can lock: RD2 MGR, PL PL, HWA, GWN
+    return (user?.empDeptID === 'RD2' && user?.empJobLevelID === 'MGR') ||
+           (user?.empDeptID === 'PL' && user?.empJobLevelID === 'PL') ||
+           ['HWA', 'GWN'].includes(user?.logNIK);
+  };
+  
+  const canUnlock = () => {
+    // Can unlock: PL PL, HWA, GWN
+    return (user?.empDeptID === 'PL' && user?.empJobLevelID === 'PL') ||
+           ['HWA', 'GWN'].includes(user?.logNIK);
+  };
   
   // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
@@ -108,13 +140,18 @@ const FormulaAssignment = () => {
       setLoading(true);
 
       // Load chosen formulas and product list
-      const [chosenRes, productsRes] = await Promise.all([
-        api.products.getChosenFormula(),
-        api.master.getProductName()
+      const [chosenRes, productsRes, yearsRes] = await Promise.all([
+        api.products.getChosenFormula(selectedYear),
+        api.master.getProductName(),
+        api.products.getAvailableYears()
       ]);
 
       setChosenFormulas(chosenRes || []);
       setProductList(productsRes?.data || []);
+      
+      if (yearsRes?.success && yearsRes?.data) {
+        setAvailableYears(yearsRes.data);
+      }
 
     } catch (err) {
       console.error('Error loading data:', err);
@@ -122,7 +159,7 @@ const FormulaAssignment = () => {
     } finally {
       setLoading(false);
     }
-  }, [notifier]);
+  }, [notifier, selectedYear]);
 
   // Load initial data
   useEffect(() => {
@@ -213,6 +250,12 @@ const FormulaAssignment = () => {
 
   // Handle opening edit modal
   const handleEdit = async (formula) => {
+    // Check if this specific product is locked
+    if (formula.isLock === 1) {
+      notifier.warning(`Product ${formula.Product_ID} is locked. Cannot edit formula assignment.`);
+      return;
+    }
+    
     try {
       setLoadingEdit(true);
       setEditingFormula(formula);
@@ -496,9 +539,14 @@ const FormulaAssignment = () => {
         notifier.success(`Formula assignment updated successfully for product ${formData.productId}`);
       } else {
         // Add new
+        const userName = user?.logNIK || 'SYSTEM';
+        console.log('Add - user.logNIK:', user?.logNIK, 'userName:', userName);
         const dataToSend = {
           ...formData,
-          isManual: 1  // Default to manual (important)
+          isManual: 1,  // Default to manual (important)
+          periode: addYear,
+          userId: userName,
+          delegatedTo: userName
         };
         await api.products.addChosenFormula(dataToSend);
         notifier.success(`Formula assignment added successfully for product ${formData.productId}`);
@@ -517,8 +565,14 @@ const FormulaAssignment = () => {
   };
 
   // Handle delete - show custom confirmation modal
-  const handleDelete = (productId) => {
-    setDeletingProduct(productId);
+  const handleDelete = (formula) => {
+    // Check if this specific product is locked
+    if (formula.isLock === 1) {
+      notifier.warning(`Product ${formula.Product_ID} is locked. Cannot delete formula assignment.`);
+      return;
+    }
+    
+    setDeletingProduct(formula.Product_ID);
     setShowDeleteModal(true);
   };
 
@@ -621,6 +675,99 @@ const FormulaAssignment = () => {
       {
         title: 'Auto Assign Formulas',
         okButtonText: 'Proceed',
+        cancelButtonText: 'Cancel'
+      }
+    );
+  };
+
+  // Handle lock/unlock all year
+  const handleLockAllYear = async (lockValue) => {
+    const action = lockValue === 1 ? 'lock' : 'unlock';
+    
+    // Check permissions
+    if (action === 'lock' && !canLock()) {
+      notifier.warning('You do not have permission to lock years.');
+      return;
+    }
+    if (action === 'unlock' && !canUnlock()) {
+      notifier.warning('You do not have permission to unlock years.');
+      return;
+    }
+    
+    notifier.confirm(
+      `Are you sure you want to ${action} ALL products in year ${selectedYear}? ${lockValue === 1 ? 'This will prevent any modifications to all formula assignments for this year.' : 'This will allow modifications to all formula assignments in this year.'}`,
+      async () => {
+        try {
+          setLoading(true);
+          
+          const result = await api.products.lockYear(selectedYear.toString(), lockValue);
+          
+          if (result.success) {
+            notifier.success(`All products in year ${selectedYear} ${action}ed successfully!`);
+            await loadData(); // Reload to get updated isLock values
+          } else {
+            throw new Error(result.message || `Failed to ${action} year`);
+          }
+        } catch (error) {
+          console.error(`Error ${action}ing year:`, error);
+          notifier.alert(`Failed to ${action} year ${selectedYear}. ${error.message}`);
+        } finally {
+          setLoading(false);
+        }
+      },
+      () => {
+        // User cancelled
+      },
+      {
+        title: `${action.charAt(0).toUpperCase() + action.slice(1)} All Year ${selectedYear}`,
+        okButtonText: action.charAt(0).toUpperCase() + action.slice(1),
+        cancelButtonText: 'Cancel'
+      }
+    );
+  };
+
+  // Handle lock/unlock individual product
+  const handleLockProduct = async (productId, currentLockStatus) => {
+    const action = currentLockStatus === 1 ? 'unlock' : 'lock';
+    
+    // Check permissions
+    if (action === 'lock' && !canLock()) {
+      notifier.warning('You do not have permission to lock products.');
+      return;
+    }
+    if (action === 'unlock' && !canUnlock()) {
+      notifier.warning('You do not have permission to unlock products.');
+      return;
+    }
+    
+    notifier.confirm(
+      `Are you sure you want to ${action} product ${productId}?`,
+      async () => {
+        try {
+          setLoading(true);
+          
+          // Call API to lock/unlock individual product
+          const result = await api.products.lockProduct(productId, selectedYear.toString(), currentLockStatus === 1 ? 0 : 1);
+          
+          if (result.success) {
+            notifier.success(`Product ${productId} ${action}ed successfully!`);
+            await loadData(); // Reload to get updated isLock values
+          } else {
+            throw new Error(result.message || `Failed to ${action} product`);
+          }
+        } catch (error) {
+          console.error(`Error ${action}ing product:`, error);
+          notifier.alert(`Failed to ${action} product ${productId}. ${error.message}`);
+        } finally {
+          setLoading(false);
+        }
+      },
+      () => {
+        // User cancelled
+      },
+      {
+        title: `${action.charAt(0).toUpperCase() + action.slice(1)} Product`,
+        okButtonText: action.charAt(0).toUpperCase() + action.slice(1),
         cancelButtonText: 'Cancel'
       }
     );
@@ -969,6 +1116,13 @@ const FormulaAssignment = () => {
       return;
     }
 
+    // Check if the import year is locked
+    const isImportYearLocked = chosenFormulas.some(f => f.Periode === parseInt(importYear) && f.isLock === 1);
+    if (isImportYearLocked) {
+      notifier.warning(`Year ${importYear} is locked. Cannot import formula assignments.`);
+      return;
+    }
+
     try {
       setLoadingImport(true);
       
@@ -994,8 +1148,9 @@ const FormulaAssignment = () => {
 
   // Transform import data to backend format
   const transformImportData = (processedData, formulas) => {
-    const currentYear = new Date().getFullYear().toString();
     const processDate = new Date().toISOString();
+    const userName = user?.logNIK || 'SYSTEM';
+    console.log('Import - user.logNIK:', user?.logNIK, 'userName:', userName);
     
     return processedData.map(product => {
       const productId = product.Product_ID;
@@ -1023,7 +1178,7 @@ const FormulaAssignment = () => {
       });
       
       return {
-        Periode: currentYear,
+        Periode: importYear,
         Product_ID: productId,
         PI: assignments.PI,
         PS: assignments.PS,
@@ -1031,8 +1186,8 @@ const FormulaAssignment = () => {
         KS: assignments.KS,
         Std_Output: stdOutput,
         isManual: null,
-        user_id: 'AUTO_ASSIGN',
-        delegated_to: 'AUTO_ASSIGN',
+        user_id: userName,
+        delegated_to: userName,
         process_date: processDate,
         flag_update: null,
         from_update: null
@@ -1173,14 +1328,42 @@ const FormulaAssignment = () => {
     <div className="formula-assignment-container">
       <div className="content-section">
         <div className="section-header">
-          <div className="section-title">
-            <h2>Current Formula Assignments</h2>
-            {tableSearchTerm.trim() && (
-              <span className="search-results-count">
-                {filteredChosenFormulas.length} of {chosenFormulas.length} results
-              </span>
+          <div className="year-selector-container">
+            <label htmlFor="year-selector">Year:</label>
+            <select
+              id="year-selector"
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="year-selector"
+            >
+              {availableYears.map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+            {canLock() && (
+              <button
+                onClick={() => handleLockAllYear(1)}
+                className="btn-lock-year"
+                title="Lock all products in this year"
+              >
+                🔒 Lock All Year
+              </button>
+            )}
+            {canUnlock() && (
+              <button
+                onClick={() => handleLockAllYear(0)}
+                className="btn-unlock-year"
+                title="Unlock all products in this year"
+              >
+                🔓 Unlock All Year
+              </button>
             )}
           </div>
+          {tableSearchTerm.trim() && (
+            <span className="search-results-count">
+              {filteredChosenFormulas.length} of {chosenFormulas.length} results
+            </span>
+          )}
           <div className="header-actions">
             <div className="table-search">
               <input
@@ -1204,7 +1387,7 @@ const FormulaAssignment = () => {
             <button 
               onClick={handleImportExcel}
               className="btn-secondary import-btn"
-              disabled={loading}
+              disabled={loading || chosenFormulas.some(f => f.isLock === 1)}
               title="Import formula assignments from Excel file"
             >
               <FileUp size={16} />
@@ -1220,7 +1403,10 @@ const FormulaAssignment = () => {
             >
               Auto Assignment
             </button>
-            <button onClick={handleAdd} className="btn-primary">
+            <button 
+              onClick={handleAdd} 
+              className="btn-primary"
+            >
               Add New Assignment
             </button>
           </div>
@@ -1270,7 +1456,7 @@ const FormulaAssignment = () => {
                           }}
                           className="btn-edit"
                           type="button"
-                          disabled={loadingEdit}
+                          disabled={loadingEdit || formula.isLock === 1}
                         >
                           {loadingEdit ? (
                             <>
@@ -1281,37 +1467,28 @@ const FormulaAssignment = () => {
                             'Edit'
                           )}
                         </button>
+                        {((formula.isLock === 1 && canUnlock()) || (formula.isLock !== 1 && canLock())) && (
+                          <button 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleLockProduct(formula.Product_ID, formula.isLock);
+                            }}
+                            className={formula.isLock === 1 ? "btn-unlock" : "btn-lock"}
+                            type="button"
+                          >
+                            {formula.isLock === 1 ? 'Unlock' : 'Lock'}
+                          </button>
+                        )}
                         <button 
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            // TODO: Implement lock functionality
-                            console.log('Lock formula for:', formula.Product_ID);
-                          }}
-                          className="btn-lock"
-                          type="button"
-                        >
-                          Lock
-                        </button>
-                        <button 
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleGenerate(formula.Product_ID);
-                          }}
-                          className="btn-generate"
-                          type="button"
-                        >
-                          Generate
-                        </button>
-                        <button 
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleDelete(formula.Product_ID);
+                            handleDelete(formula);
                           }}
                           className="btn-delete"
                           type="button"
+                          disabled={formula.isLock === 1}
                         >
                           Delete
                         </button>
@@ -1336,9 +1513,27 @@ const FormulaAssignment = () => {
             
             <div className="modal-body-scrollable">
               <form onSubmit={handleSubmit} className="formula-form">
+              {/* Year Selection */}
+              <div className="form-section">
+                <h4>1. Select Year</h4>
+                <div className="year-selector-section">
+                  <label htmlFor="add-year-selector">Assign formulas for year:</label>
+                  <select
+                    id="add-year-selector"
+                    value={addYear}
+                    onChange={(e) => setAddYear(e.target.value)}
+                    className="year-selector-import"
+                  >
+                    {importYearRange.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
               {/* Product Selection */}
               <div className="form-section">
-                <h4>1. Select Product</h4>
+                <h4>2. Select Product</h4>
                 <div className="product-stats">
                   {productList.length - chosenFormulas.length > 0 ? (
                     <small>
@@ -1433,7 +1628,7 @@ const FormulaAssignment = () => {
               {/* Formula Selection */}
               {selectedProduct && (
                 <div className="form-section">
-                  <h4>2. Select Formulas</h4>
+                  <h4>3. Select Formulas</h4>
                   {loading ? (
                     <div className="formula-loading">
                       <p>Loading formulas for {selectedProduct.Product_Name}...</p>
@@ -1484,7 +1679,7 @@ const FormulaAssignment = () => {
               {/* Standard Output and Important */}
               {selectedProduct && (
                 <div className="form-section">
-                  <h4>3. Set Standard Output</h4>
+                  <h4>4. Set Standard Output</h4>
                   <div className="output-and-cost-section">
                     <div className="std-output-field">
                       <label>Standard Output:</label>
@@ -1795,6 +1990,20 @@ const FormulaAssignment = () => {
                   </div>
                   
                   <div className="file-input-section">
+                    <div className="year-selector-section">
+                      <label htmlFor="import-year-selector">Import to Year:</label>
+                      <select
+                        id="import-year-selector"
+                        value={importYear}
+                        onChange={(e) => setImportYear(e.target.value)}
+                        className="year-selector-import"
+                      >
+                        {importYearRange.map(year => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
                     <input
                       type="file"
                       accept=".xlsx,.xls"
@@ -1956,7 +2165,7 @@ const FormulaAssignment = () => {
                       <h5>⚠️ Important Warning</h5>
                       <p>This operation will:</p>
                       <ul>
-                        <li><strong>Delete existing formula assignments</strong> for the current year ({new Date().getFullYear()}) that have at least one assigned formula</li>
+                        <li><strong>Delete existing formula assignments</strong> for year <strong>{importYear}</strong> that have at least one assigned formula</li>
                         <li><strong>Preserve products with entirely NULL assignments</strong> (where all formulas PI, PS, KP, KS are NULL)</li>
                         <li><strong>Replace deleted assignments with the imported data</strong></li>
                         <li>This action <strong>cannot be undone</strong></li>

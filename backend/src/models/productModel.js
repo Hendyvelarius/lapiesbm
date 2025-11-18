@@ -12,13 +12,37 @@ async function getFormula() {
     }
 }
 
-async function getChosenFormula() {
+async function getChosenFormula(periode = null) {
     try {
         const pool = await connect();
-        const result = await pool.request().query('SELECT * FROM M_COGS_PRODUCT_FORMULA_FIX');
+        let query = 'SELECT * FROM M_COGS_PRODUCT_FORMULA_FIX';
+        
+        if (periode) {
+            query += ' WHERE Periode = @periode';
+            const result = await pool.request()
+                .input('periode', sql.VarChar, periode)
+                .query(query);
+            return result.recordset;
+        }
+        
+        const result = await pool.request().query(query);
         return result.recordset;
     } catch (error) {
         console.error('Error fetching chosen formula:', error);
+        throw error;
+    }
+}
+
+// Get available years from formula assignments
+async function getAvailableYears() {
+    try {
+        const pool = await connect();
+        const result = await pool.request().query(
+            'SELECT DISTINCT Periode FROM M_COGS_PRODUCT_FORMULA_FIX ORDER BY Periode DESC'
+        );
+        return result.recordset.map(row => row.Periode);
+    } catch (error) {
+        console.error('Error fetching available years:', error);
         throw error;
     }
 }
@@ -37,11 +61,13 @@ async function findFormula(id) {
 }
 
 // Add chosen formula record
-async function addChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId, isManual) {
+async function addChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId, isManual, periode = null, delegatedTo = null) {
     try {
         const pool = await connect();
-        const currentYear = new Date().getFullYear().toString();
+        const targetYear = periode || new Date().getFullYear().toString();
         const currentDateTime = new Date();
+        const finalUserId = userId || 'SYSTEM';
+        const finalDelegatedTo = delegatedTo || userId || 'SYSTEM';
         
         const query = `
             INSERT INTO M_COGS_PRODUCT_FORMULA_FIX 
@@ -50,15 +76,15 @@ async function addChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId, is
         `;
         
         const result = await pool.request()
-            .input('periode', sql.VarChar, currentYear)
+            .input('periode', sql.VarChar, targetYear)
             .input('productId', sql.VarChar, productId)
             .input('pi', sql.VarChar, pi === null ? null : (pi || ''))
             .input('ps', sql.VarChar, ps === null ? null : (ps || ''))
             .input('kp', sql.VarChar, kp === null ? null : (kp || ''))
             .input('ks', sql.VarChar, ks === null ? null : (ks || ''))
             .input('stdOutput', sql.Decimal(18,2), stdOutput || 0)
-            .input('userId', sql.VarChar, userId || 'SYSTEM')
-            .input('delegatedTo', sql.VarChar, userId || 'SYSTEM')
+            .input('userId', sql.VarChar, finalUserId)
+            .input('delegatedTo', sql.VarChar, finalDelegatedTo)
             .input('processDate', sql.DateTime, currentDateTime)
             .input('isManual', sql.Int, isManual)
             .query(query);
@@ -360,12 +386,15 @@ async function bulkImportFormulas(importData) {
     try {
         const pool = await connect();
         
-        // Step 1: Clear existing assignments for the current period
+        // Determine the target periode from the import data
+        // All records in importData should have the same Periode
+        const targetPeriode = importData.length > 0 ? importData[0].Periode : new Date().getFullYear().toString();
+        
+        // Step 1: Clear existing assignments for the TARGET period only
         // IMPORTANT: Only delete products that have at least one non-NULL formula
         // This preserves products with entirely NULL assignments (PI=NULL, PS=NULL, KP=NULL, KS=NULL)
-        const currentYear = new Date().getFullYear().toString();
         await pool.request()
-            .input('periode', sql.VarChar, currentYear)
+            .input('periode', sql.VarChar, targetPeriode)
             .query(`
                 DELETE FROM M_COGS_PRODUCT_FORMULA_FIX 
                 WHERE Periode = @periode 
@@ -433,9 +462,70 @@ async function generateHPP(productId) {
     }
 }
 
+// Lock/Unlock year - update isLock for all formulas in a specific periode
+async function lockYear(periode, isLock) {
+    try {
+        const pool = await connect();
+        const lockValue = isLock ? 1 : 0;
+        
+        const query = `
+            UPDATE M_COGS_PRODUCT_FORMULA_FIX
+            SET isLock = @isLock
+            WHERE Periode = @periode
+        `;
+        
+        const result = await pool.request()
+            .input('periode', sql.VarChar, periode)
+            .input('isLock', sql.Int, lockValue)
+            .query(query);
+            
+        return {
+            success: true,
+            rowsAffected: result.rowsAffected[0],
+            periode: periode,
+            locked: isLock
+        };
+    } catch (error) {
+        console.error('Error locking/unlocking year:', error);
+        throw error;
+    }
+}
+
+// Lock/Unlock individual product - update isLock for a specific product in a periode
+async function lockProduct(productId, periode, isLock) {
+    try {
+        const pool = await connect();
+        const lockValue = isLock ? 1 : 0;
+        
+        const query = `
+            UPDATE M_COGS_PRODUCT_FORMULA_FIX
+            SET isLock = @isLock
+            WHERE Product_ID = @productId AND Periode = @periode
+        `;
+        
+        const result = await pool.request()
+            .input('productId', sql.VarChar, productId)
+            .input('periode', sql.VarChar, periode)
+            .input('isLock', sql.Int, lockValue)
+            .query(query);
+            
+        return {
+            success: true,
+            rowsAffected: result.rowsAffected[0],
+            productId: productId,
+            periode: periode,
+            locked: isLock
+        };
+    } catch (error) {
+        console.error('Error locking/unlocking product:', error);
+        throw error;
+    }
+}
+
 module.exports = {
     getFormula,
     getChosenFormula,
+    getAvailableYears,
     findFormula,
     addChosenFormula,
     updateChosenFormula,
@@ -447,5 +537,7 @@ module.exports = {
     autoAssignFormulas,
     getFormulaRecommendations,
     bulkImportFormulas,
-    generateHPP
+    generateHPP,
+    lockYear,
+    lockProduct
 };

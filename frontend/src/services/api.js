@@ -69,7 +69,13 @@ export const productsAPI = {
   getActiveFormulaDetails: () => apiRequest('/products/formula-details/active'),
   
   // Get chosen formula data (current product-formula assignments)
-  getChosenFormula: () => apiRequest('/products/chosenformula'),
+  getChosenFormula: (periode = null) => {
+    const url = periode ? `/products/chosenformula?periode=${periode}` : '/products/chosenformula';
+    return apiRequest(url);
+  },
+  
+  // Get available years from formula assignments
+  getAvailableYears: () => apiRequest('/products/available-years'),
   
   // Add chosen formula
   addChosenFormula: (data) => apiRequest('/products/chosenformula', {
@@ -111,6 +117,18 @@ export const productsAPI = {
   // Generate HPP for a specific product
   generateHPP: (productId) => apiRequest(`/products/generate-hpp/${productId}`, {
     method: 'POST',
+  }),
+  
+  // Lock/unlock year
+  lockYear: (periode, isLock) => apiRequest('/products/lock-year', {
+    method: 'POST',
+    body: JSON.stringify({ periode, isLock }),
+  }),
+  
+  // Lock/unlock individual product
+  lockProduct: (productId, periode, isLock) => apiRequest('/products/lock-product', {
+    method: 'POST',
+    body: JSON.stringify({ productId, periode, isLock }),
   }),
 };
 

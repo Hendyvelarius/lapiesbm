@@ -22,8 +22,98 @@
 
 .section-title {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
+  align-items: center;
+  gap: 20px;
+}
+
+.year-selector-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.year-selector-container label {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.year-selector {
+  padding: 8px 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  min-width: 100px;
+}
+
+.year-selector:hover {
+  border-color: #4f46e5;
+}
+
+.year-selector:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.btn-lock-year {
+  padding: 8px 16px;
+  border: 2px solid #f59e0b;
+  background: white;
+  color: #f59e0b;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+}
+
+.btn-lock-year:hover {
+  background: #f59e0b;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+}
+
+.btn-lock-year:active {
+  transform: translateY(0);
+}
+
+.btn-unlock-year {
+  padding: 8px 16px;
+  border: 2px solid #10b981;
+  background: white;
+  color: #10b981;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+}
+
+.btn-unlock-year:hover {
+  background: #10b981;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+.btn-unlock-year:active {
+  transform: translateY(0);
 }
 
 .section-header h2 {
@@ -194,7 +284,7 @@
   flex-wrap: wrap;
 }
 
-.btn-edit, .btn-lock, .btn-generate, .btn-delete, .btn-primary, .btn-secondary {
+.btn-edit, .btn-lock, .btn-unlock, .btn-generate, .btn-delete, .btn-primary, .btn-secondary {
   padding: 6px 12px;
   border: none;
   border-radius: 6px;
@@ -277,6 +367,13 @@
   background-color: #059669;
 }
 
+.btn-edit:disabled {
+  background-color: #d1d5db;
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .btn-lock {
   background-color: #f59e0b;
   color: white;
@@ -286,13 +383,13 @@
   background-color: #d97706;
 }
 
-.btn-generate {
-  background-color: #8b5cf6;
+.btn-unlock {
+  background-color: #10b981;
   color: white;
 }
 
-.btn-generate:hover {
-  background-color: #7c3aed;
+.btn-unlock:hover {
+  background-color: #059669;
 }
 
 .btn-delete {
@@ -302,6 +399,13 @@
 
 .btn-delete:hover {
   background-color: #dc2626;
+}
+
+.btn-delete:disabled {
+  background-color: #d1d5db;
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* Modal Styles */
@@ -969,7 +1073,7 @@
     gap: 4px;
   }
   
-  .btn-edit, .btn-lock, .btn-generate, .btn-delete {
+  .btn-edit, .btn-lock, .btn-unlock, .btn-generate, .btn-delete {
     margin-bottom: 2px;
   }
   
@@ -1228,6 +1332,48 @@ tr:has(.important-checkmark):hover {
 
 .file-input-section {
   margin: 30px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.year-selector-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.year-selector-section label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.95rem;
+}
+
+.year-selector-import {
+  padding: 8px 12px;
+  border: 2px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  min-width: 120px;
+}
+
+.year-selector-import:hover {
+  border-color: #4f46e5;
+}
+
+.year-selector-import:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
 .file-input {

@@ -29,11 +29,16 @@ router.post('/generate-hpp/:productId', ProductController.generateHPP);
 
 // Chosen formula CRUD operations
 router.get('/chosenformula', ProductController.getChosenFormula);
+router.get('/available-years', ProductController.getAvailableYears);
 router.post('/chosenformula', ProductController.addChosenFormula);
 router.put('/chosenformula/:productId', ProductController.updateChosenFormula);
 router.delete('/chosenformula/:productId', ProductController.deleteChosenFormula);
 
 // Recipe operations
 router.get('/recipe/:productId', ProductController.findRecipe);
+
+// Lock year operations
+router.post('/lock-year', ProductController.lockYear);
+router.post('/lock-product', ProductController.lockProduct);
 
 module.exports = router;

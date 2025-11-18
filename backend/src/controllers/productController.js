@@ -1,4 +1,5 @@
-const { getChosenFormula, getFormula, findFormula, addChosenFormula, updateChosenFormula, deleteChosenFormula, findRecipe, getAllFormulaDetails, getActiveFormulaDetails, getFormulaProductCost, generateHPP } = require('../models/productModel');
+const productModel = require('../models/productModel');
+const { getChosenFormula, getAvailableYears, getFormula, findFormula, addChosenFormula, updateChosenFormula, deleteChosenFormula, findRecipe, getAllFormulaDetails, getActiveFormulaDetails, getFormulaProductCost, generateHPP, lockYear } = productModel;
 
 class ProductController {
   static async getFormula(req, res) {
@@ -33,7 +34,8 @@ class ProductController {
 
   static async getChosenFormula(req, res) {
     try {
-      const formulas = await getChosenFormula();
+      const { periode } = req.query;
+      const formulas = await getChosenFormula(periode);
       res.status(200).json(formulas);
     } catch (error) {
       res.status(500).json({
@@ -44,9 +46,25 @@ class ProductController {
     }
   }
 
+  static async getAvailableYears(req, res) {
+    try {
+      const years = await getAvailableYears();
+      res.status(200).json({
+        success: true,
+        data: years
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving available years',
+        error: error.message
+      });
+    }
+  }
+
   static async addChosenFormula(req, res) {
     try {
-      const { productId, pi, ps, kp, ks, stdOutput, isManual } = req.body;
+      const { productId, pi, ps, kp, ks, stdOutput, isManual, periode, userId, delegatedTo } = req.body;
       
       // Validate required field
       if (!productId) {
@@ -63,8 +81,10 @@ class ProductController {
         kp,
         ks,
         stdOutput,
-        'SYSTEM', // Default user
-        isManual
+        userId || 'SYSTEM',
+        isManual,
+        periode,
+        delegatedTo || userId || 'SYSTEM'
       );
 
       res.status(201).json({
@@ -288,6 +308,62 @@ class ProductController {
       res.status(500).json({
         success: false,
         message: 'Error generating HPP',
+        error: error.message
+      });
+    }
+  }
+
+  static async lockYear(req, res) {
+    try {
+      const { periode, isLock } = req.body;
+      
+      if (!periode) {
+        return res.status(400).json({
+          success: false,
+          message: 'Periode is required'
+        });
+      }
+
+      const result = await lockYear(periode, isLock);
+      
+      res.status(200).json({
+        success: true,
+        message: `Year ${periode} ${isLock ? 'locked' : 'unlocked'} successfully`,
+        data: result
+      });
+    } catch (error) {
+      console.error('Error locking/unlocking year:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error locking/unlocking year',
+        error: error.message
+      });
+    }
+  }
+
+  static async lockProduct(req, res) {
+    try {
+      const { productId, periode, isLock } = req.body;
+      
+      if (!productId || !periode) {
+        return res.status(400).json({
+          success: false,
+          message: 'Product ID and Periode are required'
+        });
+      }
+
+      const result = await productModel.lockProduct(productId, periode, isLock);
+      
+      res.status(200).json({
+        success: true,
+        message: `Product ${productId} ${isLock ? 'locked' : 'unlocked'} successfully`,
+        data: result
+      });
+    } catch (error) {
+      console.error('Error locking/unlocking product:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error locking/unlocking product',
         error: error.message
       });
     }
