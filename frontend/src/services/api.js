@@ -361,7 +361,7 @@ export const masterAPI = {
   }),
   
   // Get groups
-  getGroup: () => apiRequest('/master/group'),
+  getGroup: (periode) => apiRequest(`/master/group?periode=${periode || new Date().getFullYear()}`),
   
   // Get group manual data
   getGroupManual: () => apiRequest('/master/groupManual'),
@@ -387,6 +387,12 @@ export const masterAPI = {
   bulkImportGenerikGroups: (generikData) => apiRequest('/master/group/bulk-import-generik', {
     method: 'POST',
     body: JSON.stringify({ generikData }),
+  }),
+  
+  // Bulk import all product groups with year (periode)
+  bulkImportProductGroup: (productData, periode, userId) => apiRequest('/master/group/bulk-import-all', {
+    method: 'POST',
+    body: JSON.stringify({ productData, periode, userId }),
   }),
   
   // Get product names

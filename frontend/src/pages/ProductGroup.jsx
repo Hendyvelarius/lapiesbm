@@ -29,6 +29,9 @@ const ProductGroup = () => {
   const [viewMode, setViewMode] = useState('Standard'); // 'Standard' or 'Generik'
   const [hasModeSwitched, setHasModeSwitched] = useState(false); // Track if user has switched modes
   
+  // Year/Periode filter state
+  const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear());
+  
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(50);
@@ -49,13 +52,22 @@ const ProductGroup = () => {
   // Import warning modal state
   const [showImportWarning, setShowImportWarning] = useState(false);
 
+  // Import All modal states
+  const [showImportAllModal, setShowImportAllModal] = useState(false);
+  const [selectedYear, setSelectedYear] = useState('');
+  const [importFile, setImportFile] = useState(null);
+  const [importLoading, setImportLoading] = useState(false);
+
+  // Get current user from auth
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
   // Dropdown options
   const [categoryOptions, setCategoryOptions] = useState([]);
   const [deptOptions, setDeptOptions] = useState([]);
 
   useEffect(() => {
     fetchAllData();
-  }, []);
+  }, [selectedPeriode]); // Refetch when periode changes
 
   useEffect(() => {
     filterData();
@@ -96,9 +108,9 @@ const ProductGroup = () => {
       setLoading(true);
       setError('');
 
-      // Fetch both group and groupManual data
+      // Fetch both group and groupManual data with selected periode
       const [groupResponse, groupManualResponse] = await Promise.all([
-        masterAPI.getGroup(),
+        masterAPI.getGroup(selectedPeriode),
         masterAPI.getGroupManual()
       ]);
       
@@ -415,8 +427,27 @@ const ProductGroup = () => {
     // Import xlsx library dynamically
     const XLSX = await import('xlsx');
 
-    // Prepare data for Excel export with all group data (both Standard and Generik)
-    const excelData = groupData.map(item => ({
+    // Separate data into Standard (OTC/ETHICAL) and Generik
+    const standardData = groupData.filter(item => item.pnCategoryName !== 'Produk Generik');
+    const generikData = groupData.filter(item => item.pnCategoryName === 'Produk Generik');
+
+    // Prepare Standard (OTC/ETHICAL) data - WITHOUT MHT BB, MHT BK, MH Analisa, KWH Mesin
+    const standardExcelData = standardData.map(item => ({
+      'Product ID': item.productId || '',
+      'Product Name': item.productName || '',
+      'LOB': item.lob || '',
+      'Sediaan': item.jenisSediaan || '',
+      'Category ID': item.pnCategory || '',
+      'Category Name': item.pnCategoryName || '',
+      'MH Process': parseFloat(item.manHourPros) || 0,
+      'MH Packing': parseFloat(item.manHourPack) || 0,
+      'Yield (%)': parseFloat(item.rendemen) || 0,
+      'Department': item.dept || '',
+      'Source': getSourceData(item)
+    }));
+
+    // Prepare Generik data - WITH all columns including MHT BB, MHT BK, MH Analisa, KWH Mesin
+    const generikExcelData = generikData.map(item => ({
       'Product ID': item.productId || '',
       'Product Name': item.productName || '',
       'LOB': item.lob || '',
@@ -437,11 +468,61 @@ const ProductGroup = () => {
     // Create a new workbook
     const workbook = XLSX.utils.book_new();
 
-    // Create worksheet from data
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    // ===== SHEET 1: OTC/ETHICAL (Standard) =====
+    const standardWorksheet = XLSX.utils.json_to_sheet(standardExcelData);
 
-    // Set column widths for better formatting
-    const columnWidths = [
+    // Set column widths for Standard sheet
+    const standardColumnWidths = [
+      { wch: 15 }, // Product ID
+      { wch: 40 }, // Product Name
+      { wch: 12 }, // LOB
+      { wch: 15 }, // Sediaan
+      { wch: 12 }, // Category ID
+      { wch: 20 }, // Category Name
+      { wch: 12 }, // MH Process
+      { wch: 12 }, // MH Packing
+      { wch: 10 }, // Yield (%)
+      { wch: 15 }, // Department
+      { wch: 10 }, // Source
+    ];
+    standardWorksheet['!cols'] = standardColumnWidths;
+
+    // Apply header formatting for Standard sheet
+    const standardHeaderCells = ['A1','B1','C1','D1','E1','F1','G1','H1','I1','J1','K1'];
+    standardHeaderCells.forEach(cell => {
+      if (standardWorksheet[cell]) {
+        standardWorksheet[cell].s = {
+          font: { bold: true, color: { rgb: "FFFFFF" } },
+          fill: { fgColor: { rgb: "366092" } },
+          alignment: { horizontal: "center" }
+        };
+      }
+    });
+
+    // Apply number formatting to numeric columns (G-I) for Standard
+    if (standardWorksheet['!ref']) {
+      const standardRange = XLSX.utils.decode_range(standardWorksheet['!ref']);
+      for (let row = standardRange.s.r + 1; row <= standardRange.e.r; row++) {
+        ['G','H','I'].forEach(col => {
+          const cellAddress = col + (row + 1);
+          if (standardWorksheet[cellAddress]) {
+            standardWorksheet[cellAddress].s = {
+              numFmt: "0.00",
+              alignment: { horizontal: "right" }
+            };
+          }
+        });
+      }
+    }
+
+    // Add Standard worksheet to workbook
+    XLSX.utils.book_append_sheet(workbook, standardWorksheet, 'OTC-ETHICAL');
+
+    // ===== SHEET 2: GENERIK =====
+    const generikWorksheet = XLSX.utils.json_to_sheet(generikExcelData);
+
+    // Set column widths for Generik sheet
+    const generikColumnWidths = [
       { wch: 15 }, // Product ID
       { wch: 40 }, // Product Name
       { wch: 12 }, // LOB
@@ -458,15 +539,13 @@ const ProductGroup = () => {
       { wch: 12 }, // KWH Mesin
       { wch: 10 }, // Source
     ];
-    worksheet['!cols'] = columnWidths;
+    generikWorksheet['!cols'] = generikColumnWidths;
 
-    // Apply header formatting
-    const headerCells = [
-      'A1','B1','C1','D1','E1','F1','G1','H1','I1','J1','K1','L1','M1','N1','O1'
-    ];
-    headerCells.forEach(cell => {
-      if (worksheet[cell]) {
-        worksheet[cell].s = {
+    // Apply header formatting for Generik sheet
+    const generikHeaderCells = ['A1','B1','C1','D1','E1','F1','G1','H1','I1','J1','K1','L1','M1','N1','O1'];
+    generikHeaderCells.forEach(cell => {
+      if (generikWorksheet[cell]) {
+        generikWorksheet[cell].s = {
           font: { bold: true, color: { rgb: "FFFFFF" } },
           fill: { fgColor: { rgb: "366092" } },
           alignment: { horizontal: "center" }
@@ -474,22 +553,24 @@ const ProductGroup = () => {
       }
     });
 
-    // Apply number formatting to numeric columns (G-N)
-    const range = XLSX.utils.decode_range(worksheet['!ref']);
-    for (let row = range.s.r + 1; row <= range.e.r; row++) {
-      ['G','H','I','K','L','M','N'].forEach(col => {
-        const cellAddress = col + (row + 1);
-        if (worksheet[cellAddress]) {
-          worksheet[cellAddress].s = {
-            numFmt: "0.00",
-            alignment: { horizontal: "right" }
-          };
-        }
-      });
+    // Apply number formatting to numeric columns (G-N) for Generik
+    if (generikWorksheet['!ref']) {
+      const generikRange = XLSX.utils.decode_range(generikWorksheet['!ref']);
+      for (let row = generikRange.s.r + 1; row <= generikRange.e.r; row++) {
+        ['G','H','I','K','L','M','N'].forEach(col => {
+          const cellAddress = col + (row + 1);
+          if (generikWorksheet[cellAddress]) {
+            generikWorksheet[cellAddress].s = {
+              numFmt: "0.00",
+              alignment: { horizontal: "right" }
+            };
+          }
+        });
+      }
     }
 
-    // Add the worksheet to workbook
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'All Product Groups');
+    // Add Generik worksheet to workbook
+    XLSX.utils.book_append_sheet(workbook, generikWorksheet, 'GENERIK');
 
     // Generate filename with current date
     const fileName = `ProductGroup_AllData_${new Date().toISOString().split('T')[0]}.xlsx`;
@@ -498,7 +579,7 @@ const ProductGroup = () => {
     XLSX.writeFile(workbook, fileName);
 
     // Show success notification
-    notifier.success(`Excel file exported successfully: ${fileName}`, {
+    notifier.success(`Excel file exported successfully with ${standardData.length} OTC/ETHICAL and ${generikData.length} GENERIK products`, {
       durations: { success: 3000 }
     });
 
@@ -684,6 +765,142 @@ const ProductGroup = () => {
     } finally {
       setSubmitLoading(false);
     }
+  };
+
+  // Import All functionality - handles bulk import with year selection
+  const handleImportAllClick = () => {
+    setSelectedYear(''); // Reset year selection
+    setImportFile(null); // Reset file
+    setShowImportAllModal(true);
+  };
+
+  const handleImportAllConfirm = async () => {
+    if (!selectedYear) {
+      notifier.alert('Please select a year first');
+      return;
+    }
+
+    if (!importFile) {
+      notifier.alert('Please select a file to import');
+      return;
+    }
+
+    try {
+      setImportLoading(true);
+
+      // Import xlsx library dynamically
+      const XLSX = await import('xlsx');
+      
+      const buffer = await importFile.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'buffer' });
+      
+      // Process both sheets
+      let standardData = [];
+      let generikData = [];
+      
+      // Check for OTC-ETHICAL sheet
+      if (workbook.SheetNames.includes('OTC-ETHICAL')) {
+        const standardSheet = workbook.Sheets['OTC-ETHICAL'];
+        const standardRows = XLSX.utils.sheet_to_json(standardSheet);
+        standardData = standardRows.map(row => ({
+          productId: row['Product ID']?.toString().trim() || '',
+          productName: row['Product Name']?.toString().trim() || '',
+          pnCategory: parseInt(row['Category ID']) || null,
+          pnCategoryName: row['Category Name']?.toString().trim() || '',
+          manHourPros: parseFloat(row['MH Process']) || 0,
+          manHourPack: parseFloat(row['MH Packing']) || 0,
+          rendemen: parseFloat(row['Yield (%)']) || 0,
+          dept: row['Department']?.toString().trim() || '',
+          mhtBB: 0,
+          mhtBK: 0,
+          mhAnalisa: 0,
+          kwhMesin: 0,
+          periode: selectedYear
+        }));
+      }
+      
+      // Check for GENERIK sheet
+      if (workbook.SheetNames.includes('GENERIK')) {
+        const generikSheet = workbook.Sheets['GENERIK'];
+        const generikRows = XLSX.utils.sheet_to_json(generikSheet);
+        generikData = generikRows.map(row => ({
+          productId: row['Product ID']?.toString().trim() || '',
+          productName: row['Product Name']?.toString().trim() || '',
+          pnCategory: parseInt(row['Category ID']) || null,
+          pnCategoryName: row['Category Name']?.toString().trim() || '',
+          manHourPros: parseFloat(row['MH Process']) || 0,
+          manHourPack: parseFloat(row['MH Packing']) || 0,
+          rendemen: parseFloat(row['Yield (%)']) || 0,
+          dept: row['Department']?.toString().trim() || '',
+          mhtBB: parseFloat(row['MHT BB']) || 0,
+          mhtBK: parseFloat(row['MHT BK']) || 0,
+          mhAnalisa: parseFloat(row['MH Analisa']) || 0,
+          kwhMesin: parseFloat(row['KWH Mesin']) || 0,
+          periode: selectedYear
+        }));
+      }
+
+      const allData = [...standardData, ...generikData];
+
+      if (allData.length === 0) {
+        notifier.alert('No valid data found in the Excel file');
+        return;
+      }
+
+      // Get user ID
+      const userId = user?.logNIK || 'SYSTEM';
+
+      // Call API to bulk import
+      const response = await masterAPI.bulkImportProductGroup(allData, selectedYear, userId);
+
+      if (response.success) {
+        notifier.success(`Successfully imported ${response.rowsAffected} products for year ${selectedYear}`);
+        setShowImportAllModal(false);
+        setImportFile(null);
+        setSelectedYear('');
+        
+        // Refresh data
+        await fetchAllData();
+      } else {
+        notifier.alert(response.message || 'Import failed');
+      }
+
+    } catch (error) {
+      console.error('Error importing data:', error);
+      notifier.alert('Failed to import data. Please check the file format and try again.');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Validate file type
+      const validTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel'
+      ];
+      
+      if (!validTypes.includes(file.type) && !file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+        notifier.alert('Please select a valid Excel file (.xlsx or .xls)');
+        return;
+      }
+      
+      setImportFile(file);
+    }
+  };
+
+  const getAvailableYears = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    
+    // 2 years before, current year, 2 years after
+    for (let i = -2; i <= 2; i++) {
+      years.push(currentYear + i);
+    }
+    
+    return years;
   };
 
   // Import Generik functionality
@@ -893,6 +1110,18 @@ const ProductGroup = () => {
           />
         </div>
         
+        <div className="year-filter">
+          <select 
+            value={selectedPeriode}
+            onChange={(e) => setSelectedPeriode(parseInt(e.target.value))}
+            className="year-selector"
+          >
+            {getAvailableYears().map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </div>
+        
         <div className="view-mode-toggle">
           <div className={`mode-indicator ${viewMode.toLowerCase()}-mode ${hasModeSwitched ? 'animated' : ''}`}>
             <span>{viewMode} Mode</span>
@@ -912,7 +1141,16 @@ const ProductGroup = () => {
             title="Export all product group data to CSV"
           >
             <Download size={20} />
-            <span>Export All</span>
+            <span>Export</span>
+          </button>
+          <button 
+            className="import-btn"
+            onClick={handleImportAllClick}
+            disabled={submitLoading}
+            title="Import all product group data from Excel"
+          >
+            <Upload size={20} />
+            <span>Import</span>
           </button>
         </div>
         
@@ -1331,6 +1569,111 @@ const ProductGroup = () => {
         title="Generik Product Import"
         dataType="Generik product groups"
       />
+
+      {/* Import All Modal */}
+      {showImportAllModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Import All Product Groups</h2>
+              <button className="modal-close" onClick={() => setShowImportAllModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="import-warning-section">
+                <div className="warning-icon" style={{ textAlign: 'center', marginBottom: '1rem' }}>
+                  <Upload size={48} color="#f59e0b" />
+                </div>
+                <h3 style={{ textAlign: 'center', color: '#f59e0b', marginBottom: '1rem' }}>Important Information</h3>
+                <p style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
+                  This import will perform the following actions:
+                </p>
+                <ul style={{ marginLeft: '1.5rem', marginBottom: '1.5rem', lineHeight: '1.8' }}>
+                  <li><strong>Delete all existing data</strong> for the selected year (periode)</li>
+                  <li><strong>Insert new data</strong> from your Excel file for that year</li>
+                  <li>Process both <strong>OTC-ETHICAL</strong> and <strong>GENERIK</strong> sheets</li>
+                </ul>
+                <p style={{ color: '#dc2626', fontWeight: '600', marginBottom: '1.5rem' }}>
+                  ⚠️ This action cannot be undone. Please ensure you have selected the correct file and year.
+                </p>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="import-year">
+                  Select Year (Periode) <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <select
+                  id="import-year"
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  disabled={importLoading}
+                  style={{ width: '100%' }}
+                >
+                  <option value="">Pick Year</option>
+                  {getAvailableYears().map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="import-file">
+                  Select Excel File <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <input
+                  id="import-file"
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileChange}
+                  disabled={importLoading}
+                  style={{ width: '100%' }}
+                />
+                {importFile && (
+                  <div style={{ marginTop: '0.5rem', color: '#059669', fontSize: '0.9rem' }}>
+                    ✓ Selected: {importFile.name}
+                  </div>
+                )}
+              </div>
+
+              <div className="form-info">
+                <small>
+                  <strong>File Format:</strong> The Excel file must have the same format as the Export All function generates,
+                  with sheets named <strong>"OTC-ETHICAL"</strong> and <strong>"GENERIK"</strong>.
+                </small>
+              </div>
+              
+              <div className="modal-actions">
+                <button 
+                  className="modal-btn secondary" 
+                  onClick={() => setShowImportAllModal(false)}
+                  disabled={importLoading}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="modal-btn primary" 
+                  onClick={handleImportAllConfirm}
+                  disabled={importLoading || !selectedYear || !importFile}
+                >
+                  {importLoading ? (
+                    <>
+                      <div className="btn-spinner"></div>
+                      Importing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={16} />
+                      Import Data
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

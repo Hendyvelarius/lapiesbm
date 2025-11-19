@@ -654,7 +654,8 @@ class MasterController {
 
     static async getGroup(req, res) {
         try {
-            const groups = await getGroup();
+            const { periode } = req.query;
+            const groups = await getGroup(periode);
             res.status(200).json(groups);
         } catch (error) {
             console.error('Error in getGroup endpoint:', error);
@@ -977,6 +978,69 @@ class MasterController {
             
         } catch (error) {
             console.error('Error in bulkImportGenerikGroups endpoint:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to perform bulk import',
+                error: error.message
+            });
+        }
+    }
+
+    static async bulkImportProductGroupAll(req, res) {
+        try {
+            const { productData, periode, userId = "SYSTEM" } = req.body;
+            
+            // Validate required fields
+            if (!productData || !Array.isArray(productData) || productData.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required field: productData must be a non-empty array'
+                });
+            }
+            
+            if (!periode) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required field: periode (year)'
+                });
+            }
+            
+            // Validate each row in the data
+            for (let i = 0; i < productData.length; i++) {
+                const row = productData[i];
+                
+                // Check required fields
+                if (!row.productId || !row.pnCategory || !row.pnCategoryName) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Row ${i + 1}: Missing required fields (productId, pnCategory, pnCategoryName)`
+                    });
+                }
+            }
+            
+            // Call model functions for bulk delete and insert
+            const { bulkDeleteProductGroupByPeriode, bulkInsertProductGroup } = require('../models/sqlModel');
+            
+            // Delete existing data for this periode
+            const deleteResult = await bulkDeleteProductGroupByPeriode(periode);
+            
+            // Insert new data with periode
+            const insertResult = await bulkInsertProductGroup(productData, periode, userId);
+            
+            res.status(200).json({
+                success: true,
+                message: `Bulk import completed successfully for year ${periode}. Deleted ${deleteResult.rowsAffected} old records, inserted ${insertResult.rowsAffected} new records.`,
+                rowsAffected: insertResult.rowsAffected,
+                data: {
+                    deleted: deleteResult.rowsAffected,
+                    inserted: insertResult.rowsAffected,
+                    processed: productData.length,
+                    periode: periode
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error in bulkImportProductGroupAll endpoint:', error);
             res.status(500).json({
                 success: false,
                 message: 'Failed to perform bulk import',

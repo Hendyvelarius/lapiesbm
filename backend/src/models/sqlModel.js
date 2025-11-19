@@ -553,11 +553,22 @@ async function bulkInsertGeneralCostsPerSediaan(data) {
   }
 }
 
-async function getGroup(req, res) {
+async function getGroup(periode) {
   try {
     const db = await connect();
-    const query = 'SELECT * FROM vw_COGS_Product_Group';
-    const result = await db.request().query(query);
+    let query = 'SELECT * FROM vw_COGS_Product_Group';
+    
+    if (periode) {
+      query += ' WHERE Periode = @periode';
+    }
+    
+    const request = db.request();
+    
+    if (periode) {
+      request.input('periode', sql.NVarChar, periode.toString());
+    }
+    
+    const result = await request.query(query);
     return result.recordset;
   } catch (error) {
     console.error('Error executing getGroup query:', error);
@@ -1443,6 +1454,145 @@ async function deleteEntireFormulaManual(ppiType, ppiSubId, ppiProductId) {
   }
 }
 
+async function bulkDeleteProductGroupByPeriode(periode) {
+  try {
+    const db = await connect();
+    
+    // Delete all groups for the specified periode
+    const deleteQuery = `
+      DELETE FROM M_COGS_PRODUCT_GROUP_MANUAL 
+      WHERE Periode = @periode
+    `;
+    
+    const result = await db.request()
+      .input('periode', sql.NVarChar, periode.toString())
+      .query(deleteQuery);
+    
+    console.log(`Bulk delete by periode completed: ${result.rowsAffected[0]} groups removed for year ${periode}`);
+    
+    return {
+      success: true,
+      rowsAffected: result.rowsAffected[0],
+      operation: 'bulk_delete_by_periode',
+      periode: periode
+    };
+  } catch (error) {
+    console.error('Error executing bulkDeleteProductGroupByPeriode query:', error);
+    throw error;
+  }
+}
+
+async function bulkInsertProductGroup(productData, periode, userId = "SYSTEM") {
+  try {
+    if (!productData || productData.length === 0) {
+      return {
+        success: true,
+        rowsAffected: 0,
+        message: 'No data to insert'
+      };
+    }
+    
+    // SQL Server parameter limit is 2100
+    // We use 14 parameters per row, so max rows per batch = 2100 / 14 = 150
+    // Using 140 to be safe and stay well under the limit
+    const BATCH_SIZE = 140;
+    let totalRowsAffected = 0;
+    
+    console.log(`Starting bulk insert for ${productData.length} rows in batches of ${BATCH_SIZE}`);
+    
+    // Process in batches
+    for (let i = 0; i < productData.length; i += BATCH_SIZE) {
+      const batch = productData.slice(i, i + BATCH_SIZE);
+      
+      console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1}: rows ${i + 1} to ${i + batch.length}`);
+      
+      // Get fresh connection for each batch
+      const db = await connect();
+      
+      // Build bulk insert query for this batch
+      const insertQuery = `
+        INSERT INTO M_COGS_PRODUCT_GROUP_MANUAL (
+          Periode,
+          Group_ProductID, 
+          Group_PNCategory, 
+          Group_PNCategoryName, 
+          Group_ManHourPros, 
+          Group_ManHourPack, 
+          Group_Rendemen, 
+          Group_Dept, 
+          Group_MHT_BB, 
+          Group_MHT_BK, 
+          Group_MH_Analisa, 
+          Group_KWH_Mesin, 
+          user_id,
+          delegated_to
+        ) VALUES
+      `;
+      
+      // Create value placeholders and parameters
+      const values = [];
+      const request = db.request();
+      
+      for (let j = 0; j < batch.length; j++) {
+        const item = batch[j];
+        const paramPrefix = `p${j}`;
+        
+        values.push(`(
+          @${paramPrefix}_periode,
+          @${paramPrefix}_productId,
+          @${paramPrefix}_pnCategory,
+          @${paramPrefix}_pnCategoryName,
+          @${paramPrefix}_manHourPros,
+          @${paramPrefix}_manHourPack,
+          @${paramPrefix}_rendemen,
+          @${paramPrefix}_dept,
+          @${paramPrefix}_mhtBB,
+          @${paramPrefix}_mhtBK,
+          @${paramPrefix}_mhAnalisa,
+          @${paramPrefix}_kwhMesin,
+          @${paramPrefix}_userId,
+          @${paramPrefix}_delegatedTo
+        )`);
+        
+        // Add parameters
+        request.input(`${paramPrefix}_periode`, sql.NVarChar, periode.toString());
+        request.input(`${paramPrefix}_productId`, sql.NVarChar, item.productId);
+        request.input(`${paramPrefix}_pnCategory`, sql.Int, item.pnCategory);
+        request.input(`${paramPrefix}_pnCategoryName`, sql.NVarChar, item.pnCategoryName);
+        request.input(`${paramPrefix}_manHourPros`, sql.Decimal(18, 6), item.manHourPros || null);
+        request.input(`${paramPrefix}_manHourPack`, sql.Decimal(18, 6), item.manHourPack || null);
+        request.input(`${paramPrefix}_rendemen`, sql.Decimal(18, 6), item.rendemen || null);
+        request.input(`${paramPrefix}_dept`, sql.NVarChar, item.dept || null);
+        request.input(`${paramPrefix}_mhtBB`, sql.Decimal(18, 6), item.mhtBB || 0);
+        request.input(`${paramPrefix}_mhtBK`, sql.Decimal(18, 6), item.mhtBK || 0);
+        request.input(`${paramPrefix}_mhAnalisa`, sql.Decimal(18, 6), item.mhAnalisa || 0);
+        request.input(`${paramPrefix}_kwhMesin`, sql.Decimal(18, 6), item.kwhMesin || 0);
+        request.input(`${paramPrefix}_userId`, sql.NVarChar, userId);
+        request.input(`${paramPrefix}_delegatedTo`, sql.NVarChar, userId);
+      }
+      
+      const finalQuery = insertQuery + values.join(',');
+      const result = await request.query(finalQuery);
+      
+      totalRowsAffected += result.rowsAffected[0];
+      
+      console.log(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: Inserted ${result.rowsAffected[0]} rows`);
+    }
+    
+    console.log(`Bulk insert completed: ${totalRowsAffected} product groups inserted for year ${periode}`);
+    
+    return {
+      success: true,
+      rowsAffected: totalRowsAffected,
+      operation: 'bulk_insert_product_group',
+      periode: periode
+    };
+  } catch (error) {
+    console.error('Error executing bulkInsertProductGroup query:', error);
+    throw error;
+  }
+}
+
 module.exports = { 
   getCurrencyList,
   getBahan,
@@ -1469,6 +1619,8 @@ module.exports = {
   deleteGroup,
   bulkDeleteGenerikGroups,
   bulkInsertGenerikGroups,
+  bulkDeleteProductGroupByPeriode,
+  bulkInsertProductGroup,
   getProductName,
   getPembebanan,
   addPembebanan,
