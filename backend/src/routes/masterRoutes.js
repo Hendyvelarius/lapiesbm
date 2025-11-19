@@ -28,7 +28,6 @@ router.get('/groupManual', MasterController.getGroupManual);
 router.post('/group', MasterController.addGroup);
 router.put('/group/:id', MasterController.updateGroup);
 router.delete('/group/:id', MasterController.deleteGroup);
-router.post('/group/bulk-import-generik', MasterController.bulkImportGenerikGroups);
 router.post('/group/bulk-import-all', MasterController.bulkImportProductGroupAll);
 router.get('/productName', MasterController.getProductName);
 router.get('/pembebanan', MasterController.getPembebanan);

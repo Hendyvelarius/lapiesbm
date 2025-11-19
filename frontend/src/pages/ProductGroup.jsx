@@ -4,7 +4,6 @@ import '../styles/ProductGroup.css';
 import { Search, Filter, Edit, Trash2, Users, ChevronLeft, ChevronRight, X, Check, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, Download, Upload } from 'lucide-react';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
-import ImportWarningModal from '../components/ImportWarningModal';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 // Initialize awesome-notifications
@@ -48,9 +47,6 @@ const ProductGroup = () => {
   // Delete modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingItem, setDeletingItem] = useState(null);
-
-  // Import warning modal state
-  const [showImportWarning, setShowImportWarning] = useState(false);
 
   // Import All modal states
   const [showImportAllModal, setShowImportAllModal] = useState(false);
@@ -661,112 +657,6 @@ const ProductGroup = () => {
   };*/
 
   // Export Generik functionality - exports Generik products in Excel format with proper formatting
-  const handleExportGenerik = async () => {
-    try {
-      setSubmitLoading(true);
-      
-      // Filter only Generik products
-      const generikData = groupData.filter(item => item.pnCategoryName === 'Produk Generik');
-      
-      if (generikData.length === 0) {
-        setError('No Generik products found to export.');
-        return;
-      }
-
-      // Import xlsx library dynamically
-      const XLSX = await import('xlsx');
-      
-      // Prepare data for Excel export with proper structure
-      const excelData = generikData.map(item => ({
-        'Product ID': item.productId || '',
-        'Product Name': item.productName || '',
-        'Category ID': item.pnCategory || '',
-        'Category Name': item.pnCategoryName || '',
-
-        'MH Process': parseFloat(item.manHourPros) || 0,
-        'MH Packing': parseFloat(item.manHourPack) || 0,
-        'Yield (%)': parseFloat(item.rendemen) || 0,
-        'Department': item.dept || '',
-        
-        'MHT BB': parseFloat(item.mhtBB) || 0,
-        'MHT BK': parseFloat(item.mhtBK) || 0,
-        'MH Analisa': parseFloat(item.mhAnalisa) || 0,
-        'KWH Mesin': parseFloat(item.kwhMesin) || 0,
-        'Reagen Rate': parseFloat(item.reagenRate) || 0
-      }));
-      
-      // Create a new workbook
-      const workbook = XLSX.utils.book_new();
-      
-      // Create worksheet from data
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
-      
-      // Set column widths for better formatting
-      const columnWidths = [
-        { wch: 15 }, // Product ID
-        { wch: 40 }, // Product Name
-        { wch: 12 }, // Category ID
-        { wch: 20 }, // Category Name
-        { wch: 12 }, // MH Process
-        { wch: 12 }, // MH Packing
-        { wch: 10 }, // Yield (%)
-        { wch: 15 }, // Department  
-        { wch: 12 }, // MHT BB
-        { wch: 12 }, // MHT BK
-        { wch: 12 }, // MH Analisa
-        { wch: 12 }, // KWH Mesin
-        { wch: 12 }  // Reagen Rate
-      ];
-      worksheet['!cols'] = columnWidths;
-      
-      // Apply header formatting
-      const headerCells = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1', 'L1', 'M1'];
-      headerCells.forEach(cell => {
-        if (worksheet[cell]) {
-          worksheet[cell].s = {
-            font: { bold: true, color: { rgb: "FFFFFF" } },
-            fill: { fgColor: { rgb: "366092" } },
-            alignment: { horizontal: "center" }
-          };
-        }
-      });
-      
-      // Apply number formatting to numeric columns (E-G, I-M)
-      const range = XLSX.utils.decode_range(worksheet['!ref']);
-      for (let row = range.s.r + 1; row <= range.e.r; row++) {
-        ['E', 'F', 'G', 'I', 'J', 'K', 'L', 'M'].forEach(col => {
-          const cellAddress = col + (row + 1);
-          if (worksheet[cellAddress]) {
-            worksheet[cellAddress].s = {
-              numFmt: "0.00", // Two decimal places
-              alignment: { horizontal: "right" }
-            };
-          }
-        });
-      }
-      
-      // Add the worksheet to workbook
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Generik Products');
-      
-      // Generate filename with current date
-      const fileName = `ProductGroup_GenerikData_${new Date().toISOString().split('T')[0]}.xlsx`;
-      
-      // Write and download the file
-      XLSX.writeFile(workbook, fileName);
-      
-      // Show success notification
-      notifier.success(`Excel file exported successfully: ${fileName}`, {
-        durations: { success: 3000 }
-      });
-      
-    } catch (error) {
-      console.error('Error exporting Generik data:', error);
-      setError('Failed to export Generik data. Please try again.');
-    } finally {
-      setSubmitLoading(false);
-    }
-  };
-
   // Import All functionality - handles bulk import with year selection
   const handleImportAllClick = () => {
     setSelectedYear(''); // Reset year selection
@@ -904,158 +794,6 @@ const ProductGroup = () => {
   };
 
   // Import Generik functionality
-  const handleImportGenerik = () => {
-    setShowImportWarning(true);
-  };
-
-  // Handle import confirmation from modal
-  const handleImportConfirm = () => {
-    setShowImportWarning(false);
-    proceedWithGenerikImport();
-  };
-
-  // Actual import function after confirmation
-  const proceedWithGenerikImport = () => {
-    // Create a hidden file input
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = '.xlsx,.xls,.csv';
-    fileInput.style.display = 'none';
-    
-    fileInput.addEventListener('change', async (event) => {
-      const file = event.target.files[0];
-      if (!file) return;
-      
-      try {
-        setSubmitLoading(true);
-        setError('');
-        
-        let parsedData = [];
-        
-        if (file.name.toLowerCase().endsWith('.csv')) {
-          // Handle CSV files
-          const csvText = await readFileAsText(file);
-          parsedData = parseCSV(csvText);
-        } else {
-          // Handle Excel files (.xlsx, .xls)
-          const XLSX = await import('xlsx');
-          const buffer = await file.arrayBuffer();
-          const workbook = XLSX.read(buffer, { type: 'buffer' });
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-          parsedData = XLSX.utils.sheet_to_json(worksheet);
-        }
-        
-        if (parsedData.length === 0) {
-          setError('No data found in the uploaded file.');
-          return;
-        }
-        
-        // Validate and transform data
-        const validatedData = validateImportData(parsedData);
-        
-        // Call bulk import API
-        const result = await masterAPI.bulkImportGenerikGroups(validatedData);
-        
-        // Show success message and refresh data
-        console.log('Import successful:', result);
-        await fetchAllData();
-        
-        // Reset any error states
-        setError('');
-        
-        notifier.success(`Import completed successfully! Deleted: ${result.data.deleted} old records, Inserted: ${result.data.inserted} new records`, {
-          durations: { success: 6000 }
-        });
-        
-      } catch (error) {
-        console.error('Error importing data:', error);
-        setError(`Import failed: ${error.message}`);
-      } finally {
-        setSubmitLoading(false);
-      }
-    });
-    
-    // Append to body, click, and remove
-    document.body.appendChild(fileInput);
-    fileInput.click();
-    document.body.removeChild(fileInput);
-  };
-  
-  // Helper function to read file as text
-  const readFileAsText = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
-      reader.onerror = (e) => reject(new Error('Failed to read file'));
-      reader.readAsText(file);
-    });
-  };
-  
-  // Helper function to parse CSV
-  const parseCSV = (csvText) => {
-    const lines = csvText.split('\n').filter(line => line.trim());
-    if (lines.length <= 1) return [];
-    
-    const headers = lines[0].split(',').map(header => header.trim().replace(/"/g, ''));
-    
-    // Parse data rows
-    const data = [];
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(value => value.trim().replace(/"/g, ''));
-      if (values.length >= headers.length) {
-        const row = {};
-        headers.forEach((header, index) => {
-          row[header] = values[index] || '';
-        });
-        data.push(row);
-      }
-    }
-    
-    return data;
-  };
-  
-  // Helper function to validate import data
-  const validateImportData = (rawData) => {
-    const validatedData = [];
-    
-    for (let i = 0; i < rawData.length; i++) {
-      const row = rawData[i];
-      
-      // Map Excel/CSV headers to expected field names (handle both Excel and CSV formats)
-      const validatedRow = {
-        productId: row['Product ID'] || row['Product_ID'] || row['productId'],
-        productName: row['Product Name'] || row['Product_Name'] || row['productName'],
-        pnCategory: parseInt(row['Category ID'] || row['Category_ID'] || row['pnCategory']) || 0,
-        pnCategoryName: row['Category Name'] || row['Category_Name'] || row['pnCategoryName'],
-        // Include all fields from export for complete data preservation
-        manHourPros: parseFloat(row['MH Process'] || row['MH_Process'] || row['manHourPros']) || 0,
-        manHourPack: parseFloat(row['MH Packing'] || row['MH_Packing'] || row['manHourPack']) || 0,
-        rendemen: parseFloat(row['Yield (%)'] || row['Yield'] || row['rendemen']) || 0,
-        dept: row['Department'] || row['dept'] || '',
-        // Generik-specific fields
-        mhtBB: parseFloat(row['MHT BB'] || row['MHT_BB'] || row['mhtBB']) || 0,
-        mhtBK: parseFloat(row['MHT BK'] || row['MHT_BK'] || row['mhtBK']) || 0,
-        mhAnalisa: parseFloat(row['MH Analisa'] || row['MH_Analisa'] || row['mhAnalisa']) || 0,
-        kwhMesin: parseFloat(row['KWH Mesin'] || row['KWH_Mesin'] || row['kwhMesin']) || 0
-      };
-      
-      // Validate required fields
-      if (!validatedRow.productId || !validatedRow.productName) {
-        throw new Error(`Row ${i + 2}: Missing Product ID or Product Name`);
-      }
-      
-      // Validate that it's a Generik product
-      if (validatedRow.pnCategoryName !== 'Produk Generik') {
-        throw new Error(`Row ${i + 2}: Only 'Produk Generik' products are allowed. Found: '${validatedRow.pnCategoryName}'`);
-      }
-      
-      validatedData.push(validatedRow);
-    }
-    
-    return validatedData;
-  };
-
   // Helper functions
   const formatNumber = (num) => {
     if (num === null || num === undefined) return '0';
@@ -1155,43 +893,18 @@ const ProductGroup = () => {
         </div>
         
         <div className="filter-controls">
-          {viewMode === 'Standard' ? (
-            // Standard mode: Show category filter
-            <div className="category-filter">
-              <Filter size={18} />
-              <select 
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                title={selectedCategory} // Show full text on hover
-              >
-                {getCategories().map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            // Generik mode: Show Import/Export buttons
-            <div className="generik-actions">
-              <button 
-                className="generik-export-btn"
-                onClick={handleExportGenerik}
-                disabled={submitLoading}
-                title="Export Generik products for editing"
-              >
-                <Download size={18} />
-                <span>Export Generik</span>
-              </button>
-              <button 
-                className="generik-import-btn"
-                onClick={handleImportGenerik}
-                disabled={submitLoading}
-                title="Import modified Generik data"
-              >
-                <Upload size={18} />
-                <span>Import Generik</span>
-              </button>
-            </div>
-          )}
+          <div className="category-filter">
+            <Filter size={18} />
+            <select 
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              title={selectedCategory} // Show full text on hover
+            >
+              {getCategories().map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -1562,14 +1275,6 @@ const ProductGroup = () => {
       )}
 
       {/* Import Warning Modal */}
-      <ImportWarningModal
-        isOpen={showImportWarning}
-        onClose={() => setShowImportWarning(false)}
-        onConfirm={handleImportConfirm}
-        title="Generik Product Import"
-        dataType="Generik product groups"
-      />
-
       {/* Import All Modal */}
       {showImportAllModal && (
         <div className="modal-overlay">

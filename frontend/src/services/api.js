@@ -384,11 +384,6 @@ export const masterAPI = {
   }),
   
   // Bulk import Generik groups
-  bulkImportGenerikGroups: (generikData) => apiRequest('/master/group/bulk-import-generik', {
-    method: 'POST',
-    body: JSON.stringify({ generikData }),
-  }),
-  
   // Bulk import all product groups with year (periode)
   bulkImportProductGroup: (productData, periode, userId) => apiRequest('/master/group/bulk-import-all', {
     method: 'POST',
