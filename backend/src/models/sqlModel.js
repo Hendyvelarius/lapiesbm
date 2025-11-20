@@ -1032,7 +1032,8 @@ async function bulkInsertPembebanan(pembebanانData, userId = "system") {
         Group_Proses_Rate, 
         Group_Kemas_Rate, 
         Group_PLN_Rate, 
-        Group_Analisa_Rate, 
+        Group_Analisa_Rate,
+        Group_PNCategoryRateAs,
         user_id,
         delegated_to,
         process_date,
@@ -1058,6 +1059,7 @@ async function bulkInsertPembebanan(pembebanانData, userId = "system") {
         @${paramPrefix}_kemasRate,
         @${paramPrefix}_plnRate,
         @${paramPrefix}_analisaRate,
+        @${paramPrefix}_rateAsGroupId,
         @${paramPrefix}_userId,
         @${paramPrefix}_delegatedTo,
         @${paramPrefix}_processDate,
@@ -1074,6 +1076,7 @@ async function bulkInsertPembebanan(pembebanانData, userId = "system") {
       request.input(`${paramPrefix}_kemasRate`, sql.Decimal(18, 2), item.groupKemasRate);
       request.input(`${paramPrefix}_plnRate`, sql.Decimal(18, 2), item.groupGenerikRate);
       request.input(`${paramPrefix}_analisaRate`, sql.Decimal(18, 2), item.groupAnalisaRate);
+      request.input(`${paramPrefix}_rateAsGroupId`, sql.VarChar, item.groupPNCategoryRateAs ? String(item.groupPNCategoryRateAs) : null);
       request.input(`${paramPrefix}_userId`, sql.VarChar, String(userId));
       request.input(`${paramPrefix}_delegatedTo`, sql.VarChar, String(userId));
       request.input(`${paramPrefix}_processDate`, sql.DateTime, currentDateTime);

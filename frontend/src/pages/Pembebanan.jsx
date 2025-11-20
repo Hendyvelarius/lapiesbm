@@ -596,16 +596,17 @@ const Pembebanan = () => {
   const handleExportCostAllocation = () => {
     try {
       // Export all entries (including default rates) with proper formatting
-      const exportData = processedData
+      const exportData = pembebanData
         .map(item => ({
-          'Product ID': item.isDefaultRate ? '' : (item.productId || ''),
-          'Group ID': item.groupId || '',
-          'Group Name': item.groupName || '',
-          'Is Default Rate': item.isDefaultRate ? 'YES' : 'NO',
-          'Rate Proses': parseFloat(item.rateProses) || 0,
-          'Rate Kemas': parseFloat(item.rateKemas) || 0,
-          'Rate PLN': parseFloat(item.rateGenerik) || 0,
-          'Rate Analisa': parseFloat(item.rateAnalisa) || 0
+          'Product ID': item.Group_ProductID || '',
+          'Group ID': item.Group_PNCategoryID || '',
+          'Group Name': item.Group_PNCategory_Name || '',
+          'Is Default Rate': !item.Group_ProductID ? 'YES' : 'NO',
+          'Rate As Group ID': item.Group_PNCategoryRateAs || '',
+          'Rate Proses': parseFloat(item.Group_Proses_Rate) || 0,
+          'Rate Kemas': parseFloat(item.Group_Kemas_Rate) || 0,
+          'Rate PLN': parseFloat(item.Group_PLN_Rate) || 0,
+          'Rate Analisa': parseFloat(item.Group_Analisa_Rate) || 0
         }));
 
       if (exportData.length === 0) {
@@ -623,6 +624,7 @@ const Pembebanan = () => {
         { wch: 12 }, // Group ID  
         { wch: 25 }, // Group Name
         { wch: 15 }, // Is Default Rate
+        { wch: 18 }, // Rate As Group ID
         { wch: 12 }, // Rate Proses
         { wch: 12 }, // Rate Kemas
         { wch: 12 }, // Rate PLN
@@ -636,9 +638,10 @@ const Pembebanan = () => {
       // Set column formats for the entire columns (not just existing cells)
       if (!worksheet['!cols']) worksheet['!cols'] = [];
       
-      // Force Product ID and Group ID columns to be text format
+      // Force Product ID, Group ID, and Rate As Group ID columns to be text format
       worksheet['!cols'][0] = { ...worksheet['!cols'][0], z: '@' }; // Product ID as text
       worksheet['!cols'][1] = { ...worksheet['!cols'][1], z: '@' }; // Group ID as text
+      worksheet['!cols'][4] = { ...worksheet['!cols'][4], z: '@' }; // Rate As Group ID as text
       
       for (let row = range.s.r; row <= range.e.r; row++) {
         // Format Product ID column as text (including empty cells)
@@ -653,8 +656,14 @@ const Pembebanan = () => {
         worksheet[groupIdCell].t = 's';
         worksheet[groupIdCell].z = '@';
         
+        // Format Rate As Group ID column as text (including empty cells)
+        const rateAsGroupIdCell = XLSX.utils.encode_cell({ r: row, c: 4 });
+        if (!worksheet[rateAsGroupIdCell]) worksheet[rateAsGroupIdCell] = { v: '', t: 's' };
+        worksheet[rateAsGroupIdCell].t = 's';
+        worksheet[rateAsGroupIdCell].z = '@';
+        
         // Format numeric columns explicitly as numbers with 2 decimal places
-        for (let col = 4; col <= 7; col++) { // Rate columns (Proses, Kemas, PLN, Analisa)
+        for (let col = 5; col <= 8; col++) { // Rate columns (Proses, Kemas, PLN, Analisa) - shifted by 1
           const numCell = XLSX.utils.encode_cell({ r: row, c: col });
           if (worksheet[numCell] && row > range.s.r) { // Skip header row
             worksheet[numCell].t = 'n';
@@ -666,12 +675,14 @@ const Pembebanan = () => {
       // Add additional empty rows with proper formatting to make manual entry easier
       const lastRow = range.e.r;
       for (let extraRow = lastRow + 1; extraRow <= lastRow + 10; extraRow++) {
-        // Pre-format empty rows for Product ID and Group ID as text
+        // Pre-format empty rows for Product ID, Group ID, and Rate As Group ID as text
         const productIdCell = XLSX.utils.encode_cell({ r: extraRow, c: 0 });
         const groupIdCell = XLSX.utils.encode_cell({ r: extraRow, c: 1 });
+        const rateAsGroupIdCell = XLSX.utils.encode_cell({ r: extraRow, c: 4 });
         
         worksheet[productIdCell] = { v: '', t: 's', z: '@' };
         worksheet[groupIdCell] = { v: '', t: 's', z: '@' };
+        worksheet[rateAsGroupIdCell] = { v: '', t: 's', z: '@' };
         
         // Update range to include these new rows
         if (!worksheet['!ref']) {
@@ -834,6 +845,7 @@ const Pembebanan = () => {
       const productId = row['Product ID'] || row['ProductID'] || row['productId'] || row['Product_ID'];
       const groupId = row['Group ID'] || row['GroupID'] || row['Group_ID'];
       const groupName = row['Group Name'] || row['GroupName'] || row['Group_Name'];
+      const rateAsGroupId = row['Rate As Group ID'] || row['RateAsGroupID'] || row['Rate_As_Group_ID'] || '';
 
       let processedRow;
 
@@ -878,8 +890,24 @@ const Pembebanan = () => {
         };
       }
 
+      // Check if this entry uses Rate As functionality
+      const isRateAs = rateAsGroupId && String(rateAsGroupId).trim() !== '';
+      
+      // Add Rate As Group ID to processed row if specified
+      if (isRateAs) {
+        processedRow.groupPNCategoryRateAs = String(rateAsGroupId).trim();
+      } else {
+        processedRow.groupPNCategoryRateAs = null;
+      }
+
       // Validate and extract numeric values
-      const numericFields = {
+      // If Rate As is specified, ignore rate values and set them to 0
+      const numericFields = isRateAs ? {
+        rateProses: 0,
+        rateKemas: 0,
+        rateGenerik: 0,
+        rateReagen: 0
+      } : {
         rateProses: row['Rate Proses'] || row['RateProses'] || row['Rate_Proses'] || 0,
         rateKemas: row['Rate Kemas'] || row['RateKemas'] || row['Rate_Kemas'] || 0,
         rateGenerik: row['Rate PLN'] || row['RatePLN'] || row['Rate_PLN'] || row['Rate Generik'] || row['RateGenerik'] || row['Rate_Generik'] || 0,

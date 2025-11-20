@@ -1209,6 +1209,7 @@ class MasterController {
                 groupKemasRate: parseFloat(row.groupKemasRate) || 0,
                 groupGenerikRate: parseFloat(row.groupGenerikRate) || 0,
                 groupAnalisaRate: parseFloat(row.groupAnalisaRate) || 0,
+                groupPNCategoryRateAs: row.groupPNCategoryRateAs || null,
                 tollFee: parseFloat(row.tollFee) || 0
             }));
             
