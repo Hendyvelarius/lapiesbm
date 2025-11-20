@@ -110,6 +110,78 @@
   border-radius: 8px;
   margin-bottom: 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+/* Category Tabs */
+.category-tabs {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+}
+
+.category-tab {
+  padding: 10px 20px;
+  border: 2px solid #e9ecef;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  color: #495057;
+  transition: all 0.2s ease;
+}
+
+.category-tab:hover {
+  border-color: #007bff;
+  color: #007bff;
+}
+
+.category-tab.active {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border-color: #667eea;
+}
+
+/* Period Selector */
+.period-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.period-selector label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 14px;
+}
+
+.periode-select {
+  padding: 8px 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #495057;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  min-width: 100px;
+}
+
+.periode-select:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.toll-fee-search-section {
+  background: white;
+  padding: 0 20px 20px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
 }
 
 .toll-fee-search-section {

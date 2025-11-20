@@ -25,6 +25,11 @@ const TollFee = ({ user }) => {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Category and Period states
+  const [selectedKategori, setSelectedKategori] = useState('Toll In');
+  const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear().toString());
+  const availableKategori = ['Toll In', 'Toll Out', 'Import', 'Lapi'];
+  
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(50);
@@ -133,30 +138,27 @@ const TollFee = ({ user }) => {
     };
   }, [showProductDropdown]);
 
-  // Load toll fee data from API
+  // Load toll fee data from view API with category and period filtering
   const loadTollFeeData = async () => {
     try {
       setLoading(true);
       
-      const result = await tollFeeAPI.getAll();
+      const result = await tollFeeAPI.getFromView(selectedKategori, selectedPeriode);
       
       if (result && result.success && Array.isArray(result.data)) {
-        // Map the data to include product names
-        const mappedData = result.data.map(item => {
-          const productInfo = productNames.find(p => p.Product_ID === item.ProductID);
-          return {
-            pk_id: item.pk_id,
-            productId: item.ProductID,
-            productName: productInfo ? productInfo.Product_Name : `Product ${item.ProductID}`,
-            tollFeeRate: item.Toll_Fee, // Keep as varchar string
-            rounded: item.Rounded || null,
-            userId: item.user_id,
-            delegatedTo: item.delegated_to,
-            processDate: item.process_date,
-            flagUpdate: item.flag_update,
-            fromUpdate: item.from_update
-          };
-        });
+        // Filter out products without Toll_Fee (where Toll_Fee is null)
+        const filteredResult = result.data.filter(item => item.Toll_Fee !== null && item.Toll_Fee !== undefined);
+        
+        // Map the data from view columns
+        const mappedData = filteredResult.map((item, index) => ({
+          pk_id: index + 1, // Use index as temporary ID since view doesn't have pk_id
+          productId: item.productid,
+          productName: item.Product_Name,
+          tollFeeRate: item.Toll_Fee,
+          rounded: item.Rounded || null,
+          kategori: item.Kategori,
+          periode: item.Periode
+        }));
         
         setTollFeeData(mappedData);
         setError('');
@@ -236,34 +238,13 @@ const TollFee = ({ user }) => {
 
   // Initial data load
   useEffect(() => {
-    const loadInitialData = async () => {
-      // Load product names first, but don't wait for it to complete
-      loadProductNames();
-      // Load toll fee data immediately as well
-      await loadTollFeeData();
-    };
-    loadInitialData();
-  }, []);
+    loadTollFeeData();
+  }, [selectedKategori, selectedPeriode]);
 
-  // Re-map toll fee data when product names are loaded
-  useEffect(() => {
-    if (productNames.length > 0 && tollFeeData.length > 0) {
-      const remappedData = tollFeeData.map(item => {
-        const productInfo = productNames.find(p => p.Product_ID === item.productId);
-        return {
-          ...item,
-          productName: productInfo ? productInfo.Product_Name : item.productName
-        };
-      });
-      setTollFeeData(remappedData);
-    }
-  }, [productNames]);
-
-  // Update available products when toll fee data or product names change
-  useEffect(() => {
-    loadAvailableProducts();
-  }, [tollFeeData, productNames]);
-
+  // Re-map toll fee data when product names are loaded - REMOVED (no longer needed with view)
+  
+  // Update available products when toll fee data or product names change - REMOVED (no longer needed)
+  
   // Filter and search functionality
   useEffect(() => {
     let filtered = tollFeeData;
@@ -353,7 +334,6 @@ const TollFee = ({ user }) => {
       }
       
       const updateData = {
-        productId: originalItem.productId,
         tollFeeRate: editFormData.tollFeeRate || '', // Keep as string (varchar)
         rounded: editFormData.rounded || '', // Keep as string (varchar)
         userId: user?.nama || user?.inisialNama || 'SYSTEM',
@@ -361,7 +341,11 @@ const TollFee = ({ user }) => {
         processDate: new Date().toISOString()
       };
       
-      const result = await tollFeeAPI.update(editingRowId, updateData);
+      const result = await tollFeeAPI.updateByProductAndPeriode(
+        originalItem.productId,
+        originalItem.periode || selectedPeriode,
+        updateData
+      );
       
       if (result.success) {
         // Refresh data and close edit mode
@@ -458,9 +442,12 @@ const TollFee = ({ user }) => {
 
   // Delete handler
   const handleDelete = async (item) => {
-    if (window.confirm(`Are you sure you want to delete margin entry for ${item.productId} - ${item.productName}?`)) {
+    if (window.confirm(`Are you sure you want to delete margin entry for ${item.productId} - ${item.productName} in ${item.periode || selectedPeriode}?`)) {
       try {
-        const result = await tollFeeAPI.delete(item.pk_id);
+        const result = await tollFeeAPI.deleteByProductAndPeriode(
+          item.productId,
+          item.periode || selectedPeriode
+        );
         
         if (result.success) {
           await loadTollFeeData();
@@ -475,45 +462,117 @@ const TollFee = ({ user }) => {
     }
   };
 
-  // Export to Excel
-  const handleExportExcel = () => {
+  // Export to Excel - Export all categories for the selected year
+  const handleExportExcel = async () => {
     try {
-      if (tollFeeData.length === 0) {
-        notifier.warning('No toll fee data to export.');
+      setLoading(true);
+      
+      const wb = XLSX.utils.book_new();
+      let totalAssigned = 0;
+      let totalUnassigned = 0;
+      let unassignedProducts = []; // Collect all unassigned products for the Unassigned sheet
+      
+      // Fetch data for each category
+      for (const kategori of availableKategori) {
+        const result = await tollFeeAPI.getFromViewForExport(kategori, selectedPeriode);
+        
+        if (!result || !result.success || !Array.isArray(result.data)) {
+          console.error(`Failed to fetch data for ${kategori}`);
+          continue;
+        }
+        
+        const allData = result.data;
+        
+        if (allData.length === 0) {
+          continue;
+        }
+
+        // Separate data into products with and without margins
+        const productsWithoutMargin = allData.filter(item => !item.Toll_Fee || item.Toll_Fee === null);
+        const productsWithMargin = allData.filter(item => item.Toll_Fee && item.Toll_Fee !== null);
+        
+        totalAssigned += productsWithMargin.length;
+        totalUnassigned += productsWithoutMargin.length;
+        
+        // For Lapi category, collect unassigned products separately and skip them in the main sheet
+        let sheetData;
+        if (kategori === 'Lapi') {
+          unassignedProducts = productsWithoutMargin.map(item => ({
+            'Product ID': item.productid || '',
+            'Product Name': item.Product_Name || '',
+            'Margin': '',
+            'Rounded': ''
+          }));
+          
+          // Only show assigned products on the Lapi sheet
+          sheetData = productsWithMargin.map(item => ({
+            'Product ID': item.productid || '',
+            'Product Name': item.Product_Name || '',
+            'Margin': item.Toll_Fee || '',
+            'Rounded': item.Rounded || ''
+          }));
+        } else {
+          // For other categories, show unassigned first, then assigned
+          sheetData = [
+            ...productsWithoutMargin.map(item => ({
+              'Product ID': item.productid || '',
+              'Product Name': item.Product_Name || '',
+              'Margin': '',
+              'Rounded': ''
+            })),
+            ...productsWithMargin.map(item => ({
+              'Product ID': item.productid || '',
+              'Product Name': item.Product_Name || '',
+              'Margin': item.Toll_Fee || '',
+              'Rounded': item.Rounded || ''
+            }))
+          ];
+        }
+        
+        const ws = XLSX.utils.json_to_sheet(sheetData);
+        ws['!cols'] = [
+          { wch: 15 }, // Product ID
+          { wch: 50 }, // Product Name
+          { wch: 15 }, // Margin
+          { wch: 15 }  // Rounded
+        ];
+        
+        XLSX.utils.book_append_sheet(wb, ws, kategori);
+      }
+      
+      // Add Unassigned sheet if there are unassigned Lapi products
+      if (unassignedProducts.length > 0) {
+        const unassignedWs = XLSX.utils.json_to_sheet(unassignedProducts);
+        unassignedWs['!cols'] = [
+          { wch: 15 }, // Product ID
+          { wch: 50 }, // Product Name
+          { wch: 15 }, // Margin
+          { wch: 15 }  // Rounded
+        ];
+        XLSX.utils.book_append_sheet(wb, unassignedWs, 'Unassigned');
+      }
+      
+      // Check if we have any data to export
+      if (wb.SheetNames.length === 0) {
+        notifier.warning('No data to export for the selected year.');
         return;
       }
 
-      const exportData = tollFeeData.map(item => ({
-        'Product ID': item.productId,
-        'Product Name': item.productName,
-        'Margin': item.tollFeeRate || '',
-        'Rounded': item.rounded || ''
-      }));
-
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(exportData);
-
-      // Set column widths
-      ws['!cols'] = [
-        { wch: 15 }, // Product ID
-        { wch: 50 }, // Product Name
-        { wch: 15 }, // Margin
-        { wch: 15 }  // Rounded
-      ];
-
-      XLSX.utils.book_append_sheet(wb, ws, 'Margin Data');
-
-      const now = new Date();
-      const dateStr = now.getFullYear() + 
-                     String(now.getMonth() + 1).padStart(2, '0') + 
-                     String(now.getDate()).padStart(2, '0');
-      const filename = `Margin_Data_${dateStr}.xlsx`;
+      // Create filename with year only
+      const filename = `Margin_${selectedPeriode}.xlsx`;
 
       XLSX.writeFile(wb, filename);
-      notifier.success(`Excel file exported successfully! (${exportData.length} entries)`);
+      
+      const totalCount = totalAssigned + totalUnassigned;
+      
+      notifier.success(
+        `Excel file exported successfully! Total: ${totalCount} products (${totalAssigned} assigned, ${totalUnassigned} unassigned)`
+      );
     } catch (error) {
       console.error('Error exporting to Excel:', error);
-      notifier.alert('Failed to export Excel file. Please try again.');
+      notifier.alert('Failed to export Excel file: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -558,16 +617,32 @@ const TollFee = ({ user }) => {
 
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      
+      // Process all sheets in the workbook
+      let allDataRows = [];
+      
+      workbook.SheetNames.forEach(sheetName => {
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-      if (jsonData.length < 2) {
-        throw new Error('Excel file must contain at least a header row and one data row');
+        if (jsonData.length < 2) {
+          return; // Skip sheets with no data
+        }
+
+        // Skip header row and add data rows from this sheet
+        const dataRows = jsonData.slice(1).filter(row => 
+          row && row.length > 0 && row[0] && String(row[0]).trim() !== ''
+        );
+        
+        allDataRows = allDataRows.concat(dataRows);
+      });
+
+      if (allDataRows.length === 0) {
+        throw new Error('No valid data rows found in any sheet of the Excel file');
       }
 
-      // Process the Excel data
-      await processImportData(jsonData);
+      // Process the combined Excel data from all sheets
+      await processImportData(allDataRows);
 
     } catch (error) {
       console.error('Error processing Excel file:', error);
@@ -578,13 +653,8 @@ const TollFee = ({ user }) => {
   };
 
   // Process and validate import data
-  const processImportData = async (jsonData) => {
+  const processImportData = async (dataRows) => {
     try {
-      // Skip header row and filter out empty rows
-      const dataRows = jsonData.slice(1).filter(row => 
-        row && row.length > 0 && row[0] && String(row[0]).trim() !== ''
-      );
-
       if (dataRows.length === 0) {
         throw new Error('No valid data rows found in Excel file');
       }
@@ -592,6 +662,7 @@ const TollFee = ({ user }) => {
       const validationResults = [];
       const validEntries = [];
       const errors = [];
+      const skippedRows = [];
 
       notifier.info(`Validating ${dataRows.length} entries...`);
 
@@ -603,30 +674,23 @@ const TollFee = ({ user }) => {
         const tollFeeRate = row[2]; // Column C - Margin
         const rounded = row[3]; // Column D - Rounded (optional)
 
+        // Skip rows where BOTH Margin AND Rounded are empty
+        const marginEmpty = tollFeeRate === undefined || tollFeeRate === null || String(tollFeeRate).trim() === '';
+        const roundedEmpty = rounded === undefined || rounded === null || String(rounded).trim() === '';
+        
+        if (marginEmpty && roundedEmpty) {
+          skippedRows.push(rowNum);
+          continue;
+        }
+
         // Validate Product ID
         if (!productId) {
           errors.push(`Row ${rowNum}: Product ID is required`);
           continue;
         }
 
-        // Validate Margin (keep as string, just check not empty)
-        if (tollFeeRate === undefined || tollFeeRate === null || String(tollFeeRate).trim() === '') {
-          errors.push(`Row ${rowNum}: Margin is required`);
-          continue;
-        }
-
-        const marginValue = String(tollFeeRate).trim();
-        const roundedValue = rounded !== undefined && rounded !== null && String(rounded).trim() !== '' 
-          ? String(rounded).trim() 
-          : null;
-
-        // Check if Product ID exists
-        const productInfo = productNames.find(p => p.Product_ID === productId);
-
-        if (!productInfo) {
-          errors.push(`Row ${rowNum}: Product ID "${productId}" does not exist in the system`);
-          continue;
-        }
+        const marginValue = marginEmpty ? '' : String(tollFeeRate).trim();
+        const roundedValue = roundedEmpty ? '' : String(rounded).trim();
 
         // Check for duplicates in import data
         const existingEntry = validEntries.find(e => e.productId === productId);
@@ -639,8 +703,8 @@ const TollFee = ({ user }) => {
           productId,
           tollFeeRate: marginValue,
           rounded: roundedValue,
-          originalRow: rowNum,
-          productName: productInfo.Product_Name
+          periode: selectedPeriode, // Use the selected year
+          originalRow: rowNum
         });
       }
 
@@ -652,13 +716,18 @@ const TollFee = ({ user }) => {
       }
 
       if (validEntries.length === 0) {
-        throw new Error('No valid entries found after validation');
+        throw new Error('No valid entries found after validation. All rows were either duplicates, had errors, or were skipped (empty Margin and Rounded).');
+      }
+
+      // Show info about skipped rows if any
+      if (skippedRows.length > 0) {
+        notifier.info(`Skipped ${skippedRows.length} row(s) with empty Margin and Rounded values`);
       }
 
       // Show confirmation modal
       setImportConfirmData({
         validEntries,
-        currentDataCount: tollFeeData.length,
+        skippedCount: skippedRows.length,
         newDataCount: validEntries.length
       });
       setShowConfirmModal(true);
@@ -669,47 +738,49 @@ const TollFee = ({ user }) => {
     }
   };
 
-  // Perform bulk import (delete all, then insert)
+  // Perform bulk import (delete by periode, then insert)
   const performBulkImport = async (validEntries) => {
     try {
       setLoading(true);
       notifier.info('Importing margin data...');
 
-      // Step 1: Get all existing margin IDs for bulk delete
-      const existingIds = tollFeeData.map(item => item.pk_id);
-
-      // Step 2: Bulk delete existing entries if any exist
-      if (existingIds.length > 0) {
-        notifier.info('Removing existing data...');
-        const deleteResult = await tollFeeAPI.bulkDelete(existingIds);
-        if (!deleteResult.success) {
-          throw new Error(deleteResult.message || 'Failed to delete existing entries');
-        }
+      // Step 1: Delete all existing entries for the selected periode
+      notifier.info(`Removing existing data for year ${selectedPeriode}...`);
+      const deleteResult = await tollFeeAPI.bulkDeleteByPeriode(selectedPeriode);
+      if (!deleteResult.success) {
+        throw new Error(deleteResult.message || 'Failed to delete existing entries');
       }
 
-      // Step 3: Prepare entries for bulk insert
+      // Step 2: Prepare entries for bulk insert with proper user tracking
+      const userId = user?.logNIK || user?.nama || user?.inisialNama || 'SYSTEM';
       const entriesToInsert = validEntries.map(entry => ({
         productId: entry.productId,
         tollFeeRate: entry.tollFeeRate,
-        userId: user?.nama || user?.inisialNama || 'SYSTEM',
+        rounded: entry.rounded,
+        periode: entry.periode,
+        userId: userId,
         delegatedTo: null,
         processDate: new Date().toISOString()
       }));
 
-      // Step 4: Bulk insert new entries
+      // Step 3: Bulk insert new entries
       notifier.info('Inserting new data...');
-      const insertResult = await tollFeeAPI.bulkInsert(entriesToInsert);
+      const insertResult = await tollFeeAPI.bulkInsert(entriesToInsert, userId);
       
       if (!insertResult.success) {
         throw new Error(insertResult.message || 'Failed to insert new entries');
       }
 
-      // Step 5: Reload data and notify success
+      // Step 4: Reload data and notify success
       await loadTollFeeData();
       
-      notifier.success(`Import completed successfully! Imported ${validEntries.length} entries.`);
+      notifier.success(`Import completed successfully! Imported ${validEntries.length} entries for year ${selectedPeriode}.`);
 
     } catch (error) {
+      console.error('Error performing bulk import:', error);
+      notifier.alert('Import failed: ' + error.message);
+      
+      // Reload data to refresh the current state    } catch (error) {
       console.error('Error performing bulk import:', error);
       notifier.alert('Import failed: ' + error.message);
       
@@ -762,8 +833,8 @@ const TollFee = ({ user }) => {
             <button 
               onClick={handleImportExcel}
               className="toll-fee-btn-import"
-              disabled={loading || productNames.length === 0}
-              title={productNames.length === 0 ? "Please wait for product data to load" : "Import margin data from Excel (replaces all existing data)"}
+              disabled={loading}
+              title="Import margin data from Excel"
             >
               <Upload size={16} />
               Import Excel
@@ -779,19 +850,52 @@ const TollFee = ({ user }) => {
           </div>
         </div>
 
-        {/* Search and Filters */}
+        {/* Category Tabs and Period Selector */}
         <div className="toll-fee-controls-section">
-          <div className="toll-fee-search-section">
-            <div className="toll-fee-search-box">
-              <Search className="toll-fee-search-icon" size={20} />
-              <input
-                type="text"
-                placeholder="Search by Product ID or Name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="toll-fee-search-input"
-              />
-            </div>
+          <div className="category-tabs">
+            {availableKategori.map(kategori => (
+              <button
+                key={kategori}
+                className={`category-tab ${selectedKategori === kategori ? 'active' : ''}`}
+                onClick={() => {
+                  setSelectedKategori(kategori);
+                  setCurrentPage(1);
+                }}
+              >
+                {kategori}
+              </button>
+            ))}
+          </div>
+          
+          <div className="period-selector">
+            <label htmlFor="periode-select">Year:</label>
+            <select
+              id="periode-select"
+              value={selectedPeriode}
+              onChange={(e) => {
+                setSelectedPeriode(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="periode-select"
+            >
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="toll-fee-search-section">
+          <div className="toll-fee-search-box">
+            <Search className="toll-fee-search-icon" size={20} />
+            <input
+              type="text"
+              placeholder="Search by Product ID or Name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="toll-fee-search-input"
+            />
           </div>
         </div>
 
@@ -1069,8 +1173,27 @@ const TollFee = ({ user }) => {
             </div>
             <div className="toll-fee-modal-body">
               <div className="toll-fee-instructions-section">
+                <h3>📅 Select Year for Import:</h3>
+                <select 
+                  value={selectedPeriode} 
+                  onChange={(e) => setSelectedPeriode(e.target.value)}
+                  className="periode-select"
+                  style={{ width: '150px', padding: '8px', marginTop: '10px', fontSize: '14px' }}
+                >
+                  {[...Array(5)].map((_, i) => {
+                    const year = new Date().getFullYear() - 2 + i;
+                    return <option key={year} value={year.toString()}>{year}</option>;
+                  })}
+                </select>
+                <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
+                  All imported entries will be assigned to year <strong>{selectedPeriode}</strong>
+                </p>
+              </div>
+
+              <div className="toll-fee-instructions-section">
                 <h3>📋 Expected Excel Format:</h3>
                 <div className="toll-fee-format-example">
+                  <p>Excel file can have multiple sheets (Toll In, Toll Out, Import, Lapi, Unassigned)</p>
                   <table className="toll-fee-format-table">
                     <thead>
                       <tr>
@@ -1103,21 +1226,20 @@ const TollFee = ({ user }) => {
                 <ul>
                   <li>Column A: <strong>Product ID</strong> (required)</li>
                   <li>Column B: <strong>Product Name</strong> (reference only, will be ignored)</li>
-                  <li>Column C: <strong>Margin</strong> (required, can be number or percentage like 10%)</li>
+                  <li>Column C: <strong>Margin</strong> (required for import - rows with empty Margin will be skipped)</li>
                   <li>Column D: <strong>Rounded</strong> (optional, can be blank)</li>
                   <li>First row must contain headers</li>
-                  <li>Product IDs must exist in the system</li>
-                  <li>Empty rows will be ignored</li>
+                  <li>All sheets in the workbook will be processed</li>
+                  <li>Entries without Margin AND Rounded will be skipped</li>
                 </ul>
               </div>
 
               <div className="toll-fee-instructions-section toll-fee-warning-section">
                 <h3>⚠️ Important Warning:</h3>
                 <ul>
-                  <li><strong>All existing margin data will be REPLACED</strong></li>
+                  <li><strong>All existing margin data for year {selectedPeriode} will be REPLACED</strong></li>
                   <li>This operation cannot be undone</li>
                   <li>Make sure your data is correct before importing</li>
-                  <li>Current entries: <strong>{tollFeeData.length}</strong></li>
                 </ul>
               </div>
             </div>

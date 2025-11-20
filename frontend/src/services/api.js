@@ -520,6 +520,39 @@ export const reagenAPI = {
 
 // TollFee API
 export const tollFeeAPI = {
+  // Get toll fee entries from view with category and period filtering
+  getFromView: (kategori = null, periode = null) => {
+    const params = new URLSearchParams();
+    if (kategori) params.append('kategori', kategori);
+    if (periode) params.append('periode', periode);
+    return apiRequest(`/toll-fee/view${params.toString() ? `?${params.toString()}` : ''}`);
+  },
+
+  // Get ALL toll fee entries from view including those without margins (for export)
+  getFromViewForExport: (kategori = null, periode = null) => {
+    const params = new URLSearchParams();
+    if (kategori) params.append('kategori', kategori);
+    if (periode) params.append('periode', periode);
+    return apiRequest(`/toll-fee/view/export${params.toString() ? `?${params.toString()}` : ''}`);
+  },
+
+  // Update toll fee entry by Product ID and Periode
+  updateByProductAndPeriode: (productId, periode, tollFeeData) => apiRequest(
+    `/toll-fee/product/${encodeURIComponent(productId)}/periode/${encodeURIComponent(periode)}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(tollFeeData),
+    }
+  ),
+
+  // Delete toll fee entry by Product ID and Periode
+  deleteByProductAndPeriode: (productId, periode) => apiRequest(
+    `/toll-fee/product/${encodeURIComponent(productId)}/periode/${encodeURIComponent(periode)}`,
+    {
+      method: 'DELETE',
+    }
+  ),
+
   // Get all toll fee entries (with optional filters and product info)
   getAll: (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
@@ -550,6 +583,11 @@ export const tollFeeAPI = {
   bulkDelete: (ids) => apiRequest('/toll-fee/bulk/delete', {
     method: 'DELETE',
     body: JSON.stringify({ ids }),
+  }),
+
+  // Bulk delete toll fee entries by Periode
+  bulkDeleteByPeriode: (periode) => apiRequest(`/toll-fee/bulk/delete/periode/${encodeURIComponent(periode)}`, {
+    method: 'DELETE',
   }),
 
   // Bulk insert toll fee entries (for import)

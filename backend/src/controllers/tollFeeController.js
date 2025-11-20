@@ -2,6 +2,50 @@ const TollFeeModel = require('../models/tollFeeModel');
 
 class TollFeeController {
   
+  // Get toll fee entries from view with category and period filtering
+  static async getTollFeeFromView(req, res) {
+    try {
+      const { kategori, periode } = req.query;
+      
+      const tollFeeEntries = await TollFeeModel.getTollFeeFromView(kategori, periode);
+      
+      res.status(200).json({
+        success: true,
+        data: tollFeeEntries,
+        message: `Found ${tollFeeEntries.length} toll fee entries`
+      });
+    } catch (error) {
+      console.error('Error in getTollFeeFromView controller:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving toll fee entries from view',
+        error: error.message
+      });
+    }
+  }
+
+  // Get ALL toll fee entries from view including those without margins (for export)
+  static async getTollFeeFromViewForExport(req, res) {
+    try {
+      const { kategori, periode } = req.query;
+      
+      const tollFeeEntries = await TollFeeModel.getTollFeeFromViewForExport(kategori, periode);
+      
+      res.status(200).json({
+        success: true,
+        data: tollFeeEntries,
+        message: `Found ${tollFeeEntries.length} toll fee entries for export`
+      });
+    } catch (error) {
+      console.error('Error in getTollFeeFromViewForExport controller:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving toll fee entries from view for export',
+        error: error.message
+      });
+    }
+  }
+  
   // Get all toll fee entries
   static async getAllTollFee(req, res) {
     try {
@@ -143,7 +187,67 @@ class TollFeeController {
     }
   }
 
-  // Update toll fee entry
+  // Update toll fee entry by Product ID and Periode
+  static async updateTollFeeByProductAndPeriode(req, res) {
+    try {
+      const { productId, periode } = req.params;
+      const { tollFeeRate, rounded, userId, delegatedTo, processDate } = req.body;
+      
+      if (!productId || productId.trim() === '') {
+        return res.status(400).json({
+          success: false,
+          message: 'Product ID is required'
+        });
+      }
+      
+      if (!periode || periode.trim() === '') {
+        return res.status(400).json({
+          success: false,
+          message: 'Periode is required'
+        });
+      }
+      
+      // Prepare data
+      const tollFeeData = {
+        tollFeeRate: tollFeeRate || '',
+        rounded: rounded || '',
+        userId: userId || 'SYSTEM',
+        delegatedTo: delegatedTo || null,
+        processDate: processDate ? new Date(processDate) : new Date(),
+        flagUpdate: '1',
+        fromUpdate: 'UPDATE'
+      };
+      
+      const updatedTollFeeEntry = await TollFeeModel.updateTollFeeByProductAndPeriode(
+        productId.trim(),
+        periode.trim(),
+        tollFeeData
+      );
+      
+      res.status(200).json({
+        success: true,
+        data: updatedTollFeeEntry,
+        message: 'Toll fee entry updated successfully'
+      });
+    } catch (error) {
+      console.error('Error in updateTollFeeByProductAndPeriode controller:', error);
+      
+      if (error.message === 'Toll fee entry not found for this product and period') {
+        return res.status(404).json({
+          success: false,
+          message: 'Toll fee entry not found for this product and period'
+        });
+      }
+      
+      res.status(500).json({
+        success: false,
+        message: 'Error updating toll fee entry',
+        error: error.message
+      });
+    }
+  }
+
+  // Update toll fee entry (legacy method by pk_id)
   static async updateTollFee(req, res) {
     try {
       const { id } = req.params;
@@ -204,7 +308,54 @@ class TollFeeController {
     }
   }
 
-  // Delete toll fee entry
+  // Delete toll fee entry by Product ID and Periode
+  static async deleteTollFeeByProductAndPeriode(req, res) {
+    try {
+      const { productId, periode } = req.params;
+      
+      if (!productId || productId.trim() === '') {
+        return res.status(400).json({
+          success: false,
+          message: 'Product ID is required'
+        });
+      }
+      
+      if (!periode || periode.trim() === '') {
+        return res.status(400).json({
+          success: false,
+          message: 'Periode is required'
+        });
+      }
+      
+      const result = await TollFeeModel.deleteTollFeeByProductAndPeriode(
+        productId.trim(),
+        periode.trim()
+      );
+      
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: 'Toll fee entry deleted successfully'
+      });
+    } catch (error) {
+      console.error('Error in deleteTollFeeByProductAndPeriode controller:', error);
+      
+      if (error.message === 'Toll fee entry not found for this product and period') {
+        return res.status(404).json({
+          success: false,
+          message: 'Toll fee entry not found for this product and period'
+        });
+      }
+      
+      res.status(500).json({
+        success: false,
+        message: 'Error deleting toll fee entry',
+        error: error.message
+      });
+    }
+  }
+
+  // Delete toll fee entry (legacy method by pk_id)
   static async deleteTollFee(req, res) {
     try {
       const { id } = req.params;
@@ -280,6 +431,35 @@ class TollFeeController {
     }
   }
 
+  // Bulk delete toll fee entries by Periode
+  static async bulkDeleteTollFeeByPeriode(req, res) {
+    try {
+      const { periode } = req.params;
+      
+      if (!periode || periode.trim() === '') {
+        return res.status(400).json({
+          success: false,
+          message: 'Periode is required'
+        });
+      }
+      
+      const result = await TollFeeModel.bulkDeleteTollFeeByPeriode(periode.trim());
+      
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: `Successfully deleted ${result.deletedCount} toll fee entries for year ${periode}`
+      });
+    } catch (error) {
+      console.error('Error in bulkDeleteTollFeeByPeriode controller:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error bulk deleting toll fee entries by periode',
+        error: error.message
+      });
+    }
+  }
+
   // Bulk insert toll fee entries (for import)
   static async bulkInsertTollFee(req, res) {
     try {
@@ -313,6 +493,7 @@ class TollFeeController {
             productId: entry.productId.trim(),
             tollFeeRate: entry.tollFeeRate || '',
             rounded: entry.rounded || '',
+            periode: entry.periode || null,
             userId: userId || entry.userId || 'SYSTEM',
             delegatedTo: entry.delegatedTo || null,
             processDate: entry.processDate ? new Date(entry.processDate) : new Date(),

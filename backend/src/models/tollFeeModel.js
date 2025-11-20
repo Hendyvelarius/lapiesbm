@@ -4,6 +4,87 @@ const sql = require('mssql');
 // CRUD operations for M_COGS_PEMBEBANAN_TollFee
 class TollFeeModel {
   
+  // Get toll fee entries from view with category and period filtering
+  static async getTollFeeFromView(kategori = null, periode = null) {
+    try {
+      const pool = await connect();
+      let query = `
+        SELECT 
+          Kategori,
+          productid,
+          Product_Name,
+          Toll_Fee,
+          Rounded,
+          Periode
+        FROM vw_COGS_Pembebanan_TollFee
+        WHERE Toll_Fee IS NOT NULL
+      `;
+      
+      const request = pool.request();
+      
+      // Add filters
+      if (kategori) {
+        query += ` AND Kategori = @kategori`;
+        request.input('kategori', sql.NVarChar, kategori);
+      }
+      
+      if (periode) {
+        query += ` AND Periode = @periode`;
+        request.input('periode', sql.VarChar, periode);
+      }
+      
+      query += ` ORDER BY productid ASC`;
+      
+      const result = await request.query(query);
+      return result.recordset;
+    } catch (error) {
+      console.error('Error getting toll fee entries from view:', error);
+      throw error;
+    }
+  }
+
+  // Get ALL toll fee entries from view including those without margins (for export)
+  static async getTollFeeFromViewForExport(kategori = null, periode = null) {
+    try {
+      const pool = await connect();
+      let query = `
+        SELECT 
+          Kategori,
+          productid,
+          Product_Name,
+          Toll_Fee,
+          Rounded,
+          Periode
+        FROM vw_COGS_Pembebanan_TollFee
+        WHERE 1=1
+      `;
+      
+      const request = pool.request();
+      
+      // Add filters
+      if (kategori) {
+        query += ` AND Kategori = @kategori`;
+        request.input('kategori', sql.NVarChar, kategori);
+      }
+      
+      if (periode) {
+        query += ` AND Periode = @periode`;
+        request.input('periode', sql.VarChar, periode);
+      }
+      
+      // Order: NULL margins first, then products with margins
+      query += ` ORDER BY 
+        CASE WHEN Toll_Fee IS NULL THEN 0 ELSE 1 END ASC,
+        productid ASC`;
+      
+      const result = await request.query(query);
+      return result.recordset;
+    } catch (error) {
+      console.error('Error getting toll fee entries from view for export:', error);
+      throw error;
+    }
+  }
+
   // Get all toll fee entries
   static async getAllTollFee() {
     try {
@@ -31,7 +112,39 @@ class TollFeeModel {
     }
   }
 
-  // Get toll fee entry by ID
+  // Get toll fee entry by Product ID and Periode
+  static async getTollFeeByProductAndPeriode(productId, periode) {
+    try {
+      const pool = await connect();
+      const query = `
+        SELECT 
+          pk_id,
+          ProductID,
+          Toll_Fee,
+          Rounded,
+          Periode,
+          user_id,
+          delegated_to,
+          process_date,
+          flag_update,
+          from_update
+        FROM M_COGS_PEMBEBANAN_TollFee
+        WHERE ProductID = @productId AND Periode = @periode
+      `;
+      
+      const result = await pool.request()
+        .input('productId', sql.NVarChar, productId)
+        .input('periode', sql.VarChar, periode)
+        .query(query);
+        
+      return result.recordset[0];
+    } catch (error) {
+      console.error('Error getting toll fee entry by Product ID and Periode:', error);
+      throw error;
+    }
+  }
+
+  // Get toll fee entry by ID (legacy method)
   static async getTollFeeById(id) {
     try {
       const pool = await connect();
@@ -41,6 +154,7 @@ class TollFeeModel {
           ProductID,
           Toll_Fee,
           Rounded,
+          Periode,
           user_id,
           delegated_to,
           process_date,
@@ -159,7 +273,50 @@ class TollFeeModel {
     }
   }
 
-  // Update toll fee entry
+  // Update toll fee entry by Product ID and Periode
+  static async updateTollFeeByProductAndPeriode(productId, periode, tollFeeData) {
+    try {
+      const pool = await connect();
+      
+      // First check if record exists
+      const existingRecord = await this.getTollFeeByProductAndPeriode(productId, periode);
+      if (!existingRecord) {
+        throw new Error('Toll fee entry not found for this product and period');
+      }
+      
+      const query = `
+        UPDATE M_COGS_PEMBEBANAN_TollFee
+        SET 
+          Toll_Fee = @tollFee,
+          Rounded = @rounded,
+          user_id = @userId,
+          delegated_to = @delegatedTo,
+          process_date = @processDate,
+          flag_update = @flagUpdate,
+          from_update = @fromUpdate
+        WHERE ProductID = @productId AND Periode = @periode
+      `;
+      
+      await pool.request()
+        .input('productId', sql.NVarChar, productId)
+        .input('periode', sql.VarChar, periode)
+        .input('tollFee', sql.VarChar, tollFeeData.tollFeeRate)
+        .input('rounded', sql.VarChar, tollFeeData.rounded || null)
+        .input('userId', sql.NVarChar, tollFeeData.userId)
+        .input('delegatedTo', sql.NVarChar, tollFeeData.delegatedTo || null)
+        .input('processDate', sql.DateTime, tollFeeData.processDate || new Date())
+        .input('flagUpdate', sql.NVarChar, tollFeeData.flagUpdate || '1')
+        .input('fromUpdate', sql.NVarChar, tollFeeData.fromUpdate || 'UPDATE')
+        .query(query);
+        
+      return { productId, periode, ...tollFeeData };
+    } catch (error) {
+      console.error('Error updating toll fee entry:', error);
+      throw error;
+    }
+  }
+
+  // Update toll fee entry (legacy method by pk_id)
   static async updateTollFee(id, tollFeeData) {
     try {
       const pool = await connect();
@@ -187,7 +344,7 @@ class TollFeeModel {
       await pool.request()
         .input('id', sql.Int, id)
         .input('productId', sql.NVarChar, tollFeeData.productId)
-        .input('tollFee', sql.VarChar, tollFeeData.tollFeeRate) // Changed to VarChar to support "10%" format
+        .input('tollFee', sql.VarChar, tollFeeData.tollFeeRate)
         .input('rounded', sql.VarChar, tollFeeData.rounded || null)
         .input('userId', sql.NVarChar, tollFeeData.userId)
         .input('delegatedTo', sql.NVarChar, tollFeeData.delegatedTo || null)
@@ -203,7 +360,35 @@ class TollFeeModel {
     }
   }
 
-  // Delete toll fee entry
+  // Delete toll fee entry by Product ID and Periode
+  static async deleteTollFeeByProductAndPeriode(productId, periode) {
+    try {
+      const pool = await connect();
+      
+      // First check if record exists
+      const existingRecord = await this.getTollFeeByProductAndPeriode(productId, periode);
+      if (!existingRecord) {
+        throw new Error('Toll fee entry not found for this product and period');
+      }
+      
+      const query = `
+        DELETE FROM M_COGS_PEMBEBANAN_TollFee
+        WHERE ProductID = @productId AND Periode = @periode
+      `;
+      
+      const result = await pool.request()
+        .input('productId', sql.NVarChar, productId)
+        .input('periode', sql.VarChar, periode)
+        .query(query);
+        
+      return { deleted: true, productId, periode };
+    } catch (error) {
+      console.error('Error deleting toll fee entry:', error);
+      throw error;
+    }
+  }
+
+  // Delete toll fee entry (legacy method by pk_id)
   static async deleteTollFee(id) {
     try {
       const pool = await connect();
@@ -226,6 +411,35 @@ class TollFeeModel {
       return { deleted: true, pk_id: id };
     } catch (error) {
       console.error('Error deleting toll fee entry:', error);
+      throw error;
+    }
+  }
+
+  // Bulk delete toll fee entries by Periode
+  static async bulkDeleteTollFeeByPeriode(periode) {
+    try {
+      const pool = await connect();
+      
+      // Delete all entries for the specified periode
+      const query = `
+        DELETE FROM M_COGS_PEMBEBANAN_TollFee
+        WHERE Periode = @periode
+      `;
+      
+      const result = await pool.request()
+        .input('periode', sql.VarChar, periode)
+        .query(query);
+      
+      console.log(`Bulk delete by periode completed: ${result.rowsAffected[0]} entries removed for year ${periode}`);
+      
+      return {
+        deleted: true,
+        operation: 'bulk_delete_by_periode',
+        deletedCount: result.rowsAffected[0],
+        periode
+      };
+    } catch (error) {
+      console.error('Error executing bulkDeleteTollFeeByPeriode query:', error);
       throw error;
     }
   }
@@ -281,6 +495,7 @@ class TollFeeModel {
       table.columns.add('ProductID', sql.NVarChar(50), { nullable: true });
       table.columns.add('Toll_Fee', sql.VarChar(50), { nullable: true }); // Changed to VarChar to support "10%" format
       table.columns.add('Rounded', sql.VarChar(50), { nullable: true });
+      table.columns.add('Periode', sql.VarChar(50), { nullable: true });
       table.columns.add('user_id', sql.NVarChar(50), { nullable: true });
       table.columns.add('delegated_to', sql.NVarChar(50), { nullable: true });
       table.columns.add('process_date', sql.DateTime, { nullable: true });
@@ -293,6 +508,7 @@ class TollFeeModel {
           entry.productId || null,
           entry.tollFeeRate || null, // Keep as string to support "10%" format
           entry.rounded || null,
+          entry.periode || null,
           entry.userId || 'SYSTEM',
           entry.delegatedTo || null,
           entry.processDate || new Date(),
