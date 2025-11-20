@@ -261,6 +261,35 @@ class ReagenController {
     }
   }
 
+  // Bulk delete reagen entries by Periode
+  static async bulkDeleteReagenByPeriode(req, res) {
+    try {
+      const { periode } = req.params;
+      
+      if (!periode || periode.trim() === '') {
+        return res.status(400).json({
+          success: false,
+          message: 'Periode is required'
+        });
+      }
+      
+      const result = await ReagenModel.bulkDeleteReagenByPeriode(periode.trim());
+      
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: `Successfully deleted ${result.deletedCount} reagen entries for year ${periode}`
+      });
+    } catch (error) {
+      console.error('Error in bulkDeleteReagenByPeriode controller:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error bulk deleting reagen entries by periode',
+        error: error.message
+      });
+    }
+  }
+
   // Bulk delete reagen entries
   static async bulkDeleteReagen(req, res) {
     try {
@@ -337,6 +366,7 @@ class ReagenController {
           processedEntries.push({
             productId: entry.productId.trim(),
             reagenRate: parseFloat(entry.reagenRate),
+            periode: entry.periode || null,
             userId: userId || entry.userId || 'SYSTEM',
             delegatedTo: entry.delegatedTo || null,
             processDate: entry.processDate ? new Date(entry.processDate) : new Date(),

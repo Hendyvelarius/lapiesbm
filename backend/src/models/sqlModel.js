@@ -984,6 +984,35 @@ async function deletePembebanan(pkId) {
 }
 
 // Bulk operations for pembebanan import - now deletes ALL entries (including default rates)
+async function bulkDeletePembebananByPeriode(periode, userId = "system") {
+  try {
+    const db = await connect();
+    
+    // Delete all entries for the specified periode
+    const deleteQuery = `
+      DELETE FROM M_COGS_PEMBEBANAN
+      WHERE Group_Periode = @periode
+    `;
+    
+    const result = await db.request()
+      .input('periode', sql.VarChar, periode)
+      .query(deleteQuery);
+    
+    console.log(`Bulk delete by periode completed: ${result.rowsAffected[0]} entries removed for year ${periode}`);
+    
+    return {
+      success: true,
+      rowsAffected: result.rowsAffected[0],
+      operation: 'bulk_delete_by_periode',
+      periode: periode,
+      userId: userId
+    };
+  } catch (error) {
+    console.error('Error executing bulkDeletePembebanانByPeriode query:', error);
+    throw error;
+  }
+}
+
 async function bulkDeletePembebanانWithProductID(userId = "system") {
   try {
     const db = await connect();
@@ -1007,7 +1036,7 @@ async function bulkDeletePembebanانWithProductID(userId = "system") {
   }
 }
 
-async function bulkInsertPembebanan(pembebanانData, userId = "system") {
+async function bulkInsertPembebanan(pembebanانData, userId = "system", periode = null) {
   try {
     const db = await connect();
     
@@ -1019,7 +1048,7 @@ async function bulkInsertPembebanan(pembebanانData, userId = "system") {
       };
     }
     
-    const currentYear = new Date().getFullYear().toString();
+    const insertPeriode = periode || new Date().getFullYear().toString();
     const currentDateTime = new Date().toISOString();
     
     // Build bulk insert query
@@ -1068,7 +1097,7 @@ async function bulkInsertPembebanan(pembebanانData, userId = "system") {
       )`);
       
       // Add parameters
-      request.input(`${paramPrefix}_periode`, sql.VarChar, currentYear);
+      request.input(`${paramPrefix}_periode`, sql.VarChar, insertPeriode);
       request.input(`${paramPrefix}_categoryId`, sql.VarChar, String(item.groupPNCategoryID || ''));
       request.input(`${paramPrefix}_categoryName`, sql.VarChar, String(item.groupPNCategoryName || ''));
       request.input(`${paramPrefix}_productId`, sql.VarChar, item.groupProductID ? String(item.groupProductID) : null);
@@ -1635,6 +1664,7 @@ module.exports = {
   updatePembebanan,
   deletePembebanan,
   bulkDeletePembebanانWithProductID,
+  bulkDeletePembebananByPeriode,
   bulkInsertPembebanan,
   getMaterial,
   getMaterialUsage,

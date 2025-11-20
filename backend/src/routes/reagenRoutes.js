@@ -29,9 +29,13 @@ router.delete('/:id', ReagenController.deleteReagen);
 // Body: { ids: [1, 2, 3, 4] }
 router.delete('/bulk/delete', ReagenController.bulkDeleteReagen);
 
+// Bulk delete reagen entries by Periode
+// DELETE /api/reagen/bulk/delete/periode/:periode
+router.delete('/bulk/delete/periode/:periode', ReagenController.bulkDeleteReagenByPeriode);
+
 // Bulk insert reagen entries (for import)
 // POST /api/reagen/bulk/insert
-// Body: { entries: [{productId, reagenRate, userId?, delegatedTo?, processDate?}], userId? }
+// Body: { entries: [{productId, reagenRate, periode, userId?, delegatedTo?, processDate?}], userId? }
 router.post('/bulk/insert', ReagenController.bulkInsertReagen);
 
 // Validate Product ID (utility endpoint)

@@ -414,9 +414,9 @@ export const masterAPI = {
   }),
   
   // Bulk import pembebanan
-  bulkImportPembebanan: (pembebanانData) => apiRequest('/master/pembebanan/bulk-import', {
+  bulkImportPembebanan: (pembebanانData, userId = 'system', periode = null) => apiRequest('/master/pembebanan/bulk-import', {
     method: 'POST',
-    body: JSON.stringify({ pembebanانData }),
+    body: JSON.stringify({ pembebanانData, userId, periode }),
   }),
   
   // Get material data
@@ -503,6 +503,11 @@ export const reagenAPI = {
   bulkDelete: (ids) => apiRequest('/reagen/bulk/delete', {
     method: 'DELETE',
     body: JSON.stringify({ ids }),
+  }),
+
+  // Bulk delete reagen entries by Periode
+  bulkDeleteByPeriode: (periode) => apiRequest(`/reagen/bulk/delete/periode/${encodeURIComponent(periode)}`, {
+    method: 'DELETE',
   }),
 
   // Bulk insert reagen entries (for import)

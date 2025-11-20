@@ -13,6 +13,7 @@ class ReagenModel {
           pk_id,
           ProductID,
           Reagen_Rate,
+          Periode,
           user_id,
           delegated_to,
           process_date,
@@ -39,6 +40,7 @@ class ReagenModel {
           pk_id,
           ProductID,
           Reagen_Rate,
+          Periode,
           user_id,
           delegated_to,
           process_date,
@@ -68,6 +70,7 @@ class ReagenModel {
           pk_id,
           ProductID,
           Reagen_Rate,
+          Periode,
           user_id,
           delegated_to,
           process_date,
@@ -222,6 +225,35 @@ class ReagenModel {
     }
   }
 
+  // Bulk delete reagen entries by Periode
+  static async bulkDeleteReagenByPeriode(periode) {
+    try {
+      const pool = await connect();
+      
+      // Delete all entries for the specified periode
+      const query = `
+        DELETE FROM M_COGS_PEMBEBANAN_REAGEN
+        WHERE Periode = @periode
+      `;
+      
+      const result = await pool.request()
+        .input('periode', sql.VarChar, periode)
+        .query(query);
+      
+      console.log(`Bulk delete by periode completed: ${result.rowsAffected[0]} entries removed for year ${periode}`);
+      
+      return {
+        deleted: true,
+        operation: 'bulk_delete_by_periode',
+        deletedCount: result.rowsAffected[0],
+        periode
+      };
+    } catch (error) {
+      console.error('Error executing bulkDeleteReagenByPeriode query:', error);
+      throw error;
+    }
+  }
+
   // Bulk delete reagen entries
   static async bulkDeleteReagen(ids) {
     try {
@@ -272,6 +304,7 @@ class ReagenModel {
       // Define columns (excluding pk_id as it's identity)
       table.columns.add('ProductID', sql.NVarChar(50), { nullable: true });
       table.columns.add('Reagen_Rate', sql.Decimal(18,2), { nullable: true });
+      table.columns.add('Periode', sql.VarChar(50), { nullable: true });
       table.columns.add('user_id', sql.NVarChar(50), { nullable: true });
       table.columns.add('delegated_to', sql.NVarChar(50), { nullable: true });
       table.columns.add('process_date', sql.DateTime, { nullable: true });
@@ -283,6 +316,7 @@ class ReagenModel {
         table.rows.add(
           entry.productId || null,
           parseFloat(entry.reagenRate) || 0,
+          entry.periode || null,
           entry.userId || 'SYSTEM',
           entry.delegatedTo || null,
           entry.processDate || new Date(),

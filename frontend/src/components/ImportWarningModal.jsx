@@ -7,7 +7,9 @@ const ImportWarningModal = ({
   onClose, 
   onConfirm, 
   title = "Bulk Import Warning",
-  dataType = "entries"
+  dataType = "entries",
+  selectedPeriode = null,
+  onPeriodeChange = null
 }) => {
   if (!isOpen) return null;
 
@@ -34,9 +36,29 @@ const ImportWarningModal = ({
         </div>
 
         <div className="import-warning-content">
+          {selectedPeriode !== null && onPeriodeChange !== null && (
+            <div className="periode-selection">
+              <h3>📅 Select Year for Import:</h3>
+              <select 
+                value={selectedPeriode} 
+                onChange={(e) => onPeriodeChange(e.target.value)}
+                className="periode-select"
+                style={{ width: '150px', padding: '8px', marginTop: '10px', fontSize: '14px' }}
+              >
+                {[...Array(5)].map((_, i) => {
+                  const year = new Date().getFullYear() - 2 + i;
+                  return <option key={year} value={year.toString()}>{year}</option>;
+                })}
+              </select>
+              <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
+                All imported entries will be assigned to year <strong>{selectedPeriode}</strong>
+              </p>
+            </div>
+          )}
+          
           <div className="warning-message">
             <p className="main-warning">
-              This import will <strong>DELETE all existing {dataType}</strong> (except default rates) 
+              This import will <strong>DELETE all existing {dataType}</strong> {selectedPeriode ? `for year ${selectedPeriode}` : '(except default rates)'} 
               and replace them with your imported data.
             </p>
           </div>

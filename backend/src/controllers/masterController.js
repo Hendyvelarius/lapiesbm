@@ -1,4 +1,4 @@
-const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, bulkDeleteBBHargaBahan, bulkDeleteBKHargaBahan, bulkInsertHargaBahan, getUnit, getManufacturingItems, getParameter, updateParameter, getGeneralCostsPerSediaan, addGeneralCostPerSediaan, updateGeneralCostPerSediaan, deleteGeneralCostPerSediaan, bulkInsertGeneralCostsPerSediaan, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, bulkDeleteGenerikGroups, bulkInsertGenerikGroups, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, bulkDeletePembebanانWithProductID, bulkInsertPembebanan, getMaterial, getMaterialUsage, getMaterialUsageByYear, exportAllFormulaDetail, exportAllFormulaDetailSumPerSubID, addFormulaManual, addBatchFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
+const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, bulkDeleteBBHargaBahan, bulkDeleteBKHargaBahan, bulkInsertHargaBahan, getUnit, getManufacturingItems, getParameter, updateParameter, getGeneralCostsPerSediaan, addGeneralCostPerSediaan, updateGeneralCostPerSediaan, deleteGeneralCostPerSediaan, bulkInsertGeneralCostsPerSediaan, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, bulkDeleteGenerikGroups, bulkInsertGenerikGroups, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, bulkDeletePembebanانWithProductID, bulkDeletePembebananByPeriode, bulkInsertPembebanan, getMaterial, getMaterialUsage, getMaterialUsageByYear, exportAllFormulaDetail, exportAllFormulaDetailSumPerSubID, addFormulaManual, addBatchFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
 
 class MasterController {
     static async getCurrency(req, res) {
@@ -1147,7 +1147,7 @@ class MasterController {
 
     static async bulkImportPembebanan(req, res) {
         try {
-            const { pembebanانData, userId = "system" } = req.body;
+            const { pembebanانData, userId = "system", periode = null } = req.body;
             
             // Validate required fields
             if (!pembebanانData || !Array.isArray(pembebanانData) || pembebanانData.length === 0) {
@@ -1156,6 +1156,9 @@ class MasterController {
                     message: 'Missing required field: pembebanانData must be a non-empty array'
                 });
             }
+            
+            // Use provided periode or current year
+            const importPeriode = periode || new Date().getFullYear().toString();
 
             // Validate each row in the data
             for (let i = 0; i < pembebanانData.length; i++) {
@@ -1197,8 +1200,8 @@ class MasterController {
                 }
             }
             
-            // Perform bulk delete first (now deletes ALL entries including defaults), then bulk insert
-            const deleteResult = await bulkDeletePembebanانWithProductID(userId);
+            // Perform bulk delete by periode first, then bulk insert
+            const deleteResult = await bulkDeletePembebananByPeriode(importPeriode, userId);
             
             // Transform data for bulk insert - handle both default rates and custom rates
             const insertData = pembebanانData.map(row => ({
@@ -1213,7 +1216,7 @@ class MasterController {
                 tollFee: parseFloat(row.tollFee) || 0
             }));
             
-            const insertResult = await bulkInsertPembebanan(insertData, userId);
+            const insertResult = await bulkInsertPembebanan(insertData, userId, importPeriode);
             
             // Count default vs custom rates
             const defaultRatesCount = pembebanانData.filter(row => row.isDefaultRate).length;
@@ -1221,13 +1224,14 @@ class MasterController {
             
             res.status(200).json({
                 success: true,
-                message: `Bulk import completed successfully. Deleted ${deleteResult.rowsAffected} old records (including default rates), inserted ${insertResult.rowsAffected} new records (${defaultRatesCount} default rates, ${customRatesCount} custom rates).`,
+                message: `Bulk import completed successfully for year ${importPeriode}. Deleted ${deleteResult.rowsAffected} old records, inserted ${insertResult.rowsAffected} new records (${defaultRatesCount} default rates, ${customRatesCount} custom rates).`,
                 data: {
                     deleted: deleteResult.rowsAffected,
                     inserted: insertResult.rowsAffected,
                     processed: pembebanانData.length,
                     defaultRates: defaultRatesCount,
-                    customRates: customRatesCount
+                    customRates: customRatesCount,
+                    periode: importPeriode
                 }
             });
             

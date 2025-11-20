@@ -25,6 +25,9 @@ const Reagen = ({ user }) => {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Period state
+  const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear().toString());
+  
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(50);
@@ -102,14 +105,19 @@ const Reagen = ({ user }) => {
       const result = await reagenAPI.getAll();
       
       if (result && result.success && Array.isArray(result.data)) {
-        // Map the data to include product names
-        const mappedData = result.data.map(item => {
+        // Filter by selected periode and map the data to include product names
+        const filteredByPeriode = result.data.filter(item => 
+          item.Periode === selectedPeriode
+        );
+        
+        const mappedData = filteredByPeriode.map(item => {
           const productInfo = productNames.find(p => p.Product_ID === item.ProductID);
           return {
             pk_id: item.pk_id,
             productId: item.ProductID,
             productName: productInfo ? productInfo.Product_Name : `Product ${item.ProductID}`,
             reagenRate: item.Reagen_Rate,
+            periode: item.Periode,
             userId: item.user_id,
             delegatedTo: item.delegated_to,
             processDate: item.process_date,
@@ -209,6 +217,14 @@ const Reagen = ({ user }) => {
     };
     loadInitialData();
   }, []);
+
+  // Reload data when periode changes
+  useEffect(() => {
+    if (productNames.length > 0) {
+      loadReagenData();
+      setCurrentPage(1); // Reset to first page when changing year
+    }
+  }, [selectedPeriode]);
 
   // Re-map reagen data when product names are loaded
   useEffect(() => {
@@ -464,14 +480,10 @@ const Reagen = ({ user }) => {
 
       XLSX.utils.book_append_sheet(wb, ws, 'Reagen Data');
 
-      const now = new Date();
-      const dateStr = now.getFullYear() + 
-                     String(now.getMonth() + 1).padStart(2, '0') + 
-                     String(now.getDate()).padStart(2, '0');
-      const filename = `Reagen_Data_${dateStr}.xlsx`;
+      const filename = `Reagen_${selectedPeriode}.xlsx`;
 
       XLSX.writeFile(wb, filename);
-      notifier.success(`Excel file exported successfully! (${exportData.length} entries)`);
+      notifier.success(`Excel file exported successfully! (${exportData.length} entries for year ${selectedPeriode})`);
     } catch (error) {
       console.error('Error exporting to Excel:', error);
       notifier.alert('Failed to export Excel file. Please try again.');
@@ -642,39 +654,36 @@ const Reagen = ({ user }) => {
       setLoading(true);
       notifier.info('Importing reagen data...');
 
-      // Step 1: Get all existing reagen IDs for bulk delete
-      const existingIds = reagenData.map(item => item.pk_id);
-
-      // Step 2: Bulk delete existing entries if any exist
-      if (existingIds.length > 0) {
-        notifier.info('Removing existing data...');
-        const deleteResult = await reagenAPI.bulkDelete(existingIds);
-        if (!deleteResult.success) {
-          throw new Error(deleteResult.message || 'Failed to delete existing entries');
-        }
+      // Step 1: Delete all existing entries for the selected periode
+      notifier.info(`Removing existing data for year ${selectedPeriode}...`);
+      const deleteResult = await reagenAPI.bulkDeleteByPeriode(selectedPeriode);
+      if (!deleteResult.success) {
+        throw new Error(deleteResult.message || 'Failed to delete existing entries');
       }
 
-      // Step 3: Prepare entries for bulk insert
+      // Step 2: Prepare entries for bulk insert with proper user tracking
+      const userId = user?.logNIK || user?.nama || user?.inisialNama || 'SYSTEM';
       const entriesToInsert = validEntries.map(entry => ({
         productId: entry.productId,
         reagenRate: entry.reagenRate,
-        userId: user?.nama || user?.inisialNama || 'SYSTEM',
+        periode: selectedPeriode,
+        userId: userId,
         delegatedTo: null,
         processDate: new Date().toISOString()
       }));
 
-      // Step 4: Bulk insert new entries
+      // Step 3: Bulk insert new entries
       notifier.info('Inserting new data...');
-      const insertResult = await reagenAPI.bulkInsert(entriesToInsert);
+      const insertResult = await reagenAPI.bulkInsert(entriesToInsert, userId);
       
       if (!insertResult.success) {
         throw new Error(insertResult.message || 'Failed to insert new entries');
       }
 
-      // Step 5: Reload data and notify success
+      // Step 4: Reload data and notify success
       await loadReagenData();
       
-      notifier.success(`Import completed successfully! Imported ${validEntries.length} entries.`);
+      notifier.success(`Import completed successfully! Imported ${validEntries.length} entries for year ${selectedPeriode}.`);
 
     } catch (error) {
       console.error('Error performing bulk import:', error);
@@ -759,6 +768,20 @@ const Reagen = ({ user }) => {
                 className="search-input"
               />
             </div>
+          </div>
+          <div className="period-selector">
+            <label htmlFor="reagen-periode-select">Year:</label>
+            <select
+              id="reagen-periode-select"
+              value={selectedPeriode}
+              onChange={(e) => setSelectedPeriode(e.target.value)}
+              className="periode-select"
+            >
+              {[...Array(5)].map((_, i) => {
+                const year = new Date().getFullYear() - 2 + i;
+                return <option key={year} value={year.toString()}>{year}</option>;
+              })}
+            </select>
           </div>
         </div>
 
@@ -1019,6 +1042,24 @@ const Reagen = ({ user }) => {
             </div>
             <div className="modal-body">
               <div className="instructions-section">
+                <h3>📅 Select Year for Import:</h3>
+                <select 
+                  value={selectedPeriode} 
+                  onChange={(e) => setSelectedPeriode(e.target.value)}
+                  className="periode-select"
+                  style={{ width: '150px', padding: '8px', marginTop: '10px', fontSize: '14px' }}
+                >
+                  {[...Array(5)].map((_, i) => {
+                    const year = new Date().getFullYear() - 2 + i;
+                    return <option key={year} value={year.toString()}>{year}</option>;
+                  })}
+                </select>
+                <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
+                  All imported entries will be assigned to year <strong>{selectedPeriode}</strong>
+                </p>
+              </div>
+
+              <div className="instructions-section">
                 <h3>📋 Expected Excel Format:</h3>
                 <div className="format-example">
                   <table className="format-table">
@@ -1061,10 +1102,9 @@ const Reagen = ({ user }) => {
               <div className="instructions-section warning-section">
                 <h3>⚠️ Important Warning:</h3>
                 <ul>
-                  <li><strong>All existing reagen data will be REPLACED</strong></li>
+                  <li><strong>All existing reagen data for year {selectedPeriode} will be REPLACED</strong></li>
                   <li>This operation cannot be undone</li>
                   <li>Make sure your data is correct before importing</li>
-                  <li>Current entries: <strong>{reagenData.length}</strong></li>
                 </ul>
               </div>
             </div>

@@ -26,6 +26,9 @@ const Pembebanan = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('All Groups');
   
+  // Period state
+  const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear().toString());
+  
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(50);
@@ -62,6 +65,7 @@ const Pembebanan = () => {
   
   // Import warning modal state
   const [showImportWarning, setShowImportWarning] = useState(false);
+  const [importPeriode, setImportPeriode] = useState(new Date().getFullYear().toString());
   
   // Dropdown states for Add modal
   const [availableGroups, setAvailableGroups] = useState([]);
@@ -92,6 +96,13 @@ const Pembebanan = () => {
   useEffect(() => {
     fetchAllData();
   }, []);
+  
+  // Reload when periode changes
+  useEffect(() => {
+    if (selectedPeriode) {
+      setCurrentPage(1); // Reset to first page when changing year
+    }
+  }, [selectedPeriode]);
 
   // Combine pembebanan and group data
   const getCombinedData = async () => {
@@ -112,7 +123,9 @@ const Pembebanan = () => {
 
   // Process combined data
   const processedData = React.useMemo(() => {
-    return pembebanData.map(pembebanan => {
+    return pembebanData
+      .filter(pembebanan => pembebanan.Group_Periode === selectedPeriode) // Filter by selected year
+      .map(pembebanan => {
       // Check if this is a default rate (no specific product)
       if (!pembebanan.Group_ProductID) {
         return {
@@ -215,7 +228,7 @@ const Pembebanan = () => {
       // Then sort by group name
       return a.groupName.localeCompare(b.groupName);
     });
-  }, [pembebanData, groupData]);
+  }, [pembebanData, groupData, selectedPeriode]);
 
   // Filter and search data
   useEffect(() => {
@@ -592,11 +605,12 @@ const Pembebanan = () => {
     setDeletingItem(null);
   };
 
-  // Export function - exports all cost allocation data (including default rates)
+  // Export function - exports all cost allocation data (including default rates) for selected year
   const handleExportCostAllocation = () => {
     try {
-      // Export all entries (including default rates) with proper formatting
+      // Export entries for the selected periode with proper formatting
       const exportData = pembebanData
+        .filter(item => item.Group_Periode === selectedPeriode)
         .map(item => ({
           'Product ID': item.Group_ProductID || '',
           'Group ID': item.Group_PNCategoryID || '',
@@ -696,15 +710,15 @@ const Pembebanan = () => {
       // Add worksheet to workbook
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Cost Allocation');
 
-      // Generate filename with current date
-      const filename = `cost_allocation_${new Date().toISOString().split('T')[0]}.xlsx`;
+      // Generate filename with selected year
+      const filename = `Pembebanan_${selectedPeriode}.xlsx`;
 
       // Write and download the file
       XLSX.writeFile(workbook, filename);
 
       const defaultRatesCount = exportData.filter(item => item['Is Default Rate'] === 'YES').length;
       const customRatesCount = exportData.filter(item => item['Is Default Rate'] === 'NO').length;
-      notifier.success(`Successfully exported ${exportData.length} cost allocation records to Excel (${defaultRatesCount} default rates, ${customRatesCount} custom rates)`);
+      notifier.success(`Successfully exported ${exportData.length} cost allocation records for year ${selectedPeriode} to Excel (${defaultRatesCount} default rates, ${customRatesCount} custom rates)`);
     } catch (error) {
       console.error('Error exporting cost allocation data:', error);
       notifier.alert('Failed to export cost allocation data. Please try again.');
@@ -765,13 +779,15 @@ const Pembebanan = () => {
           return;
         }
 
-        // Call bulk import API
-        const result = await masterAPI.bulkImportPembebanan(validatedData);
+        // Call bulk import API with periode
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const result = await masterAPI.bulkImportPembebanan(validatedData, user?.logNIK || 'system', importPeriode);
 
         // Show success message and refresh data
         await fetchAllData();
+        setSelectedPeriode(importPeriode); // Switch to imported year's view
 
-        notifier.success(`Import completed successfully! Deleted: ${result.data.deleted} old records, Inserted: ${result.data.inserted} new records`, {
+        notifier.success(`Import completed successfully for year ${importPeriode}! Deleted: ${result.data.deleted} old records, Inserted: ${result.data.inserted} new records`, {
           durations: { success: 6000 }
         });
 
@@ -786,6 +802,7 @@ const Pembebanan = () => {
         }
       } finally {
         setLoading(false);
+        setImportPeriode(new Date().getFullYear().toString()); // Reset for next import
       }
     };
 
@@ -1019,6 +1036,21 @@ const Pembebanan = () => {
               {uniqueGroups.map(group => (
                 <option key={group} value={group}>{group}</option>
               ))}
+            </select>
+          </div>
+          
+          <div className="period-selector">
+            <label htmlFor="pembebanan-periode-select">Year:</label>
+            <select
+              id="pembebanan-periode-select"
+              value={selectedPeriode}
+              onChange={(e) => setSelectedPeriode(e.target.value)}
+              className="periode-select"
+            >
+              {[...Array(5)].map((_, i) => {
+                const year = new Date().getFullYear() - 2 + i;
+                return <option key={year} value={year.toString()}>{year}</option>;
+              })}
             </select>
           </div>
           
@@ -1608,10 +1640,15 @@ const Pembebanan = () => {
       {/* Import Warning Modal */}
       <ImportWarningModal
         isOpen={showImportWarning}
-        onClose={() => setShowImportWarning(false)}
+        onClose={() => {
+          setShowImportWarning(false);
+          setImportPeriode(new Date().getFullYear().toString());
+        }}
         onConfirm={handleImportConfirm}
         title="Cost Allocation Import"
         dataType="cost allocation entries"
+        selectedPeriode={importPeriode}
+        onPeriodeChange={setImportPeriode}
       />
     </div>
   );
