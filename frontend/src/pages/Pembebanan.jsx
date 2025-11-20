@@ -53,8 +53,12 @@ const Pembebanan = () => {
     groupProsesRate: '',
     groupKemasRate: '',
     groupGenerikRate: '',
-    groupAnalisaRate: ''
+    groupAnalisaRate: '',
+    rateAsGroupID: '' // For "Rate As" functionality
   });
+  
+  // Rate input mode state ('manual' or 'rateAs')
+  const [rateInputMode, setRateInputMode] = useState('manual');
   
   // Import warning modal state
   const [showImportWarning, setShowImportWarning] = useState(false);
@@ -117,6 +121,8 @@ const Pembebanan = () => {
           productId: null,
           productName: 'DEFAULT RATE',
           isDefaultRate: true,
+          isRateAs: false,
+          rateAsGroupName: null,
           groupId: pembebanan.Group_PNCategoryID,
           groupName: pembebanan.Group_PNCategory_Name,
           rateProses: pembebanan.Group_Proses_Rate,
@@ -129,9 +135,42 @@ const Pembebanan = () => {
         };
       } else {
         // For actual products, find the product details from group data
+        // Match by both Product ID and Periode to handle multiple years
         const productDetails = groupData.find(group => 
-          group.Group_ProductID === pembebanan.Group_ProductID
+          group.Group_ProductID === pembebanan.Group_ProductID &&
+          group.Periode === pembebanan.Group_Periode
         );
+        
+        // Check if this product uses "Rate As" functionality
+        const isRateAs = pembebanan.Group_PNCategoryRateAs && pembebanan.Group_PNCategoryRateAs !== null;
+        
+        // If Rate As is set, find the default rate for the referenced group
+        let actualRates = {
+          rateProses: pembebanan.Group_Proses_Rate,
+          rateKemas: pembebanan.Group_Kemas_Rate,
+          rateGenerik: pembebanan.Group_PLN_Rate,
+          rateAnalisa: pembebanan.Group_Analisa_Rate
+        };
+        
+        let rateAsGroupName = null;
+        
+        if (isRateAs) {
+          // Find the default rate entry for the referenced group (where Group_ProductID is null)
+          const rateAsDefaultEntry = pembebanData.find(item => 
+            !item.Group_ProductID && 
+            item.Group_PNCategoryID === pembebanan.Group_PNCategoryRateAs
+          );
+          
+          if (rateAsDefaultEntry) {
+            actualRates = {
+              rateProses: rateAsDefaultEntry.Group_Proses_Rate,
+              rateKemas: rateAsDefaultEntry.Group_Kemas_Rate,
+              rateGenerik: rateAsDefaultEntry.Group_PLN_Rate,
+              rateAnalisa: rateAsDefaultEntry.Group_Analisa_Rate
+            };
+            rateAsGroupName = rateAsDefaultEntry.Group_PNCategory_Name;
+          }
+        }
         
         if (productDetails) {
           return {
@@ -140,12 +179,11 @@ const Pembebanan = () => {
             productId: pembebanan.Group_ProductID,
             productName: productDetails.Product_Name,
             isDefaultRate: false,
+            isRateAs: isRateAs,
+            rateAsGroupName: rateAsGroupName,
             groupId: productDetails.Group_PNCategory,
             groupName: productDetails.Group_PNCategoryName,
-            rateProses: pembebanan.Group_Proses_Rate,
-            rateKemas: pembebanan.Group_Kemas_Rate,
-            rateGenerik: pembebanan.Group_PLN_Rate,
-            rateAnalisa: pembebanan.Group_Analisa_Rate,
+            ...actualRates,
             userId: pembebanan.user_id,
             processDate: pembebanan.process_date,
             sortPriority: 1 // Lower priority for sorting (actual products after defaults)
@@ -158,12 +196,11 @@ const Pembebanan = () => {
             productId: pembebanan.Group_ProductID,
             productName: 'Unknown Product',
             isDefaultRate: false,
+            isRateAs: isRateAs,
+            rateAsGroupName: rateAsGroupName,
             groupId: 'Unknown',
             groupName: 'Unknown Group',
-            rateProses: pembebanan.Group_Proses_Rate,
-            rateKemas: pembebanan.Group_Kemas_Rate,
-            rateGenerik: pembebanan.Group_PLN_Rate,
-            rateAnalisa: pembebanan.Group_Analisa_Rate,
+            ...actualRates,
             userId: pembebanan.user_id,
             processDate: pembebanan.process_date,
             sortPriority: 1
@@ -294,12 +331,20 @@ const Pembebanan = () => {
   // Inline editing functions
   const handleEdit = (item) => {
     setEditingRowId(item.pk_id);
-    setEditFormData({
-      rateProses: item.rateProses,
-      rateKemas: item.rateKemas,
-      rateGenerik: item.rateGenerik || '',
-      rateAnalisa: item.rateAnalisa || ''
-    });
+    if (item.isRateAs) {
+      // For Rate As products, store the current rateAs group ID
+      setEditFormData({
+        rateAsGroupID: item.Group_PNCategoryRateAs || ''
+      });
+    } else {
+      // For manual products, store the rates
+      setEditFormData({
+        rateProses: item.rateProses,
+        rateKemas: item.rateKemas,
+        rateGenerik: item.rateGenerik || '',
+        rateAnalisa: item.rateAnalisa || ''
+      });
+    }
   };
 
   const handleCancelEdit = () => {
@@ -318,17 +363,37 @@ const Pembebanan = () => {
     try {
       setSubmitLoading(true);
       
-      const updateData = {
-        groupPNCategoryID: processedData.find(p => p.pk_id === editingRowId)?.groupId,
-        groupPNCategoryName: processedData.find(p => p.pk_id === editingRowId)?.groupName,
-        groupProductID: processedData.find(p => p.pk_id === editingRowId)?.productId,
-        groupProsesRate: parseFloat(editFormData.rateProses) || 0,
-        groupKemasRate: parseFloat(editFormData.rateKemas) || 0,
-        groupPLNRate: parseFloat(editFormData.rateGenerik) || null,
-        groupAnalisaRate: parseFloat(editFormData.rateAnalisa) || null
-      };
+      const editedItem = processedData.find(p => p.pk_id === editingRowId);
       
-      await masterAPI.updatePembebanan(editingRowId, updateData);
+      if (editedItem.isRateAs) {
+        // Update Rate As product - change the group it's rated as
+        const updateData = {
+          groupPNCategoryID: editedItem.groupId,
+          groupPNCategoryName: editedItem.groupName,
+          groupProductID: editedItem.productId,
+          groupProsesRate: 0,
+          groupKemasRate: 0,
+          groupPLNRate: 0,
+          groupAnalisaRate: 0,
+          groupPNCategoryRateAs: editFormData.rateAsGroupID || null
+        };
+        
+        await masterAPI.updatePembebanan(editingRowId, updateData);
+      } else {
+        // Update manual product - update the rates
+        const updateData = {
+          groupPNCategoryID: editedItem.groupId,
+          groupPNCategoryName: editedItem.groupName,
+          groupProductID: editedItem.productId,
+          groupProsesRate: parseFloat(editFormData.rateProses) || 0,
+          groupKemasRate: parseFloat(editFormData.rateKemas) || 0,
+          groupPLNRate: parseFloat(editFormData.rateGenerik) || null,
+          groupAnalisaRate: parseFloat(editFormData.rateAnalisa) || null,
+          groupPNCategoryRateAs: null
+        };
+        
+        await masterAPI.updatePembebanan(editingRowId, updateData);
+      }
       
       // Refresh data
       await getCombinedData();
@@ -353,6 +418,7 @@ const Pembebanan = () => {
 
   const handleCancelAdd = () => {
     setShowAddModal(false);
+    setRateInputMode('manual'); // Reset mode
     setAddFormData({
       groupPNCategoryID: '',
       groupPNCategoryName: '',
@@ -361,7 +427,8 @@ const Pembebanan = () => {
       groupProsesRate: '',
       groupKemasRate: '',
       groupGenerikRate: '',
-      groupAnalisaRate: ''
+      groupAnalisaRate: '',
+      rateAsGroupID: ''
     });
     setFilteredProducts(availableProducts);
   };
@@ -433,15 +500,24 @@ const Pembebanan = () => {
         notifier.alert('Please select a Product');
         return;
       }
-      
-      if (!addFormData.groupProsesRate || parseFloat(addFormData.groupProsesRate) < 0) {
-        notifier.alert('Please enter a valid Proses Rate (must be 0 or greater)');
-        return;
-      }
-      
-      if (!addFormData.groupKemasRate || parseFloat(addFormData.groupKemasRate) < 0) {
-        notifier.alert('Please enter a valid Kemas Rate (must be 0 or greater)');
-        return;
+
+      // Validate based on rate input mode
+      if (rateInputMode === 'manual') {
+        if (!addFormData.groupProsesRate || parseFloat(addFormData.groupProsesRate) < 0) {
+          notifier.alert('Please enter a valid Proses Rate (must be 0 or greater)');
+          return;
+        }
+        
+        if (!addFormData.groupKemasRate || parseFloat(addFormData.groupKemasRate) < 0) {
+          notifier.alert('Please enter a valid Kemas Rate (must be 0 or greater)');
+          return;
+        }
+      } else {
+        // Rate As mode
+        if (!addFormData.rateAsGroupID) {
+          notifier.alert('Please select a group to rate as');
+          return;
+        }
       }
 
       // Additional validation to ensure groupPNCategoryID is set
@@ -465,10 +541,13 @@ const Pembebanan = () => {
         groupPNCategoryID: String(addFormData.groupPNCategoryID),
         groupPNCategoryName: String(addFormData.groupPNCategoryName),
         groupProductID: String(addFormData.groupProductID),
-        groupProsesRate: parseFloat(addFormData.groupProsesRate),
-        groupKemasRate: parseFloat(addFormData.groupKemasRate),
-        groupPLNRate: addFormData.groupGenerikRate ? parseFloat(addFormData.groupGenerikRate) : null,
-        groupAnalisaRate: addFormData.groupAnalisaRate ? parseFloat(addFormData.groupAnalisaRate) : null
+        // Manual mode: use entered values, set rateAs to null
+        // Rate As mode: set rates to 0, set rateAs to selected group ID
+        groupProsesRate: rateInputMode === 'manual' ? parseFloat(addFormData.groupProsesRate) : 0,
+        groupKemasRate: rateInputMode === 'manual' ? parseFloat(addFormData.groupKemasRate) : 0,
+        groupPLNRate: rateInputMode === 'manual' ? (addFormData.groupGenerikRate ? parseFloat(addFormData.groupGenerikRate) : 0) : 0,
+        groupAnalisaRate: rateInputMode === 'manual' ? (addFormData.groupAnalisaRate ? parseFloat(addFormData.groupAnalisaRate) : 0) : 0,
+        groupPNCategoryRateAs: rateInputMode === 'rateAs' ? String(addFormData.rateAsGroupID) : null
       };
       
       await masterAPI.addPembebanan(newEntry);
@@ -988,8 +1067,8 @@ const Pembebanan = () => {
                   <td className="product-id">
                     <div className="product-id-container">
                       <span className="id-text">{item.productId || '-'}</span>
-                      <span className={`source-badge ${item.isDefaultRate ? 'default' : 'product'}`}>
-                        {item.isDefaultRate ? 'DEF' : 'PRD'}
+                      <span className={`source-badge ${item.isDefaultRate ? 'default' : item.isRateAs ? 'rate-as' : 'manual'}`}>
+                        {item.isDefaultRate ? 'DEF' : item.isRateAs ? 'R8S' : 'MNL'}
                       </span>
                     </div>
                   </td>
@@ -1008,51 +1087,81 @@ const Pembebanan = () => {
                   {editingRowId === item.pk_id ? (
                     // Editing mode
                     <>
-                      <td>
-                        <span className="category-badge">
-                          {item.groupName}
-                        </span>
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={editFormData.rateProses}
-                          onChange={(e) => handleEditChange('rateProses', e.target.value)}
-                          className="edit-input"
-                          placeholder="Proses Rate"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={editFormData.rateKemas}
-                          onChange={(e) => handleEditChange('rateKemas', e.target.value)}
-                          className="edit-input"
-                          placeholder="Kemas Rate"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={editFormData.rateGenerik}
-                          onChange={(e) => handleEditChange('rateGenerik', e.target.value)}
-                          className="edit-input"
-                          placeholder="PLN Rate"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={editFormData.rateAnalisa}
-                          onChange={(e) => handleEditChange('rateAnalisa', e.target.value)}
-                          className="edit-input"
-                          placeholder="Analisa Rate"
-                        />
-                      </td>
+                      {item.isRateAs ? (
+                        // Rate As product - show group selector
+                        <>
+                          <td>
+                            <select
+                              value={editFormData.rateAsGroupID || ''}
+                              onChange={(e) => handleEditChange('rateAsGroupID', e.target.value)}
+                              className="edit-select"
+                            >
+                              <option value="">Select Group to Rate As...</option>
+                              {pembebanData
+                                .filter(p => !p.Group_ProductID && p.Group_PNCategoryID !== item.groupPNCategoryID && p.Group_PNCategoryID !== '7')
+                                .map(group => (
+                                  <option key={group.Group_PNCategoryID} value={group.Group_PNCategoryID}>
+                                    {group.Group_PNCategory_Name}
+                                  </option>
+                                ))}
+                            </select>
+                          </td>
+                          <td colSpan="4" className="rate-as-info">
+                            <div className="rate-as-message">
+                              <span>Rates will be automatically assigned from the selected group's default rates</span>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        // Manual product - show rate inputs
+                        <>
+                          <td>
+                            <span className="category-badge">
+                              {item.groupName}
+                            </span>
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editFormData.rateProses}
+                              onChange={(e) => handleEditChange('rateProses', e.target.value)}
+                              className="edit-input"
+                              placeholder="Proses Rate"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editFormData.rateKemas}
+                              onChange={(e) => handleEditChange('rateKemas', e.target.value)}
+                              className="edit-input"
+                              placeholder="Kemas Rate"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editFormData.rateGenerik}
+                              onChange={(e) => handleEditChange('rateGenerik', e.target.value)}
+                              className="edit-input"
+                              placeholder="PLN Rate"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editFormData.rateAnalisa}
+                              onChange={(e) => handleEditChange('rateAnalisa', e.target.value)}
+                              className="edit-input"
+                              placeholder="Analisa Rate"
+                            />
+                          </td>
+                        </>
+                      )}
                       <td className="actions editing-mode">
                         <button 
                           className="submit-btn"
@@ -1076,8 +1185,8 @@ const Pembebanan = () => {
                     // Display mode
                     <>
                       <td>
-                        <span className="category-badge">
-                          {item.groupName}
+                        <span className={`category-badge ${item.isRateAs ? 'rate-as' : ''}`} title={item.isRateAs && item.rateAsGroupName ? `Rated as ${item.rateAsGroupName}` : item.groupName}>
+                          {item.isRateAs && item.rateAsGroupName ? item.rateAsGroupName : item.groupName}
                         </span>
                       </td>
                       <td className="manhour">{parseFloat(item.rateProses).toFixed(2)}</td>
@@ -1240,57 +1349,106 @@ const Pembebanan = () => {
                 )}
               </div>
               
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Proses Rate: *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={addFormData.groupProsesRate}
-                    onChange={(e) => handleAddFormChange('groupProsesRate', e.target.value)}
-                    placeholder="0.00"
-                    required
-                  />
+              {/* Rate Input Mode Toggle - Only show when Produk Toll In (ID 7) is selected */}
+              {addFormData.groupPNCategoryID === '7' && addFormData.groupProductID && (
+                <div className="rate-mode-toggle">
+                  <label>Rate Input Method:</label>
+                  <div className="toggle-buttons">
+                    <button
+                      type="button"
+                      className={`toggle-btn ${rateInputMode === 'manual' ? 'active' : ''}`}
+                      onClick={() => setRateInputMode('manual')}
+                    >
+                      Manual Input
+                    </button>
+                    <button
+                      type="button"
+                      className={`toggle-btn ${rateInputMode === 'rateAs' ? 'active' : ''}`}
+                      onClick={() => setRateInputMode('rateAs')}
+                    >
+                      Rate As
+                    </button>
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label>Kemas Rate: *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={addFormData.groupKemasRate}
-                    onChange={(e) => handleAddFormChange('groupKemasRate', e.target.value)}
-                    placeholder="0.00"
-                    required
-                  />
-                </div>
-              </div>
+              )}
               
-              <div className="form-row">
+              {/* Show manual inputs or Rate As dropdown based on mode */}
+              {rateInputMode === 'manual' ? (
+                <>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Proses Rate: *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={addFormData.groupProsesRate}
+                        onChange={(e) => handleAddFormChange('groupProsesRate', e.target.value)}
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Kemas Rate: *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={addFormData.groupKemasRate}
+                        onChange={(e) => handleAddFormChange('groupKemasRate', e.target.value)}
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>PLN Rate:</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={addFormData.groupGenerikRate}
+                        onChange={(e) => handleAddFormChange('groupGenerikRate', e.target.value)}
+                        placeholder="0.00 (Optional)"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Analisa Rate:</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={addFormData.groupAnalisaRate}
+                        onChange={(e) => handleAddFormChange('groupAnalisaRate', e.target.value)}
+                        placeholder="0.00 (Optional)"
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
                 <div className="form-group">
-                  <label>PLN Rate:</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={addFormData.groupGenerikRate}
-                    onChange={(e) => handleAddFormChange('groupGenerikRate', e.target.value)}
-                    placeholder="0.00 (Optional)"
-                  />
+                  <label>Rate as Group: *</label>
+                  <select
+                    value={addFormData.rateAsGroupID}
+                    onChange={(e) => handleAddFormChange('rateAsGroupID', e.target.value)}
+                    required
+                  >
+                    <option value="">Select Group to Rate As</option>
+                    {availableGroups
+                      .filter(group => group.id !== '7') // Exclude Produk Toll In
+                      .map(group => (
+                        <option key={group.id} value={group.id}>
+                          {group.name}
+                        </option>
+                      ))}
+                  </select>
+                  <small style={{color: '#666', fontStyle: 'italic', marginTop: '0.5rem', display: 'block'}}>
+                    This product will use the same rates as the selected group
+                  </small>
                 </div>
-                <div className="form-group">
-                  <label>Analisa Rate:</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={addFormData.groupAnalisaRate}
-                    onChange={(e) => handleAddFormChange('groupAnalisaRate', e.target.value)}
-                    placeholder="0.00 (Optional)"
-                  />
-                </div>
-              </div>
+              )}
               
               <div className="form-info">
                 <small>
@@ -1312,7 +1470,12 @@ const Pembebanan = () => {
                 type="button" 
                 className="modal-btn primary" 
                 onClick={handleSubmitAdd}
-                disabled={!addFormData.groupPNCategoryName || !addFormData.groupProductID || !addFormData.groupProsesRate || !addFormData.groupKemasRate}
+                disabled={
+                  !addFormData.groupPNCategoryName || 
+                  !addFormData.groupProductID || 
+                  (rateInputMode === 'manual' && (!addFormData.groupProsesRate || !addFormData.groupKemasRate)) ||
+                  (rateInputMode === 'rateAs' && !addFormData.rateAsGroupID)
+                }
               >
                 Save
               </button>

@@ -1006,7 +1006,8 @@ class MasterController {
                 groupProsesRate, 
                 groupKemasRate,
                 groupPLNRate,
-                groupAnalisaRate
+                groupAnalisaRate,
+                groupPNCategoryRateAs
             } = req.body;
 
             // Validate required fields
@@ -1026,7 +1027,8 @@ class MasterController {
                 groupKemasRate,
                 groupPLNRate || null,
                 groupAnalisaRate || null,
-                'GWN' // Default user for now
+                'GWN', // Default user for now
+                groupPNCategoryRateAs || null
             );
 
             res.status(201).json({
@@ -1054,7 +1056,8 @@ class MasterController {
                 groupProsesRate, 
                 groupKemasRate,
                 groupPLNRate,
-                groupAnalisaRate
+                groupAnalisaRate,
+                groupPNCategoryRateAs
             } = req.body;
 
             // Validate required fields
@@ -1082,6 +1085,7 @@ class MasterController {
                 groupKemasRate,
                 groupPLNRate || null,
                 groupAnalisaRate || null,
+                groupPNCategoryRateAs || null,
                 'GWN' // Default user for now
             );
 

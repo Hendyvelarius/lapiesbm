@@ -868,7 +868,7 @@ async function getPembebanan() {
   }
 }
 
-async function addPembebanan(groupPNCategoryID, groupPNCategoryName, groupProductID, groupProsesRate, groupKemasRate, groupPLNRate, groupAnalisaRate, userId) {
+async function addPembebanan(groupPNCategoryID, groupPNCategoryName, groupProductID, groupProsesRate, groupKemasRate, groupPLNRate, groupAnalisaRate, userId, groupPNCategoryRateAs = null) {
   try {
     const db = await connect();
     const currentYear = new Date().getFullYear().toString();
@@ -879,11 +879,12 @@ async function addPembebanan(groupPNCategoryID, groupPNCategoryName, groupProduc
     const categoryName = String(groupPNCategoryName || '');
     const productId = groupProductID ? String(groupProductID) : null;
     const userIdStr = String(userId || 'GWN');
+    const rateAs = groupPNCategoryRateAs ? String(groupPNCategoryRateAs) : null;
     
     const query = `
       INSERT INTO M_COGS_PEMBEBANAN 
-      (Group_Periode, Group_PNCategoryID, Group_PNCategory_Name, Group_ProductID, Group_Proses_Rate, Group_Kemas_Rate, Group_PLN_Rate, Group_Analisa_Rate, user_id, delegated_to, process_date, flag_update, from_update)
-      VALUES (@periode, @categoryId, @categoryName, @productId, @prosesRate, @kemasRate, @plnRate, @analisaRate, @userId, @delegatedTo, @processDate, @flagUpdate, @fromUpdate)
+      (Group_Periode, Group_PNCategoryID, Group_PNCategory_Name, Group_ProductID, Group_Proses_Rate, Group_Kemas_Rate, Group_PLN_Rate, Group_Analisa_Rate, Group_PNCategoryRateAs, user_id, delegated_to, process_date, flag_update, from_update)
+      VALUES (@periode, @categoryId, @categoryName, @productId, @prosesRate, @kemasRate, @plnRate, @analisaRate, @rateAs, @userId, @delegatedTo, @processDate, @flagUpdate, @fromUpdate)
     `;
     
     const result = await db.request()
@@ -895,6 +896,7 @@ async function addPembebanan(groupPNCategoryID, groupPNCategoryName, groupProduc
       .input('kemasRate', sql.Decimal(18,2), groupKemasRate)
       .input('plnRate', sql.Decimal(18,2), groupPLNRate)
       .input('analisaRate', sql.Decimal(18,2), groupAnalisaRate)
+      .input('rateAs', sql.VarChar, rateAs)
       .input('userId', sql.VarChar, userIdStr)
       .input('delegatedTo', sql.VarChar, userIdStr)
       .input('processDate', sql.DateTime, currentDateTime)
@@ -909,7 +911,7 @@ async function addPembebanan(groupPNCategoryID, groupPNCategoryName, groupProduc
   }
 }
 
-async function updatePembebanan(pkId, groupPNCategoryID, groupPNCategoryName, groupProductID, groupProsesRate, groupKemasRate, groupPLNRate, groupAnalisaRate, userId) {
+async function updatePembebanan(pkId, groupPNCategoryID, groupPNCategoryName, groupProductID, groupProsesRate, groupKemasRate, groupPLNRate, groupAnalisaRate, groupPNCategoryRateAs, userId) {
   try {
     const db = await connect();
     const currentYear = new Date().getFullYear().toString();
@@ -919,6 +921,7 @@ async function updatePembebanan(pkId, groupPNCategoryID, groupPNCategoryName, gr
     const categoryId = String(groupPNCategoryID || '');
     const categoryName = String(groupPNCategoryName || '');
     const productId = groupProductID ? String(groupProductID) : null;
+    const rateAsGroupId = groupPNCategoryRateAs ? String(groupPNCategoryRateAs) : null;
     const userIdStr = String(userId || 'GWN');
     
     const query = `
@@ -931,6 +934,7 @@ async function updatePembebanan(pkId, groupPNCategoryID, groupPNCategoryName, gr
           Group_Kemas_Rate = @kemasRate,
           Group_PLN_Rate = @plnRate,
           Group_Analisa_Rate = @analisaRate,
+          Group_PNCategoryRateAs = @rateAsGroupId,
           user_id = @userId,
           delegated_to = @delegatedTo,
           process_date = @processDate,
@@ -949,6 +953,7 @@ async function updatePembebanan(pkId, groupPNCategoryID, groupPNCategoryName, gr
       .input('kemasRate', sql.Decimal(18,2), groupKemasRate)
       .input('plnRate', sql.Decimal(18,2), groupPLNRate)
       .input('analisaRate', sql.Decimal(18,2), groupAnalisaRate)
+      .input('rateAsGroupId', sql.VarChar, rateAsGroupId)
       .input('userId', sql.VarChar, userIdStr)
       .input('delegatedTo', sql.VarChar, userIdStr)
       .input('processDate', sql.DateTime, currentDateTime)
