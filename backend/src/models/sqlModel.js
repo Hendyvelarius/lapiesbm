@@ -51,10 +51,18 @@ async function getManufacturingItems() {
   }
 }
 
-async function getHargaBahan() {
+async function getHargaBahan(periode = null) {
   try {
     const db = await connect();
-    const result = await db.request().query('SELECT * FROM M_COGS_STD_HRG_BAHAN');
+    let query = 'SELECT * FROM M_COGS_STD_HRG_BAHAN';
+    const request = db.request();
+    
+    if (periode) {
+      query += ' WHERE Periode = @periode';
+      request.input('periode', sql.VarChar(10), periode);
+    }
+    
+    const result = await request.query(query);
     return result.recordset;
   } catch (error) {
     console.error('Error executing getHargaBahan query:', error);
@@ -62,10 +70,11 @@ async function getHargaBahan() {
   }
 }
 
-async function addHargaBahan(itemId, itemType, unit, price, currency, rate, userId) {
+async function addHargaBahan(itemId, itemType, unit, price, currency, rate, userId, periode = null) {
   try {
     const db = await connect();
     const currentDateTime = new Date().toISOString();
+    const insertPeriode = periode || new Date().getFullYear().toString();
     
     const query = `
       INSERT INTO M_COGS_STD_HRG_BAHAN (
@@ -74,6 +83,7 @@ async function addHargaBahan(itemId, itemType, unit, price, currency, rate, user
         ITEM_PURCHASE_UNIT,
         ITEM_PURCHASE_STD_PRICE,
         ITEM_CURRENCY,
+        Periode,
         user_id,
         delegated_to,
         process_date,
@@ -87,6 +97,7 @@ async function addHargaBahan(itemId, itemType, unit, price, currency, rate, user
         @unit,
         @price,
         @currency,
+        @periode,
         @userId,
         @userId,
         @processDate,
@@ -103,6 +114,7 @@ async function addHargaBahan(itemId, itemType, unit, price, currency, rate, user
       .input('unit', unit)
       .input('price', price)
       .input('currency', currency)
+      .input('periode', insertPeriode)
       .input('userId', userId)
       .input('processDate', currentDateTime)
       .input('createdAt', currentDateTime)
@@ -120,10 +132,11 @@ async function addHargaBahan(itemId, itemType, unit, price, currency, rate, user
   }
 }
 
-async function updateHargaBahan(pkId, itemType, unit, price, currency, rate, userId) {
+async function updateHargaBahan(pkId, itemType, unit, price, currency, rate, userId, periode = null) {
   try {
     const db = await connect();
     const currentDateTime = new Date().toISOString();
+    const updatePeriode = periode || new Date().getFullYear().toString();
     
     const query = `
       UPDATE M_COGS_STD_HRG_BAHAN 
@@ -132,6 +145,7 @@ async function updateHargaBahan(pkId, itemType, unit, price, currency, rate, use
         ITEM_PURCHASE_UNIT = @unit,
         ITEM_PURCHASE_STD_PRICE = @price,
         ITEM_CURRENCY = @currency,
+        Periode = @periode,
         user_id = @userId,
         delegated_to = @userId,
         process_date = @processDate,
@@ -147,6 +161,7 @@ async function updateHargaBahan(pkId, itemType, unit, price, currency, rate, use
       .input('unit', unit)
       .input('price', price)
       .input('currency', currency)
+      .input('periode', updatePeriode)
       .input('userId', userId)
       .input('processDate', currentDateTime)
       .input('updatedAt', currentDateTime)
@@ -198,13 +213,18 @@ async function deleteHargaBahan(pkId) {
   }
 }
 
-async function bulkDeleteBBHargaBahan() {
+async function bulkDeleteBBHargaBahan(periode = null) {
   try {
     const db = await connect();
-    const deleteQuery = 'DELETE FROM M_COGS_STD_HRG_BAHAN WHERE ITEM_TYPE = @itemType';
-    const result = await db.request()
-      .input('itemType', 'BB')
-      .query(deleteQuery);
+    let deleteQuery = 'DELETE FROM M_COGS_STD_HRG_BAHAN WHERE ITEM_TYPE = @itemType';
+    const request = db.request().input('itemType', 'BB');
+    
+    if (periode) {
+      deleteQuery += ' AND Periode = @periode';
+      request.input('periode', sql.VarChar(10), periode);
+    }
+    
+    const result = await request.query(deleteQuery);
       
     console.log(`Bulk deleted ${result.rowsAffected[0]} BB records`);
     return {
@@ -217,19 +237,25 @@ async function bulkDeleteBBHargaBahan() {
   }
 }
 
-async function bulkDeleteBKHargaBahan() {
+async function bulkDeleteBKHargaBahan(periode = null) {
   try {
     const db = await connect();
     // Delete BK items but preserve entries where ITEM_ID is exactly 2 characters
     // This preserves entries like BA, C0, J1, etc. which are not part of regular import
-    const deleteQuery = `
+    let deleteQuery = `
       DELETE FROM M_COGS_STD_HRG_BAHAN 
       WHERE ITEM_TYPE = @itemType 
       AND LEN(ITEM_ID) != 2
     `;
-    const result = await db.request()
-      .input('itemType', 'BK')
-      .query(deleteQuery);
+    
+    const request = db.request().input('itemType', 'BK');
+    
+    if (periode) {
+      deleteQuery += ' AND Periode = @periode';
+      request.input('periode', sql.VarChar(10), periode);
+    }
+    
+    const result = await request.query(deleteQuery);
       
     console.log(`Bulk deleted ${result.rowsAffected[0]} BK records (preserving 2-character ITEM_IDs like BA, C0, J1)`);
     return {
@@ -253,8 +279,8 @@ async function bulkInsertHargaBahan(dataArray) {
     console.log(`Starting bulk insert of ${dataArray.length} records in batches...`);
     
     // SQL Server has a limit of 2100 parameters per query
-    // With 11 columns per record, we can insert max ~190 records per batch
-    const BATCH_SIZE = 180; // Safe batch size
+    // With 12 columns per record, we can insert max ~175 records per batch
+    const BATCH_SIZE = 150; // Safe batch size (12 × 150 = 1800 parameters)
     const totalRecords = dataArray.length;
     let totalInserted = 0;
     
@@ -269,7 +295,7 @@ async function bulkInsertHargaBahan(dataArray) {
       // Build bulk insert query for this batch
       const columns = [
         'ITEM_ID', 'ITEM_TYPE', 'ITEM_PURCHASE_UNIT', 'ITEM_PURCHASE_STD_PRICE', 
-        'ITEM_CURRENCY', 'ITEM_PRC_ID', 'user_id', 'delegated_to', 
+        'ITEM_CURRENCY', 'ITEM_PRC_ID', 'Periode', 'user_id', 'delegated_to', 
         'process_date', 'createdAt', 'updatedAt'
       ];
       
@@ -301,11 +327,12 @@ async function bulkInsertHargaBahan(dataArray) {
         request.input(`param${rowIndex}_3`, sql.Decimal(18, 2), price);
         request.input(`param${rowIndex}_4`, sql.VarChar, item.ITEM_CURRENCY || null);
         request.input(`param${rowIndex}_5`, sql.VarChar, item.ITEM_PRC_ID || null);
-        request.input(`param${rowIndex}_6`, sql.VarChar, item.user_id || 'SYSTEM');
-        request.input(`param${rowIndex}_7`, sql.VarChar, item.delegated_to || 'SYSTEM');
-        request.input(`param${rowIndex}_8`, sql.DateTime2, item.process_date || currentDate);
-        request.input(`param${rowIndex}_9`, sql.DateTime2, currentDate);
+        request.input(`param${rowIndex}_6`, sql.VarChar, item.Periode || new Date().getFullYear().toString());
+        request.input(`param${rowIndex}_7`, sql.VarChar, item.user_id || 'SYSTEM');
+        request.input(`param${rowIndex}_8`, sql.VarChar, item.delegated_to || 'SYSTEM');
+        request.input(`param${rowIndex}_9`, sql.DateTime2, item.process_date || currentDate);
         request.input(`param${rowIndex}_10`, sql.DateTime2, currentDate);
+        request.input(`param${rowIndex}_11`, sql.DateTime2, currentDate);
       });
       
       const result = await request.query(insertQuery);

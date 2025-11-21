@@ -378,6 +378,39 @@
   flex-wrap: wrap;
 }
 
+.period-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 0.75rem 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.period-selector:hover {
+  border-color: #667eea;
+}
+
+.period-selector label {
+  font-size: 0.9rem;
+  color: #6b7280;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.periode-select {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.9rem;
+  color: #374151;
+  cursor: pointer;
+  font-weight: 500;
+  min-width: 70px;
+}
+
 .harga-bahan-container .category-filter {
   display: flex;
   align-items: center;

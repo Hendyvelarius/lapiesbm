@@ -229,12 +229,14 @@ class ExpiryCostController {
   // Get expired cost allocation (read-only)
   static async getExpiredCostAllocation(req, res) {
     try {
-      const expiredCostAllocation = await ExpiryCostModel.getExpiredCostAllocation();
+      const { periode } = req.query;
+      
+      const expiredCostAllocation = await ExpiryCostModel.getExpiredCostAllocation(periode);
       
       res.status(200).json({
         success: true,
         data: expiredCostAllocation,
-        message: `Found ${expiredCostAllocation.length} expired cost allocation records`
+        message: `Found ${expiredCostAllocation.length} expired cost allocation records${periode ? ` for period ${periode}` : ''}`
       });
     } catch (error) {
       res.status(500).json({

@@ -162,15 +162,23 @@ class ExpiryCostModel {
   }
 
   // Get expired cost allocation (read-only view)
-  static async getExpiredCostAllocation() {
+  static async getExpiredCostAllocation(periode = null) {
     try {
       const pool = await connect();
-      const query = `
+      let query = `
         SELECT * FROM M_COGS_PEMBEBANAN_EXPIRED
-        ORDER BY periode DESC, item_id
       `;
       
-      const result = await pool.request().query(query);
+      const request = pool.request();
+      
+      if (periode) {
+        query += ` WHERE periode = @periode`;
+        request.input('periode', sql.VarChar(10), periode);
+      }
+      
+      query += ` ORDER BY periode DESC, item_id`;
+      
+      const result = await request.query(query);
       return result.recordset;
     } catch (error) {
       console.error('Error getting expired cost allocation:', error);

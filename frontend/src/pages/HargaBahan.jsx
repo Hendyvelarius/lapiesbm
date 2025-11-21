@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { masterAPI } from '../services/api';
+import { getCurrentUser } from '../utils/auth';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import '../styles/HargaBahan.css';
@@ -23,6 +24,7 @@ const HargaBahan = () => {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Ingredients');
+  const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear().toString());
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -57,6 +59,8 @@ const HargaBahan = () => {
   const [showFormatModal, setShowFormatModal] = useState(false); // For Bahan Kemas format modal
   const [showBahanBakuFormatModal, setShowBahanBakuFormatModal] = useState(false); // For Bahan Baku format modal
   const [showExportWarningModal, setShowExportWarningModal] = useState(false); // For export warning modal
+  const [importPeriode, setImportPeriode] = useState(new Date().getFullYear().toString());
+  const [exportPeriode, setExportPeriode] = useState(new Date().getFullYear().toString());
   
   // Import pagination states
   const [importCurrentPage, setImportCurrentPage] = useState(1);
@@ -95,9 +99,19 @@ const HargaBahan = () => {
     rate: 1
   });
 
+  // Generate year options for periode selector (current year ± 2 years)
+  const generateYearOptions = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = currentYear - 2; i <= currentYear + 2; i++) {
+      years.push(i);
+    }
+    return years;
+  };
+
   useEffect(() => {
     fetchAllData();
-  }, []);
+  }, [selectedPeriode]);
 
   useEffect(() => {
     filterData();
@@ -137,17 +151,17 @@ const HargaBahan = () => {
 
       // Fetch all required data
       const [hargaBahanResponse, bahanResponse, currencyResponse] = await Promise.all([
-        masterAPI.getHargaBahan(),
+        masterAPI.getHargaBahan(selectedPeriode),
         masterAPI.getBahan(),
         masterAPI.getCurrency()
       ]);
 
-      // Filter currency data for current year
-      const currentYearCurrencies = currencyResponse.filter(curr => curr.Periode === currentYear);
+      // Filter currency data for selectedPeriode
+      const periodeCurrencies = currencyResponse.filter(curr => curr.Periode === selectedPeriode);
       
       // Create currency lookup map
       const currencyMap = {};
-      currentYearCurrencies.forEach(curr => {
+      periodeCurrencies.forEach(curr => {
         currencyMap[curr.Curr_Code] = curr.Kurs;
       });
 
@@ -255,13 +269,10 @@ const HargaBahan = () => {
     setModalLoading(true);
     
     try {
-      // Get current year
-      const currentYear = new Date().getFullYear().toString();
-      
-      // Fetch currencies for current year
+      // Fetch currencies for selectedPeriode
       const currencyResponse = await masterAPI.getCurrency();
-      const currentYearCurrencies = currencyResponse.filter(curr => curr.Periode === currentYear);
-      setCurrencies(currentYearCurrencies);
+      const periodeCurrencies = currencyResponse.filter(curr => curr.Periode === selectedPeriode);
+      setCurrencies(periodeCurrencies);
       
       // Fetch units
       const unitsResponse = await masterAPI.getUnit();
@@ -269,9 +280,9 @@ const HargaBahan = () => {
       
       // Find available items that don't have prices set yet
       const allItems = await masterAPI.getBahan();
-      const existingHargaBahan = await masterAPI.getHargaBahan();
+      const existingHargaBahan = await masterAPI.getHargaBahan(selectedPeriode);
       
-      // Get list of item IDs that already have prices
+      // Get list of item IDs that already have prices for the selected periode
       const existingItemIds = new Set(existingHargaBahan.map(item => item.ITEM_ID));
       
       // Filter out items that already have prices
@@ -294,6 +305,7 @@ const HargaBahan = () => {
 
   const handleImportMaterial = () => {
     // Show Bahan Baku format information modal first
+    setImportPeriode(selectedPeriode); // Default to current viewing year
     setShowBahanBakuFormatModal(true);
   };
 
@@ -308,6 +320,7 @@ const HargaBahan = () => {
 
   const handleImportBahanKemas = () => {
     // Show format information modal first
+    setImportPeriode(selectedPeriode); // Default to current viewing year
     setShowFormatModal(true);
   };
 
@@ -779,17 +792,21 @@ const HargaBahan = () => {
       ));
       console.log('================================');
       
-      // Call the bulk import API
-      const result = await masterAPI.bulkImportBahanBaku(mappedData);
+      // Call the bulk import API with importPeriode
+      const result = await masterAPI.bulkImportBahanBaku(mappedData, importPeriode);
       
       console.log('Import result:', result);
       
       // Show success message and close modal
-      notifier.success(`Successfully imported ${result.data.insertedRecords} Bahan Baku items!`);
+      notifier.success(`Successfully imported ${result.data.insertedRecords} Bahan Baku items for year ${importPeriode}!`);
       setShowImportPreview(false);
       
-      // Refresh the main table data
-      await fetchAllData();
+      // Refresh the main table data and switch to imported year if different
+      if (selectedPeriode !== importPeriode) {
+        setSelectedPeriode(importPeriode);
+      } else {
+        await fetchAllData();
+      }
       
     } catch (error) {
       console.error('Error during final import:', error);
@@ -858,13 +875,19 @@ const HargaBahan = () => {
       console.log('Sample mapped data:', mappedData.slice(0, 3));
       console.log('==================================');
       
-      // Call the bulk import API
-      const result = await masterAPI.bulkImportBahanKemas(mappedData);
+      // Call the bulk import API with importPeriode
+      const result = await masterAPI.bulkImportBahanKemas(mappedData, importPeriode);
       
       if (result.success) {
-        notifier.success(`Successfully imported ${result.data.insertedRecords} Bahan Kemas items!`);
+        notifier.success(`Successfully imported ${result.data.insertedRecords} Bahan Kemas items for year ${importPeriode}!`);
         setShowImportPreview(false);
-        await fetchAllData(); // Refresh the main table
+        
+        // Switch to imported year if different from current view
+        if (selectedPeriode !== importPeriode) {
+          setSelectedPeriode(importPeriode);
+        } else {
+          await fetchAllData();
+        }
       } else {
         throw new Error(result.message || 'Import failed');
       }
@@ -1230,13 +1253,10 @@ const HargaBahan = () => {
     setModalLoading(true);
     
     try {
-      // Get current year
-      const currentYear = new Date().getFullYear().toString();
-      
-      // Fetch currencies for current year
+      // Fetch currencies for selectedPeriode
       const currencyResponse = await masterAPI.getCurrency();
-      const currentYearCurrencies = currencyResponse.filter(curr => curr.Periode === currentYear);
-      setCurrencies(currentYearCurrencies);
+      const periodeCurrencies = currencyResponse.filter(curr => curr.Periode === selectedPeriode);
+      setCurrencies(periodeCurrencies);
       
       // Fetch units
       const unitsResponse = await masterAPI.getUnit();
@@ -1246,7 +1266,7 @@ const HargaBahan = () => {
       setAvailableItems([]);
       
       // Pre-fill form with existing data
-      const selectedCurrency = currentYearCurrencies.find(curr => curr.Curr_Code === item.currency);
+      const selectedCurrency = periodeCurrencies.find(curr => curr.Curr_Code === item.currency);
       setFormData({
         itemId: item.itemId,
         itemName: item.itemName,
@@ -1273,12 +1293,27 @@ const HargaBahan = () => {
     setShowDeleteModal(true);
   };
 
-  const handleExportAllMaterials = () => {
+  const handleExportAllMaterials = async () => {
     setShowExportWarningModal(false);
     
     try {
-      // Prepare data for export - use all materials data
-      const exportData = materialData.map(item => ({
+      // Fetch data for the export periode
+      let dataToExport = materialData;
+      
+      // If export periode is different from selected periode, fetch data for export periode
+      if (exportPeriode !== selectedPeriode) {
+        notifier.info(`Fetching data for year ${exportPeriode}...`);
+        const response = await masterAPI.getHargaBahan(exportPeriode);
+        dataToExport = response.data || [];
+      }
+      
+      if (dataToExport.length === 0) {
+        notifier.warning(`No materials found for year ${exportPeriode}`);
+        return;
+      }
+      
+      // Prepare data for export
+      const exportData = dataToExport.map(item => ({
         'Item ID': item.itemId || '',
         'Item Name': item.itemName || '',
         'Item Type': item.itemType || '',
@@ -1309,14 +1344,14 @@ const HargaBahan = () => {
       ];
       ws['!cols'] = colWidths;
 
-      // Generate filename with timestamp
+      // Generate filename with timestamp and year
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-      const filename = `Material_Prices_Export_${timestamp}.xlsx`;
+      const filename = `Material_Prices_Export_${exportPeriode}_${timestamp}.xlsx`;
 
       // Save file
       XLSX.writeFile(wb, filename);
       
-      notifier.success(`Successfully exported ${exportData.length} materials to ${filename}`);
+      notifier.success(`Successfully exported ${exportData.length} materials for year ${exportPeriode} to ${filename}`);
     } catch (error) {
       console.error('Export error:', error);
       notifier.alert('Failed to export materials: ' + error.message);
@@ -1468,6 +1503,7 @@ const HargaBahan = () => {
     try {
       setSubmitLoading(true);
       
+      const currentUser = getCurrentUser();
       const submitData = {
         itemId: formData.itemId,
         itemType: formData.itemType,
@@ -1475,7 +1511,8 @@ const HargaBahan = () => {
         price: parseFloat(formData.price),
         currency: formData.currency,
         rate: formData.rate,
-        userId: 'GWN' // This should come from user session/context in real app
+        userId: currentUser?.logNIK || 'SYSTEM',
+        periode: selectedPeriode
       };
       
       if (modalMode === 'edit') {
@@ -1580,6 +1617,21 @@ const HargaBahan = () => {
         </div>
         
         <div className="filter-controls">
+          <div className="period-selector">
+            <label htmlFor="periode-select">Year:</label>
+            <select 
+              id="periode-select"
+              value={selectedPeriode} 
+              onChange={(e) => setSelectedPeriode(e.target.value)}
+              className="periode-select"
+            >
+              {[...Array(5)].map((_, i) => {
+                const year = new Date().getFullYear() - 2 + i;
+                return <option key={year} value={year.toString()}>{year}</option>;
+              })}
+            </select>
+          </div>
+          
           <div className="category-filter">
             <Filter size={18} />
             <select 
@@ -1602,7 +1654,10 @@ const HargaBahan = () => {
             Import Bahan Baku
           </button>
           
-          <button className="export-btn" onClick={() => setShowExportWarningModal(true)}>
+          <button className="export-btn" onClick={() => {
+            setExportPeriode(selectedPeriode);
+            setShowExportWarningModal(true);
+          }}>
             <Download size={20} />
             Export
           </button>
@@ -2065,6 +2120,36 @@ const HargaBahan = () => {
             </div>
             <div className="modal-body">
               <div className="import-preview-info">
+                <div style={{ backgroundColor: '#e0f2fe', border: '1px solid #0284c7', borderRadius: '8px', padding: '12px', marginBottom: '15px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <label style={{ color: '#0369a1', fontWeight: '600', fontSize: '14px' }}>📅 Import to year:</label>
+                    <select 
+                      value={importPeriode}
+                      onChange={(e) => setImportPeriode(e.target.value)}
+                      style={{
+                        padding: '6px 12px',
+                        border: '1px solid #0284c7',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        color: '#0369a1',
+                        backgroundColor: 'white',
+                        cursor: 'pointer',
+                        minWidth: '100px'
+                      }}
+                    >
+                      {generateYearOptions().map(year => (
+                        <option key={year} value={year.toString()}>{year}</option>
+                      ))}
+                    </select>
+                    {importPeriode !== selectedPeriode && (
+                      <span style={{ color: '#ea580c', fontSize: '13px', fontWeight: '500' }}>
+                        ⚠️ Different from current view ({selectedPeriode})
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
                 <p><strong>Records found:</strong> {importPreviewData.length}</p>
                 {importType === 'bahan-kemas' ? (
                   <>
@@ -2276,6 +2361,36 @@ const HargaBahan = () => {
             
             <div className="modal-body">
               <div className="format-guide">
+                <div style={{ backgroundColor: '#e0f2fe', border: '1px solid #0284c7', borderRadius: '8px', padding: '12px', marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <label style={{ color: '#0369a1', fontWeight: '600', fontSize: '14px' }}>📅 Import to year:</label>
+                    <select 
+                      value={importPeriode}
+                      onChange={(e) => setImportPeriode(e.target.value)}
+                      style={{
+                        padding: '6px 12px',
+                        border: '1px solid #0284c7',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        color: '#0369a1',
+                        backgroundColor: 'white',
+                        cursor: 'pointer',
+                        minWidth: '100px'
+                      }}
+                    >
+                      {generateYearOptions().map(year => (
+                        <option key={year} value={year.toString()}>{year}</option>
+                      ))}
+                    </select>
+                    {importPeriode !== selectedPeriode && (
+                      <span style={{ color: '#ea580c', fontSize: '13px', fontWeight: '500' }}>
+                        ⚠️ Different from current view ({selectedPeriode})
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
                 <h3>📋 Required Excel Format</h3>
                 <p>Your Excel file must follow this exact column structure:</p>
                 
@@ -2406,6 +2521,36 @@ const HargaBahan = () => {
             
             <div className="modal-body">
               <div className="format-guide">
+                <div style={{ backgroundColor: '#e0f2fe', border: '1px solid #0284c7', borderRadius: '8px', padding: '12px', marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <label style={{ color: '#0369a1', fontWeight: '600', fontSize: '14px' }}>📅 Import to year:</label>
+                    <select 
+                      value={importPeriode}
+                      onChange={(e) => setImportPeriode(e.target.value)}
+                      style={{
+                        padding: '6px 12px',
+                        border: '1px solid #0284c7',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        color: '#0369a1',
+                        backgroundColor: 'white',
+                        cursor: 'pointer',
+                        minWidth: '100px'
+                      }}
+                    >
+                      {generateYearOptions().map(year => (
+                        <option key={year} value={year.toString()}>{year}</option>
+                      ))}
+                    </select>
+                    {importPeriode !== selectedPeriode && (
+                      <span style={{ color: '#ea580c', fontSize: '13px', fontWeight: '500' }}>
+                        ⚠️ Different from current view ({selectedPeriode})
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
                 <h3>📋 Required Excel Format</h3>
                 <p>Your Excel file must follow this exact column structure:</p>
                 
@@ -2536,6 +2681,37 @@ const HargaBahan = () => {
             
             <div className="modal-body">
               <div className="format-guide">
+                <div style={{ backgroundColor: '#e0f2fe', border: '1px solid #0284c7', borderRadius: '8px', padding: '15px', marginBottom: '20px' }}>
+                  <h4 style={{ color: '#0369a1', margin: '0 0 10px 0' }}>📅 Select Export Year</h4>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <label style={{ color: '#0c4a6e', fontWeight: '500' }}>Export data for year:</label>
+                    <select 
+                      value={exportPeriode}
+                      onChange={(e) => setExportPeriode(e.target.value)}
+                      style={{
+                        padding: '8px 12px',
+                        border: '1px solid #0284c7',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        color: '#0369a1',
+                        backgroundColor: 'white',
+                        cursor: 'pointer',
+                        minWidth: '100px'
+                      }}
+                    >
+                      {generateYearOptions().map(year => (
+                        <option key={year} value={year.toString()}>{year}</option>
+                      ))}
+                    </select>
+                    {exportPeriode !== selectedPeriode && (
+                      <span style={{ color: '#ea580c', fontSize: '14px', fontWeight: '500' }}>
+                        ⚠️ Different from current view ({selectedPeriode})
+                      </span>
+                    )}
+                  </div>
+                </div>
+
                 <div style={{ backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '8px', padding: '15px', marginBottom: '20px' }}>
                   <h3 style={{ color: '#92400e', margin: '0 0 10px 0' }}>⚠️ Important Notice</h3>
                   <p style={{ margin: '0 0 10px 0', color: '#92400e', fontWeight: '500' }}>

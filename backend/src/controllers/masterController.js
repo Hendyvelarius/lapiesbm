@@ -59,7 +59,8 @@ class MasterController {
 
     static async getHargaBahan(req, res) {
         try {
-            const hargaBahanData = await getHargaBahan();
+            const { periode } = req.query;
+            const hargaBahanData = await getHargaBahan(periode);
             res.status(200).json(hargaBahanData);
         } catch (error) {
             console.error('Error in hargaBahan endpoint:', error);
@@ -73,7 +74,7 @@ class MasterController {
 
     static async addHargaBahan(req, res) {
         try {
-            const { itemId, itemType, unit, price, currency, rate, userId } = req.body;
+            const { itemId, itemType, unit, price, currency, rate, userId, periode } = req.body;
             
             // Validate required fields (note: price can be 0, so check for null/undefined specifically)
             if (!itemId || !itemType || !unit || price === null || price === undefined || !currency || !userId) {
@@ -91,7 +92,7 @@ class MasterController {
                 });
             }
             
-            const result = await addHargaBahan(itemId, itemType, unit, price, currency, rate || 1, userId);
+            const result = await addHargaBahan(itemId, itemType, unit, price, currency, rate || 1, userId, periode);
             res.status(201).json({
                 success: true,
                 message: 'Harga bahan added successfully',
@@ -110,7 +111,7 @@ class MasterController {
     static async updateHargaBahan(req, res) {
         try {
             const { id } = req.params;
-            const { itemType, unit, price, currency, rate, userId } = req.body;
+            const { itemType, unit, price, currency, rate, userId, periode } = req.body;
             
             // Validate required fields (note: price can be 0, so check for null/undefined specifically)
             if (!id || !itemType || !unit || price === null || price === undefined || !currency || !userId) {
@@ -136,7 +137,7 @@ class MasterController {
                 });
             }
             
-            const result = await updateHargaBahan(parseInt(id), itemType, unit, price, currency, rate || 1, userId);
+            const result = await updateHargaBahan(parseInt(id), itemType, unit, price, currency, rate || 1, userId, periode);
             res.status(200).json({
                 success: true,
                 message: 'Harga bahan updated successfully',
@@ -202,7 +203,8 @@ class MasterController {
 
     static async bulkImportBahanBaku(req, res) {
         try {
-            const { items } = req.body;
+            const { items, periode } = req.body;
+            const importPeriode = periode || new Date().getFullYear().toString();
             
             // Validate required fields
             if (!items || !Array.isArray(items) || items.length === 0) {
@@ -215,39 +217,20 @@ class MasterController {
             // Validate each item - only check for ITEM_ID and that ITEM_TYPE is 'BB'
             const validationErrors = [];
             items.forEach((item, index) => {
-                console.log(`Validating item ${index + 1}:`, {
-                    ITEM_ID: item.ITEM_ID,
-                    ITEM_TYPE: item.ITEM_TYPE,
-                    ITEM_PURCHASE_UNIT: item.ITEM_PURCHASE_UNIT,
-                    ITEM_PURCHASE_STD_PRICE: item.ITEM_PURCHASE_STD_PRICE,
-                    ITEM_CURRENCY: item.ITEM_CURRENCY,
-                    ITEM_PRC_ID: item.ITEM_PRC_ID
-                });
-                
                 // Only validate essential fields
                 if (!item.ITEM_ID) {
                     validationErrors.push(`Item ${index + 1}: Missing ITEM_ID`);
-                    console.log(`Item ${index + 1}: ITEM_ID is missing or empty`);
                 }
                 if (item.ITEM_TYPE !== 'BB') {
                     validationErrors.push(`Item ${index + 1}: ITEM_TYPE must be 'BB', got: ${item.ITEM_TYPE}`);
-                    console.log(`Item ${index + 1}: ITEM_TYPE is not 'BB':`, item.ITEM_TYPE);
                 }
                 
-                // Optional fields - just log for debugging but don't validate
-                console.log(`Item ${index + 1} optional fields:`, {
-                    hasPurchaseUnit: !!item.ITEM_PURCHASE_UNIT,
-                    hasPrice: item.ITEM_PURCHASE_STD_PRICE !== null && item.ITEM_PURCHASE_STD_PRICE !== undefined,
-                    hasCurrency: !!item.ITEM_CURRENCY,
-                    hasPrcId: !!item.ITEM_PRC_ID
-                });
+                // Add periode to each item
+                item.Periode = importPeriode;
             });
 
             if (validationErrors.length > 0) {
-                console.log('=== VALIDATION ERRORS ===');
-                console.log('Total errors:', validationErrors.length);
-                validationErrors.forEach(error => console.log('- ' + error));
-                console.log('========================');
+                console.log(`Validation failed: ${validationErrors.length} errors found`);
                 
                 return res.status(400).json({
                     success: false,
@@ -256,15 +239,15 @@ class MasterController {
                 });
             }
 
-            // Step 1: Bulk delete existing BB records
-            const deleteResult = await bulkDeleteBBHargaBahan();
+            // Step 1: Bulk delete existing BB records for the periode
+            const deleteResult = await bulkDeleteBBHargaBahan(importPeriode);
             
             // Step 2: Bulk insert new records
             const insertResult = await bulkInsertHargaBahan(items);
             
             res.status(200).json({
                 success: true,
-                message: `Successfully imported ${insertResult.rowsInserted} Bahan Baku items`,
+                message: `Successfully imported ${insertResult.rowsInserted} Bahan Baku items for year ${importPeriode}`,
                 data: {
                     deletedRecords: deleteResult.rowsAffected,
                     insertedRecords: insertResult.rowsInserted
@@ -283,7 +266,8 @@ class MasterController {
 
     static async bulkImportBahanKemas(req, res) {
         try {
-            const { items } = req.body;
+            const { items, periode } = req.body;
+            const importPeriode = periode || new Date().getFullYear().toString();
             
             // Validate required fields
             if (!items || !Array.isArray(items) || items.length === 0) {
@@ -296,39 +280,20 @@ class MasterController {
             // Validate each item - only check for ITEM_ID and that ITEM_TYPE is 'BK'
             const validationErrors = [];
             items.forEach((item, index) => {
-                console.log(`Validating BK item ${index + 1}:`, {
-                    ITEM_ID: item.ITEM_ID,
-                    ITEM_TYPE: item.ITEM_TYPE,
-                    ITEM_PURCHASE_UNIT: item.ITEM_PURCHASE_UNIT,
-                    ITEM_PURCHASE_STD_PRICE: item.ITEM_PURCHASE_STD_PRICE,
-                    ITEM_CURRENCY: item.ITEM_CURRENCY,
-                    ITEM_PRC_ID: item.ITEM_PRC_ID
-                });
-                
                 // Only validate essential fields
                 if (!item.ITEM_ID) {
                     validationErrors.push(`Item ${index + 1}: Missing ITEM_ID`);
-                    console.log(`Item ${index + 1}: ITEM_ID is missing or empty`);
                 }
                 if (item.ITEM_TYPE !== 'BK') {
                     validationErrors.push(`Item ${index + 1}: ITEM_TYPE must be 'BK', got: ${item.ITEM_TYPE}`);
-                    console.log(`Item ${index + 1}: ITEM_TYPE is not 'BK':`, item.ITEM_TYPE);
                 }
                 
-                // Optional fields - just log for debugging but don't validate
-                console.log(`Item ${index + 1} optional fields:`, {
-                    hasPurchaseUnit: !!item.ITEM_PURCHASE_UNIT,
-                    hasPrice: item.ITEM_PURCHASE_STD_PRICE !== null && item.ITEM_PURCHASE_STD_PRICE !== undefined,
-                    hasCurrency: !!item.ITEM_CURRENCY,
-                    hasPrcId: !!item.ITEM_PRC_ID
-                });
+                // Add periode to each item
+                item.Periode = importPeriode;
             });
 
             if (validationErrors.length > 0) {
-                console.log('=== BK VALIDATION ERRORS ===');
-                console.log('Total errors:', validationErrors.length);
-                validationErrors.forEach(error => console.log('- ' + error));
-                console.log('============================');
+                console.log(`Validation failed: ${validationErrors.length} errors found`);
                 
                 return res.status(400).json({
                     success: false,
@@ -337,15 +302,15 @@ class MasterController {
                 });
             }
 
-            // Step 1: Bulk delete existing BK records
-            const deleteResult = await bulkDeleteBKHargaBahan();
+            // Step 1: Bulk delete existing BK records for the periode
+            const deleteResult = await bulkDeleteBKHargaBahan(importPeriode);
             
             // Step 2: Bulk insert new records
             const insertResult = await bulkInsertHargaBahan(items);
             
             res.status(200).json({
                 success: true,
-                message: `Successfully imported ${insertResult.rowsInserted} Bahan Kemas items`,
+                message: `Successfully imported ${insertResult.rowsInserted} Bahan Kemas items for year ${importPeriode}`,
                 data: {
                     deletedRecords: deleteResult.rowsAffected,
                     insertedRecords: insertResult.rowsInserted

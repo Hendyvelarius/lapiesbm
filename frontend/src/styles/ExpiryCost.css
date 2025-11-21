@@ -64,6 +64,46 @@
   font-weight: 600;
 }
 
+.header-title-with-filter {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.period-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.period-selector label {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.periode-select {
+  min-width: 100px;
+  padding: 8px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.periode-select:hover {
+  border-color: #007bff;
+}
+
+.periode-select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
 .header-actions {
   display: flex;
   gap: 12px;

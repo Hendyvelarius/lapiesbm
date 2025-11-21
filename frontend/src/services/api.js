@@ -294,7 +294,10 @@ export const masterAPI = {
   getBahan: () => apiRequest('/master/bahan'),
   
   // Get harga bahan data
-  getHargaBahan: () => apiRequest('/master/hargaBahan'),
+  getHargaBahan: (periode = null) => {
+    const url = periode ? `/master/hargaBahan?periode=${periode}` : '/master/hargaBahan';
+    return apiRequest(url);
+  },
   
   // Get unit data
   getUnit: () => apiRequest('/master/unit'),
@@ -320,15 +323,15 @@ export const masterAPI = {
   }),
   
   // Bulk import bahan baku
-  bulkImportBahanBaku: (items) => apiRequest('/master/hargaBahan/bulk-import-bahan-baku', {
+  bulkImportBahanBaku: (items, periode = null) => apiRequest('/master/hargaBahan/bulk-import-bahan-baku', {
     method: 'POST',
-    body: JSON.stringify({ items }),
+    body: JSON.stringify({ items, periode }),
   }),
   
   // Bulk import bahan kemas
-  bulkImportBahanKemas: (items) => apiRequest('/master/hargaBahan/bulk-import-bahan-kemas', {
+  bulkImportBahanKemas: (items, periode = null) => apiRequest('/master/hargaBahan/bulk-import-bahan-kemas', {
     method: 'POST',
-    body: JSON.stringify({ items }),
+    body: JSON.stringify({ items, periode }),
   }),
   
   // Get parameters

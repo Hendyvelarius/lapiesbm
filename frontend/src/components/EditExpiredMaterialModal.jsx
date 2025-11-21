@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getCurrentUser } from '../utils/auth';
 
 // API base configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
@@ -105,12 +106,13 @@ const EditExpiredMaterialModal = ({ material, materials, onClose, onSave }) => {
       setLoading(true);
       setError('');
 
+      const currentUser = getCurrentUser();
       const submitData = {
         itemId: formData.itemId.trim(),
         itemQty: parseFloat(formData.itemQty),
         itemUnit: formData.itemUnit.trim(),
         periode: formData.periode.trim(),
-        userId: formData.userId.trim() || 'SYSTEM',
+        userId: currentUser?.logNIK || formData.userId.trim() || 'SYSTEM',
         processDate: material.process_date // Keep original process date
       };
 

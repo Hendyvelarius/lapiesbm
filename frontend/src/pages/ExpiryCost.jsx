@@ -60,20 +60,21 @@ const ExpiryCost = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [allocationData, setAllocationData] = useState([]);
   const [productNames, setProductNames] = useState([]);
+  const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear().toString());
 
   const currentYear = new Date().getFullYear().toString();
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [selectedPeriode]);
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError('');
       
-      // Load expired materials first
-      const expiredResponse = await apiCall('/expiry-cost');
+      // Load expired materials filtered by selectedPeriode
+      const expiredResponse = await apiCall(`/expiry-cost?periode=${selectedPeriode}`);
       
       if (expiredResponse.success) {
         setExpiredMaterials(expiredResponse.data);
@@ -144,7 +145,7 @@ const ExpiryCost = () => {
 
   const handleGenerateExpiryCost = async () => {
     notifier.confirm(
-      `Are you sure you want to generate expiry cost allocation for year ${currentYear}? This will process all expired materials for the current year.`,
+      `Are you sure you want to generate expiry cost allocation for year ${selectedPeriode}? This will process all expired materials for the selected year.`,
       async () => {
         try {
           setGenerating(true);
@@ -152,7 +153,7 @@ const ExpiryCost = () => {
 
           // Call the generate endpoint
           const response = await apiCall('/expiry-cost/generate', 'POST', { 
-            periode: currentYear 
+            periode: selectedPeriode 
           });
 
           if (response.success) {
@@ -182,7 +183,7 @@ const ExpiryCost = () => {
       
       // Load allocation data and product names
       const [allocationResponse, productNamesResponse] = await Promise.all([
-        apiCall('/expiry-cost/allocation/data'),
+        apiCall(`/expiry-cost/allocation/data?periode=${selectedPeriode}`),
         masterAPI.getProductName()
       ]);
 
@@ -237,7 +238,23 @@ const ExpiryCost = () => {
 
       <div className="content-section">
         <div className="section-header">
-          <h2>Expired Materials ({currentYear})</h2>
+          <div className="header-title-with-filter">
+            <h2>Expired Materials</h2>
+            <div className="period-selector">
+              <label htmlFor="periode-select">Year:</label>
+              <select 
+                id="periode-select"
+                value={selectedPeriode} 
+                onChange={(e) => setSelectedPeriode(e.target.value)}
+                className="periode-select"
+              >
+                {[...Array(5)].map((_, i) => {
+                  const year = new Date().getFullYear() - 2 + i;
+                  return <option key={year} value={year.toString()}>{year}</option>;
+                })}
+              </select>
+            </div>
+          </div>
           <div className="header-actions">
             <button 
               className="btn btn-secondary"
@@ -280,7 +297,7 @@ const ExpiryCost = () => {
               {expiredMaterials.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="no-data">
-                    No expired materials found for {currentYear}
+                    No expired materials found for {selectedPeriode}
                   </td>
                 </tr>
               ) : (
@@ -328,7 +345,7 @@ const ExpiryCost = () => {
           materials={materials}
           onClose={closeModals}
           onSave={onMaterialSaved}
-          currentYear={currentYear}
+          currentYear={selectedPeriode}
         />
       )}
 
@@ -347,7 +364,7 @@ const ExpiryCost = () => {
           materials={materials}
           productNames={productNames}
           onClose={() => setShowViewModal(false)}
-          currentYear={currentYear}
+          currentYear={selectedPeriode}
         />
       )}
     </div>
