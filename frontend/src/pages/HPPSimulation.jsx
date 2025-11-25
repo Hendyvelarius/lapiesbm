@@ -254,6 +254,9 @@ export default function HPPSimulation() {
   const [editableVersion, setEditableVersion] = useState(null);
   const [editableDescription, setEditableDescription] = useState(null);
 
+  // Margin type state (percent or value)
+  const [marginType, setMarginType] = useState("value"); // 'percent' or 'value'
+
   // Custom formula state
   const [isCustomFormula, setIsCustomFormula] = useState(false);
   const [customProductName, setCustomProductName] = useState("");
@@ -1527,26 +1530,54 @@ export default function HPPSimulation() {
       setEditableRendemen(headerData.Group_Rendemen || 0);
       setEditableDescription(headerData.Simulasi_Deskripsi || "");
 
-      // Set up overhead data with proper mapping
-      setEditableOverheadData({
-        MH_Proses_Std: headerData.MH_Proses_Std || 0,
-        MH_Kemas_Std: headerData.MH_Kemas_Std || 0,
-        MH_Analisa_Std: headerData.MH_Analisa_Std || 0,
-        MH_Timbang_BB: headerData.MH_Timbang_BB || 0,
-        MH_Timbang_BK: headerData.MH_Timbang_BK || 0,
-        MH_Mesin_Std: headerData.MH_Mesin_Std || 0,
-        Biaya_Proses: headerData.Biaya_Proses || 0,
-        Biaya_Kemas: headerData.Biaya_Kemas || 0,
-        Biaya_Analisa: headerData.Biaya_Analisa || 0,
-        Biaya_Generik: headerData.Biaya_Generik || 0,
-        Biaya_Reagen: headerData.Biaya_Reagen || 0,
-        Toll_Fee: headerData.Toll_Fee || 0,
-        Rate_PLN: headerData.Rate_PLN || 0,
-        Direct_Labor: headerData.Direct_Labor || 0,
-        Factory_Over_Head: headerData.Factory_Over_Head || 0,
-        Depresiasi: headerData.Depresiasi || 0,
-        Beban_Sisa_Bahan_Exp: headerData.Beban_Sisa_Bahan_Exp || 0,
-      });
+      // Detect margin type: if < 1, it's percent; otherwise it's direct value
+      const marginValue = headerData.Margin || 0;
+      if (marginValue < 1 && marginValue > 0) {
+        setMarginType("percent");
+        // Convert to percentage for display (0.1 -> 10)
+        setEditableOverheadData({
+          MH_Proses_Std: headerData.MH_Proses_Std || 0,
+          MH_Kemas_Std: headerData.MH_Kemas_Std || 0,
+          MH_Analisa_Std: headerData.MH_Analisa_Std || 0,
+          MH_Timbang_BB: headerData.MH_Timbang_BB || 0,
+          MH_Timbang_BK: headerData.MH_Timbang_BK || 0,
+          MH_Mesin_Std: headerData.MH_Mesin_Std || 0,
+          Biaya_Proses: headerData.Biaya_Proses || 0,
+          Biaya_Kemas: headerData.Biaya_Kemas || 0,
+          Biaya_Analisa: headerData.Biaya_Analisa || 0,
+          Biaya_Generik: headerData.Biaya_Generik || 0,
+          Biaya_Reagen: headerData.Biaya_Reagen || 0,
+          Toll_Fee: headerData.Toll_Fee || 0,
+          Rate_PLN: headerData.Rate_PLN || 0,
+          Direct_Labor: headerData.Direct_Labor || 0,
+          Factory_Over_Head: headerData.Factory_Over_Head || 0,
+          Depresiasi: headerData.Depresiasi || 0,
+          Beban_Sisa_Bahan_Exp: headerData.Beban_Sisa_Bahan_Exp || 0,
+          Margin: marginValue * 100, // Convert to percent for display
+        });
+      } else {
+        setMarginType("value");
+        setEditableOverheadData({
+          MH_Proses_Std: headerData.MH_Proses_Std || 0,
+          MH_Kemas_Std: headerData.MH_Kemas_Std || 0,
+          MH_Analisa_Std: headerData.MH_Analisa_Std || 0,
+          MH_Timbang_BB: headerData.MH_Timbang_BB || 0,
+          MH_Timbang_BK: headerData.MH_Timbang_BK || 0,
+          MH_Mesin_Std: headerData.MH_Mesin_Std || 0,
+          Biaya_Proses: headerData.Biaya_Proses || 0,
+          Biaya_Kemas: headerData.Biaya_Kemas || 0,
+          Biaya_Analisa: headerData.Biaya_Analisa || 0,
+          Biaya_Generik: headerData.Biaya_Generik || 0,
+          Biaya_Reagen: headerData.Biaya_Reagen || 0,
+          Toll_Fee: headerData.Toll_Fee || 0,
+          Rate_PLN: headerData.Rate_PLN || 0,
+          Direct_Labor: headerData.Direct_Labor || 0,
+          Factory_Over_Head: headerData.Factory_Over_Head || 0,
+          Depresiasi: headerData.Depresiasi || 0,
+          Beban_Sisa_Bahan_Exp: headerData.Beban_Sisa_Bahan_Exp || 0,
+          Margin: marginValue, // Keep as direct value
+        });
+      }
 
       // Set up materials data with proper mapping from detail-bahan API
       const formattedMaterials =
@@ -1893,14 +1924,21 @@ export default function HPPSimulation() {
             setEditableRendemen(results[0].Group_Rendemen);
             setEditableLOB(normalizedLOB);
             setEditableVersion(results[0].Versi || "1");
-            setEditableOverheadData({
-              // ETHICAL/OTC overhead parameters
-              MH_Proses_Std: results[0].MH_Proses_Std,
-              Biaya_Proses: results[0].Biaya_Proses,
-              MH_Kemas_Std: results[0].MH_Kemas_Std,
-              Biaya_Kemas: results[0].Biaya_Kemas,
-              Beban_Sisa_Bahan_Exp: results[0].Beban_Sisa_Bahan_Exp,
-              // GENERIC V1 overhead parameters
+            
+            // Detect margin type: if < 1, it's percent; otherwise it's direct value
+            const marginValue = results[0].Margin || 0;
+            if (marginValue < 1 && marginValue > 0) {
+              setMarginType("percent");
+              // Convert to percentage for display (0.1 -> 10)
+              setEditableOverheadData({
+                // ETHICAL/OTC overhead parameters
+                MH_Proses_Std: results[0].MH_Proses_Std,
+                Biaya_Proses: results[0].Biaya_Proses,
+                MH_Kemas_Std: results[0].MH_Kemas_Std,
+                Biaya_Kemas: results[0].Biaya_Kemas,
+                Beban_Sisa_Bahan_Exp: results[0].Beban_Sisa_Bahan_Exp,
+                Margin: marginValue * 100, // Convert to percent for display
+                // GENERIC V1 overhead parameters
               MH_Timbang_BB: results[0].MH_Timbang_BB,
               MH_Timbang_BK: results[0].MH_Timbang_BK,
               MH_Analisa_Std: results[0].MH_Analisa_Std,
@@ -1912,7 +1950,31 @@ export default function HPPSimulation() {
               // GENERIC V2 overhead parameters
               Direct_Labor: results[0].Direct_Labor,
               Factory_Over_Head: results[0].Factory_Over_Head,
-            });
+              });
+            } else {
+              setMarginType("value");
+              setEditableOverheadData({
+                // ETHICAL/OTC overhead parameters
+                MH_Proses_Std: results[0].MH_Proses_Std,
+                Biaya_Proses: results[0].Biaya_Proses,
+                MH_Kemas_Std: results[0].MH_Kemas_Std,
+                Biaya_Kemas: results[0].Biaya_Kemas,
+                Beban_Sisa_Bahan_Exp: results[0].Beban_Sisa_Bahan_Exp,
+                Margin: marginValue, // Keep as direct value
+                // GENERIC V1 overhead parameters
+                MH_Timbang_BB: results[0].MH_Timbang_BB,
+                MH_Timbang_BK: results[0].MH_Timbang_BK,
+                MH_Analisa_Std: results[0].MH_Analisa_Std,
+                MH_Mesin_Std: results[0].MH_Mesin_Std,
+                Biaya_Generik: results[0].Biaya_Generik,
+                Biaya_Reagen: results[0].Biaya_Reagen,
+                Rate_PLN: results[0].Rate_PLN,
+                Depresiasi: results[0].Depresiasi,
+                // GENERIC V2 overhead parameters
+                Direct_Labor: results[0].Direct_Labor,
+                Factory_Over_Head: results[0].Factory_Over_Head,
+              });
+            }
           }
 
           // Initialize editable material data
@@ -2536,13 +2598,34 @@ export default function HPPSimulation() {
     return 0;
   };
 
+  const calculateMarginValue = () => {
+    if (getCurrentLOB() !== "ETHICAL" && getCurrentLOB() !== "OTC") {
+      return 0; // No margin for GENERIC products
+    }
+
+    const marginInput = editableOverheadData.Margin || 0;
+    
+    if (marginType === "percent") {
+      // Calculate margin as percentage of subtotal (materials + overhead)
+      const bahanBaku = editableMaterialData.length > 0 ? calculateTotalBahanBaku() : 0;
+      const bahanKemas = editableMaterialData.length > 0 ? calculateTotalBahanKemas() : 0;
+      const overhead = calculateTotalOverhead();
+      const subtotal = bahanBaku + bahanKemas + overhead;
+      return subtotal * (marginInput / 100);
+    } else {
+      // Direct value
+      return marginInput;
+    }
+  };
+
   const calculateGrandTotal = () => {
     const bahanBaku =
       editableMaterialData.length > 0 ? calculateTotalBahanBaku() : 0;
     const bahanKemas =
       editableMaterialData.length > 0 ? calculateTotalBahanKemas() : 0;
     const overhead = calculateTotalOverhead();
-    return bahanBaku + bahanKemas + overhead;
+    const margin = calculateMarginValue();
+    return bahanBaku + bahanKemas + overhead + margin;
   };
 
   const calculateCostPerUnitWithRendemen = () => {
@@ -4924,6 +5007,79 @@ export default function HPPSimulation() {
                     </div>
                   )}
 
+                {/* Margin Section for ETHICAL/OTC Products */}
+                {(getCurrentLOB() === "ETHICAL" || getCurrentLOB() === "OTC") && (
+                  <div className="overhead-cost" style={{ marginTop: "20px" }}>
+                    <h4>Margin:</h4>
+                    <div className="overhead-cost-grid">
+                      <div className="overhead-cost-item">
+                        <span className="overhead-label">
+                          Margin Type:
+                          <button
+                            type="button"
+                            onClick={() => setMarginType(marginType === "percent" ? "value" : "percent")}
+                            style={{
+                              marginLeft: "10px",
+                              padding: "5px 10px",
+                              fontSize: "12px",
+                              cursor: "pointer",
+                              backgroundColor: "#007bff",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "4px"
+                            }}
+                          >
+                            Switch to {marginType === "percent" ? "Direct Value" : "Percent"}
+                          </button>
+                        </span>
+                        <div className="overhead-formula-editable">
+                          {marginType === "percent" ? (
+                            <>
+                              <input
+                                type="number"
+                                value={editableOverheadData.Margin || 0}
+                                onChange={(e) =>
+                                  setEditableOverheadData({
+                                    ...editableOverheadData,
+                                    Margin: parseFloat(e.target.value) || 0,
+                                  })
+                                }
+                                className="overhead-edit-input"
+                                step="0.1"
+                                min="0"
+                                placeholder="0"
+                              />
+                              <span className="formula-part">%</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="formula-part">Rp</span>
+                              <input
+                                type="number"
+                                value={editableOverheadData.Margin || 0}
+                                onChange={(e) =>
+                                  setEditableOverheadData({
+                                    ...editableOverheadData,
+                                    Margin: parseFloat(e.target.value) || 0,
+                                  })
+                                }
+                                className="overhead-edit-input"
+                                step="0.01"
+                                min="0"
+                                placeholder="0"
+                              />
+                              <span className="formula-part">(Direct Value)</span>
+                            </>
+                          )}
+                        </div>
+                        <span className="overhead-value">
+                          Rp {formatNumber(calculateMarginValue(), 2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Grand Total Cost */}
                 <div className="grand-total-cost">
                   <h4>Total Cost Summary:</h4>
@@ -5328,6 +5484,7 @@ export default function HPPSimulation() {
                   </div>
 
                   {getCurrentLOB() === "ETHICAL" && (
+                    <>
                     <table className="excel-table">
                       <thead>
                         <tr>
@@ -5451,9 +5608,32 @@ export default function HPPSimulation() {
                         </tr>
                       </tbody>
                     </table>
+
+                    {/* Margin Section for ETHICAL */}
+                    <table className="excel-table" style={{ marginTop: "10px" }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ width: "20%" }}>
+                            <strong>Margin</strong>
+                          </td>
+                          <td style={{ width: "60%" }}>
+                            {marginType === "percent" 
+                              ? `${formatNumber(editableOverheadData.Margin || 0, 2)}%`
+                              : `Rp ${formatNumber(editableOverheadData.Margin || 0, 2)}`}
+                          </td>
+                          <td style={{ width: "20%" }} className="number">
+                            <strong>
+                              Rp {formatNumber(calculateMarginValue(), 2)}
+                            </strong>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    </>
                   )}
 
                   {getCurrentLOB() === "OTC" && (
+                    <>
                     <table className="excel-table">
                       <thead>
                         <tr>
@@ -5577,6 +5757,28 @@ export default function HPPSimulation() {
                         </tr>
                       </tbody>
                     </table>
+
+                    {/* Margin Section for OTC */}
+                    <table className="excel-table" style={{ marginTop: "10px" }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ width: "20%" }}>
+                            <strong>Margin</strong>
+                          </td>
+                          <td style={{ width: "60%" }}>
+                            {marginType === "percent" 
+                              ? `${formatNumber(editableOverheadData.Margin || 0, 2)}%`
+                              : `Rp ${formatNumber(editableOverheadData.Margin || 0, 2)}`}
+                          </td>
+                          <td style={{ width: "20%" }} className="number">
+                            <strong>
+                              Rp {formatNumber(calculateMarginValue(), 2)}
+                            </strong>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    </>
                   )}
 
                   {getCurrentLOB() === "GENERIC" &&
@@ -5998,6 +6200,31 @@ export default function HPPSimulation() {
                               </strong>
                             </td>
                           </tr>
+                          {(getCurrentLOB() === "ETHICAL" || getCurrentLOB() === "OTC") && (
+                            <tr>
+                              <td>Margin</td>
+                              <td>
+                                {marginType === "percent" 
+                                  ? `Margin (${formatNumber(editableOverheadData.Margin || 0, 2)}%)`
+                                  : "Margin (Direct Value)"}
+                              </td>
+                              <td>
+                                {marginType === "percent"
+                                  ? `${formatNumber(editableOverheadData.Margin || 0, 2)}% of subtotal`
+                                  : `Rp ${formatNumber(editableOverheadData.Margin || 0, 2)}`}
+                              </td>
+                              <td className="number">
+                                Rp {formatNumber(calculateMarginValue(), 2)}
+                              </td>
+                              <td className="number">
+                                Rp{" "}
+                                {formatNumber(
+                                  calculateMarginValue() / getActualBatchSize(),
+                                  2
+                                )}
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     )}
@@ -6019,9 +6246,7 @@ export default function HPPSimulation() {
                           <strong>
                             Rp{" "}
                             {formatNumber(
-                              calculateTotalBahanBaku() +
-                                calculateTotalBahanKemas() +
-                                calculateTotalOverhead(),
+                              calculateGrandTotal(),
                               2
                             )}
                           </strong>
@@ -6030,9 +6255,7 @@ export default function HPPSimulation() {
                           <strong>
                             Rp{" "}
                             {formatNumber(
-                              (calculateTotalBahanBaku() +
-                                calculateTotalBahanKemas() +
-                                calculateTotalOverhead()) /
+                              calculateGrandTotal() /
                                 getActualBatchSize(),
                               2
                             )}
