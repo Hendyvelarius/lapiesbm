@@ -328,6 +328,86 @@
 }
 
 /* Table Cell Specific Styles with Column Widths */
+.expand-btn {
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 8px;
+  transition: all 0.2s ease;
+}
+
+.expand-btn:hover {
+  color: #3b82f6;
+  transform: scale(1.1);
+}
+
+.affected-products-table tbody tr.expanded {
+  background-color: #f0f9ff;
+}
+
+.detail-row {
+  background-color: #fafafa !important;
+}
+
+.detail-row:hover {
+  background-color: #fafafa !important;
+}
+
+.detail-row td {
+  padding: 0 !important;
+  border-bottom: 2px solid #e5e7eb !important;
+}
+
+.product-detail-breakdown {
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  margin: 10px;
+}
+
+.breakdown-columns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.breakdown-column h4 {
+  margin: 0 0 12px 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #374151;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.breakdown-table {
+  width: 100%;
+  font-size: 0.875rem;
+}
+
+.breakdown-table tbody tr td {
+  padding: 8px 4px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.breakdown-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.breakdown-table .number {
+  text-align: right;
+  font-family: monospace;
+}
+
+.breakdown-table .total-row td {
+  padding-top: 12px;
+  border-top: 2px solid #d1d5db;
+  font-weight: 600;
+  color: #1f2937;
+}
+
 .product-id {
   font-weight: 600;
   color: #1f2937;

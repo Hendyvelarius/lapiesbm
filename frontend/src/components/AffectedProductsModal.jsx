@@ -9,6 +9,20 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
   const [affectedProducts, setAffectedProducts] = useState([]);
   const [error, setError] = useState("");
   const [affectedMaterials, setAffectedMaterials] = useState([]);
+  const [expandedProducts, setExpandedProducts] = useState(new Set());
+
+  // Toggle product detail expansion
+  const toggleProductExpansion = (productId) => {
+    setExpandedProducts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(productId)) {
+        newSet.delete(productId);
+      } else {
+        newSet.add(productId);
+      }
+      return newSet;
+    });
+  };
 
   // Fetch affected products using stored procedure
   const fetchAffectedProducts = async (description, simulasiDate) => {
@@ -87,6 +101,58 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
     const ratioAfter = parseFloat(ratioHPPAfter || 0) * 100;   // Convert to percentage
     
     return ratioAfter - ratioBefore; // Difference in percentage points
+  };
+
+  // Calculate overhead based on product LOB
+  const calculateOverhead = (product) => {
+    const lob = product.LOB;
+    const version = product.Versi;
+
+    if (lob === "ETHICAL" || lob === "OTC") {
+      const processingCost = (parseFloat(product.MH_Proses_Std || 0) * parseFloat(product.Biaya_Proses || 0));
+      const packagingCost = (parseFloat(product.MH_Kemas_Std || 0) * parseFloat(product.Biaya_Kemas || 0));
+      const expiryCost = parseFloat(product.Beban_Sisa_Bahan_Exp || 0);
+      return processingCost + packagingCost + expiryCost;
+    } else if (lob === "GENERIC" && version === "1") {
+      const ingredientsWeighing = (parseFloat(product.MH_Timbang_BB || 0) * parseFloat(product.Biaya_Proses || 0));
+      const packagingWeighing = (parseFloat(product.MH_Timbang_BK || 0) * parseFloat(product.Biaya_Kemas || 0));
+      const processingCost = (parseFloat(product.MH_Proses_Std || 0) * parseFloat(product.Biaya_Proses || 0));
+      const packagingCost = (parseFloat(product.MH_Kemas_Std || 0) * parseFloat(product.Biaya_Kemas || 0));
+      const analysisFee = (parseFloat(product.MH_Analisa_Std || 0) * parseFloat(product.Biaya_Generik || 0));
+      const machineFee = (parseFloat(product.MH_Mesin_Std || 0) * parseFloat(product.Biaya_Generik || 0));
+      const reagentFee = parseFloat(product.Biaya_Reagen || 0);
+      const expiryCost = parseFloat(product.Beban_Sisa_Bahan_Exp || 0);
+      return ingredientsWeighing + packagingWeighing + processingCost + packagingCost + analysisFee + machineFee + reagentFee + expiryCost;
+    } else if (lob === "GENERIC" && version === "2") {
+      const productionLabor = (parseFloat(product.MH_Proses_Std || 0) * parseFloat(product.Direct_Labor || 0));
+      const packagingLabor = (parseFloat(product.MH_Kemas_Std || 0) * parseFloat(product.Direct_Labor || 0));
+      const productionFOH = (parseFloat(product.MH_Proses_Std || 0) * parseFloat(product.Factory_Over_Head || 0));
+      const packagingFOH = (parseFloat(product.MH_Kemas_Std || 0) * parseFloat(product.Factory_Over_Head || 0));
+      const expiryCost = parseFloat(product.Beban_Sisa_Bahan_Exp || 0);
+      return productionLabor + packagingLabor + productionFOH + packagingFOH + expiryCost;
+    }
+    
+    return 0;
+  };
+
+  // Calculate margin value
+  const calculateMarginValue = (product, materialCost) => {
+    const lob = product.LOB;
+    if (lob !== "ETHICAL" && lob !== "OTC") {
+      return 0; // No margin for GENERIC products
+    }
+
+    const marginInput = parseFloat(product.Margin || 0);
+    
+    if (marginInput < 1 && marginInput > 0) {
+      // It's a percentage
+      const overhead = calculateOverhead(product);
+      const subtotal = materialCost + overhead;
+      return subtotal * marginInput; // Already in decimal form (0.1 = 10%)
+    } else {
+      // Direct value
+      return marginInput;
+    }
   };
 
   // Get trend icon based on percentage change
@@ -396,6 +462,7 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
                       <table className="affected-products-table">
                         <thead>
                           <tr>
+                            <th style={{ width: "40px" }}>Details</th>
                             <th>ID</th>
                             <th>Product Name</th>
                             <th>Cost Before</th>
@@ -408,66 +475,173 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
                           </tr>
                         </thead>
                         <tbody>
-                          {affectedProducts.map((product, index) => (
-                            <tr key={index}>
-                              <td className="product-id">{product.Product_ID}</td>
-                              <td className="product-name">{product.Product_Name}</td>
-                              <td className="material-cost-before">
-                                {formatCurrency(parseFloat(product.totalBahanSebelum || 0))}
-                              </td>
-                              <td className="material-cost-after">
-                                {formatCurrency(parseFloat(product.totalBahanSesudah || 0))}
-                              </td>
-                              <td className="hna">
-                                {formatCurrency(parseFloat(product.Product_SalesHNA || 0))}
-                              </td>
-                              <td className="hpp-before">
-                                {formatHPPWithRatio(product.HPPSebelum, product.Rasio_HPP_Sebelum)}
-                              </td>
-                              <td className="hpp-after">
-                                {formatHPPWithRatio(product.HPPSesudah, product.Rasio_HPP_Sesudah)}
-                              </td>
-                              <td className="impact-cell">
-                                <div className="impact-indicator">
-                                  {getTrendIcon(parseFloat(product.persentase_perubahan || 0))}
-                                  <span
-                                    className={`percentage ${
-                                      parseFloat(product.persentase_perubahan || 0) > 0
-                                        ? "increase"
-                                        : parseFloat(product.persentase_perubahan || 0) < 0
-                                        ? "decrease"
-                                        : "neutral"
-                                    }`}
-                                  >
-                                    {formatPercentage(parseFloat(product.persentase_perubahan || 0))}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="impact-hna-cell">
-                                <div className="impact-indicator">
-                                  {(() => {
-                                    const impactHNA = calculateImpactHNA(product.Rasio_HPP_Sebelum, product.Rasio_HPP_Sesudah);
-                                    return (
-                                      <>
-                                        {getTrendIcon(impactHNA)}
-                                        <span
-                                          className={`percentage ${
-                                            impactHNA > 0
-                                              ? "increase"
-                                              : impactHNA < 0
-                                              ? "decrease"
-                                              : "neutral"
-                                          }`}
-                                        >
-                                          {formatPercentage(impactHNA)}
-                                        </span>
-                                      </>
-                                    );
-                                  })()}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
+                          {affectedProducts.map((product, index) => {
+                            const isExpanded = expandedProducts.has(product.Product_ID);
+                            const materialBefore = parseFloat(product.totalBahanSebelum || 0);
+                            const materialAfter = parseFloat(product.totalBahanSesudah || 0);
+                            const overhead = calculateOverhead(product);
+                            const marginBefore = calculateMarginValue(product, materialBefore);
+                            const marginAfter = calculateMarginValue(product, materialAfter);
+                            
+                            return (
+                              <React.Fragment key={index}>
+                                <tr className={isExpanded ? "expanded" : ""}>
+                                  <td>
+                                    <button 
+                                      className="expand-btn"
+                                      onClick={() => toggleProductExpansion(product.Product_ID)}
+                                      title={isExpanded ? "Hide details" : "Show details"}
+                                    >
+                                      {isExpanded ? "▼" : "▶"}
+                                    </button>
+                                  </td>
+                                  <td className="product-id">{product.Product_ID}</td>
+                                  <td className="product-name">{product.Product_Name}</td>
+                                  <td className="material-cost-before">
+                                    {formatCurrency(materialBefore + overhead + marginBefore)}
+                                  </td>
+                                  <td className="material-cost-after">
+                                    {formatCurrency(materialAfter + overhead + marginAfter)}
+                                  </td>
+                                  <td className="hna">
+                                    {formatCurrency(parseFloat(product.Product_SalesHNA || 0))}
+                                  </td>
+                                  <td className="hpp-before">
+                                    {formatHPPWithRatio(product.HPPSebelum, product.Rasio_HPP_Sebelum)}
+                                  </td>
+                                  <td className="hpp-after">
+                                    {formatHPPWithRatio(product.HPPSesudah, product.Rasio_HPP_Sesudah)}
+                                  </td>
+                                  <td className="impact-cell">
+                                    <div className="impact-indicator">
+                                      {getTrendIcon(parseFloat(product.persentase_perubahan || 0))}
+                                      <span
+                                        className={`percentage ${
+                                          parseFloat(product.persentase_perubahan || 0) > 0
+                                            ? "increase"
+                                            : parseFloat(product.persentase_perubahan || 0) < 0
+                                            ? "decrease"
+                                            : "neutral"
+                                        }`}
+                                      >
+                                        {formatPercentage(parseFloat(product.persentase_perubahan || 0))}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="impact-hna-cell">
+                                    <div className="impact-indicator">
+                                      {(() => {
+                                        const impactHNA = calculateImpactHNA(product.Rasio_HPP_Sebelum, product.Rasio_HPP_Sesudah);
+                                        return (
+                                          <>
+                                            {getTrendIcon(impactHNA)}
+                                            <span
+                                              className={`percentage ${
+                                                impactHNA > 0
+                                                  ? "increase"
+                                                  : impactHNA < 0
+                                                  ? "decrease"
+                                                  : "neutral"
+                                              }`}
+                                            >
+                                              {formatPercentage(impactHNA)}
+                                            </span>
+                                          </>
+                                        );
+                                      })()}
+                                    </div>
+                                  </td>
+                                </tr>
+                                {isExpanded && (
+                                  <tr className="detail-row">
+                                    <td colSpan="10">
+                                      <div className="product-detail-breakdown">
+                                        <div className="breakdown-columns">
+                                          <div className="breakdown-column">
+                                            <h4>Cost Breakdown - Before</h4>
+                                            <table className="breakdown-table">
+                                              <tbody>
+                                                <tr>
+                                                  <td>Materials</td>
+                                                  <td className="number">{formatCurrency(materialBefore)}</td>
+                                                </tr>
+                                                <tr>
+                                                  <td>Overhead ({product.LOB} {product.Versi ? `V${product.Versi}` : ''})</td>
+                                                  <td className="number">{formatCurrency(overhead)}</td>
+                                                </tr>
+                                                {(product.LOB === "ETHICAL" || product.LOB === "OTC") && (
+                                                  <tr>
+                                                    <td>Margin</td>
+                                                    <td className="number">{formatCurrency(marginBefore)}</td>
+                                                  </tr>
+                                                )}
+                                                <tr className="total-row">
+                                                  <td><strong>Total</strong></td>
+                                                  <td className="number"><strong>{formatCurrency(materialBefore + overhead + marginBefore)}</strong></td>
+                                                </tr>
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                          
+                                          <div className="breakdown-column">
+                                            <h4>Cost Breakdown - After</h4>
+                                            <table className="breakdown-table">
+                                              <tbody>
+                                                <tr>
+                                                  <td>Materials</td>
+                                                  <td className="number">{formatCurrency(materialAfter)}</td>
+                                                </tr>
+                                                <tr>
+                                                  <td>Overhead ({product.LOB} {product.Versi ? `V${product.Versi}` : ''})</td>
+                                                  <td className="number">{formatCurrency(overhead)}</td>
+                                                </tr>
+                                                {(product.LOB === "ETHICAL" || product.LOB === "OTC") && (
+                                                  <tr>
+                                                    <td>Margin</td>
+                                                    <td className="number">{formatCurrency(marginAfter)}</td>
+                                                  </tr>
+                                                )}
+                                                <tr className="total-row">
+                                                  <td><strong>Total</strong></td>
+                                                  <td className="number"><strong>{formatCurrency(materialAfter + overhead + marginAfter)}</strong></td>
+                                                </tr>
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                          
+                                          <div className="breakdown-column">
+                                            <h4>Change</h4>
+                                            <table className="breakdown-table">
+                                              <tbody>
+                                                <tr>
+                                                  <td>Materials Change</td>
+                                                  <td className="number">{formatCurrency(materialAfter - materialBefore)}</td>
+                                                </tr>
+                                                <tr>
+                                                  <td>Overhead Change</td>
+                                                  <td className="number">Rp 0</td>
+                                                </tr>
+                                                {(product.LOB === "ETHICAL" || product.LOB === "OTC") && (
+                                                  <tr>
+                                                    <td>Margin Change</td>
+                                                    <td className="number">{formatCurrency(marginAfter - marginBefore)}</td>
+                                                  </tr>
+                                                )}
+                                                <tr className="total-row">
+                                                  <td><strong>Total Change</strong></td>
+                                                  <td className="number"><strong>{formatCurrency((materialAfter + overhead + marginAfter) - (materialBefore + overhead + marginBefore))}</strong></td>
+                                                </tr>
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
                         </tbody>
                       </table>
                     )}

@@ -1523,8 +1523,8 @@ export default function HPPSimulation() {
         },
       ]);
 
-      // Set up editable state with loaded data
-      setEditableLOB(headerData.LOB || "");
+      // Set up editable state with loaded data (normalize LOB to match dropdown values)
+      setEditableLOB(normalizeLOB(headerData.LOB) || "");
       setEditableVersion(headerData.Versi || "");
       setEditableBatchSize(headerData.Batch_Size || 0);
       setEditableRendemen(headerData.Group_Rendemen || 0);
@@ -2286,7 +2286,7 @@ export default function HPPSimulation() {
 
   // Get current normalized LOB value
   const getCurrentLOB = () => {
-    if (editableLOB) return editableLOB;
+    if (editableLOB) return normalizeLOB(editableLOB);
     if (simulationResults && simulationResults[0])
       return normalizeLOB(simulationResults[0].LOB);
     return "ETHICAL";
