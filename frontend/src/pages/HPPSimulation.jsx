@@ -6,6 +6,7 @@ import "awesome-notifications/dist/style.css";
 import "../styles/HPPSimulation.css";
 import "../styles/ProductHPPReport.css"; // Import for modal styling
 import LoadingSpinner from "../components/LoadingSpinner";
+import ProductHPPReport from "../components/ProductHPPReport";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import {
@@ -217,6 +218,9 @@ export default function HPPSimulation() {
   // Simulation results
   const [simulationResults, setSimulationResults] = useState(null);
   const [showDetailedReport, setShowDetailedReport] = useState(false);
+  const [reportPage, setReportPage] = useState(1); // 1 = Before (HPP Results), 2 = After (Simulation)
+  const [hppResultsData, setHppResultsData] = useState(null); // HPP Results data for Before page
+  const [loadingHppResults, setLoadingHppResults] = useState(false);
 
   // Detailed simulation data from API
   const [simulationHeader, setSimulationHeader] = useState(null);
@@ -1876,6 +1880,39 @@ export default function HPPSimulation() {
     return parts.join("#");
   };
 
+  // Fetch HPP Results data for Before/After comparison
+  const fetchHppResultsForProduct = async (productId) => {
+    try {
+      setLoadingHppResults(true);
+      const currentYear = new Date().getFullYear();
+      
+      // Fetch HPP results data
+      const response = await hppAPI.getResults(currentYear);
+      
+      // Find the matching product in all three categories
+      let matchedProduct = null;
+      if (response.ethical) {
+        matchedProduct = response.ethical.find(p => p.Product_ID === productId);
+        if (matchedProduct) matchedProduct._sourceTab = 'ethical';
+      }
+      if (!matchedProduct && response.generik1) {
+        matchedProduct = response.generik1.find(p => p.Product_ID === productId);
+        if (matchedProduct) matchedProduct._sourceTab = 'generik1';
+      }
+      if (!matchedProduct && response.generik2) {
+        matchedProduct = response.generik2.find(p => p.Product_ID === productId);
+        if (matchedProduct) matchedProduct._sourceTab = 'generik2';
+      }
+      
+      setHppResultsData(matchedProduct);
+    } catch (error) {
+      console.error('Error fetching HPP Results data:', error);
+      setHppResultsData(null); // Set to null if not found or error
+    } finally {
+      setLoadingHppResults(false);
+    }
+  };
+
   const handleRunSimulation = async () => {
     // Check if at least one formula is selected (empty string is a valid selection)
     const hasAtLeastOneSelection = Object.keys(selectedFormulas).length > 0;
@@ -2813,68 +2850,176 @@ export default function HPPSimulation() {
     try {
       notifier.info("Generating PDF...");
 
-      // Get the modal content element
-      const modalContent = document.querySelector(".product-hpp-modal-content");
-      if (!modalContent) {
-        throw new Error("Modal content not found");
-      }
-
-      // Convert the modal content to canvas
-      const canvas = await html2canvas(modalContent, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        width: modalContent.scrollWidth,
-        height: modalContent.scrollHeight,
-        scrollX: 0,
-        scrollY: 0,
-      });
-
-      // Calculate PDF dimensions
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 295; // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-
-      // Create new PDF document
       const pdf = new jsPDF("p", "mm", "a4");
-      let position = 0;
+      const imgWidth = 200; // Reduced from 210 to add margins (5mm on each side)
+      const pageHeight = 295; // A4 height in mm
+      const marginLeft = 5; // 5mm left margin
+      const marginTop = 5; // 5mm top margin
+      let isFirstPage = true;
 
-      // Add the image to PDF
-      pdf.addImage(
-        canvas.toDataURL("image/png"),
-        "PNG",
-        0,
-        position,
-        imgWidth,
-        imgHeight
-      );
-      heightLeft -= pageHeight;
+      // If we have HPP Results data, capture "Before" page first
+      if (hppResultsData && !isCustomFormula) {
+        // Temporarily switch to page 1 to capture it
+        const originalPage = reportPage;
+        setReportPage(1);
+        
+        // Wait longer for ProductHPPReport component to fully render
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Capture Before page - ProductHPPReport renders in its own modal
+        // Look for the report content inside ProductHPPReport modal
+        const beforeReportContent = document.querySelector(".product-hpp-modal .product-hpp-report");
+        if (beforeReportContent) {
+          const canvas = await html2canvas(beforeReportContent, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            width: beforeReportContent.scrollWidth,
+            height: beforeReportContent.scrollHeight,
+            scrollX: 0,
+            scrollY: 0,
+          });
 
-      // Add new pages if content is longer than one page
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          let heightLeft = imgHeight;
+          let position = 0;
+
+          // Add Before page(s)
+          pdf.addImage(
+            canvas.toDataURL("image/png"),
+            "PNG",
+            marginLeft,
+            marginTop + position,
+            imgWidth,
+            imgHeight
+          );
+          heightLeft -= pageHeight;
+
+          while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(
+              canvas.toDataURL("image/png"),
+              "PNG",
+              marginLeft,
+              marginTop + position,
+              imgWidth,
+              imgHeight
+            );
+            heightLeft -= pageHeight;
+          }
+          
+          isFirstPage = false;
+        }
+        
+        // Switch to page 2 to capture "After"
+        setReportPage(2);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Capture After page - this is in the main simulation modal
+        const afterModalContent = document.querySelector(".product-hpp-modal-content .product-hpp-report");
+        if (afterModalContent) {
+          if (!isFirstPage) pdf.addPage();
+          
+          const canvas = await html2canvas(afterModalContent, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            width: afterModalContent.scrollWidth,
+            height: afterModalContent.scrollHeight,
+            scrollX: 0,
+            scrollY: 0,
+          });
+
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          let heightLeft = imgHeight;
+          let position = 0;
+
+          // Add After page(s)
+          pdf.addImage(
+            canvas.toDataURL("image/png"),
+            "PNG",
+            marginLeft,
+            marginTop + position,
+            imgWidth,
+            imgHeight
+          );
+          heightLeft -= pageHeight;
+
+          while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(
+              canvas.toDataURL("image/png"),
+              "PNG",
+              marginLeft,
+              marginTop + position,
+              imgWidth,
+              imgHeight
+            );
+            heightLeft -= pageHeight;
+          }
+        }
+        
+        // Restore original page
+        setReportPage(originalPage);
+      } else {
+        // No Before data, just capture current simulation page
+        const modalContent = document.querySelector(".product-hpp-modal-content .product-hpp-report");
+        if (!modalContent) {
+          throw new Error("Modal content not found");
+        }
+
+        const canvas = await html2canvas(modalContent, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          width: modalContent.scrollWidth,
+          height: modalContent.scrollHeight,
+          scrollX: 0,
+          scrollY: 0,
+        });
+
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+
         pdf.addImage(
           canvas.toDataURL("image/png"),
           "PNG",
-          0,
-          position,
+          marginLeft,
+          marginTop + position,
           imgWidth,
           imgHeight
         );
         heightLeft -= pageHeight;
+
+        while (heightLeft >= 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(
+            canvas.toDataURL("image/png"),
+            "PNG",
+            marginLeft,
+            marginTop + position,
+            imgWidth,
+            imgHeight
+          );
+          heightLeft -= pageHeight;
+        }
       }
 
       // Generate filename
       const productName = selectedProduct?.Product_Name || "Simulation_Result";
       const timestamp = new Date().toISOString().slice(0, 10);
-      const filename = `HPP_Report_${productName}_${timestamp}.pdf`;
+      const filename = hppResultsData && !isCustomFormula
+        ? `HPP_Comparison_Before_After_${productName}_${timestamp}.pdf`
+        : `HPP_Report_${productName}_${timestamp}.pdf`;
 
       // Download the PDF
       pdf.save(filename);
 
-      notifier.success("PDF generated successfully!");
+      notifier.success(hppResultsData && !isCustomFormula ? "PDF with Before/After comparison generated successfully!" : "PDF generated successfully!");
     } catch (error) {
       console.error("Error generating PDF:", error);
       notifier.error("Failed to generate PDF. Please try again.");
@@ -5155,7 +5300,21 @@ export default function HPPSimulation() {
             <div className="form-actions">
               <button
                 type="button"
-                onClick={() => setShowDetailedReport(true)}
+                onClick={async () => {
+                  setReportPage(1); // Reset to page 1 (Before)
+                  setShowDetailedReport(true);
+                  
+                  // Fetch HPP Results data for comparison if product exists
+                  const productId = isCustomFormula 
+                    ? null 
+                    : simulationResults?.[0]?.Product_ID;
+                  
+                  if (productId) {
+                    await fetchHppResultsForProduct(productId);
+                  } else {
+                    setHppResultsData(null); // Custom formula has no "before" data
+                  }
+                }}
                 disabled={loadingDetails || !simulationHeader}
               >
                 📋 Show Detailed Report
@@ -5180,16 +5339,69 @@ export default function HPPSimulation() {
         )}
       </div>
 
-      {/* Detailed Report Modal - Comprehensive HPP Report */}
+      {/* Detailed Report Modal - Comprehensive HPP Report with Before/After */}
       {showDetailedReport && (
         <div className="product-hpp-modal-overlay">
           <div className="product-hpp-modal">
             <div className="product-hpp-modal-header">
               <h2>
-                Product HPP Report -{" "}
-                {selectedProduct?.Product_Name || "Simulation Result"}
+                {hppResultsData && !isCustomFormula ? (
+                  <>
+                    <span style={{ marginRight: '20px' }}>
+                      {reportPage === 1 ? '📊 Before (HPP Results)' : '🔬 After (Simulation)'}
+                    </span>
+                    <span style={{ fontSize: '0.85em', fontWeight: 'normal' }}>
+                      {selectedProduct?.Product_Name || "Simulation Result"}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    Product HPP Report - {selectedProduct?.Product_Name || "Simulation Result"}
+                  </>
+                )}
               </h2>
               <div className="product-hpp-modal-actions">
+                {/* Toggle switch for Before/After comparison */}
+                {hppResultsData && !isCustomFormula && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginRight: '16px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: '500', color: reportPage === 1 ? '#2196F3' : '#666' }}>
+                      📊 Before
+                    </span>
+                    <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '24px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={reportPage === 2}
+                        onChange={(e) => setReportPage(e.target.checked ? 2 : 1)}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <span style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: reportPage === 2 ? '#2196F3' : '#ccc',
+                        borderRadius: '24px',
+                        transition: 'background-color 0.3s',
+                      }}>
+                        <span style={{
+                          position: 'absolute',
+                          content: '',
+                          height: '18px',
+                          width: '18px',
+                          left: reportPage === 2 ? '29px' : '3px',
+                          bottom: '3px',
+                          backgroundColor: 'white',
+                          borderRadius: '50%',
+                          transition: 'left 0.3s',
+                        }}></span>
+                      </span>
+                    </label>
+                    <span style={{ fontSize: '14px', fontWeight: '500', color: reportPage === 2 ? '#2196F3' : '#666' }}>
+                      🔬 After
+                    </span>
+                  </div>
+                )}
                 <button
                   onClick={handleGeneratePDF}
                   className="product-hpp-export-btn pdf"
@@ -5214,6 +5426,43 @@ export default function HPPSimulation() {
             </div>
 
             <div className="product-hpp-modal-content">
+              {/* Show loading state while fetching HPP Results */}
+              {loadingHppResults && reportPage === 1 && (
+                <div style={{ padding: '40px', textAlign: 'center' }}>
+                  <LoadingSpinner />
+                  <p>Loading HPP Results data...</p>
+                </div>
+              )}
+
+              {/* Show "Before" page - HPP Results data (use ProductHPPReport component) */}
+              {reportPage === 1 && hppResultsData && !loadingHppResults && !isCustomFormula && (
+                <>
+                  {/* Temporarily hide this modal and show ProductHPPReport */}
+                  <div style={{ position: 'absolute', left: '-9999px' }}>
+                    {/* This hides the parent modal */}
+                  </div>
+                </>
+              )}
+
+              {/* Show message if no HPP Results data available */}
+              {reportPage === 1 && !hppResultsData && !loadingHppResults && !isCustomFormula && (
+                <div style={{ padding: '40px', textAlign: 'center' }}>
+                  <p>No HPP Results data found for this product in the current year.</p>
+                  <p style={{ fontSize: '0.9em', color: '#666', marginTop: '8px' }}>
+                    The product may not have been calculated yet or was calculated in a different year.
+                  </p>
+                  <button 
+                    onClick={() => setReportPage(2)}
+                    style={{ marginTop: '16px', padding: '8px 16px' }}
+                    className="product-hpp-export-btn"
+                  >
+                    View Simulation Results →
+                  </button>
+                </div>
+              )}
+
+              {/* Show "After" page (or only page if custom formula) - Simulation data */}
+              {(reportPage === 2 || isCustomFormula || !hppResultsData) && !loadingHppResults && (
               <div className="product-hpp-report">
                 {/* Document Header */}
                 <div className="document-header">
@@ -6266,6 +6515,7 @@ export default function HPPSimulation() {
                   </table>
                 </div>
               </div>
+              )}
             </div>
           </div>
         </div>
@@ -6861,6 +7111,16 @@ export default function HPPSimulation() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Product HPP Report Modal for "Before" comparison */}
+      {showDetailedReport && hppResultsData && reportPage === 1 && !isCustomFormula && (
+        <ProductHPPReport
+          product={hppResultsData}
+          isOpen={true}
+          onClose={() => setReportPage(2)} // Switch to "After" page when closing
+          selectedYear={new Date().getFullYear()}
+        />
       )}
     </div>
   );
