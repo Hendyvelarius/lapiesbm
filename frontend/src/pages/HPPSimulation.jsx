@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useLocation } from "react-router";
 import { masterAPI, productsAPI, hppAPI } from "../services/api";
 import AWN from "awesome-notifications";
 import "awesome-notifications/dist/style.css";
@@ -138,6 +139,9 @@ export default function HPPSimulation() {
   const [loadingList, setLoadingList] = useState(true);
   const [listError, setListError] = useState("");
   const [isEditMode, setIsEditMode] = useState(false); // Track if we're editing an existing simulation
+
+  // Tab state for grouping simulations by type
+  const [activeTab, setActiveTab] = useState("existing"); // 'existing', 'custom', or 'price-change'
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -330,6 +334,20 @@ export default function HPPSimulation() {
     loadAllMaterials();
   }, []);
 
+  // Get current location for navigation detection
+  const location = useLocation();
+
+  // Reset to simulation list (step 0) when user navigates to this page from sidebar
+  // This detects both initial load and navigation from sidebar
+  useEffect(() => {
+    // Reset to step 0 whenever the location changes (including clicking sidebar link)
+    setStep(0);
+    setSimulationType("");
+    setSelectedProduct(null);
+    setError("");
+    setIsEditMode(false);
+  }, [location.key]); // location.key changes on every navigation, even to same path
+
   // Generate random sample when materials are loaded and modal type is set
   useEffect(() => {
     if (masterMaterials.length > 0 && addMaterialType && showAddMaterialModal) {
@@ -413,11 +431,26 @@ export default function HPPSimulation() {
   useEffect(() => {
     let filtered;
 
+    // First filter by active tab
+    let tabFiltered = simulationList.filter((simulation) => {
+      const simType = simulation.Simulasi_Type;
+      
+      if (activeTab === "existing") {
+        return simType === "Product Existing";
+      } else if (activeTab === "custom") {
+        return simType === "Product Custom";
+      } else if (activeTab === "price-change") {
+        return simType === "Price Changes";
+      }
+      return false;
+    });
+
+    // Then filter by search query
     if (!searchQuery.trim()) {
-      filtered = simulationList;
+      filtered = tabFiltered;
     } else {
       const query = searchQuery.toLowerCase().trim();
-      filtered = simulationList.filter((simulation) => {
+      filtered = tabFiltered.filter((simulation) => {
         const productName = (simulation.Product_Name || "").toLowerCase();
         const formula = (simulation.Formula || "").toLowerCase();
         const date = new Date(simulation.Simulasi_Date)
@@ -444,7 +477,7 @@ export default function HPPSimulation() {
 
     // Reset to page 1 when search or sort changes
     setCurrentPage(1);
-  }, [searchQuery, simulationList, sortField, sortDirection]);
+  }, [searchQuery, simulationList, sortField, sortDirection, activeTab]);
 
   // Paginate filtered simulation list
   useEffect(() => {
@@ -1013,6 +1046,7 @@ export default function HPPSimulation() {
     setLoadingDetails(false); // Reset loading details state
     setIsEditMode(false); // New simulation mode
     setEditableDescription(null); // Reset description for new simulation
+    setIsCustomFormula(false); // Reset custom formula flag
   };
 
   // Go back to simulation list
@@ -1644,6 +1678,7 @@ export default function HPPSimulation() {
     setProductOptions([]);
 
     if (type === "existing") {
+      setIsCustomFormula(false); // Ensure custom formula is disabled for existing products
       setStep(2); // Move to product selection step (was step 2, now step 2)
     } else if (type === "custom") {
       // Skip product selection and formula selection steps for custom formula
@@ -1821,6 +1856,7 @@ export default function HPPSimulation() {
 
     setLoading(true);
     setError("");
+    setIsCustomFormula(false); // Ensure custom formula is disabled for existing products
 
     try {
       const formulaString = buildFormulaString();
@@ -2834,14 +2870,6 @@ export default function HPPSimulation() {
 
   return (
     <div className="hpp-simulation-container">
-      <div className="hpp-simulation-header">
-        <h1>HPP Simulation</h1>
-        <p>
-          Guided step-by-step process to simulate Harga Pokok Produksi (HPP) for
-          products
-        </p>
-      </div>
-
       <div
         className={`hpp-simulation-card ${
           step === 5 && simulationType === "price-change"
@@ -2854,8 +2882,41 @@ export default function HPPSimulation() {
         {/* Step 0: Simulation List */}
         {step === 0 && (
           <div className="simulation-step">
+            {/* Tabs for simulation types */}
+            <div className="simulation-tabs">
+              <button
+                className={`simulation-tab ${activeTab === "existing" ? "active" : ""}`}
+                onClick={() => {
+                  setActiveTab("existing");
+                  setCurrentPage(1);
+                  setSearchQuery("");
+                }}
+              >
+                Product Existing
+              </button>
+              <button
+                className={`simulation-tab ${activeTab === "custom" ? "active" : ""}`}
+                onClick={() => {
+                  setActiveTab("custom");
+                  setCurrentPage(1);
+                  setSearchQuery("");
+                }}
+              >
+                Product Custom
+              </button>
+              <button
+                className={`simulation-tab ${activeTab === "price-change" ? "active" : ""}`}
+                onClick={() => {
+                  setActiveTab("price-change");
+                  setCurrentPage(1);
+                  setSearchQuery("");
+                }}
+              >
+                Price Changes
+              </button>
+            </div>
+
             <div className="simulation-list-header">
-              <h2>HPP Simulations</h2>
               <div className="search-and-new">
                 <input
                   type="text"

@@ -63,6 +63,41 @@
   font-family: "Inter", sans-serif;
 }
 
+/* Simulation Tabs */
+.simulation-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 0;
+}
+
+.simulation-tab {
+  padding: 12px 24px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 15px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: "Inter", sans-serif;
+  position: relative;
+  bottom: -2px;
+}
+
+.simulation-tab:hover {
+  color: #3b82f6;
+  background: #f3f4f6;
+}
+
+.simulation-tab.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+  background: transparent;
+}
+
 /* Simulation Type Options */
 .simulation-type-options {
   display: grid;
