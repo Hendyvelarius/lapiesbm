@@ -3,7 +3,7 @@ import { CheckCircle, X, AlertTriangle, Loader, Info } from 'lucide-react';
 import api from '../services/api';
 import '../styles/ValidationModal.css';
 
-const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
+const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [validationSteps, setValidationSteps] = useState([
     {
@@ -81,10 +81,16 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
   const loadInitialData = async () => {
     try {
       const [chosenRes, formulaRes, productRes] = await Promise.all([
-        api.products.getChosenFormula(),
+        api.products.getChosenFormula(selectedYear?.toString()),
         api.products.getFormula(),
         api.master.getProductName()
       ]);
+      
+      // Verify all chosen formulas are for the selected year
+      const wrongPeriodeFormulas = chosenRes?.filter(cf => cf.Periode !== selectedYear?.toString()) || [];
+      if (wrongPeriodeFormulas.length > 0) {
+        console.error('[ValidationModal] ERROR: Found formulas with wrong Periode:', wrongPeriodeFormulas);
+      }
 
       setValidationData({
         chosenFormulas: chosenRes || [],
@@ -162,6 +168,20 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
     const { chosenFormulas, availableFormulas } = validationData;
     const errors = [];
     
+    // Filter out locked products - they should not be validated
+    const unlockedFormulas = chosenFormulas.filter(cf => !cf.isLock || cf.isLock === 0);
+    const lockedCount = chosenFormulas.length - unlockedFormulas.length;
+    
+    // Check for duplicate Product_IDs
+    const productIdCounts = {};
+    chosenFormulas.forEach(cf => {
+      productIdCounts[cf.Product_ID] = (productIdCounts[cf.Product_ID] || 0) + 1;
+    });
+    const duplicateProducts = Object.entries(productIdCounts).filter(([_, count]) => count > 1);
+    if (duplicateProducts.length > 0) {
+      console.warn('[Validation Step 1] WARNING: Duplicate Product_IDs found in chosen formulas:', duplicateProducts);
+    }
+    
     // Create a map of available formulas by product and type
     const availableFormulaMap = {};
     availableFormulas.forEach(formula => {
@@ -174,15 +194,14 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
       availableFormulaMap[formula.Product_ID][formula.TypeCode].push(formula);
     });
 
-    // Create a map of chosen formulas by product
+    // Create a map of chosen formulas by product (unlocked only)
     const chosenFormulaMap = {};
-    chosenFormulas.forEach(chosen => {
+    unlockedFormulas.forEach(chosen => {
       chosenFormulaMap[chosen.Product_ID] = chosen;
     });
 
-    // Only validate products that are part of HPP calculation (exist in M_COGS_PRODUCT_FORMULA_FIX)
-    // These are the products that should have proper formula assignments
-    const hppProductIds = chosenFormulas.map(cf => cf.Product_ID);
+    // Only validate unlocked products that are part of HPP calculation
+    const hppProductIds = unlockedFormulas.map(cf => cf.Product_ID);
 
     let checkedProducts = 0;
     let productsWithIssues = [];
@@ -237,17 +256,29 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
       errors.push(...productsWithIssues.map(p => 
         `${p.productId} (${p.productName}): ${p.issues.join(', ')}`
       ));
+      const summaryMessage = lockedCount > 0 
+        ? `${productsWithIssues.length} of ${checkedProducts} unlocked products have issues (${lockedCount} locked products skipped)`
+        : `${productsWithIssues.length} of ${checkedProducts} products have formula assignment issues`;
+      
       updateStepStatus(1, 'failed', {
-        summary: `${productsWithIssues.length} of ${checkedProducts} products have formula assignment issues`,
+        summary: summaryMessage,
         errors
       });
       setHasError(true);
       return 'failed'; // Return failure
     }
 
+    const detailsMessage = lockedCount > 0
+      ? `Checked ${checkedProducts} unlocked products (${lockedCount} locked products skipped), all formula assignments are valid`
+      : `Checked ${checkedProducts} products, all formula assignments are valid`;
+    
+    const summaryMessage = lockedCount > 0
+      ? `All ${checkedProducts} unlocked products have correct formula assignments (${lockedCount} locked)`
+      : `All ${checkedProducts} products have correct formula assignments and batch sizes`;
+
     updateStepStatus(1, 'completed', {
-      summary: `All ${checkedProducts} products have correct formula assignments and batch sizes`,
-      details: `Checked ${checkedProducts} products, all formula assignments are valid`
+      summary: summaryMessage,
+      details: detailsMessage
     });
 
     // Step 2: Validate formula data integrity
@@ -259,7 +290,8 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
     const criticalErrors = [];
     const warnings = [];
     
-    chosenFormulas.forEach(chosen => {
+    // Only check unlocked formulas for data integrity
+    unlockedFormulas.forEach(chosen => {
       ['PI', 'PS', 'KP', 'KS'].forEach(type => {
         const assignedValue = chosen[type];
         
@@ -308,9 +340,17 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
       return 'warning';
     }
 
+    const step2Summary = lockedCount > 0
+      ? `All assigned formulas have valid batch sizes (${lockedCount} locked products skipped)`
+      : `All assigned formulas have valid batch sizes`;
+    
+    const step2Details = lockedCount > 0
+      ? `Validated batch sizes for ${unlockedFormulas.length} unlocked formula assignments`
+      : `Validated batch sizes for all formula assignments`;
+
     updateStepStatus(2, 'completed', {
-      summary: `All assigned formulas have valid batch sizes`,
-      details: `Validated batch sizes for all formula assignments`
+      summary: step2Summary,
+      details: step2Details
     });
     
     return 'success';
@@ -638,7 +678,10 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
     <div className="validation-modal-overlay">
       <div className="validation-modal">
         <div className="validation-modal-header">
-          <h2>HPP Generation Validation</h2>
+          <div>
+            <h2>HPP Generation Validation</h2>
+            <div className="validation-year-badge">Year: {selectedYear}</div>
+          </div>
           <button className="modal-close-btn" onClick={onClose}>
             <X size={20} />
           </button>
@@ -647,7 +690,7 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete }) => {
         <div className="validation-modal-content">
           <div className="validation-info">
             <Info size={16} />
-            <p>Validating system data integrity before HPP calculation. Please wait...</p>
+            <p>Validating system data integrity for year {selectedYear} before HPP calculation. Please wait...</p>
           </div>
 
           <div className="validation-steps">

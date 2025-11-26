@@ -72,7 +72,7 @@ export default function GenerateHPP() {
     {
       number: 1,
       title: 'Validation Check',
-      description: 'Verify formula assignments, material prices, and data integrity before calculation',
+      description: 'Select year and verify formula assignments, material prices, and data integrity before calculation',
       icon: CheckCircle,
       action: 'Check',
       status: stepStatus.validation
@@ -80,7 +80,7 @@ export default function GenerateHPP() {
     {
       number: 2,
       title: 'HPP Calculation',
-      description: 'Execute stored procedure to calculate Harga Pokok Produksi (HPP) for all products',
+      description: 'Execute stored procedure to calculate Harga Pokok Produksi (HPP) for selected year',
       icon: Calculator,
       action: 'Calculate',
       status: stepStatus.calculation
@@ -251,11 +251,11 @@ export default function GenerateHPP() {
                 </div>
                 
                 <div className="step-actions">
-                  {step.number === 2 && (
+                  {step.number === 1 && (
                     <div className="year-selector">
-                      <label htmlFor="step2-year-select">Year:</label>
+                      <label htmlFor="step1-year-select">Year:</label>
                       <select 
-                        id="step2-year-select" 
+                        id="step1-year-select" 
                         value={selectedYear} 
                         onChange={handleYearChange}
                         disabled={loading || step.status === 'running'}
@@ -345,6 +345,7 @@ export default function GenerateHPP() {
         isOpen={showValidationModal}
         onClose={handleValidationClose}
         onValidationComplete={handleValidationComplete}
+        selectedYear={selectedYear}
       />
     </div>
   );
