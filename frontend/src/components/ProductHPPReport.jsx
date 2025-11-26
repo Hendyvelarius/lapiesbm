@@ -122,7 +122,7 @@ const formatPrintDate = () => {
   return `${day}/${month}/${year}`;
 };
 
-const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
+const ProductHPPReport = ({ product, isOpen, onClose, selectedYear, isBeforeAfterMode = false, currentPage = 1, onPageChange = null }) => {
   const [materialUsage, setMaterialUsage] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -509,8 +509,62 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
     <div className="product-hpp-modal-overlay">
       <div className="product-hpp-modal">
         <div className="product-hpp-modal-header">
-          <h2>Product HPP Report - {product?.Product_Name || 'Loading...'}</h2>
+          <h2>
+            {isBeforeAfterMode ? (
+              <>
+                <span style={{ marginRight: '20px' }}>
+                  📊 Before (HPP Results)
+                </span>
+                <span style={{ fontSize: '0.85em', fontWeight: 'normal' }}>
+                  {product?.Product_Name || 'Loading...'}
+                </span>
+              </>
+            ) : (
+              <>Product HPP Report - {product?.Product_Name || 'Loading...'}</>
+            )}
+          </h2>
           <div className="product-hpp-modal-actions">
+            {/* Toggle switch for Before/After comparison */}
+            {isBeforeAfterMode && onPageChange && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginRight: '16px' }}>
+                <span style={{ fontSize: '14px', fontWeight: '500', color: currentPage === 1 ? '#2196F3' : '#666' }}>
+                  📊 Before
+                </span>
+                <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '24px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={currentPage === 2}
+                    onChange={(e) => onPageChange(e.target.checked ? 2 : 1)}
+                    style={{ opacity: 0, width: 0, height: 0 }}
+                  />
+                  <span style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: currentPage === 2 ? '#2196F3' : '#ccc',
+                    borderRadius: '24px',
+                    transition: 'background-color 0.3s',
+                  }}>
+                    <span style={{
+                      position: 'absolute',
+                      content: '',
+                      height: '18px',
+                      width: '18px',
+                      left: currentPage === 2 ? '29px' : '3px',
+                      bottom: '3px',
+                      backgroundColor: 'white',
+                      borderRadius: '50%',
+                      transition: 'left 0.3s',
+                    }}></span>
+                  </span>
+                </label>
+                <span style={{ fontSize: '14px', fontWeight: '500', color: currentPage === 2 ? '#2196F3' : '#666' }}>
+                  🔬 After
+                </span>
+              </div>
+            )}
             {/* Excel export button temporarily hidden */}
             {/* <button
               onClick={handleExportToExcel}
@@ -548,7 +602,7 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear }) => {
               </button>
             </div>
           ) : (
-            <div className="product-hpp-report">
+            <div className="product-hpp-report" id="product-hpp-report-before">
               {/* Document Header - Excel Style */}
               <div className="document-header">
                 <div className="header-row">
