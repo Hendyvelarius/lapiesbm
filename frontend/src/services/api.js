@@ -90,9 +90,12 @@ export const productsAPI = {
   }),
   
   // Delete chosen formula
-  deleteChosenFormula: (productId) => apiRequest(`/products/chosenformula/${productId}`, {
-    method: 'DELETE',
-  }),
+  deleteChosenFormula: (productId, periode = null) => {
+    const url = periode ? `/products/chosenformula/${productId}?periode=${periode}` : `/products/chosenformula/${productId}`;
+    return apiRequest(url, {
+      method: 'DELETE',
+    });
+  },
   
   // Get recipe by product ID
   getRecipe: (productId) => apiRequest(`/products/recipe/${productId}`),

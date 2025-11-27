@@ -32,7 +32,7 @@ async function getHPP(year = null) {
 async function generateHPPCalculation(periode = "2025") {
   try {
     const db = await connect();
-    // Hardcoded parameters: ethical = '0', generik = '1'
+    // Generate for ALL product types: '0' and '1' is the hardcoded password to execute the procedure.
     const query = `exec sp_COGS_GenerateHPP @periode, '0', '1'`;
 
     await db.request().input("periode", sql.VarChar(4), periode).query(query);

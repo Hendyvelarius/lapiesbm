@@ -331,7 +331,7 @@ export default function GenerateHPP() {
               <h4>Important Notes</h4>
               <ul>
                 <li>Complete validation checks before proceeding to calculation</li>
-                <li>HPP calculation executes stored procedure sp_COGS_GenerateHPP for year {currentYear}</li>
+                <li>HPP calculation executes stored procedure sp_COGS_GenerateHPP for selected year.</li>
                 <li>Calculation updates database tables automatically when completed</li>
                 <li>Review calculated results in the data validity check step</li>
               </ul>

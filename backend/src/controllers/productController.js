@@ -104,7 +104,7 @@ class ProductController {
   static async updateChosenFormula(req, res) {
     try {
       const { productId } = req.params;
-      const { pi, ps, kp, ks, stdOutput, isManual } = req.body;
+      const { pi, ps, kp, ks, stdOutput, isManual, periode } = req.body;
 
       const result = await updateChosenFormula(
         productId,
@@ -114,7 +114,8 @@ class ProductController {
         ks,
         stdOutput,
         'SYSTEM', // Default user
-        isManual
+        isManual,
+        periode  // Pass the periode from request
       );
 
       if (result.rowsAffected[0] === 0) {
@@ -141,8 +142,9 @@ class ProductController {
   static async deleteChosenFormula(req, res) {
     try {
       const { productId } = req.params;
+      const { periode } = req.query;  // Get periode from query parameter
 
-      const result = await deleteChosenFormula(productId);
+      const result = await deleteChosenFormula(productId, periode);
 
       if (result.rowsAffected[0] === 0) {
         return res.status(404).json({

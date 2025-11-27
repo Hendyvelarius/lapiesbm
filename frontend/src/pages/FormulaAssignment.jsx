@@ -534,7 +534,8 @@ const FormulaAssignment = ({ user }) => {
           kp: formData.kp,
           ks: formData.ks,
           stdOutput: formData.stdOutput,
-          isManual: 1  // Default to manual (important)
+          isManual: 1,  // Default to manual (important)
+          periode: selectedYear  // Use the selected year, not current year
         });
         notifier.success(`Formula assignment updated successfully for product ${formData.productId}`);
       } else {
@@ -582,7 +583,7 @@ const FormulaAssignment = ({ user }) => {
     
     try {
       setLoading(true);
-      await api.products.deleteChosenFormula(deletingProduct);
+      await api.products.deleteChosenFormula(deletingProduct, selectedYear);
       await loadData();
       notifier.success(`Formula assignment deleted successfully for product ${deletingProduct}`);
     } catch (err) {

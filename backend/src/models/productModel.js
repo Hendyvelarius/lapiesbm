@@ -97,10 +97,10 @@ async function addChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId, is
 }
 
 // Update chosen formula record
-async function updateChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId, isManual) {
+async function updateChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId, isManual, periode = null) {
     try {
         const pool = await connect();
-        const currentYear = new Date().getFullYear().toString();
+        const targetYear = periode || new Date().getFullYear().toString();
         const currentDateTime = new Date();
         
         const query = `
@@ -119,7 +119,7 @@ async function updateChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId,
         
         const result = await pool.request()
             .input('productId', sql.VarChar, productId)
-            .input('periode', sql.VarChar, currentYear)
+            .input('periode', sql.VarChar, targetYear)
             .input('pi', sql.VarChar, pi === null ? null : (pi || ''))
             .input('ps', sql.VarChar, ps === null ? null : (ps || ''))
             .input('kp', sql.VarChar, kp === null ? null : (kp || ''))
@@ -139,14 +139,14 @@ async function updateChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId,
 }
 
 // Delete chosen formula record
-async function deleteChosenFormula(productId) {
+async function deleteChosenFormula(productId, periode = null) {
     try {
         const pool = await connect();
-        const currentYear = new Date().getFullYear().toString();
+        const targetYear = periode || new Date().getFullYear().toString();
         
         const result = await pool.request()
             .input('productId', sql.VarChar, productId)
-            .input('periode', sql.VarChar, currentYear)
+            .input('periode', sql.VarChar, targetYear)
             .query('DELETE FROM M_COGS_PRODUCT_FORMULA_FIX WHERE Product_ID = @productId AND Periode = @periode');
             
         return result;

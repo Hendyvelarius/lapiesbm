@@ -65,7 +65,7 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
     }
   }, [isOpen]);
 
-  const resetValidation = () => {
+  const resetValidation = async () => {
     setCurrentStep(0);
     setIsRunning(false);
     setHasError(false);
@@ -76,6 +76,10 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
       details: null,
       errors: []
     })));
+    
+    // Refetch data when retrying validation to get latest changes
+    console.log('[Validation] Refetching data after retry...');
+    await loadInitialData();
   };
 
   const loadInitialData = async () => {
@@ -107,6 +111,7 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
     setIsRunning(true);
     setHasError(false);
     setHasWarning(false);
+    
     let validationFailed = false;
     let hasWarnings = false;
 
@@ -118,29 +123,25 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
       hasWarnings = true;
     }
 
-    // Only continue if formula validation didn't fail (warnings are okay)
-    if (!validationFailed) {
-      // Step 3: Material Price Validation (mockup for now)
-      const materialValidationSuccess = await validateMaterialPrices();
-      if (!materialValidationSuccess) {
-        validationFailed = true;
-      }
+    // Continue with all validation steps even if previous ones failed
+    // This allows us to collect all issues at once
+    
+    // Step 3: Material Price Validation
+    const materialValidationSuccess = await validateMaterialPrices();
+    if (!materialValidationSuccess) {
+      validationFailed = true;
     }
 
-    if (!validationFailed) {
-      // Step 4: Cost Parameters Validation (mockup for now)
-      const costValidationSuccess = await validateCostParameters();
-      if (!costValidationSuccess) {
-        validationFailed = true;
-      }
+    // Step 4: Cost Parameters Validation
+    const costValidationSuccess = await validateCostParameters();
+    if (!costValidationSuccess) {
+      validationFailed = true;
     }
 
-    if (!validationFailed) {
-      // Step 5: Currency Validation (mockup for now)
-      const currencyValidationSuccess = await validateCurrencyRates();
-      if (!currencyValidationSuccess) {
-        validationFailed = true;
-      }
+    // Step 5: Currency Validation
+    const currencyValidationSuccess = await validateCurrencyRates();
+    if (!currencyValidationSuccess) {
+      validationFailed = true;
     }
 
     setIsRunning(false);
