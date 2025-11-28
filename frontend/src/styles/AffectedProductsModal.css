@@ -17,12 +17,12 @@
   background: white;
   border-radius: 12px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  max-width: 95vw;
-  max-height: 90vh;
-  width: 1200px;
+  max-width: 98vw;
+  max-height: 90vh; /* Constrain modal height */
+  width: 98vw;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: hidden; /* Hide overflow on container */
 }
 
 /* Modal Header - Use more specific selector to override other modal styles */
@@ -97,8 +97,10 @@
 /* Modal Body */
 .modal-body {
   padding: 32px;
-  overflow-y: auto;
+  overflow-y: auto; /* Allow vertical scrolling for all content */
+  overflow-x: hidden; /* Prevent horizontal scroll */
   flex: 1;
+  max-height: calc(90vh - 200px); /* Constrain body height (90vh - header - footer) */
 }
 
 /* Price Change Info */
@@ -276,7 +278,9 @@
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible !important; /* Force visible - no scrolling on table */
+  max-height: none !important; /* Ensure no height constraint */
+  height: auto !important; /* Let it expand naturally */
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
@@ -284,6 +288,14 @@
   width: 100%;
   border-collapse: collapse;
   font-family: "Inter", sans-serif;
+  display: table !important; /* Ensure it's a proper table */
+  overflow: visible !important; /* No scrolling on table itself */
+}
+
+.affected-products-table tbody {
+  display: table-row-group !important; /* Proper tbody display */
+  overflow: visible !important; /* No scrolling */
+  max-height: none !important; /* No height constraint */
 }
 
 .affected-products-table thead {
@@ -605,8 +617,10 @@
     max-width: 120px;
   }
 
+  /* Remove table scrolling - let modal body handle all scrolling */
   .table-container {
-    overflow-x: auto;
+    overflow-x: visible;
+    overflow-y: visible;
   }
 
   /* Adjust column widths for mobile */

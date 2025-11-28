@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { X, TrendingUp, TrendingDown, Minus, Download } from "lucide-react";
 import { hppAPI, masterAPI } from "../services/api";
 import LoadingSpinner from "./LoadingSpinner";
@@ -10,6 +10,8 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
   const [error, setError] = useState("");
   const [affectedMaterials, setAffectedMaterials] = useState([]);
   const [expandedProducts, setExpandedProducts] = useState(new Set());
+  const [isExporting, setIsExporting] = useState(false);
+  const modalContentRef = useRef(null);
 
   // Toggle product detail expansion
   const toggleProductExpansion = (productId) => {
@@ -223,140 +225,168 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
         return normalizedExtractedIds.includes(normalizedMaterialId);
       });
 
-      setAffectedMaterials(matchedMaterials);
+      // Remove duplicates by creating a Map with ITEM_ID as key
+      const uniqueMaterialsMap = new Map();
+      matchedMaterials.forEach(material => {
+        if (!uniqueMaterialsMap.has(material.ITEM_ID)) {
+          uniqueMaterialsMap.set(material.ITEM_ID, material);
+        }
+      });
+      
+      const uniqueMaterials = Array.from(uniqueMaterialsMap.values());
+      setAffectedMaterials(uniqueMaterials);
     } catch (error) {
       console.error('Error fetching affected materials:', error);
       setAffectedMaterials([]);
     }
   };
 
-  // Export affected products to Excel
-  const handleExportToExcel = async () => {
+  // Export affected products to PDF
+  const handleExportToPDF = async () => {
     try {
       if (!affectedProducts || affectedProducts.length === 0) {
         return;
       }
 
-      // Import XLSX library dynamically
-      const XLSX = await import('xlsx');
+      setIsExporting(true);
+      
+      // Save current expanded state
+      const previousExpandedProducts = new Set(expandedProducts);
+      
+      // Expand all products for export
+      const allProductIds = affectedProducts.map(p => p.Product_ID);
+      setExpandedProducts(new Set(allProductIds));
+      
+      // Wait for DOM to update
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Create material names string from affected materials
-      const materialNamesStr = affectedMaterials.length > 0 
-        ? affectedMaterials.map(material => material.Item_Name || material.ITEM_NAME).join(', ')
-        : 'Materials';
+      // Import jsPDF and html2canvas dynamically
+      const jsPDF = (await import('jspdf')).default;
+      const html2canvas = (await import('html2canvas')).default;
 
-      // Create enhanced price change description with material names
-      let enhancedDescription = priceChangeDescription || '';
-      if (materialNamesStr && materialNamesStr !== 'Materials' && enhancedDescription.includes('Price Changes :')) {
-        enhancedDescription = enhancedDescription.replace('Price Changes :', `${materialNamesStr} :`);
+      // Get references to the modal elements
+      const modalElement = modalContentRef.current;
+      const modalContainer = modalElement?.closest('.affected-products-modal');
+      const tableContainers = modalElement?.querySelectorAll('.table-container');
+      
+      if (!modalElement || !modalContainer) {
+        console.error('Modal content ref not found');
+        setIsExporting(false);
+        return;
       }
 
-      // Prepare data for Excel export with proper formatting
-      const excelData = affectedProducts.map(product => ({
-        'Product ID': product.Product_ID || '',
-        'Product Name': product.Product_Name || '',
-        'Material Cost Before': parseFloat(product.totalBahanSebelum || 0),
-        'Material Cost After': parseFloat(product.totalBahanSesudah || 0),
-        'Cost Change': parseFloat(product.totalBahanSesudah || 0) - parseFloat(product.totalBahanSebelum || 0),
-        'HNA (Sales Price)': parseFloat(product.Product_SalesHNA || 0),
-        'HPP Before': parseFloat(product.HPPSebelum || 0),
-        'HPP After': parseFloat(product.HPPSesudah || 0),
-        'HPP Change': parseFloat(product.HPPSesudah || 0) - parseFloat(product.HPPSebelum || 0),
-        'HPP Ratio Before (%)': parseFloat(product.Rasio_HPP_Sebelum || 0) * 100,
-        'HPP Ratio After (%)': parseFloat(product.Rasio_HPP_Sesudah || 0) * 100,
-        'Impact HPP (%)': parseFloat(product.persentase_perubahan || 0),
-        'Impact HNA (%)': calculateImpactHNA(product.Rasio_HPP_Sebelum, product.Rasio_HPP_Sesudah),
-        'Price Change Description': enhancedDescription,
-        'Price Change Date': priceChangeDate ? new Date(priceChangeDate).toLocaleDateString() : ''
+      // Save original styles
+      const originalModalBodyOverflow = modalElement.style.overflow;
+      const originalModalBodyMaxHeight = modalElement.style.maxHeight;
+      const originalModalBodyHeight = modalElement.style.height;
+      const originalModalBodyMinHeight = modalElement.style.minHeight;
+      const originalModalContainerMaxHeight = modalContainer.style.maxHeight;
+      const originalModalContainerOverflow = modalContainer.style.overflow;
+      const originalModalContainerMinHeight = modalContainer.style.minHeight;
+      
+      // Save table container styles
+      const originalTableStyles = Array.from(tableContainers).map(tc => ({
+        overflow: tc.style.overflow,
+        overflowX: tc.style.overflowX,
+        overflowY: tc.style.overflowY
       }));
+      
+      // Temporarily remove scroll constraints for full capture
+      modalElement.style.overflow = 'visible';
+      modalElement.style.maxHeight = 'none';
+      modalElement.style.height = 'auto';
+      modalContainer.style.maxHeight = 'none';
+      modalContainer.style.overflow = 'visible';
+      
+      // Remove table scrolling to show full content
+      tableContainers.forEach(tc => {
+        tc.style.overflow = 'visible';
+        tc.style.overflowX = 'visible';
+        tc.style.overflowY = 'visible';
+      });
+      
+      // Wait for layout to settle and content to expand
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Create a new workbook
-      const workbook = XLSX.utils.book_new();
+      // Force the element to expand to its full scrollable height
+      const fullHeight = modalElement.scrollHeight + 100; // Add buffer
+      const fullWidth = modalElement.scrollWidth + 50;
+      
+      // Set explicit dimensions to force full expansion
+      modalElement.style.minHeight = `${fullHeight}px`;
+      modalContainer.style.minHeight = `${fullHeight}px`;
+      
+      // Wait a bit more for the forced expansion
+      await new Promise(resolve => setTimeout(resolve, 200));
 
-      // Create worksheet from data
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      console.log('Capturing modal - Full dimensions:', fullWidth, 'x', fullHeight);
 
-      // Set column widths for better formatting
-      const columnWidths = [
-        { wch: 15 }, // Product ID
-        { wch: 40 }, // Product Name
-        { wch: 18 }, // Material Cost Before
-        { wch: 18 }, // Material Cost After
-        { wch: 15 }, // Cost Change
-        { wch: 18 }, // HNA (Sales Price)
-        { wch: 15 }, // HPP Before
-        { wch: 15 }, // HPP After
-        { wch: 15 }, // HPP Change
-        { wch: 18 }, // HPP Ratio Before (%)
-        { wch: 18 }, // HPP Ratio After (%)
-        { wch: 14 }, // Impact HPP (%)
-        { wch: 14 }, // Impact HNA (%)
-        { wch: 30 }, // Price Change Description
-        { wch: 18 }  // Price Change Date
-      ];
-      worksheet['!cols'] = columnWidths;
+      // Capture the content as canvas with full dimensions
+      const canvas = await html2canvas(modalElement, {
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: fullWidth,
+        height: fullHeight,
+        scrollY: -window.scrollY,
+        scrollX: -window.scrollX
+      });
 
-      // Apply header formatting
-      const headerCells = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1', 'L1', 'M1', 'N1', 'O1'];
-      headerCells.forEach(cell => {
-        if (worksheet[cell]) {
-          worksheet[cell].s = {
-            font: { bold: true, color: { rgb: "FFFFFF" } },
-            fill: { fgColor: { rgb: "366092" } },
-            alignment: { horizontal: "center" }
-          };
+      // Restore original styles
+      modalElement.style.overflow = originalModalBodyOverflow;
+      modalElement.style.maxHeight = originalModalBodyMaxHeight;
+      modalElement.style.height = originalModalBodyHeight;
+      modalElement.style.minHeight = originalModalBodyMinHeight;
+      modalContainer.style.maxHeight = originalModalContainerMaxHeight;
+      modalContainer.style.overflow = originalModalContainerOverflow;
+      modalContainer.style.minHeight = originalModalContainerMinHeight;
+      
+      // Restore table container styles
+      tableContainers.forEach((tc, index) => {
+        if (originalTableStyles[index]) {
+          tc.style.overflow = originalTableStyles[index].overflow;
+          tc.style.overflowX = originalTableStyles[index].overflowX;
+          tc.style.overflowY = originalTableStyles[index].overflowY;
         }
       });
 
-      // Apply number formatting to numeric columns
-      const range = XLSX.utils.decode_range(worksheet['!ref']);
-      for (let row = range.s.r + 1; row <= range.e.r; row++) {
-        // Currency columns (C, D, E, F, G, H, I)
-        ['C', 'D', 'E', 'F', 'G', 'H', 'I'].forEach(col => {
-          const cellAddress = col + (row + 1);
-          if (worksheet[cellAddress]) {
-            worksheet[cellAddress].s = {
-              numFmt: '#,##0.00',
-              alignment: { horizontal: "right" }
-            };
-          }
-        });
-        
-        // Percentage columns (J, K, L)
-        ['J', 'K', 'L'].forEach(col => {
-          const cellAddress = col + (row + 1);
-          if (worksheet[cellAddress]) {
-            worksheet[cellAddress].s = {
-              numFmt: '0.00',
-              alignment: { horizontal: "right" }
-            };
-          }
-        });
-      }
+      console.log('Canvas captured - Dimensions:', canvas.width, 'x', canvas.height);
 
-      // Add the worksheet to workbook
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Affected Products');
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'px',
+        format: [canvas.width, canvas.height],
+        compress: true
+      });
 
-      // Generate filename with current date and material names
+      // Add the full canvas as a single image
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+
+      // Generate filename
       const dateStr = new Date().toISOString().split('T')[0];
-      
-      // Create a clean filename part from material names or fallback to description
       let fileNamePart = '';
       if (affectedMaterials.length > 0) {
         const materialNames = affectedMaterials.map(material => material.Item_Name || material.ITEM_NAME).join('_');
-        fileNamePart = materialNames.replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 50); // Limit length
+        fileNamePart = materialNames.replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 50);
       } else {
         fileNamePart = (priceChangeDescription || 'PriceChange').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);
       }
       
-      const fileName = `AffectedProducts_${fileNamePart}_${dateStr}.xlsx`;
+      const fileName = `AffectedProducts_${fileNamePart}_${dateStr}.pdf`;
 
-      // Write and download the file
-      XLSX.writeFile(workbook, fileName);
+      // Save PDF
+      pdf.save(fileName);
+      
+      // Restore previous expanded state
+      setExpandedProducts(previousExpandedProducts);
+      setIsExporting(false);
 
     } catch (error) {
-      console.error('Error exporting affected products:', error);
-      // You might want to show a user-friendly error message here
+      console.error('Error exporting affected products to PDF:', error);
+      setIsExporting(false);
+      alert('Failed to export PDF. Please try again.');
     }
   };
 
@@ -381,12 +411,13 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
             {!loading && !error && affectedProducts.length > 0 && (
               <button 
                 className="export-btn" 
-                onClick={handleExportToExcel}
-                title="Export to Excel"
-                aria-label="Export affected products to Excel"
+                onClick={handleExportToPDF}
+                disabled={isExporting}
+                title="Export to PDF"
+                aria-label="Export affected products to PDF"
               >
                 <Download size={16} />
-                <span>Export</span>
+                <span>{isExporting ? 'Exporting...' : 'Export PDF'}</span>
               </button>
             )}
             <button className="close-btn" onClick={onClose} aria-label="Close">
@@ -395,7 +426,7 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
           </div>
         </div>
 
-        <div className="modal-body">
+        <div className="modal-body" ref={modalContentRef}>
           {/* Price Change Info */}
           <div className="price-change-info">
             <h3>Price Change Details</h3>
@@ -565,10 +596,6 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
                                                   <td>Materials</td>
                                                   <td className="number">{formatCurrency(materialBefore)}</td>
                                                 </tr>
-                                                <tr>
-                                                  <td>Overhead ({product.LOB} {product.Versi ? `V${product.Versi}` : ''})</td>
-                                                  <td className="number">{formatCurrency(overhead)}</td>
-                                                </tr>
                                                 {(product.LOB === "ETHICAL" || product.LOB === "OTC") && (
                                                   <tr>
                                                     <td>Margin</td>
@@ -591,10 +618,6 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
                                                   <td>Materials</td>
                                                   <td className="number">{formatCurrency(materialAfter)}</td>
                                                 </tr>
-                                                <tr>
-                                                  <td>Overhead ({product.LOB} {product.Versi ? `V${product.Versi}` : ''})</td>
-                                                  <td className="number">{formatCurrency(overhead)}</td>
-                                                </tr>
                                                 {(product.LOB === "ETHICAL" || product.LOB === "OTC") && (
                                                   <tr>
                                                     <td>Margin</td>
@@ -616,10 +639,6 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
                                                 <tr>
                                                   <td>Materials Change</td>
                                                   <td className="number">{formatCurrency(materialAfter - materialBefore)}</td>
-                                                </tr>
-                                                <tr>
-                                                  <td>Overhead Change</td>
-                                                  <td className="number">Rp 0</td>
                                                 </tr>
                                                 {(product.LOB === "ETHICAL" || product.LOB === "OTC") && (
                                                   <tr>

@@ -2127,6 +2127,7 @@
 }
 
 .edit-btn,
+.preview-btn,
 .clone-btn,
 .delete-btn {
   background: none;
@@ -2143,6 +2144,18 @@
   width: 32px;
   height: 32px;
   flex-shrink: 0;
+}
+
+.preview-btn:hover:not(:disabled) {
+  background: #fef3c7; /* Light yellow background */
+  color: #92400e; /* Darker yellow/amber text */
+  transform: scale(1.1);
+}
+
+.preview-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .edit-btn:hover {
@@ -2169,6 +2182,7 @@
 
 /* Lucide icon styling */
 .edit-btn svg,
+.preview-btn svg,
 .clone-btn svg,
 .delete-btn svg {
   width: 16px;

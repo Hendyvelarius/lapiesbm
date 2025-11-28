@@ -21,6 +21,7 @@ import {
   BarChart3,
   Trash,
   Copy,
+  Eye,
 } from "lucide-react";
 import AffectedProductsModal from "../components/AffectedProductsModal";
 
@@ -1642,6 +1643,24 @@ export default function HPPSimulation() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle preview simulation - loads edit mode then automatically shows detailed report
+  const handlePreviewSimulation = async (simulation) => {
+    try {
+      // First, load the simulation in edit mode (this loads all necessary data)
+      await handleEditSimulation(simulation);
+      
+      // Wait a brief moment for the edit mode to fully load
+      setTimeout(() => {
+        // Automatically open the detailed report modal
+        setShowDetailedReport(true);
+      }, 100);
+      
+    } catch (error) {
+      console.error("Error loading simulation for preview:", error);
+      notifier.alert("Failed to load simulation preview. Please try again.");
     }
   };
 
@@ -3392,6 +3411,16 @@ export default function HPPSimulation() {
                                 ).toLocaleDateString("id-ID")}
                               </td>
                               <td className="actions-cell">
+                                <button
+                                  className="preview-btn"
+                                  onClick={() =>
+                                    handlePreviewSimulation(simulation)
+                                  }
+                                  disabled={loading}
+                                  title="Preview Simulation Report"
+                                >
+                                  <Eye size={16} />
+                                </button>
                                 <button
                                   className="edit-btn"
                                   onClick={() =>
