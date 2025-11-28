@@ -269,7 +269,7 @@ async function createSimulationHeader(headerData) {
         headerData.Simulasi_Deskripsi || ""
       )
       .input("SimulasiDate", sql.DateTime, new Date())
-      .input("SimulasiType", sql.VarChar(50), "Custom Formula")
+      .input("SimulasiType", sql.VarChar(50), "Product Custom")
       .input(
         "GroupRendemen",
         sql.Decimal(10, 2),
