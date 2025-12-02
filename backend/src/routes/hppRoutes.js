@@ -49,9 +49,17 @@ router.delete('/simulation/:simulasiId', HPPController.deleteSimulation);
 // Body: { materialPriceChanges: [{ materialId: "AC 209A", newPrice: 50.4 }, { materialId: "IN 003", newPrice: 45000 }] }
 router.post('/generate-price-change-simulation', HPPController.generatePriceChangeSimulation);
 
+// POST /api/hpp/generate-price-update-simulation - Generate price update simulation with Periode
+// Body: { materialPriceChanges: [{ materialId: "AC 075D", newPrice: 500 }], periode: "2026" }
+router.post('/generate-price-update-simulation', HPPController.generatePriceUpdateSimulation);
+
 // POST /api/hpp/price-change-affected-products - Get affected products for price change simulation
 // Body: { description: "Price Changes : AC 014B: 22 -> 31; ", simulasiDate: "2025-09-24T00:27:38.087Z" }
 router.post('/price-change-affected-products', HPPController.getPriceChangeAffectedProducts);
+
+// POST /api/hpp/price-update-affected-products - Get affected products for price update simulation
+// Body: { description: "Price Update: ...", simulasiDate: "2025-09-24T00:27:38.087Z" }
+router.post('/price-update-affected-products', HPPController.getPriceUpdateAffectedProducts);
 
 // GET /api/hpp/simulation/:simulasiId/summary - Get simulation summary with HNA and HPP ratio
 router.get('/simulation/:simulasiId/summary', HPPController.getSimulationSummary);

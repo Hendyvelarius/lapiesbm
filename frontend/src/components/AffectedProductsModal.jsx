@@ -4,7 +4,7 @@ import { hppAPI, masterAPI } from "../services/api";
 import LoadingSpinner from "./LoadingSpinner";
 import "../styles/AffectedProductsModal.css";
 
-const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceChangeDate }) => {
+const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceChangeDate, priceUpdateMode = false }) => {
   const [loading, setLoading] = useState(false);
   const [affectedProducts, setAffectedProducts] = useState([]);
   const [error, setError] = useState("");
@@ -32,7 +32,10 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
       setLoading(true);
       setError("");
 
-      const response = await hppAPI.getPriceChangeAffectedProducts(description, simulasiDate);
+      // Both Price Change and Price Update use the same parameters: description and simulasiDate
+      const response = priceUpdateMode
+        ? await hppAPI.getPriceUpdateAffectedProducts(description, simulasiDate)
+        : await hppAPI.getPriceChangeAffectedProducts(description, simulasiDate);
 
       if (response.success && response.data) {
         setAffectedProducts(response.data);
@@ -406,7 +409,7 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
     <div className="modal-overlay">
       <div className="affected-products-modal">
         <div className="modal-header">
-          <h2>Products Affected by Price Change</h2>
+          <h2>Products Affected by {priceUpdateMode ? 'Price Update' : 'Price Change'}</h2>
           <div className="modal-header-actions">
             {!loading && !error && affectedProducts.length > 0 && (
               <button 
@@ -427,9 +430,9 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
         </div>
 
         <div className="modal-body" ref={modalContentRef}>
-          {/* Price Change Info */}
+          {/* Price Change/Update Info */}
           <div className="price-change-info">
-            <h3>Price Change Details</h3>
+            <h3>{priceUpdateMode ? 'Price Update Details' : 'Price Change Details'}</h3>
             <div className="price-info">
               <span className="description">
                 {priceChangeDescription}

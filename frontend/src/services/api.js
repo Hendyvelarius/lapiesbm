@@ -219,8 +219,20 @@ export const hppAPI = {
     body: JSON.stringify({ materialPriceChanges }),
   }),
 
+  // Generate price update simulation with Periode parameter
+  generatePriceUpdateSimulation: (materialPriceChanges, periode) => apiRequest('/hpp/generate-price-update-simulation', {
+    method: 'POST',
+    body: JSON.stringify({ materialPriceChanges, periode }),
+  }),
+
   // Get affected products for price change simulation
   getPriceChangeAffectedProducts: (description, simulasiDate) => apiRequest('/hpp/price-change-affected-products', {
+    method: 'POST',
+    body: JSON.stringify({ description, simulasiDate }),
+  }),
+
+  // Get affected products for price update simulation
+  getPriceUpdateAffectedProducts: (description, simulasiDate) => apiRequest('/hpp/price-update-affected-products', {
     method: 'POST',
     body: JSON.stringify({ description, simulasiDate }),
   }),

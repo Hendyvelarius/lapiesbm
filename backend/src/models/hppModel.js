@@ -527,6 +527,44 @@ async function generatePriceChangeSimulation(parameterString) {
   }
 }
 
+// Generate price update simulation (with Periode parameter)
+async function generatePriceUpdateSimulation(parameterString, periode) {
+  try {
+    console.log("=== Price Update Simulation Debug ===");
+    console.log("Parameter string:", parameterString);
+    console.log("Periode:", periode);
+
+    const db = await connect();
+
+    // Execute the stored procedure with periode parameter
+    const directQuery = `exec sp_generate_simulasi_cogs_price_update '${parameterString}', '${periode}'`;
+    console.log("SQL:", directQuery);
+
+    const result = await db.request().query(directQuery);
+
+    console.log("SUCCESS! Stored procedure executed");
+    console.log("Recordsets:", result.recordsets?.length || 0);
+    console.log("Rows affected:", result.rowsAffected);
+
+    return {
+      recordsets: result.recordsets,
+      rowsAffected: result.rowsAffected,
+      returnValue: result.returnValue,
+    };
+  } catch (error) {
+    console.error("=== Stored Procedure Error Details ===");
+    console.error("Error message:", error.message);
+    console.error("Error number:", error.number);
+    console.error("Line number:", error.lineNumber);
+    console.error("Procedure name:", error.procName);
+    console.error("Parameter we sent:", parameterString);
+    console.error("Periode:", periode);
+    console.error('Expected format: materialId:newPrice#materialId2:newPrice2, YYYY');
+
+    throw error;
+  }
+}
+
 // Get affected products for price change simulation
 async function getPriceChangeAffectedProducts(description, formattedDate) {
   try {
@@ -555,6 +593,46 @@ async function getPriceChangeAffectedProducts(description, formattedDate) {
 
   } catch (error) {
     console.error('=== getPriceChangeAffectedProducts Error ===');
+    console.error('Error message:', error.message);
+    console.error('Error number:', error.number);
+    console.error('Line number:', error.lineNumber);
+    console.error('Procedure name:', error.procName);
+    console.error('Parameters sent:');
+    console.error('- Description:', description);
+    console.error('- FormattedDate:', formattedDate);
+    
+    throw error;
+  }
+}
+
+// Get affected products for price update simulation (uses Simulasi_Date just like Price Change)
+async function getPriceUpdateAffectedProducts(description, formattedDate) {
+  try {
+    console.log('=== Executing getPriceUpdateAffectedProducts ===');
+    console.log('Description:', description);
+    console.log('Formatted Date:', formattedDate);
+
+    const db = await connect();
+    
+    // Execute the stored procedure - same pattern as Price Change
+    const query = `EXEC [sp_COGS_HPP_List_Simulasi_PriceUpdate] @Description, @FormattedDate`;
+    
+    const result = await db
+      .request()
+      .input('Description', sql.VarChar(255), description)
+      .input('FormattedDate', sql.VarChar(50), formattedDate)
+      .query(query);
+
+    console.log('=== Stored Procedure Result ===');
+    console.log('Records returned:', result.recordset?.length || 0);
+    if (result.recordset?.length > 0) {
+      console.log('Sample record:', JSON.stringify(result.recordset[0], null, 2));
+    }
+
+    return result.recordset || [];
+
+  } catch (error) {
+    console.error('=== getPriceUpdateAffectedProducts Error ===');
     console.error('Error message:', error.message);
     console.error('Error number:', error.number);
     console.error('Line number:', error.lineNumber);
@@ -775,7 +853,9 @@ module.exports = {
   deleteSimulation,
   cloneSimulation,
   generatePriceChangeSimulation,
+  generatePriceUpdateSimulation,
   getPriceChangeAffectedProducts,
+  getPriceUpdateAffectedProducts,
   bulkDeletePriceChangeGroup,
   getSimulationSummary,
   checkHPPDataExists,

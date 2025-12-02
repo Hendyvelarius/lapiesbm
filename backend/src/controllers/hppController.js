@@ -1,4 +1,4 @@
-const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, deleteSimulation, createSimulationHeader, generatePriceChangeSimulation, checkHPPDataExists } = require('../models/hppModel');
+const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, deleteSimulation, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
@@ -414,6 +414,76 @@ class HPPController {
     }
   }
 
+  // Generate price update simulation (with Periode parameter)
+  static async generatePriceUpdateSimulation(req, res) {
+    try {
+      console.log('=== Price Update Simulation Request ===');
+      console.log('Request body:', JSON.stringify(req.body, null, 2));
+      
+      const { materialPriceChanges, periode } = req.body;
+      
+      // Validate input
+      if (!materialPriceChanges || !Array.isArray(materialPriceChanges) || materialPriceChanges.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'materialPriceChanges array is required and must contain at least one item'
+        });
+      }
+
+      if (!periode) {
+        return res.status(400).json({
+          success: false,
+          message: 'periode is required (e.g., "2026")'
+        });
+      }
+
+      console.log('Received materialPriceChanges:', JSON.stringify(materialPriceChanges, null, 2));
+      console.log('Received periode:', periode);
+
+      // Validate each material price change
+      for (const change of materialPriceChanges) {
+        console.log('Validating change:', JSON.stringify(change, null, 2));
+        if (!change.materialId || change.newPrice === undefined || change.newPrice === null) {
+          return res.status(400).json({
+            success: false,
+            message: 'Each material price change must have materialId and newPrice'
+          });
+        }
+      }
+
+      // Format the parameter string for stored procedure
+      // Format: 'materialId1:newPrice1#materialId2:newPrice2'
+      const parameterString = materialPriceChanges
+        .map(change => `${change.materialId}:${change.newPrice}`)
+        .join('#');
+
+      console.log('=== Formatted Parameter String ===');
+      console.log('Parameter string for SP:', parameterString);
+      console.log('Parameter string length:', parameterString.length);
+      console.log('Periode:', periode);
+
+      // Execute the stored procedure
+      const result = await generatePriceUpdateSimulation(parameterString, periode);
+
+      console.log('=== Stored Procedure Result ===');
+      console.log('SP result:', JSON.stringify(result, null, 2));
+
+      res.status(200).json({
+        success: true,
+        message: 'Price update simulation executed successfully',
+        data: result
+      });
+
+    } catch (error) {
+      console.error('Generate Price Update Simulation Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error generating price update simulation',
+        error: error.message
+      });
+    }
+  }
+
   // Get affected products for price change simulation
   static async getPriceChangeAffectedProducts(req, res) {
     try {
@@ -455,6 +525,55 @@ class HPPController {
 
     } catch (error) {
       console.error('Get Price Change Affected Products Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving affected products',
+        error: error.message
+      });
+    }
+  }
+
+  // Get affected products for price update simulation (uses Simulasi_Date just like Price Change)
+  static async getPriceUpdateAffectedProducts(req, res) {
+    try {
+      console.log('=== Get Price Update Affected Products Request ===');
+      console.log('Request body:', JSON.stringify(req.body, null, 2));
+      
+      const { description, simulasiDate } = req.body;
+      
+      // Validate input
+      if (!description || !simulasiDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'Both description and simulasiDate are required'
+        });
+      }
+
+      // Format the date - replace 'T' with space and remove 'Z'
+      // From: "2025-09-24T00:27:38.087Z" 
+      // To: "2025-09-24 00:27:38.087"
+      const formattedDate = simulasiDate.replace('T', ' ').replace('Z', '');
+
+      console.log('=== Formatted Parameters ===');
+      console.log('Description:', description);
+      console.log('Original Date:', simulasiDate);
+      console.log('Formatted Date:', formattedDate);
+
+      // Execute the stored procedure
+      const { getPriceUpdateAffectedProducts } = require('../models/hppModel');
+      const result = await getPriceUpdateAffectedProducts(description, formattedDate);
+
+      console.log('=== Stored Procedure Result ===');
+      console.log('Records returned:', result?.length || 0);
+
+      res.status(200).json({
+        success: true,
+        message: 'Affected products retrieved successfully',
+        data: result
+      });
+
+    } catch (error) {
+      console.error('Get Price Update Affected Products Error:', error);
       res.status(500).json({
         success: false,
         message: 'Error retrieving affected products',

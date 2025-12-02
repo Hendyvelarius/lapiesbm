@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { masterAPI } from '../services/api';
+import { masterAPI, hppAPI } from '../services/api';
 import { getCurrentUser } from '../utils/auth';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import '../styles/HargaBahan.css';
-import { Plus, Search, Filter, Edit, Trash2, Package, ChevronLeft, ChevronRight, X, Check, Upload, Download } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Package, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Check, Upload, Download, DollarSign, Eye } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import LoadingSpinner from '../components/LoadingSpinner';
+import AffectedProductsModal from '../components/AffectedProductsModal';
 
 // Initialize awesome-notifications
 const notifier = new AWN({
@@ -67,6 +68,27 @@ const HargaBahan = () => {
   const [importItemsPerPage] = useState(20); // Fixed at 20 items per page
   const [importType, setImportType] = useState(''); // 'bahan-baku' or 'bahan-kemas'
 
+  // Update Harga Bahan states
+  const [showUpdateHargaModal, setShowUpdateHargaModal] = useState(false);
+  const [selectedMaterialsForUpdate, setSelectedMaterialsForUpdate] = useState([]);
+  const [updatePeriode, setUpdatePeriode] = useState(new Date().getFullYear().toString());
+  const [updateMaterialsData, setUpdateMaterialsData] = useState([]);
+  const [updateSearchTerm, setUpdateSearchTerm] = useState('');
+  const [updateModalCurrentPage, setUpdateModalCurrentPage] = useState(1);
+  const [updateModalItemsPerPage] = useState(50); // Show 50 items per page
+
+  // Pending Updates states
+  const [showPendingUpdatesModal, setShowPendingUpdatesModal] = useState(false);
+  const [pendingUpdates, setPendingUpdates] = useState([]);
+  const [loadingPendingUpdates, setLoadingPendingUpdates] = useState(false);
+  const [expandedUpdateGroups, setExpandedUpdateGroups] = useState(new Set());
+  
+  // Affected Products Modal states
+  const [showAffectedModal, setShowAffectedModal] = useState(false);
+  const [selectedUpdateDescription, setSelectedUpdateDescription] = useState('');
+  const [selectedUpdateDate, setSelectedUpdateDate] = useState('');
+
+
   // Memoized filtered results (more performant than useEffect)
   const filteredItemIds = useMemo(() => {
     if (availableItems.length === 0) return [];
@@ -125,6 +147,32 @@ const HargaBahan = () => {
     // Reset to page 1 when filters change
     setCurrentPage(1);
   }, [searchTerm, selectedCategory]);
+
+  useEffect(() => {
+    // Reset update modal pagination when search term changes
+    setUpdateModalCurrentPage(1);
+  }, [updateSearchTerm]);
+
+  // Memoized filtered and paginated materials for update modal
+  const filteredUpdateMaterials = useMemo(() => {
+    if (materialData.length === 0) return [];
+    
+    const searchLower = updateSearchTerm.toLowerCase();
+    return materialData.filter(mat => 
+      mat.itemId.toLowerCase().includes(searchLower) ||
+      mat.itemName.toLowerCase().includes(searchLower)
+    );
+  }, [materialData, updateSearchTerm]);
+
+  const paginatedUpdateMaterials = useMemo(() => {
+    const startIndex = (updateModalCurrentPage - 1) * updateModalItemsPerPage;
+    const endIndex = startIndex + updateModalItemsPerPage;
+    return filteredUpdateMaterials.slice(startIndex, endIndex);
+  }, [filteredUpdateMaterials, updateModalCurrentPage, updateModalItemsPerPage]);
+
+  const updateModalTotalPages = useMemo(() => {
+    return Math.ceil(filteredUpdateMaterials.length / updateModalItemsPerPage);
+  }, [filteredUpdateMaterials.length, updateModalItemsPerPage]);
 
   // Click outside to close dropdowns
   useEffect(() => {
@@ -301,6 +349,167 @@ const HargaBahan = () => {
     } finally {
       setModalLoading(false);
     }
+  };
+
+  const handleUpdateHargaBahan = () => {
+    setUpdatePeriode(selectedPeriode);
+    setSelectedMaterialsForUpdate([]);
+    setUpdateSearchTerm('');
+    setUpdateModalCurrentPage(1); // Reset pagination
+    setShowUpdateHargaModal(true);
+  };
+
+  const handleGeneratePriceUpdate = async () => {
+    // Validate selected materials
+    if (selectedMaterialsForUpdate.length === 0) {
+      notifier.alert('Please select at least one material to update.');
+      return;
+    }
+
+    // Validate that all materials have valid new prices
+    const invalidMaterials = selectedMaterialsForUpdate.filter(
+      material => !material.newPrice || material.newPrice <= 0
+    );
+
+    if (invalidMaterials.length > 0) {
+      notifier.alert('Please enter valid new prices for all selected materials.');
+      return;
+    }
+
+    setSubmitLoading(true);
+
+    try {
+      // Prepare material price changes array
+      const materialPriceChanges = selectedMaterialsForUpdate.map(material => ({
+        materialId: material.itemId,
+        newPrice: material.newPrice
+      }));
+
+      console.log('Sending price update simulation:', {
+        materialPriceChanges,
+        periode: updatePeriode
+      });
+
+      // Call the API
+      const result = await hppAPI.generatePriceUpdateSimulation(
+        materialPriceChanges,
+        updatePeriode
+      );
+
+      console.log('Price update simulation result:', result);
+
+      // Show success message
+      notifier.success(`Price update simulation generated successfully for ${selectedMaterialsForUpdate.length} material(s)!`);
+
+      // Close modal and reset
+      setShowUpdateHargaModal(false);
+      setSelectedMaterialsForUpdate([]);
+      setUpdateSearchTerm('');
+      setUpdateModalCurrentPage(1);
+
+      // TODO: Phase 2 - Navigate to simulation results or show affected products modal
+
+    } catch (error) {
+      console.error('Error generating price update simulation:', error);
+      notifier.alert('Failed to generate price update simulation: ' + error.message);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  // Load pending updates from simulation table
+  const loadPendingUpdates = async () => {
+    setLoadingPendingUpdates(true);
+    try {
+      const response = await hppAPI.getSimulationList();
+      const simulations = response.data || [];
+      
+      // Filter for Price Update type simulations
+      const priceUpdates = simulations.filter(sim => sim.Simulasi_Type === 'Price Update');
+      
+      setPendingUpdates(priceUpdates);
+      console.log('Loaded pending updates:', priceUpdates.length);
+    } catch (error) {
+      console.error('Error loading pending updates:', error);
+      notifier.alert('Failed to load pending updates: ' + error.message);
+    } finally {
+      setLoadingPendingUpdates(false);
+    }
+  };
+
+  // Handle opening pending updates modal
+  const handleOpenPendingUpdates = async () => {
+    setShowPendingUpdatesModal(true);
+    await loadPendingUpdates();
+  };
+
+  // Group pending updates by description (similar to price changes grouping)
+  const groupedPendingUpdates = useMemo(() => {
+    const groups = {};
+    
+    pendingUpdates.forEach(update => {
+      const description = update.Simulasi_Deskripsi || 'No Description';
+      
+      if (!groups[description]) {
+        groups[description] = [];
+      }
+      
+      groups[description].push(update);
+    });
+    
+    return groups;
+  }, [pendingUpdates]);
+
+  // Toggle group expansion
+  const toggleUpdateGroup = (description) => {
+    setExpandedUpdateGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(description)) {
+        newSet.delete(description);
+      } else {
+        newSet.add(description);
+      }
+      return newSet;
+    });
+  };
+
+  // Delete a pending update group
+  const handleDeleteUpdateGroup = async (description) => {
+    if (!confirm(`Are you sure you want to delete all simulations in this group?\n\nGroup: ${description}\n\nThis will delete ${groupedPendingUpdates[description].length} simulation(s).`)) {
+      return;
+    }
+
+    try {
+      const updateIds = groupedPendingUpdates[description].map(u => u.Simulasi_ID);
+      
+      // Delete each simulation
+      for (const id of updateIds) {
+        await hppAPI.deleteSimulation(id);
+      }
+
+      notifier.success(`Successfully deleted ${updateIds.length} pending update simulation(s)`);
+      
+      // Reload pending updates
+      await loadPendingUpdates();
+    } catch (error) {
+      console.error('Error deleting update group:', error);
+      notifier.alert('Failed to delete update group: ' + error.message);
+    }
+  };
+
+  // Open affected products modal for price update
+  const handleShowAffectedProducts = (description, simulasiDate, event) => {
+    if (event) event.stopPropagation();
+    setSelectedUpdateDescription(description);
+    setSelectedUpdateDate(simulasiDate);
+    setShowAffectedModal(true);
+  };
+
+  // Close affected products modal
+  const handleCloseAffectedModal = () => {
+    setShowAffectedModal(false);
+    setSelectedUpdateDescription('');
+    setSelectedUpdateDate('');
   };
 
   const handleImportMaterial = () => {
@@ -1605,67 +1814,92 @@ const HargaBahan = () => {
 
   return (
     <div className="harga-bahan-container">
-      <div className="controls-section">
-        <div className="search-box">
-          <Search size={20} />
-          <input
-            type="text"
-            placeholder="Search materials..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      {/* Header Controls */}
+      <div className="page-header">
+        {/* Left Section: Search and Filters */}
+        <div className="header-left">
+          <div className="search-box">
+            <Search size={20} />
+            <input
+              type="text"
+              placeholder="Search materials..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <div className="filters-group">
+            <div className="period-selector">
+              <label htmlFor="periode-select">Year:</label>
+              <select 
+                id="periode-select"
+                value={selectedPeriode} 
+                onChange={(e) => setSelectedPeriode(e.target.value)}
+                className="periode-select"
+              >
+                {[...Array(5)].map((_, i) => {
+                  const year = new Date().getFullYear() - 2 + i;
+                  return <option key={year} value={year.toString()}>{year}</option>;
+                })}
+              </select>
+            </div>
+            
+            <div className="category-filter">
+              <Filter size={18} />
+              <select 
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+              >
+                {getUniqueCategories().map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
-        
-        <div className="filter-controls">
-          <div className="period-selector">
-            <label htmlFor="periode-select">Year:</label>
-            <select 
-              id="periode-select"
-              value={selectedPeriode} 
-              onChange={(e) => setSelectedPeriode(e.target.value)}
-              className="periode-select"
-            >
-              {[...Array(5)].map((_, i) => {
-                const year = new Date().getFullYear() - 2 + i;
-                return <option key={year} value={year.toString()}>{year}</option>;
-              })}
-            </select>
+
+        {/* Right Section: Action Buttons */}
+        <div className="header-right">
+          <div className="action-buttons-group">
+            {/* Import/Export Group */}
+            <div className="button-group">
+              <button className="import-btn" onClick={handleImportBahanKemas}>
+                <Upload size={20} />
+                Import Bahan Kemas
+              </button>
+              
+              <button className="import-btn" onClick={handleImportMaterial}>
+                <Upload size={20} />
+                Import Bahan Baku
+              </button>
+              
+              <button className="export-btn" onClick={() => {
+                setExportPeriode(selectedPeriode);
+                setShowExportWarningModal(true);
+              }}>
+                <Download size={20} />
+                Export
+              </button>
+            </div>
+
+            {/* Primary Actions Group */}
+            <div className="button-group primary-actions">
+              <button className="pending-updates-btn" onClick={handleOpenPendingUpdates}>
+                <Package size={20} />
+                Pending Updates
+              </button>
+
+              <button className="update-harga-btn" onClick={handleUpdateHargaBahan}>
+                <DollarSign size={20} />
+                Update Harga
+              </button>
+              
+              <button className="add-btn" onClick={handleAddMaterial}>
+                <Plus size={20} />
+                Tambah Bahan
+              </button>
+            </div>
           </div>
-          
-          <div className="category-filter">
-            <Filter size={18} />
-            <select 
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-            >
-              {getUniqueCategories().map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
-          </div>
-          
-          <button className="import-btn" onClick={handleImportBahanKemas}>
-            <Upload size={20} />
-            Import Bahan Kemas
-          </button>
-          
-          <button className="import-btn" onClick={handleImportMaterial}>
-            <Upload size={20} />
-            Import Bahan Baku
-          </button>
-          
-          <button className="export-btn" onClick={() => {
-            setExportPeriode(selectedPeriode);
-            setShowExportWarningModal(true);
-          }}>
-            <Download size={20} />
-            Export
-          </button>
-          
-          <button className="add-btn" onClick={handleAddMaterial}>
-            <Plus size={20} />
-            Tambah Bahan
-          </button>
         </div>
       </div>
 
@@ -2766,6 +3000,463 @@ const HargaBahan = () => {
           </div>
         </div>
       )}
+
+      {/* Update Harga Bahan Modal */}
+      {showUpdateHargaModal && (
+        <div className="modal-overlay">
+          <div className="modal update-harga-modal">
+            <div className="modal-header">
+              <h2>Update Harga Bahan</h2>
+              <button className="close-btn" onClick={() => setShowUpdateHargaModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="update-harga-section">
+                {/* Year Selector */}
+                <div className="update-year-section">
+                  <label htmlFor="update-periode-select" className="section-label">
+                    Select Year for Price Update:
+                  </label>
+                  <select 
+                    id="update-periode-select"
+                    value={updatePeriode}
+                    onChange={(e) => setUpdatePeriode(e.target.value)}
+                    className="periode-select-large"
+                  >
+                    {generateYearOptions().map(year => (
+                      <option key={year} value={year.toString()}>{year}</option>
+                    ))}
+                  </select>
+                  {updatePeriode !== selectedPeriode && (
+                    <div className="warning-note">
+                      ⚠️ You are updating prices for year {updatePeriode}, which differs from the current view ({selectedPeriode})
+                    </div>
+                  )}
+                </div>
+
+                {/* Material Selection Section */}
+                <div className="material-selection-section">
+                  <h3 className="section-title">Select Materials to Update</h3>
+                  
+                  <div className="search-box-modal">
+                    <Search size={20} />
+                    <input
+                      type="text"
+                      placeholder="Search materials by ID or name..."
+                      value={updateSearchTerm}
+                      onChange={(e) => {
+                        setUpdateSearchTerm(e.target.value);
+                        setUpdateModalCurrentPage(1); // Reset to first page on search
+                      }}
+                    />
+                  </div>
+
+                  {/* Pagination Info */}
+                  <div className="pagination-info-bar">
+                    <span className="results-count">
+                      Showing {paginatedUpdateMaterials.length > 0 ? ((updateModalCurrentPage - 1) * updateModalItemsPerPage) + 1 : 0} 
+                      {' '}-{' '}
+                      {Math.min(updateModalCurrentPage * updateModalItemsPerPage, filteredUpdateMaterials.length)}
+                      {' '}of{' '}
+                      {filteredUpdateMaterials.length} materials
+                    </span>
+                    {filteredUpdateMaterials.length > 0 && (
+                      <span className="selected-count">
+                        {selectedMaterialsForUpdate.length} selected
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="materials-list">
+                    {paginatedUpdateMaterials.length > 0 ? (
+                      paginatedUpdateMaterials.map(material => {
+                        const isSelected = selectedMaterialsForUpdate.some(
+                          m => m.pk_id === material.pk_id
+                        );
+                        
+                        return (
+                          <div
+                            key={material.pk_id}
+                            className={`material-item ${isSelected ? 'selected' : ''}`}
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedMaterialsForUpdate(prev =>
+                                  prev.filter(m => m.pk_id !== material.pk_id)
+                                );
+                              } else {
+                                setSelectedMaterialsForUpdate(prev => [
+                                  ...prev,
+                                  {
+                                    ...material,
+                                    newPrice: material.price,
+                                    adjustmentType: 'amount',
+                                    adjustmentValue: 0
+                                  }
+                                ]);
+                              }
+                            }}
+                          >
+                            <div className="material-checkbox">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {}}
+                              />
+                            </div>
+                            <div className="material-info">
+                              <div className="material-id">{material.itemId}</div>
+                              <div className="material-name">{material.itemName}</div>
+                            </div>
+                            <div className="material-current-price">
+                              <div className="price-label">Current Price</div>
+                              <div className="price-value">
+                                {material.currency} {parseFloat(material.price).toLocaleString('en-US', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="no-materials-message">
+                        {updateSearchTerm ? 'No materials found matching your search.' : 'No materials available.'}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {updateModalTotalPages > 1 && (
+                    <div className="update-modal-pagination">
+                      <button
+                        className="pagination-btn"
+                        onClick={() => setUpdateModalCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={updateModalCurrentPage === 1}
+                      >
+                        <ChevronLeft size={20} />
+                      </button>
+                      
+                      <span className="pagination-info-text">
+                        Page {updateModalCurrentPage} of {updateModalTotalPages}
+                      </span>
+                      
+                      <button
+                        className="pagination-btn"
+                        onClick={() => setUpdateModalCurrentPage(prev => Math.min(updateModalTotalPages, prev + 1))}
+                        disabled={updateModalCurrentPage === updateModalTotalPages}
+                      >
+                        <ChevronRight size={20} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Selected Materials Summary */}
+                {selectedMaterialsForUpdate.length > 0 && (
+                  <div className="selected-materials-section">
+                    <h3 className="section-title">
+                      Selected Materials ({selectedMaterialsForUpdate.length})
+                    </h3>
+                    
+                    <div className="selected-materials-list">
+                      {selectedMaterialsForUpdate.map((material, index) => (
+                        <div key={material.pk_id} className="selected-material-card">
+                          <div className="card-header">
+                            <div className="material-basic-info">
+                              <span className="material-id-badge">{material.itemId}</span>
+                              <span className="material-name-text">{material.itemName}</span>
+                            </div>
+                            <button
+                              className="remove-material-btn"
+                              onClick={() => {
+                                setSelectedMaterialsForUpdate(prev =>
+                                  prev.filter(m => m.pk_id !== material.pk_id)
+                                );
+                              }}
+                            >
+                              <X size={18} />
+                            </button>
+                          </div>
+                          
+                          <div className="price-adjustment-section">
+                            <div className="current-price-display">
+                              <label>Current Price:</label>
+                              <span className="price-amount">
+                                {material.currency} {parseFloat(material.price).toLocaleString('en-US', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2
+                                })}
+                              </span>
+                            </div>
+
+                            <div className="adjustment-type-selector">
+                              <label>Adjustment Type:</label>
+                              <div className="radio-group">
+                                <label className="radio-option">
+                                  <input
+                                    type="radio"
+                                    name={`adjustment-type-${material.pk_id}`}
+                                    value="amount"
+                                    checked={material.adjustmentType === 'amount'}
+                                    onChange={() => {
+                                      setSelectedMaterialsForUpdate(prev =>
+                                        prev.map(m =>
+                                          m.pk_id === material.pk_id
+                                            ? { ...m, adjustmentType: 'amount', adjustmentValue: 0 }
+                                            : m
+                                        )
+                                      );
+                                    }}
+                                  />
+                                  New Price Amount
+                                </label>
+                                <label className="radio-option">
+                                  <input
+                                    type="radio"
+                                    name={`adjustment-type-${material.pk_id}`}
+                                    value="percentage"
+                                    checked={material.adjustmentType === 'percentage'}
+                                    onChange={() => {
+                                      setSelectedMaterialsForUpdate(prev =>
+                                        prev.map(m =>
+                                          m.pk_id === material.pk_id
+                                            ? { ...m, adjustmentType: 'percentage', adjustmentValue: 0 }
+                                            : m
+                                        )
+                                      );
+                                    }}
+                                  />
+                                  Percentage Change
+                                </label>
+                              </div>
+                            </div>
+
+                            {material.adjustmentType === 'amount' ? (
+                              <div className="input-group">
+                                <label>New Price:</label>
+                                <div className="price-input-wrapper">
+                                  <span className="currency-prefix">{material.currency}</span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={material.newPrice}
+                                    onChange={(e) => {
+                                      const newPrice = parseFloat(e.target.value) || 0;
+                                      setSelectedMaterialsForUpdate(prev =>
+                                        prev.map(m =>
+                                          m.pk_id === material.pk_id
+                                            ? { ...m, newPrice }
+                                            : m
+                                        )
+                                      );
+                                    }}
+                                    placeholder="Enter new price"
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="input-group">
+                                <label>Percentage Change:</label>
+                                <div className="percentage-input-wrapper">
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    value={material.adjustmentValue}
+                                    onChange={(e) => {
+                                      const adjustmentValue = parseFloat(e.target.value) || 0;
+                                      const currentPrice = parseFloat(material.price);
+                                      const newPrice = currentPrice * (1 + adjustmentValue / 100);
+                                      setSelectedMaterialsForUpdate(prev =>
+                                        prev.map(m =>
+                                          m.pk_id === material.pk_id
+                                            ? { ...m, adjustmentValue, newPrice }
+                                            : m
+                                        )
+                                      );
+                                    }}
+                                    placeholder="e.g., 10 for +10%, -5 for -5%"
+                                  />
+                                  <span className="percentage-suffix">%</span>
+                                </div>
+                                <div className="calculated-price">
+                                  New Price: {material.currency} {parseFloat(material.newPrice).toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-actions">
+                <button 
+                  className="modal-btn secondary" 
+                  onClick={() => setShowUpdateHargaModal(false)}
+                  disabled={submitLoading}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="modal-btn primary" 
+                  disabled={selectedMaterialsForUpdate.length === 0 || submitLoading}
+                  onClick={handleGeneratePriceUpdate}
+                >
+                  <Check size={16} />
+                  {submitLoading ? 'Generating Simulation...' : `Generate Simulation (${selectedMaterialsForUpdate.length})`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pending Updates Modal */}
+      {showPendingUpdatesModal && (
+        <div className="modal-overlay">
+          <div className="modal pending-updates-modal">
+            <div className="modal-header">
+              <h2>Pending Price Updates</h2>
+              <button className="close-btn" onClick={() => setShowPendingUpdatesModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {loadingPendingUpdates ? (
+                <LoadingSpinner message="Loading pending updates..." />
+              ) : Object.keys(groupedPendingUpdates).length > 0 ? (
+                <div className="pending-updates-list">
+                  <div className="pending-updates-info">
+                    <p>
+                      <strong>{pendingUpdates.length}</strong> pending simulation(s) grouped into{' '}
+                      <strong>{Object.keys(groupedPendingUpdates).length}</strong> update group(s)
+                    </p>
+                  </div>
+
+                  {Object.entries(groupedPendingUpdates).map(([description, updates]) => {
+                    const isExpanded = expandedUpdateGroups.has(description);
+                    const firstUpdate = updates[0];
+                    const periode = firstUpdate?.Periode || 'N/A';
+                    const simulasiDate = firstUpdate?.Simulasi_Date || '';
+                    
+                    return (
+                      <div key={description} className="update-group-card">
+                        <div className="update-group-header" onClick={() => toggleUpdateGroup(description)}>
+                          <div className="update-group-info">
+                            <div className="update-group-title">
+                              {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                              <span className="update-description">{description}</span>
+                            </div>
+                            <div className="update-group-meta">
+                              <span className="update-count">{updates.length} product(s) affected</span>
+                              <span className="update-periode">Periode: {periode}</span>
+                              <span className="update-date">
+                                {new Date(firstUpdate.Simulasi_Date).toLocaleString('id-ID', {
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="update-group-actions" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              className="view-details-btn"
+                              onClick={(e) => handleShowAffectedProducts(description, simulasiDate, e)}
+                              title="View detailed impact"
+                            >
+                              <Eye size={18} />
+                            </button>
+                            <button
+                              className="delete-group-btn"
+                              onClick={() => handleDeleteUpdateGroup(description)}
+                              title="Delete this update group"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="update-group-items">
+                            <table className="updates-table">
+                              <thead>
+                                <tr>
+                                  <th>Product ID</th>
+                                  <th>Product Name</th>
+                                  <th>Simulasi ID</th>
+                                  <th>LOB</th>
+                                  <th>Version</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {updates.map(update => (
+                                  <tr key={update.Simulasi_ID}>
+                                    <td>{update.Product_ID}</td>
+                                    <td>{update.Product_Name}</td>
+                                    <td>{update.Simulasi_ID}</td>
+                                    <td>{update.LOB}</td>
+                                    <td>{update.Versi}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="no-pending-updates">
+                  <Package size={64} />
+                  <h3>No Pending Updates</h3>
+                  <p>You don't have any pending price update simulations.</p>
+                  <button 
+                    className="action-btn"
+                    onClick={() => {
+                      setShowPendingUpdatesModal(false);
+                      handleUpdateHargaBahan();
+                    }}
+                  >
+                    Create New Update
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-actions">
+              <button 
+                className="modal-btn secondary" 
+                onClick={() => setShowPendingUpdatesModal(false)}
+              >
+                Close
+              </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Affected Products Modal for Price Updates */}
+        <AffectedProductsModal
+          isOpen={showAffectedModal}
+          onClose={handleCloseAffectedModal}
+          priceChangeDescription={selectedUpdateDescription}
+          priceChangeDate={selectedUpdateDate}
+          priceUpdateMode={true}
+        />
     </div>
   );
 };
