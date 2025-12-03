@@ -281,6 +281,59 @@ export default function HPPSimulation() {
   const [materialSearchQuery, setMaterialSearchQuery] = useState("");
   const [randomMaterialSample, setRandomMaterialSample] = useState([]); // Stable random sample
 
+  // Custom material input modal states
+  const [showCustomMaterialModal, setShowCustomMaterialModal] = useState(false);
+  const [customMaterialData, setCustomMaterialData] = useState({
+    name: '',
+    purchasePrice: '',
+    purchaseUnit: '',
+    usageUnit: '',
+    conversionRate: '',
+  });
+
+  // Standard unit conversions (from purchase unit to usage unit)
+  const unitConversions = {
+    // Weight conversions
+    'KG-G': 1000,
+    'KG-MG': 1000000,
+    'G-MG': 1000,
+    'G-KG': 0.001,
+    'MG-G': 0.001,
+    'MG-KG': 0.000001,
+    // Volume conversions
+    'L-ML': 1000,
+    'L-CC': 1000,
+    'ML-L': 0.001,
+    'CC-L': 0.001,
+    'CC-ML': 1,
+    'ML-CC': 1,
+    // Same unit
+    'KG-KG': 1,
+    'G-G': 1,
+    'MG-MG': 1,
+    'L-L': 1,
+    'ML-ML': 1,
+    'CC-CC': 1,
+    'PCS-PCS': 1,
+    'BTL-BTL': 1,
+    'TAB-TAB': 1,
+    'CAP-CAP': 1,
+  };
+
+  // Available units for selection
+  const availableUnits = [
+    { value: 'KG', label: 'Kilogram (KG)' },
+    { value: 'G', label: 'Gram (G)' },
+    { value: 'MG', label: 'Miligram (MG)' },
+    { value: 'L', label: 'Liter (L)' },
+    { value: 'ML', label: 'Mililiter (ML)' },
+    { value: 'CC', label: 'Cubic Centimeter (CC)' },
+    { value: 'PCS', label: 'Pieces (PCS)' },
+    { value: 'BTL', label: 'Bottle (BTL)' },
+    { value: 'TAB', label: 'Tablet (TAB)' },
+    { value: 'CAP', label: 'Capsule (CAP)' },
+  ];
+
   // Fetch material names for a group and cache the result (using cached materials)
   const fetchMaterialNamesForGroup = (groupKey, description, materialsData = allMaterials) => {
     try {
@@ -2795,33 +2848,105 @@ export default function HPPSimulation() {
     setShowAddMaterialModal(false);
   };
 
-  // Add custom material function
+  // Add custom material function - now opens the custom material input modal
   const addCustomMaterial = () => {
-    const nextSeqId =
-      Math.max(...editableMaterialData.map((m) => m.Seq_ID || 0)) + 1;
+    // Reset custom material data and open the input modal
+    setCustomMaterialData({
+      name: '',
+      purchasePrice: '',
+      purchaseUnit: '',
+      usageUnit: '',
+      conversionRate: '',
+    });
+    setShowCustomMaterialModal(true);
+  };
+
+  // Handle custom material input field changes
+  const handleCustomMaterialInputChange = (field, value) => {
+    setCustomMaterialData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Auto-calculate conversion rate when both units are selected
+      if (field === 'purchaseUnit' || field === 'usageUnit') {
+        const purchaseUnit = field === 'purchaseUnit' ? value : prev.purchaseUnit;
+        const usageUnit = field === 'usageUnit' ? value : prev.usageUnit;
+        
+        if (purchaseUnit && usageUnit) {
+          const conversionKey = `${purchaseUnit}-${usageUnit}`;
+          const autoConversion = unitConversions[conversionKey];
+          if (autoConversion !== undefined) {
+            newData.conversionRate = autoConversion.toString();
+          } else {
+            // Clear conversion rate if no standard conversion exists
+            newData.conversionRate = '';
+          }
+        }
+      }
+      
+      return newData;
+    });
+  };
+
+  // Confirm and add the custom material with calculated unit price
+  const handleConfirmCustomMaterial = () => {
+    const { name, purchasePrice, purchaseUnit, usageUnit, conversionRate } = customMaterialData;
+    
+    // Validation
+    if (!name.trim()) {
+      notifier.warning('Please enter the material name');
+      return;
+    }
+    if (!purchasePrice || parseFloat(purchasePrice) <= 0) {
+      notifier.warning('Please enter a valid purchase price');
+      return;
+    }
+    if (!purchaseUnit) {
+      notifier.warning('Please select the purchase unit');
+      return;
+    }
+    if (!usageUnit) {
+      notifier.warning('Please select the usage unit');
+      return;
+    }
+    if (!conversionRate || parseFloat(conversionRate) <= 0) {
+      notifier.warning('Please enter a valid conversion rate');
+      return;
+    }
+    
+    // Calculate unit price based on purchase price and conversion rate
+    // Unit Price (per usage unit) = Purchase Price / Conversion Rate
+    const purchasePriceNum = parseFloat(purchasePrice);
+    const conversionRateNum = parseFloat(conversionRate);
+    const unitPrice = purchasePriceNum / conversionRateNum;
+    
+    const nextSeqId = Math.max(...editableMaterialData.map((m) => m.Seq_ID || 0)) + 1;
     const customMaterial = {
-      Periode:
-        simulationResults[0].Periode || new Date().getFullYear().toString(),
+      Periode: simulationResults[0].Periode || new Date().getFullYear().toString(),
       Simulasi_ID: simulationResults[0].Simulasi_ID,
       Seq_ID: nextSeqId,
       Tipe_Bahan: addMaterialType,
       Item_ID: "CUSTOM",
-      Item_Name: "", // This will be editable
-      Item_QTY: 0, // This will be editable
-      Item_Unit: "", // This will be editable
-      Item_Unit_Price: 0, // This will be editable
-      isCustom: true, // Flag to identify custom materials
+      Item_Name: name.trim(),
+      Item_QTY: 0, // User will set this in the table
+      Item_Unit: usageUnit,
+      Item_Unit_Price: unitPrice,
+      isCustom: true,
+      // Store purchase info for reference
+      purchasePrice: purchasePriceNum,
+      purchaseUnit: purchaseUnit,
+      conversionRate: conversionRateNum,
     };
 
     setEditableMaterialData([...editableMaterialData, customMaterial]);
+    setShowCustomMaterialModal(false);
     setShowAddMaterialModal(false);
 
     notifier.success(
-      "Custom material added. You can now edit its details in the table."
+      `Custom material "${name}" added with unit price ${unitPrice.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} per ${usageUnit}. Set the quantity in the table.`
     );
   };
 
-  // Handle custom material field updates
+  // Handle custom material field updates (for inline editing in table)
   const handleCustomMaterialFieldChange = (materialIndex, field, value) => {
     const updatedMaterials = [...editableMaterialData];
     updatedMaterials[materialIndex] = {
@@ -7174,6 +7299,157 @@ export default function HPPSimulation() {
                   Create a custom material with your own specifications
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Material Input Modal */}
+      {showCustomMaterialModal && (
+        <div className="modal-overlay custom-material-modal-overlay">
+          <div className="custom-material-input-modal">
+            <div className="custom-material-modal-header">
+              <h3>Add Custom {addMaterialType === "BB" ? "Bahan Baku" : "Bahan Kemas"}</h3>
+              <button
+                className="modal-close-btn"
+                onClick={() => setShowCustomMaterialModal(false)}
+                type="button"
+              >
+                ×
+              </button>
+            </div>
+            <div className="custom-material-modal-content">
+              <div className="custom-material-form">
+                {/* Material Name */}
+                <div className="form-group">
+                  <label htmlFor="customMaterialName">Nama Material <span className="required">*</span></label>
+                  <input
+                    type="text"
+                    id="customMaterialName"
+                    placeholder="Contoh: Material A"
+                    value={customMaterialData.name}
+                    onChange={(e) => handleCustomMaterialInputChange('name', e.target.value)}
+                    className="form-input"
+                  />
+                </div>
+
+                {/* Purchase Price */}
+                <div className="form-group">
+                  <label htmlFor="purchasePrice">Harga Pembelian (Rp) <span className="required">*</span></label>
+                  <input
+                    type="number"
+                    id="purchasePrice"
+                    placeholder="Contoh: 10000"
+                    value={customMaterialData.purchasePrice}
+                    onChange={(e) => handleCustomMaterialInputChange('purchasePrice', e.target.value)}
+                    className="form-input"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+
+                {/* Unit Selection Row */}
+                <div className="unit-selection-row">
+                  {/* Purchase Unit */}
+                  <div className="form-group">
+                    <label htmlFor="purchaseUnit">Unit Pembelian <span className="required">*</span></label>
+                    <select
+                      id="purchaseUnit"
+                      value={customMaterialData.purchaseUnit}
+                      onChange={(e) => handleCustomMaterialInputChange('purchaseUnit', e.target.value)}
+                      className="form-select"
+                    >
+                      <option value="">Pilih Unit...</option>
+                      {availableUnits.map(unit => (
+                        <option key={unit.value} value={unit.value}>{unit.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Arrow Icon */}
+                  <div className="unit-arrow">
+                    <ChevronRight size={24} />
+                  </div>
+
+                  {/* Usage Unit */}
+                  <div className="form-group">
+                    <label htmlFor="usageUnit">Unit Penggunaan <span className="required">*</span></label>
+                    <select
+                      id="usageUnit"
+                      value={customMaterialData.usageUnit}
+                      onChange={(e) => handleCustomMaterialInputChange('usageUnit', e.target.value)}
+                      className="form-select"
+                    >
+                      <option value="">Pilih Unit...</option>
+                      {availableUnits.map(unit => (
+                        <option key={unit.value} value={unit.value}>{unit.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Conversion Rate */}
+                <div className="form-group">
+                  <label htmlFor="conversionRate">
+                    Konversi (1 {customMaterialData.purchaseUnit || 'Unit Pembelian'} = ? {customMaterialData.usageUnit || 'Unit Penggunaan'}) <span className="required">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    id="conversionRate"
+                    placeholder={
+                      customMaterialData.purchaseUnit && customMaterialData.usageUnit
+                        ? unitConversions[`${customMaterialData.purchaseUnit}-${customMaterialData.usageUnit}`]
+                          ? `Auto: ${unitConversions[`${customMaterialData.purchaseUnit}-${customMaterialData.usageUnit}`]}`
+                          : "Masukkan nilai konversi"
+                        : "Pilih unit terlebih dahulu"
+                    }
+                    value={customMaterialData.conversionRate}
+                    onChange={(e) => handleCustomMaterialInputChange('conversionRate', e.target.value)}
+                    className="form-input"
+                    min="0"
+                    step="0.0001"
+                  />
+                  {customMaterialData.purchaseUnit && customMaterialData.usageUnit && !unitConversions[`${customMaterialData.purchaseUnit}-${customMaterialData.usageUnit}`] && (
+                    <p className="conversion-hint warning">
+                      ⚠️ Tidak ada konversi standar untuk {customMaterialData.purchaseUnit} → {customMaterialData.usageUnit}. Silakan masukkan nilai konversi manual.
+                    </p>
+                  )}
+                  {customMaterialData.purchaseUnit && customMaterialData.usageUnit && unitConversions[`${customMaterialData.purchaseUnit}-${customMaterialData.usageUnit}`] && (
+                    <p className="conversion-hint success">
+                      ✓ Konversi standar: 1 {customMaterialData.purchaseUnit} = {unitConversions[`${customMaterialData.purchaseUnit}-${customMaterialData.usageUnit}`]} {customMaterialData.usageUnit}
+                    </p>
+                  )}
+                </div>
+
+                {/* Calculated Unit Price Preview */}
+                {customMaterialData.purchasePrice && customMaterialData.conversionRate && parseFloat(customMaterialData.conversionRate) > 0 && (
+                  <div className="calculated-price-preview">
+                    <div className="preview-label">Harga per Unit Penggunaan:</div>
+                    <div className="preview-value">
+                      Rp {(parseFloat(customMaterialData.purchasePrice) / parseFloat(customMaterialData.conversionRate)).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} / {customMaterialData.usageUnit || 'unit'}
+                    </div>
+                    <div className="preview-formula">
+                      ({formatNumber(parseFloat(customMaterialData.purchasePrice), 0)} ÷ {customMaterialData.conversionRate} = {(parseFloat(customMaterialData.purchasePrice) / parseFloat(customMaterialData.conversionRate)).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="custom-material-modal-actions">
+              <button
+                className="cancel-btn"
+                onClick={() => setShowCustomMaterialModal(false)}
+                type="button"
+              >
+                Batal
+              </button>
+              <button
+                className="confirm-btn"
+                onClick={handleConfirmCustomMaterial}
+                type="button"
+              >
+                Tambah Material
+              </button>
             </div>
           </div>
         </div>
