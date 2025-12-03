@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { masterAPI } from '../services/api';
+import { masterAPI, productsAPI } from '../services/api';
 import { Edit, Trash2 } from 'lucide-react';
 import AddExpiredMaterialModal from '../components/AddExpiredMaterialModal';
 import EditExpiredMaterialModal from '../components/EditExpiredMaterialModal';
@@ -63,6 +63,22 @@ const ExpiryCost = () => {
   const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear().toString());
 
   const currentYear = new Date().getFullYear().toString();
+
+  // Fetch default year on component mount
+  useEffect(() => {
+    const fetchDefaultYear = async () => {
+      try {
+        const response = await productsAPI.getDefaultYear();
+        if (response.success && response.data?.defaultYear) {
+          setSelectedPeriode(response.data.defaultYear);
+        }
+      } catch (error) {
+        console.error('Failed to fetch default year:', error);
+      }
+    };
+
+    fetchDefaultYear();
+  }, []);
 
   useEffect(() => {
     loadData();

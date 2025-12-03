@@ -17,7 +17,7 @@ export default function Sidebar({ user }) {
             <img src="./LAPILOGO_White.png" alt="LAPI Logo" className="logo-image" />
           </div>
           <div className="sidebar-header">
-            <div className="sidebar-site-title">e-Sistem Biaya Manufaktur</div>
+            <div className="sidebar-site-title">Harga Pokok Penjualan</div>
           </div>
         </div>
         {/* Scrollable Menu Section */}

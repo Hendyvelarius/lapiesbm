@@ -370,6 +370,27 @@ class ProductController {
       });
     }
   }
+
+  // Get default year based on lock status
+  static async getDefaultYear(req, res) {
+    try {
+      const defaultYear = await productModel.getDefaultYear();
+      
+      res.status(200).json({
+        success: true,
+        data: {
+          defaultYear: defaultYear
+        }
+      });
+    } catch (error) {
+      console.error('Error getting default year:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error getting default year',
+        error: error.message
+      });
+    }
+  }
 }
 
 module.exports = ProductController;

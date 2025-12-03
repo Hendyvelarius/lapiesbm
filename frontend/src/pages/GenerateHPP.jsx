@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { productsAPI } from '../services/api';
 import '../styles/GenerateHPP.css';
 import { CheckCircle, Calculator, Eye, AlertTriangle, Clock, ChevronRight } from 'lucide-react';
 import ValidationModal from '../components/ValidationModal';
@@ -51,6 +52,22 @@ export default function GenerateHPP() {
   const [showOverwriteModal, setShowOverwriteModal] = useState(false);
 
   const currentYear = new Date().getFullYear().toString();
+
+  // Fetch default year on component mount
+  useEffect(() => {
+    const fetchDefaultYear = async () => {
+      try {
+        const response = await productsAPI.getDefaultYear();
+        if (response.success && response.data?.defaultYear) {
+          setSelectedYear(parseInt(response.data.defaultYear));
+        }
+      } catch (error) {
+        console.error('Failed to fetch default year:', error);
+      }
+    };
+
+    fetchDefaultYear();
+  }, []);
 
   // Generate year options (current year ± 3 years = 7 years total)
   const generateYearOptions = () => {

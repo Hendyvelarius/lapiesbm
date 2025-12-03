@@ -4,7 +4,7 @@ import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import * as XLSX from 'xlsx';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { reagenAPI, masterAPI } from '../services/api';
+import { reagenAPI, masterAPI, productsAPI } from '../services/api';
 import '../styles/Reagen.css';
 
 // Initialize awesome-notifications
@@ -57,6 +57,22 @@ const Reagen = ({ user }) => {
   // Sorting states
   const [sortField, setSortField] = useState('productId');
   const [sortDirection, setSortDirection] = useState('asc');
+
+  // Fetch default year on component mount
+  useEffect(() => {
+    const fetchDefaultYear = async () => {
+      try {
+        const response = await productsAPI.getDefaultYear();
+        if (response.success && response.data?.defaultYear) {
+          setSelectedPeriode(response.data.defaultYear);
+        }
+      } catch (error) {
+        console.error('Failed to fetch default year:', error);
+      }
+    };
+
+    fetchDefaultYear();
+  }, []);
 
   // Filter products for dropdown (limit results to 50 for performance)
   useEffect(() => {

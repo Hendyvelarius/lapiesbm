@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import api from '../services/api';
+import api, { productsAPI } from '../services/api';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import * as XLSX from 'xlsx';
@@ -99,6 +99,25 @@ const FormulaAssignment = ({ user }) => {
   // Import-related states
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState(null);
+
+  // Fetch default year on component mount
+  useEffect(() => {
+    const fetchDefaultYear = async () => {
+      try {
+        const response = await productsAPI.getDefaultYear();
+        if (response.success && response.data?.defaultYear) {
+          const defaultYear = response.data.defaultYear;
+          setSelectedYear(defaultYear);
+          setImportYear(defaultYear);
+          setAddYear(defaultYear);
+        }
+      } catch (error) {
+        console.error('Failed to fetch default year:', error);
+      }
+    };
+
+    fetchDefaultYear();
+  }, []);
   const [importData, setImportData] = useState([]);
   const [validationResults, setValidationResults] = useState(null);
   const [availableFormulas, setAvailableFormulas] = useState([]);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { masterAPI } from '../services/api';
+import { masterAPI, productsAPI } from '../services/api';
 import '../styles/ProductGroup.css';
 import { Search, Filter, Edit, Trash2, Users, ChevronLeft, ChevronRight, X, Check, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, Download, Upload } from 'lucide-react';
 import AWN from 'awesome-notifications';
@@ -60,6 +60,24 @@ const ProductGroup = () => {
   // Dropdown options
   const [categoryOptions, setCategoryOptions] = useState([]);
   const [deptOptions, setDeptOptions] = useState([]);
+
+  // Fetch default year on component mount
+  useEffect(() => {
+    const fetchDefaultYear = async () => {
+      try {
+        const response = await productsAPI.getDefaultYear();
+        if (response.success && response.data?.defaultYear) {
+          setSelectedPeriode(parseInt(response.data.defaultYear));
+          setSelectedYear(response.data.defaultYear);
+        }
+      } catch (error) {
+        console.error('Failed to fetch default year:', error);
+        // Keep current year as fallback if API fails
+      }
+    };
+
+    fetchDefaultYear();
+  }, []);
 
   useEffect(() => {
     fetchAllData();
@@ -838,72 +856,83 @@ const ProductGroup = () => {
   return (
     <div className={`product-group-container ${viewMode.toLowerCase()}-mode ${hasModeSwitched ? 'mode-switched' : ''}`}>
       <div className="controls-section">
-        <div className="search-box">
-          <Search size={20} />
-          <input
-            type="text"
-            placeholder="Search products..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        
-        <div className="year-filter">
-          <select 
-            value={selectedPeriode}
-            onChange={(e) => setSelectedPeriode(parseInt(e.target.value))}
-            className="year-selector"
-          >
-            {getAvailableYears().map(year => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
-        </div>
-        
-        <div className="view-mode-toggle">
-          <div className={`mode-indicator ${viewMode.toLowerCase()}-mode ${hasModeSwitched ? 'animated' : ''}`}>
-            <span>{viewMode} Mode</span>
+        {/* Row 1: Search, Year, Mode Toggle */}
+        <div className="controls-row controls-row-top">
+          <div className="controls-left">
+            <div className="search-box">
+              <Search size={20} />
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            
+            <div className="year-filter">
+              <select 
+                value={selectedPeriode}
+                onChange={(e) => setSelectedPeriode(parseInt(e.target.value))}
+                className="year-selector"
+              >
+                {getAvailableYears().map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
           </div>
-          <button 
-            className={`toggle-btn ${viewMode.toLowerCase()}-mode`}
-            onClick={handleModeSwitch}
-            title={`Switch to ${viewMode === 'Standard' ? 'Generik' : 'Standard'} mode`}
-          >
-            {viewMode === 'Standard' ? <ToggleLeft size={20} /> : <ToggleRight size={20} />}
-            <span>Switch to {viewMode === 'Standard' ? 'Generik' : 'Standard'}</span>
-          </button>
-          <button 
-            className="export-btn"
-            onClick={handleExportAll}
-            disabled={submitLoading}
-            title="Export all product group data to CSV"
-          >
-            <Download size={20} />
-            <span>Export</span>
-          </button>
-          <button 
-            className="import-btn"
-            onClick={handleImportAllClick}
-            disabled={submitLoading}
-            title="Import all product group data from Excel"
-          >
-            <Upload size={20} />
-            <span>Import</span>
-          </button>
+          
+          <div className="controls-right">
+            <div className={`mode-indicator ${viewMode.toLowerCase()}-mode ${hasModeSwitched ? 'animated' : ''}`}>
+              <span>{viewMode.toUpperCase()} MODE</span>
+            </div>
+            <button 
+              className={`toggle-btn ${viewMode.toLowerCase()}-mode`}
+              onClick={handleModeSwitch}
+              title={`Switch to ${viewMode === 'Standard' ? 'Generik' : 'Standard'} mode`}
+            >
+              {viewMode === 'Standard' ? <ToggleLeft size={20} /> : <ToggleRight size={20} />}
+              <span>Switch to {viewMode === 'Standard' ? 'Generik' : 'Standard'}</span>
+            </button>
+          </div>
         </div>
         
-        <div className="filter-controls">
-          <div className="category-filter">
-            <Filter size={18} />
-            <select 
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              title={selectedCategory} // Show full text on hover
+        {/* Row 2: Category Filter + Export/Import */}
+        <div className="controls-row controls-row-bottom">
+          <div className="filter-controls">
+            <div className="category-filter">
+              <Filter size={18} />
+              <select 
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                title={selectedCategory}
+              >
+                {getCategories().map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          <div className="action-buttons">
+            <button 
+              className="export-btn"
+              onClick={handleExportAll}
+              disabled={submitLoading}
+              title="Export all product group data to CSV"
             >
-              {getCategories().map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
+              <Download size={20} />
+              <span>Export</span>
+            </button>
+            <button 
+              className="import-btn"
+              onClick={handleImportAllClick}
+              disabled={submitLoading}
+              title="Import all product group data from Excel"
+            >
+              <Upload size={20} />
+              <span>Import</span>
+            </button>
           </div>
         </div>
       </div>

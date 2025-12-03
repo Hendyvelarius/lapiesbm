@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { masterAPI } from '../services/api';
+import { masterAPI, productsAPI } from '../services/api';
 import '../styles/Pembebanan.css';
 import { Search, Filter, Users, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, Edit, Trash2, X, Check, Download, Upload } from 'lucide-react';
 import AWN from 'awesome-notifications';
@@ -71,6 +71,24 @@ const Pembebanan = () => {
   const [availableGroups, setAvailableGroups] = useState([]);
   const [availableProducts, setAvailableProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
+
+  // Fetch default year on component mount
+  useEffect(() => {
+    const fetchDefaultYear = async () => {
+      try {
+        const response = await productsAPI.getDefaultYear();
+        if (response.success && response.data?.defaultYear) {
+          const defaultYear = response.data.defaultYear;
+          setSelectedPeriode(defaultYear);
+          setImportPeriode(defaultYear);
+        }
+      } catch (error) {
+        console.error('Failed to fetch default year:', error);
+      }
+    };
+
+    fetchDefaultYear();
+  }, []);
 
   // Fetch all data
   const fetchAllData = async () => {

@@ -30,6 +30,7 @@ router.post('/generate-hpp/:productId', ProductController.generateHPP);
 // Chosen formula CRUD operations
 router.get('/chosenformula', ProductController.getChosenFormula);
 router.get('/available-years', ProductController.getAvailableYears);
+router.get('/default-year', ProductController.getDefaultYear);
 router.post('/chosenformula', ProductController.addChosenFormula);
 router.put('/chosenformula/:productId', ProductController.updateChosenFormula);
 router.delete('/chosenformula/:productId', ProductController.deleteChosenFormula);

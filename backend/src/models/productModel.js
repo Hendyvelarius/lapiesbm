@@ -522,6 +522,51 @@ async function lockProduct(productId, periode, isLock) {
     }
 }
 
+// Get default year based on lock status
+// Returns the oldest year that has at least one unlocked product
+// If all years are fully locked or unlocked, returns the latest year
+async function getDefaultYear() {
+    try {
+        const pool = await connect();
+        
+        // Get all distinct periods with their lock statistics
+        const query = `
+            SELECT 
+                Periode,
+                COUNT(*) as TotalProducts,
+                SUM(CASE WHEN isLock = 1 THEN 1 ELSE 0 END) as LockedProducts,
+                SUM(CASE WHEN isLock = 0 OR isLock IS NULL THEN 1 ELSE 0 END) as UnlockedProducts
+            FROM M_COGS_PRODUCT_FORMULA_FIX
+            GROUP BY Periode
+            ORDER BY Periode ASC
+        `;
+        
+        const result = await pool.request().query(query);
+        const periodeStats = result.recordset;
+        
+        if (periodeStats.length === 0) {
+            // No formula assignments exist, return current year
+            return new Date().getFullYear().toString();
+        }
+        
+        // Find the oldest year that has at least one unlocked product
+        const oldestUnlockedYear = periodeStats.find(stat => stat.UnlockedProducts > 0);
+        
+        if (oldestUnlockedYear) {
+            // Found a year with unlocked products
+            return oldestUnlockedYear.Periode;
+        }
+        
+        // All years are fully locked, return the latest year
+        const latestYear = periodeStats[periodeStats.length - 1];
+        return latestYear.Periode;
+        
+    } catch (error) {
+        console.error('Error getting default year:', error);
+        throw error;
+    }
+}
+
 module.exports = {
     getFormula,
     getChosenFormula,
@@ -539,5 +584,6 @@ module.exports = {
     bulkImportFormulas,
     generateHPP,
     lockYear,
-    lockProduct
+    lockProduct,
+    getDefaultYear
 };

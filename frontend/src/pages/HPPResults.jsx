@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Download, FileText, Loader2, ChevronLeft, ChevronRight, Search, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import * as XLSX from 'xlsx';
-import { hppAPI, masterAPI } from '../services/api';
+import { hppAPI, masterAPI, productsAPI } from '../services/api';
 import ProductHPPReport from '../components/ProductHPPReport';
 import '../styles/HPPResults.css';
 
@@ -383,6 +383,22 @@ const HPPResults = () => {
     generik1: '',
     generik2: ''
   });
+
+  // Fetch default year on component mount
+  useEffect(() => {
+    const fetchDefaultYear = async () => {
+      try {
+        const response = await productsAPI.getDefaultYear();
+        if (response.success && response.data?.defaultYear) {
+          setSelectedYear(parseInt(response.data.defaultYear));
+        }
+      } catch (error) {
+        console.error('Failed to fetch default year:', error);
+      }
+    };
+
+    fetchDefaultYear();
+  }, []);
 
   useEffect(() => {
     fetchHPPResults();

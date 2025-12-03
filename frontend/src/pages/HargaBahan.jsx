@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { masterAPI, hppAPI } from '../services/api';
+import { masterAPI, hppAPI, productsAPI } from '../services/api';
 import { getCurrentUser } from '../utils/auth';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
@@ -87,6 +87,27 @@ const HargaBahan = () => {
   const [showAffectedModal, setShowAffectedModal] = useState(false);
   const [selectedUpdateDescription, setSelectedUpdateDescription] = useState('');
   const [selectedUpdateDate, setSelectedUpdateDate] = useState('');
+
+  // Fetch default year on component mount
+  useEffect(() => {
+    const fetchDefaultYear = async () => {
+      try {
+        const response = await productsAPI.getDefaultYear();
+        if (response.success && response.data?.defaultYear) {
+          const defaultYear = response.data.defaultYear;
+          setSelectedPeriode(defaultYear);
+          setUpdatePeriode(defaultYear);
+          setImportPeriode(defaultYear);
+          setExportPeriode(defaultYear);
+        }
+      } catch (error) {
+        console.error('Failed to fetch default year:', error);
+        // Keep current year as fallback if API fails
+      }
+    };
+
+    fetchDefaultYear();
+  }, []);
 
 
   // Memoized filtered results (more performant than useEffect)

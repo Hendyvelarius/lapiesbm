@@ -4,7 +4,7 @@ import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import * as XLSX from 'xlsx';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { tollFeeAPI, masterAPI } from '../services/api';
+import { tollFeeAPI, masterAPI, productsAPI } from '../services/api';
 import '../styles/TollFee.css';
 
 // Initialize awesome-notifications
@@ -59,6 +59,22 @@ const TollFee = ({ user }) => {
   // Sorting states
   const [sortField, setSortField] = useState('productId');
   const [sortDirection, setSortDirection] = useState('asc');
+
+  // Fetch default year on component mount
+  useEffect(() => {
+    const fetchDefaultYear = async () => {
+      try {
+        const response = await productsAPI.getDefaultYear();
+        if (response.success && response.data?.defaultYear) {
+          setSelectedPeriode(response.data.defaultYear);
+        }
+      } catch (error) {
+        console.error('Failed to fetch default year:', error);
+      }
+    };
+
+    fetchDefaultYear();
+  }, []);
 
   // Mock data for demonstration
   const mockTollFeeData = [

@@ -77,6 +77,9 @@ export const productsAPI = {
   // Get available years from formula assignments
   getAvailableYears: () => apiRequest('/products/available-years'),
   
+  // Get default year based on lock status
+  getDefaultYear: () => apiRequest('/products/default-year'),
+  
   // Add chosen formula
   addChosenFormula: (data) => apiRequest('/products/chosenformula', {
     method: 'POST',
