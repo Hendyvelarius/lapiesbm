@@ -82,11 +82,31 @@ const HargaBahan = () => {
   const [pendingUpdates, setPendingUpdates] = useState([]);
   const [loadingPendingUpdates, setLoadingPendingUpdates] = useState(false);
   const [expandedUpdateGroups, setExpandedUpdateGroups] = useState(new Set());
+  const [confirmingUpdate, setConfirmingUpdate] = useState(null); // Track which group is being confirmed
+  const [confirmingAll, setConfirmingAll] = useState(false); // Track if confirming all updates
   
   // Affected Products Modal states
   const [showAffectedModal, setShowAffectedModal] = useState(false);
   const [selectedUpdateDescription, setSelectedUpdateDescription] = useState('');
   const [selectedUpdateDate, setSelectedUpdateDate] = useState('');
+
+  // Check if user can confirm price updates (PL department with PL job level, or NT department)
+  const canConfirmPriceUpdate = () => {
+    const currentUser = getCurrentUser();
+    if (!currentUser) return false;
+    
+    // PL department with PL job level
+    if (currentUser.empDeptID === 'PL' && currentUser.empJobLevelID === 'PL') {
+      return true;
+    }
+    
+    // NT department (temporary access)
+    if (currentUser.empDeptID === 'NT') {
+      return true;
+    }
+    
+    return false;
+  };
 
   // Fetch default year on component mount
   useEffect(() => {
@@ -515,6 +535,182 @@ const HargaBahan = () => {
     } catch (error) {
       console.error('Error deleting update group:', error);
       notifier.alert('Failed to delete update group: ' + error.message);
+    }
+  };
+
+  // Parse description to extract material price changes
+  // Format: "Price Update : IN 009: 24.2 -> 30; IN 010: 28.6 -> 31; "
+  // Returns: "IN 009:30#IN 010:31"
+  const parseDescriptionForCommit = (description) => {
+    try {
+      // Remove "Price Update : " prefix
+      const content = description.replace(/^Price Update\s*:\s*/i, '');
+      
+      // Split by semicolon and filter empty entries
+      const entries = content.split(';').filter(e => e.trim());
+      
+      // Parse each entry: "IN 009: 24.2 -> 30" => "IN 009:30"
+      const parsed = entries.map(entry => {
+        const trimmed = entry.trim();
+        // Match pattern: "ITEM_ID: oldPrice -> newPrice"
+        const match = trimmed.match(/^(.+?):\s*[\d.,]+\s*->\s*([\d.,]+)\s*$/);
+        if (match) {
+          const itemId = match[1].trim();
+          const newPrice = match[2].trim();
+          return `${itemId}:${newPrice}`;
+        }
+        return null;
+      }).filter(Boolean);
+      
+      return parsed.join('#');
+    } catch (error) {
+      console.error('Error parsing description:', error);
+      return null;
+    }
+  };
+
+  // Confirm a single price update group
+  const handleConfirmUpdateGroup = async (description, event) => {
+    if (event) event.stopPropagation();
+    
+    if (!canConfirmPriceUpdate()) {
+      notifier.warning('You do not have permission to confirm price updates');
+      return;
+    }
+    
+    const updates = groupedPendingUpdates[description];
+    if (!updates || updates.length === 0) {
+      notifier.alert('No updates found for this group');
+      return;
+    }
+    
+    const firstUpdate = updates[0];
+    const periode = firstUpdate?.Periode;
+    
+    if (!periode) {
+      notifier.alert('Could not determine the periode for this update');
+      return;
+    }
+    
+    // Parse the description to get the parameter string
+    const parameterString = parseDescriptionForCommit(description);
+    if (!parameterString) {
+      notifier.alert('Could not parse the price update description');
+      return;
+    }
+    
+    // Confirm with user
+    if (!confirm(`Are you sure you want to confirm this price update?\n\nGroup: ${description}\nPeriode: ${periode}\n\nThis will update ${updates.length} product(s) and apply the new material prices.`)) {
+      return;
+    }
+    
+    setConfirmingUpdate(description);
+    
+    try {
+      // Call the commit API
+      const result = await hppAPI.commitPriceUpdate(parameterString, periode);
+      
+      if (result.success) {
+        notifier.success(`Successfully confirmed price update for ${updates.length} product(s)`);
+        
+        // Delete the simulation records after successful commit
+        const updateIds = updates.map(u => u.Simulasi_ID);
+        for (const id of updateIds) {
+          await hppAPI.deleteSimulation(id);
+        }
+        
+        // Reload pending updates and main data
+        await loadPendingUpdates();
+        await fetchAllData();
+      } else {
+        notifier.alert('Failed to confirm price update: ' + (result.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error confirming price update:', error);
+      notifier.alert('Failed to confirm price update: ' + error.message);
+    } finally {
+      setConfirmingUpdate(null);
+    }
+  };
+
+  // Confirm all pending price updates
+  const handleConfirmAllUpdates = async () => {
+    if (!canConfirmPriceUpdate()) {
+      notifier.warning('You do not have permission to confirm price updates');
+      return;
+    }
+    
+    const groupDescriptions = Object.keys(groupedPendingUpdates);
+    if (groupDescriptions.length === 0) {
+      notifier.warning('No pending updates to confirm');
+      return;
+    }
+    
+    // Confirm with user
+    if (!confirm(`Are you sure you want to confirm ALL ${groupDescriptions.length} price update group(s)?\n\nThis will update ${pendingUpdates.length} product(s) total and apply all new material prices.\n\nThis action cannot be undone.`)) {
+      return;
+    }
+    
+    setConfirmingAll(true);
+    let successCount = 0;
+    let failCount = 0;
+    
+    try {
+      for (const description of groupDescriptions) {
+        const updates = groupedPendingUpdates[description];
+        const firstUpdate = updates[0];
+        const periode = firstUpdate?.Periode;
+        
+        if (!periode) {
+          console.error(`Skipping group "${description}" - no periode found`);
+          failCount++;
+          continue;
+        }
+        
+        const parameterString = parseDescriptionForCommit(description);
+        if (!parameterString) {
+          console.error(`Skipping group "${description}" - could not parse description`);
+          failCount++;
+          continue;
+        }
+        
+        try {
+          const result = await hppAPI.commitPriceUpdate(parameterString, periode);
+          
+          if (result.success) {
+            // Delete the simulation records after successful commit
+            const updateIds = updates.map(u => u.Simulasi_ID);
+            for (const id of updateIds) {
+              await hppAPI.deleteSimulation(id);
+            }
+            successCount++;
+          } else {
+            console.error(`Failed to confirm group "${description}":`, result.message);
+            failCount++;
+          }
+        } catch (groupError) {
+          console.error(`Error confirming group "${description}":`, groupError);
+          failCount++;
+        }
+      }
+      
+      if (successCount > 0 && failCount === 0) {
+        notifier.success(`Successfully confirmed all ${successCount} price update group(s)`);
+      } else if (successCount > 0 && failCount > 0) {
+        notifier.warning(`Confirmed ${successCount} group(s), but ${failCount} group(s) failed`);
+      } else {
+        notifier.alert(`Failed to confirm any price updates`);
+      }
+      
+      // Reload data
+      await loadPendingUpdates();
+      await fetchAllData();
+      
+    } catch (error) {
+      console.error('Error confirming all updates:', error);
+      notifier.alert('Failed to confirm updates: ' + error.message);
+    } finally {
+      setConfirmingAll(false);
     }
   };
 
@@ -3393,6 +3589,23 @@ const HargaBahan = () => {
                             </div>
                           </div>
                           <div className="update-group-actions" onClick={(e) => e.stopPropagation()}>
+                            {canConfirmPriceUpdate() && (
+                              <button
+                                className="confirm-update-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleConfirmUpdateGroup(description);
+                                }}
+                                disabled={confirmingUpdate === description}
+                                title="Confirm and apply this price update"
+                              >
+                                {confirmingUpdate === description ? (
+                                  <span className="loading-spinner-mini" />
+                                ) : (
+                                  <Check size={18} />
+                                )}
+                              </button>
+                            )}
                             <button
                               className="view-details-btn"
                               onClick={(e) => handleShowAffectedProducts(description, simulasiDate, e)}
@@ -3459,6 +3672,23 @@ const HargaBahan = () => {
             </div>
 
             <div className="modal-actions">
+              {canConfirmPriceUpdate() && Object.keys(groupedPendingUpdates).length > 0 && (
+                <button 
+                  className="modal-btn primary confirm-all-btn" 
+                  onClick={handleConfirmAllUpdates}
+                  disabled={confirmingAll}
+                >
+                  {confirmingAll ? (
+                    <>
+                      <span className="loading-spinner-mini" /> Confirming...
+                    </>
+                  ) : (
+                    <>
+                      <Check size={18} /> Confirm All
+                    </>
+                  )}
+                </button>
+              )}
               <button 
                 className="modal-btn secondary" 
                 onClick={() => setShowPendingUpdatesModal(false)}

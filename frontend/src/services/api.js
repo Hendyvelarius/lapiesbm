@@ -248,6 +248,12 @@ export const hppAPI = {
 
   // Get simulation summary with HNA and HPP ratio data
   getSimulationSummary: (simulasiId) => apiRequest(`/hpp/simulation/${simulasiId}/summary`),
+
+  // Commit price update - executes sp_generate_simulasi_cogs_price_update_commit
+  commitPriceUpdate: (materialPrices, periode) => apiRequest('/hpp/commit-price-update', {
+    method: 'POST',
+    body: JSON.stringify({ materialPrices, periode }),
+  }),
 };
 
 // Combined service for creating complete HPP records

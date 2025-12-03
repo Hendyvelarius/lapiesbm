@@ -61,6 +61,10 @@ router.post('/price-change-affected-products', HPPController.getPriceChangeAffec
 // Body: { description: "Price Update: ...", simulasiDate: "2025-09-24T00:27:38.087Z" }
 router.post('/price-update-affected-products', HPPController.getPriceUpdateAffectedProducts);
 
+// POST /api/hpp/commit-price-update - Commit price update to update material prices
+// Body: { materialPrices: "IN 009:30#IN 010:31", periode: "2026" }
+router.post('/commit-price-update', HPPController.commitPriceUpdate);
+
 // GET /api/hpp/simulation/:simulasiId/summary - Get simulation summary with HNA and HPP ratio
 router.get('/simulation/:simulasiId/summary', HPPController.getSimulationSummary);
 

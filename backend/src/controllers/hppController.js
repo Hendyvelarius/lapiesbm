@@ -1,4 +1,4 @@
-const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, deleteSimulation, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists } = require('../models/hppModel');
+const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, deleteSimulation, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, commitPriceUpdate } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
@@ -666,6 +666,55 @@ class HPPController {
       res.status(500).json({
         success: false,
         message: 'Error fetching simulation summary',
+        error: error.message
+      });
+    }
+  }
+
+  // Commit Price Update - execute stored procedure to apply price changes
+  static async commitPriceUpdate(req, res) {
+    try {
+      console.log('=== Commit Price Update Request ===');
+      console.log('Request body:', req.body);
+
+      const { materialPrices, periode } = req.body;
+
+      // Validate required parameters
+      if (!materialPrices) {
+        return res.status(400).json({
+          success: false,
+          message: 'materialPrices parameter is required. Format: "itemId:newPrice#itemId2:newPrice2"'
+        });
+      }
+
+      if (!periode) {
+        return res.status(400).json({
+          success: false,
+          message: 'periode parameter is required. Format: "YYYY"'
+        });
+      }
+
+      console.log('Material Prices:', materialPrices);
+      console.log('Periode:', periode);
+
+      // Call the model function to execute the stored procedure
+      const result = await commitPriceUpdate(materialPrices, periode);
+
+      console.log('=== Commit Price Update Success ===');
+      console.log('Result:', result);
+
+      res.status(200).json({
+        success: true,
+        message: 'Price update committed successfully',
+        data: result
+      });
+
+    } catch (error) {
+      console.error('=== Commit Price Update Error ===');
+      console.error('Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error committing price update',
         error: error.message
       });
     }

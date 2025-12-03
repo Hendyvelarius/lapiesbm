@@ -839,6 +839,45 @@ async function cloneSimulation(originalSimulasiId, cloneDescription) {
   }
 }
 
+// Commit price update - execute sp_generate_simulasi_cogs_price_update_commit
+async function commitPriceUpdate(parameterString, periode) {
+  try {
+    console.log("=== Commit Price Update Debug ===");
+    console.log("Parameter string:", parameterString);
+    console.log("Periode:", periode);
+
+    const db = await connect();
+
+    // Execute the stored procedure to commit price update
+    const directQuery = `exec sp_generate_simulasi_cogs_price_update_commit '${parameterString}', '${periode}'`;
+    console.log("SQL:", directQuery);
+
+    const result = await db.request().query(directQuery);
+
+    console.log("SUCCESS! Price update committed");
+    console.log("Recordsets:", result.recordsets?.length || 0);
+    console.log("Rows affected:", result.rowsAffected);
+
+    return {
+      success: true,
+      recordsets: result.recordsets,
+      rowsAffected: result.rowsAffected,
+      returnValue: result.returnValue,
+    };
+  } catch (error) {
+    console.error("=== Commit Price Update Error Details ===");
+    console.error("Error message:", error.message);
+    console.error("Error number:", error.number);
+    console.error("Line number:", error.lineNumber);
+    console.error("Procedure name:", error.procName);
+    console.error("Parameter we sent:", parameterString);
+    console.error("Periode:", periode);
+    console.error('Expected format: materialId:newPrice#materialId2:newPrice2, YYYY');
+
+    throw error;
+  }
+}
+
 module.exports = {
   getHPP,
   generateHPPCalculation,
@@ -859,4 +898,5 @@ module.exports = {
   bulkDeletePriceChangeGroup,
   getSimulationSummary,
   checkHPPDataExists,
+  commitPriceUpdate,
 };
