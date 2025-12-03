@@ -1652,6 +1652,17 @@ export default function HPPSimulation() {
       // First, load the simulation in edit mode (this loads all necessary data)
       await handleEditSimulation(simulation);
       
+      // Fetch HPP Results data for Before/After comparison
+      const productId = simulation.Product_ID;
+      if (productId && simulation.Simulasi_Type !== "Custom Formula") {
+        await fetchHppResultsForProduct(productId);
+      } else {
+        setHppResultsData(null); // Custom formula has no "before" data
+      }
+      
+      // Set report page to After (page 2) by default
+      setReportPage(2);
+      
       // Wait a brief moment for the edit mode to fully load
       setTimeout(() => {
         // Automatically open the detailed report modal
@@ -6609,6 +6620,37 @@ export default function HPPSimulation() {
                           </strong>
                         </td>
                       </tr>
+                      {/* Show Margin + Rounded and Toll Fee for ETHICAL/OTC products with margin */}
+                      {(getCurrentLOB() === "ETHICAL" || getCurrentLOB() === "OTC") && calculateMarginValue() > 0 && (
+                        <tr className="final-total">
+                          <td>
+                            <strong>Margin + Rounded</strong>
+                          </td>
+                          <td colSpan="2"></td>
+                          <td>
+                            <strong>Toll Fee</strong>
+                          </td>
+                          <td className="number final">
+                            <strong>
+                              Rp{" "}
+                              {formatNumber(
+                                calculateMarginValue() / getActualBatchSize(),
+                                2
+                              )}
+                            </strong>
+                          </td>
+                          <td className="number final">
+                            <strong>
+                              Rp{" "}
+                              {formatNumber(
+                                (calculateGrandTotal() / getActualBatchSize()) + 
+                                (calculateMarginValue() / getActualBatchSize()),
+                                2
+                              )}
+                            </strong>
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
