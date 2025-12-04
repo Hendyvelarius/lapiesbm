@@ -98,13 +98,13 @@ const ExpiryCost = () => {
         setError('Failed to load expired materials: ' + expiredResponse.message);
       }
 
-      // Load master materials separately with better error handling
+      // Load master materials filtered by period with better error handling
       try {
-        const materialsResponse = await masterAPI.getMaterial();
+        const materialsResponse = await masterAPI.getMaterial(selectedPeriode);
         if (materialsResponse && materialsResponse.length > 0) {
           setMaterials(materialsResponse);
         } else {
-          console.warn('No master materials found');
+          console.warn('No master materials found for period:', selectedPeriode);
           setMaterials([]);
         }
       } catch (materialError) {

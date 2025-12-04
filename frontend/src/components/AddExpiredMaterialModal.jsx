@@ -45,11 +45,53 @@ const AddExpiredMaterialModal = ({ materials, onClose, onSave, currentYear }) =>
   const [materialSearch, setMaterialSearch] = useState('');
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
 
-  // Filter materials based on search
-  const filteredMaterials = materials.filter(material => 
-    material.ITEM_ID.toLowerCase().includes(materialSearch.toLowerCase()) ||
-    material.Item_Name.toLowerCase().includes(materialSearch.toLowerCase())
-  );
+  // Score material based on search relevance (lower is better)
+  const scoreMaterial = (material, searchTerm) => {
+    const search = searchTerm.toLowerCase().trim();
+    const itemId = (material.ITEM_ID || '').toLowerCase();
+    const itemName = (material.Item_Name || '').toLowerCase();
+    
+    // Exact match on ID - highest priority
+    if (itemId === search) return 0;
+    // Exact match on name - second highest
+    if (itemName === search) return 1;
+    // ID starts with search term
+    if (itemId.startsWith(search)) return 2;
+    // Name starts with search term
+    if (itemName.startsWith(search)) return 3;
+    // ID contains search term (word boundary match)
+    if (itemId.includes(' ' + search) || itemId.includes(search + ' ')) return 4;
+    // Name contains search term (word boundary match)
+    if (itemName.includes(' ' + search) || itemName.includes(search + ' ')) return 5;
+    // ID contains search term anywhere
+    if (itemId.includes(search)) return 6;
+    // Name contains search term anywhere
+    if (itemName.includes(search)) return 7;
+    // No match
+    return 999;
+  };
+
+  // Filter and sort materials based on search relevance
+  const filteredMaterials = React.useMemo(() => {
+    if (!materialSearch.trim()) {
+      // When no search, just return first items (lazy load)
+      return materials.slice(0, 10);
+    }
+    
+    const searchTerm = materialSearch.toLowerCase().trim();
+    
+    // Filter materials that match the search
+    const matched = materials.filter(material => {
+      const itemId = (material.ITEM_ID || '').toLowerCase();
+      const itemName = (material.Item_Name || '').toLowerCase();
+      return itemId.includes(searchTerm) || itemName.includes(searchTerm);
+    });
+    
+    // Sort by relevance score
+    matched.sort((a, b) => scoreMaterial(a, searchTerm) - scoreMaterial(b, searchTerm));
+    
+    return matched;
+  }, [materials, materialSearch]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -188,7 +230,7 @@ const AddExpiredMaterialModal = ({ materials, onClose, onSave, currentYear }) =>
                 />
                 {showMaterialDropdown && filteredMaterials.length > 0 && (
                   <div className="material-dropdown">
-                    {filteredMaterials.slice(0, 10).map((material) => (
+                    {filteredMaterials.slice(0, 15).map((material) => (
                       <div 
                         key={material.ITEM_ID} 
                         className="material-option"
@@ -199,9 +241,9 @@ const AddExpiredMaterialModal = ({ materials, onClose, onSave, currentYear }) =>
                         <div className="material-unit">{material.Item_Unit}</div>
                       </div>
                     ))}
-                    {filteredMaterials.length > 10 && (
+                    {filteredMaterials.length > 15 && (
                       <div className="material-more">
-                        ... {filteredMaterials.length - 10} more results. Type to filter.
+                        ... {filteredMaterials.length - 15} more results. Type to filter.
                       </div>
                     )}
                   </div>

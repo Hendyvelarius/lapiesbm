@@ -346,6 +346,20 @@ const HargaBahan = () => {
     });
   };
 
+  // Format datetime without timezone conversion (treats server date as local time)
+  const formatDateTimeLocal = (dateString) => {
+    if (!dateString) return '';
+    // Parse the date string manually to avoid timezone conversion
+    // SQL Server returns format like: "2025-12-04T10:30:00.000Z" or "2025-12-04 10:30:00"
+    const cleanDateStr = dateString.replace('T', ' ').replace('Z', '').split('.')[0];
+    const [datePart, timePart] = cleanDateStr.split(' ');
+    const [year, month, day] = datePart.split('-');
+    const [hour, minute] = (timePart || '00:00').split(':');
+    
+    // Format as DD/MM/YYYY HH:mm
+    return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year} ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
+  };
+
   const getUniqueCategories = () => {
     const categories = ['All Ingredients', ...new Set(materialData.map(item => item.itemType))];
     return categories;
@@ -3460,9 +3474,10 @@ const HargaBahan = () => {
                                     type="number"
                                     step="0.01"
                                     min="0"
-                                    value={material.newPrice}
+                                    value={material.newPrice === 0 || material.newPrice === '' ? '' : material.newPrice}
                                     onChange={(e) => {
-                                      const newPrice = parseFloat(e.target.value) || 0;
+                                      const value = e.target.value;
+                                      const newPrice = value === '' ? '' : parseFloat(value);
                                       setSelectedMaterialsForUpdate(prev =>
                                         prev.map(m =>
                                           m.pk_id === material.pk_id
@@ -3578,13 +3593,7 @@ const HargaBahan = () => {
                               <span className="update-count">{updates.length} product(s) affected</span>
                               <span className="update-periode">Periode: {periode}</span>
                               <span className="update-date">
-                                {new Date(firstUpdate.Simulasi_Date).toLocaleString('id-ID', {
-                                  year: 'numeric',
-                                  month: '2-digit',
-                                  day: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
+                                {formatDateTimeLocal(firstUpdate.Simulasi_Date)}
                               </span>
                             </div>
                           </div>

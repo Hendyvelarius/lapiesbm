@@ -446,8 +446,11 @@ export const masterAPI = {
     body: JSON.stringify({ pembebanانData, userId, periode }),
   }),
   
-  // Get material data
-  getMaterial: () => apiRequest('/master/material'),
+  // Get material data (optionally filtered by periode)
+  getMaterial: (periode = null) => {
+    const url = periode ? `/master/material?periode=${periode}` : '/master/material';
+    return apiRequest(url);
+  },
   
   // Get material usage data
   getMaterialUsage: () => apiRequest('/master/materialUsage'),

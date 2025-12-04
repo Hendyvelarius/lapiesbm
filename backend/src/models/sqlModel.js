@@ -1168,6 +1168,32 @@ async function getMaterial() {
   }
 }
 
+async function getMaterialByPeriode(periode) {
+  try {
+    const db = await connect();
+    let query = `
+      SELECT h.ITEM_ID, h.ITEM_TYPE, m.Item_Name, m.Item_Unit, 
+             dbo.fnConvertBJ(h.ITEM_ID, 1, h.item_purchase_unit, m.Item_Unit) * h.ITEM_PURCHASE_STD_PRICE AS Unit_Price 
+      FROM M_COGS_STD_HRG_BAHAN h 
+      INNER JOIN m_item_Manufacturing m ON h.ITEM_ID = m.Item_ID 
+      WHERE h.ITEM_ID NOT LIKE '(NONE)'
+    `;
+    
+    const request = db.request();
+    
+    if (periode) {
+      query += ' AND h.Periode = @periode';
+      request.input('periode', sql.VarChar(10), periode);
+    }
+    
+    const result = await request.query(query);
+    return result.recordset;
+  } catch (error) {
+    console.error('Error executing getMaterialByPeriode query:', error);
+    throw error;
+  }
+}
+
 async function getMaterialUsage() {
   try {
     const db = await connect();
@@ -1694,6 +1720,7 @@ module.exports = {
   bulkDeletePembebananByPeriode,
   bulkInsertPembebanan,
   getMaterial,
+  getMaterialByPeriode,
   getMaterialUsage,
   getMaterialUsageByYear,
   exportAllFormulaDetail,

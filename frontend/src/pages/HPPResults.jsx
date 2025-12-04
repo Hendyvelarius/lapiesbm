@@ -400,9 +400,10 @@ const HPPResults = () => {
     fetchDefaultYear();
   }, []);
 
+  // Fetch HPP results whenever selectedYear changes
   useEffect(() => {
-    fetchHPPResults();
-  }, []);
+    fetchHPPResults(selectedYear);
+  }, [selectedYear]);
 
   const fetchHPPResults = async (year = selectedYear) => {
     try {

@@ -2726,16 +2726,26 @@ export default function HPPSimulation() {
     const marginInput = editableOverheadData.Margin || 0;
     
     if (marginType === "percent") {
-      // Calculate margin as percentage of subtotal (materials + overhead)
+      // When margin is percent, calculate it based on HPP (per unit)
+      // This will be used for Toll Fee calculation: Margin + Rounded = (margin% × HPP) + Rounded
       const bahanBaku = editableMaterialData.length > 0 ? calculateTotalBahanBaku() : 0;
       const bahanKemas = editableMaterialData.length > 0 ? calculateTotalBahanKemas() : 0;
       const overhead = calculateTotalOverhead();
-      const subtotal = bahanBaku + bahanKemas + overhead;
-      return subtotal * (marginInput / 100);
+      const totalHPP = bahanBaku + bahanKemas + overhead;
+      const hppPerUnit = totalHPP / getActualBatchSize();
+      return hppPerUnit * (marginInput / 100);
     } else {
-      // Direct value
+      // Direct value - this is already a per-unit value
       return marginInput;
     }
+  };
+
+  // Get rounded value from simulation summary or hpp results data
+  const getRoundedValue = () => {
+    // Try to get rounded from various sources
+    const rounded = simulationSummary?.Rounded || simulationSummary?.rounded || 
+                    hppResultsData?.rounded || hppResultsData?.Rounded || 0;
+    return parseFloat(rounded) || 0;
   };
 
   const calculateGrandTotal = () => {
@@ -2744,8 +2754,9 @@ export default function HPPSimulation() {
     const bahanKemas =
       editableMaterialData.length > 0 ? calculateTotalBahanKemas() : 0;
     const overhead = calculateTotalOverhead();
-    const margin = calculateMarginValue();
-    return bahanBaku + bahanKemas + overhead + margin;
+    // Note: Margin is NOT included in Total HPP Estimasi
+    // Margin is applied separately in Toll Fee calculation
+    return bahanBaku + bahanKemas + overhead;
   };
 
   const calculateCostPerUnitWithRendemen = () => {
@@ -5417,12 +5428,12 @@ export default function HPPSimulation() {
                                 min="0"
                                 placeholder="0"
                               />
-                              <span className="formula-part">(Direct Value)</span>
+                              <span className="formula-part">(per unit)</span>
                             </>
                           )}
                         </div>
-                        <span className="overhead-value">
-                          Rp {formatNumber(calculateMarginValue(), 2)}
+                        <span className="overhead-value" style={{ fontSize: '11px', color: '#666' }}>
+                          Applied to Toll Fee
                         </span>
                       </div>
                     </div>
@@ -6069,14 +6080,27 @@ export default function HPPSimulation() {
                           <td style={{ width: "60%" }}>
                             {marginType === "percent" 
                               ? `${formatNumber(editableOverheadData.Margin || 0, 2)}%`
-                              : `Rp ${formatNumber(editableOverheadData.Margin || 0, 2)}`}
+                              : `Rp ${formatNumber(editableOverheadData.Margin || 0, 2)} (per unit)`}
                           </td>
                           <td style={{ width: "20%" }} className="number">
-                            <strong>
-                              Rp {formatNumber(calculateMarginValue(), 2)}
-                            </strong>
+                            <span style={{ color: '#666', fontSize: '12px' }}>Applied to Toll Fee</span>
                           </td>
                         </tr>
+                        {getRoundedValue() > 0 && (
+                          <tr>
+                            <td style={{ width: "20%" }}>
+                              <strong>Rounded</strong>
+                            </td>
+                            <td style={{ width: "60%" }}>
+                              Rounded Adjustment
+                            </td>
+                            <td style={{ width: "20%" }} className="number">
+                              <strong>
+                                Rp {formatNumber(getRoundedValue(), 2)}
+                              </strong>
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                     </>
@@ -6218,14 +6242,27 @@ export default function HPPSimulation() {
                           <td style={{ width: "60%" }}>
                             {marginType === "percent" 
                               ? `${formatNumber(editableOverheadData.Margin || 0, 2)}%`
-                              : `Rp ${formatNumber(editableOverheadData.Margin || 0, 2)}`}
+                              : `Rp ${formatNumber(editableOverheadData.Margin || 0, 2)} (per unit)`}
                           </td>
                           <td style={{ width: "20%" }} className="number">
-                            <strong>
-                              Rp {formatNumber(calculateMarginValue(), 2)}
-                            </strong>
+                            <span style={{ color: '#666', fontSize: '12px' }}>Applied to Toll Fee</span>
                           </td>
                         </tr>
+                        {getRoundedValue() > 0 && (
+                          <tr>
+                            <td style={{ width: "20%" }}>
+                              <strong>Rounded</strong>
+                            </td>
+                            <td style={{ width: "60%" }}>
+                              Rounded Adjustment
+                            </td>
+                            <td style={{ width: "20%" }} className="number">
+                              <strong>
+                                Rp {formatNumber(getRoundedValue(), 2)}
+                              </strong>
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                     </>
@@ -6655,23 +6692,33 @@ export default function HPPSimulation() {
                               <td>Margin</td>
                               <td>
                                 {marginType === "percent" 
-                                  ? `Margin (${formatNumber(editableOverheadData.Margin || 0, 2)}%)`
+                                  ? "Margin (%)"
                                   : "Margin (Direct Value)"}
                               </td>
                               <td>
                                 {marginType === "percent"
-                                  ? `${formatNumber(editableOverheadData.Margin || 0, 2)}% of subtotal`
+                                  ? `${formatNumber(editableOverheadData.Margin || 0, 2)}%`
                                   : `Rp ${formatNumber(editableOverheadData.Margin || 0, 2)}`}
                               </td>
                               <td className="number">
-                                Rp {formatNumber(calculateMarginValue(), 2)}
+                                -
                               </td>
                               <td className="number">
-                                Rp{" "}
-                                {formatNumber(
-                                  calculateMarginValue() / getActualBatchSize(),
-                                  2
-                                )}
+                                -
+                              </td>
+                            </tr>
+                          )}
+                          {/* Show Rounded row if there's a rounded value */}
+                          {(getCurrentLOB() === "ETHICAL" || getCurrentLOB() === "OTC") && getRoundedValue() > 0 && (
+                            <tr>
+                              <td>Rounded</td>
+                              <td>Rounded Adjustment</td>
+                              <td>-</td>
+                              <td className="number">
+                                -
+                              </td>
+                              <td className="number">
+                                Rp {formatNumber(getRoundedValue(), 2)}
                               </td>
                             </tr>
                           )}
@@ -6746,7 +6793,7 @@ export default function HPPSimulation() {
                         </td>
                       </tr>
                       {/* Show Margin + Rounded and Toll Fee for ETHICAL/OTC products with margin */}
-                      {(getCurrentLOB() === "ETHICAL" || getCurrentLOB() === "OTC") && calculateMarginValue() > 0 && (
+                      {(getCurrentLOB() === "ETHICAL" || getCurrentLOB() === "OTC") && (editableOverheadData.Margin > 0 || getRoundedValue() > 0) && (
                         <tr className="final-total">
                           <td>
                             <strong>Margin + Rounded</strong>
@@ -6759,7 +6806,7 @@ export default function HPPSimulation() {
                             <strong>
                               Rp{" "}
                               {formatNumber(
-                                calculateMarginValue() / getActualBatchSize(),
+                                calculateMarginValue() + getRoundedValue(),
                                 2
                               )}
                             </strong>
@@ -6769,7 +6816,7 @@ export default function HPPSimulation() {
                               Rp{" "}
                               {formatNumber(
                                 (calculateGrandTotal() / getActualBatchSize()) + 
-                                (calculateMarginValue() / getActualBatchSize()),
+                                calculateMarginValue() + getRoundedValue(),
                                 2
                               )}
                             </strong>

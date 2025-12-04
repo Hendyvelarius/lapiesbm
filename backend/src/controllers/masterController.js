@@ -1,4 +1,4 @@
-const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, bulkDeleteBBHargaBahan, bulkDeleteBKHargaBahan, bulkInsertHargaBahan, getUnit, getManufacturingItems, getParameter, updateParameter, getGeneralCostsPerSediaan, addGeneralCostPerSediaan, updateGeneralCostPerSediaan, deleteGeneralCostPerSediaan, bulkInsertGeneralCostsPerSediaan, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, bulkDeleteGenerikGroups, bulkInsertGenerikGroups, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, bulkDeletePembebanانWithProductID, bulkDeletePembebananByPeriode, bulkInsertPembebanan, getMaterial, getMaterialUsage, getMaterialUsageByYear, exportAllFormulaDetail, exportAllFormulaDetailSumPerSubID, addFormulaManual, addBatchFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
+const { getCurrencyList, getBahan, getHargaBahan, addHargaBahan, updateHargaBahan, deleteHargaBahan, bulkDeleteBBHargaBahan, bulkDeleteBKHargaBahan, bulkInsertHargaBahan, getUnit, getManufacturingItems, getParameter, updateParameter, getGeneralCostsPerSediaan, addGeneralCostPerSediaan, updateGeneralCostPerSediaan, deleteGeneralCostPerSediaan, bulkInsertGeneralCostsPerSediaan, getGroup, addGroup, updateGroup, deleteGroup, getGroupManual, bulkDeleteGenerikGroups, bulkInsertGenerikGroups, getPembebanan, getProductName, addPembebanan, updatePembebanan, deletePembebanan, bulkDeletePembebanانWithProductID, bulkDeletePembebananByPeriode, bulkInsertPembebanan, getMaterial, getMaterialByPeriode, getMaterialUsage, getMaterialUsageByYear, exportAllFormulaDetail, exportAllFormulaDetailSumPerSubID, addFormulaManual, addBatchFormulaManual, updateFormulaManual, deleteFormulaManual, deleteEntireFormulaManual } = require('../models/sqlModel');
 
 class MasterController {
     static async getCurrency(req, res) {
@@ -1212,7 +1212,12 @@ class MasterController {
 
     static async getMaterial(req, res) {
         try {
-            const result = await getMaterial();
+            const { periode } = req.query;
+            
+            // If periode is provided, use getMaterialByPeriode, otherwise get all
+            const result = periode 
+                ? await getMaterialByPeriode(periode)
+                : await getMaterial();
             res.status(200).json(result);
         } catch (error) {
             console.error('Error in getMaterial endpoint:', error);
