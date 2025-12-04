@@ -531,6 +531,25 @@
   font-weight: 500;
 }
 
+/* Cost Change column styling */
+.cost-change {
+  font-weight: 600;
+}
+
+.cost-change.increase {
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.cost-change.decrease {
+  color: #10b981;
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+.cost-change.neutral {
+  color: #6b7280;
+}
+
 /* Modal Footer */
 .modal-footer {
   display: flex;

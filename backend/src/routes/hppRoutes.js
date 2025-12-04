@@ -68,4 +68,12 @@ router.post('/commit-price-update', HPPController.commitPriceUpdate);
 // GET /api/hpp/simulation/:simulasiId/summary - Get simulation summary with HNA and HPP ratio
 router.get('/simulation/:simulasiId/summary', HPPController.getSimulationSummary);
 
+// POST /api/hpp/simulations-for-group - Get simulations for product selection in a price change group
+// Body: { description: "Price Changes : ...", simulasiDate: "2025-09-24T00:27:38.087Z", simulationType?: "Price Changes" }
+router.post('/simulations-for-group', HPPController.getSimulationsForPriceChangeGroup);
+
+// PUT /api/hpp/simulation/version-bulk - Bulk update Versi field for multiple simulations
+// Body: { simulationVersions: [{ simulasiId: 1, versi: "1" }, { simulasiId: 2, versi: "0" }] }
+router.put('/simulation/version-bulk', HPPController.updateSimulationVersionBulk);
+
 module.exports = router;

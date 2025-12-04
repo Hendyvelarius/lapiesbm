@@ -574,6 +574,25 @@ async function getPriceChangeAffectedProducts(description, formattedDate) {
 
     const db = await connect();
     
+    // First, get the list of selected Simulasi_IDs (Versi = '1')
+    const selectedIdsQuery = `
+      SELECT Simulasi_ID, Product_ID
+      FROM t_COGS_HPP_Product_Header_Simulasi 
+      WHERE Simulasi_Deskripsi = @Description 
+      AND CONVERT(varchar, Simulasi_Date, 121) = @FormattedDate
+      AND Simulasi_Type = 'Price Changes'
+      AND Versi = '1'
+    `;
+    
+    const selectedIds = await db
+      .request()
+      .input('Description', sql.VarChar(255), description)
+      .input('FormattedDate', sql.VarChar(50), formattedDate)
+      .query(selectedIdsQuery);
+    
+    const selectedProductIds = new Set(selectedIds.recordset.map(r => r.Product_ID));
+    console.log('Selected Product IDs (Versi=1):', selectedProductIds.size);
+    
     // Execute the stored procedure
     const query = `EXEC [sp_COGS_HPP_List_Simulasi_PriceChange] @Description, @FormattedDate`;
     
@@ -584,12 +603,21 @@ async function getPriceChangeAffectedProducts(description, formattedDate) {
       .query(query);
 
     console.log('=== Stored Procedure Result ===');
-    console.log('Records returned:', result.recordset?.length || 0);
-    if (result.recordset?.length > 0) {
-      console.log('Sample record:', JSON.stringify(result.recordset[0], null, 2));
+    console.log('Records returned (before filter):', result.recordset?.length || 0);
+    
+    // Filter results to only include selected products (Versi = '1')
+    // If no products have Versi = '1', return all (for backwards compatibility)
+    let filteredResults = result.recordset || [];
+    if (selectedProductIds.size > 0) {
+      filteredResults = filteredResults.filter(record => selectedProductIds.has(record.Product_ID));
+      console.log('Records returned (after filter):', filteredResults.length);
+    }
+    
+    if (filteredResults.length > 0) {
+      console.log('Sample record:', JSON.stringify(filteredResults[0], null, 2));
     }
 
-    return result.recordset || [];
+    return filteredResults;
 
   } catch (error) {
     console.error('=== getPriceChangeAffectedProducts Error ===');
@@ -614,6 +642,28 @@ async function getPriceUpdateAffectedProducts(description, formattedDate) {
 
     const db = await connect();
     
+    // First, get the list of selected products (Versi = '1')
+    const selectedProductsQuery = `
+      SELECT DISTINCT Product_ID 
+      FROM t_COGS_HPP_Product_Header_Simulasi 
+      WHERE Simulasi_Deskripsi = @Description 
+      AND CONVERT(varchar, Simulasi_Date, 121) = @FormattedDate
+      AND Simulasi_Type = 'Price Update'
+      AND Versi = '1'
+    `;
+    
+    const selectedProductsResult = await db
+      .request()
+      .input('Description', sql.VarChar(255), description)
+      .input('FormattedDate', sql.VarChar(50), formattedDate)
+      .query(selectedProductsQuery);
+    
+    const selectedProductIds = new Set(
+      selectedProductsResult.recordset.map(row => row.Product_ID)
+    );
+    
+    console.log('Selected Product IDs (Versi=1):', selectedProductIds.size);
+    
     // Execute the stored procedure - same pattern as Price Change
     const query = `EXEC [sp_COGS_HPP_List_Simulasi_PriceUpdate] @Description, @FormattedDate`;
     
@@ -624,12 +674,23 @@ async function getPriceUpdateAffectedProducts(description, formattedDate) {
       .query(query);
 
     console.log('=== Stored Procedure Result ===');
-    console.log('Records returned:', result.recordset?.length || 0);
-    if (result.recordset?.length > 0) {
-      console.log('Sample record:', JSON.stringify(result.recordset[0], null, 2));
+    console.log('Records returned before filtering:', result.recordset?.length || 0);
+    
+    // Filter to only include selected products (Versi = '1')
+    // If no products are explicitly selected (all have default Versi), return all
+    let filteredResults = result.recordset || [];
+    if (selectedProductIds.size > 0) {
+      filteredResults = filteredResults.filter(record => 
+        selectedProductIds.has(record.Product_ID)
+      );
+    }
+    
+    console.log('Records returned after filtering:', filteredResults.length);
+    if (filteredResults.length > 0) {
+      console.log('Sample record:', JSON.stringify(filteredResults[0], null, 2));
     }
 
-    return result.recordset || [];
+    return filteredResults;
 
   } catch (error) {
     console.error('=== getPriceUpdateAffectedProducts Error ===');
@@ -878,6 +939,89 @@ async function commitPriceUpdate(parameterString, periode) {
   }
 }
 
+// Get all simulations in a price change group for product selection
+async function getSimulationsForPriceChangeGroup(description, formattedDate, simulationType = 'Price Changes') {
+  try {
+    console.log('=== getSimulationsForPriceChangeGroup ===');
+    console.log('Description:', description);
+    console.log('Formatted Date:', formattedDate);
+    console.log('Simulation Type:', simulationType);
+
+    const db = await connect();
+    
+    const query = `
+      SELECT 
+        Simulasi_ID,
+        Product_ID,
+        Product_Name,
+        Versi,
+        Simulasi_Type
+      FROM t_COGS_HPP_Product_Header_Simulasi 
+      WHERE Simulasi_Deskripsi = @Description 
+      AND CONVERT(varchar, Simulasi_Date, 121) = @FormattedDate
+      AND Simulasi_Type = @SimulationType
+      ORDER BY Product_Name
+    `;
+
+    const result = await db
+      .request()
+      .input('Description', sql.VarChar(255), description)
+      .input('FormattedDate', sql.VarChar(50), formattedDate)
+      .input('SimulationType', sql.VarChar(50), simulationType)
+      .query(query);
+
+    console.log('Records found:', result.recordset?.length || 0);
+
+    return result.recordset || [];
+
+  } catch (error) {
+    console.error('=== getSimulationsForPriceChangeGroup Error ===');
+    console.error('Error message:', error.message);
+    throw error;
+  }
+}
+
+// Bulk update Versi field for multiple simulations
+async function updateSimulationVersionBulk(simulationVersions) {
+  try {
+    console.log('=== updateSimulationVersionBulk ===');
+    console.log('Updates to apply:', simulationVersions.length);
+
+    const db = await connect();
+    
+    // Build and execute individual updates for each simulation
+    let updatedCount = 0;
+    
+    for (const item of simulationVersions) {
+      const query = `
+        UPDATE t_COGS_HPP_Product_Header_Simulasi 
+        SET Versi = @Versi
+        WHERE Simulasi_ID = @SimulasiId
+      `;
+      
+      await db
+        .request()
+        .input('Versi', sql.VarChar(10), item.versi)
+        .input('SimulasiId', sql.Int, item.simulasiId)
+        .query(query);
+      
+      updatedCount++;
+    }
+
+    console.log('Successfully updated:', updatedCount, 'simulations');
+
+    return {
+      success: true,
+      updatedCount
+    };
+
+  } catch (error) {
+    console.error('=== updateSimulationVersionBulk Error ===');
+    console.error('Error message:', error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   getHPP,
   generateHPPCalculation,
@@ -899,4 +1043,6 @@ module.exports = {
   getSimulationSummary,
   checkHPPDataExists,
   commitPriceUpdate,
+  getSimulationsForPriceChangeGroup,
+  updateSimulationVersionBulk,
 };

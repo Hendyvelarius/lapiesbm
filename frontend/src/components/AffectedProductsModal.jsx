@@ -9,22 +9,8 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
   const [affectedProducts, setAffectedProducts] = useState([]);
   const [error, setError] = useState("");
   const [affectedMaterials, setAffectedMaterials] = useState([]);
-  const [expandedProducts, setExpandedProducts] = useState(new Set());
   const [isExporting, setIsExporting] = useState(false);
   const modalContentRef = useRef(null);
-
-  // Toggle product detail expansion
-  const toggleProductExpansion = (productId) => {
-    setExpandedProducts(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(productId)) {
-        newSet.delete(productId);
-      } else {
-        newSet.add(productId);
-      }
-      return newSet;
-    });
-  };
 
   // Fetch affected products using stored procedure
   const fetchAffectedProducts = async (description, simulasiDate) => {
@@ -244,7 +230,7 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
     }
   };
 
-  // Export affected products to PDF
+  // Export affected products to PDF - optimized for large datasets
   const handleExportToPDF = async () => {
     try {
       if (!affectedProducts || affectedProducts.length === 0) {
@@ -253,119 +239,208 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
 
       setIsExporting(true);
       
-      // Save current expanded state
-      const previousExpandedProducts = new Set(expandedProducts);
-      
-      // Expand all products for export
-      const allProductIds = affectedProducts.map(p => p.Product_ID);
-      setExpandedProducts(new Set(allProductIds));
-      
-      // Wait for DOM to update
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Import jsPDF and html2canvas dynamically
+      // Import jsPDF dynamically
       const jsPDF = (await import('jspdf')).default;
-      const html2canvas = (await import('html2canvas')).default;
 
-      // Get references to the modal elements
-      const modalElement = modalContentRef.current;
-      const modalContainer = modalElement?.closest('.affected-products-modal');
-      const tableContainers = modalElement?.querySelectorAll('.table-container');
-      
-      if (!modalElement || !modalContainer) {
-        console.error('Modal content ref not found');
-        setIsExporting(false);
-        return;
-      }
-
-      // Save original styles
-      const originalModalBodyOverflow = modalElement.style.overflow;
-      const originalModalBodyMaxHeight = modalElement.style.maxHeight;
-      const originalModalBodyHeight = modalElement.style.height;
-      const originalModalBodyMinHeight = modalElement.style.minHeight;
-      const originalModalContainerMaxHeight = modalContainer.style.maxHeight;
-      const originalModalContainerOverflow = modalContainer.style.overflow;
-      const originalModalContainerMinHeight = modalContainer.style.minHeight;
-      
-      // Save table container styles
-      const originalTableStyles = Array.from(tableContainers).map(tc => ({
-        overflow: tc.style.overflow,
-        overflowX: tc.style.overflowX,
-        overflowY: tc.style.overflowY
-      }));
-      
-      // Temporarily remove scroll constraints for full capture
-      modalElement.style.overflow = 'visible';
-      modalElement.style.maxHeight = 'none';
-      modalElement.style.height = 'auto';
-      modalContainer.style.maxHeight = 'none';
-      modalContainer.style.overflow = 'visible';
-      
-      // Remove table scrolling to show full content
-      tableContainers.forEach(tc => {
-        tc.style.overflow = 'visible';
-        tc.style.overflowX = 'visible';
-        tc.style.overflowY = 'visible';
-      });
-      
-      // Wait for layout to settle and content to expand
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Force the element to expand to its full scrollable height
-      const fullHeight = modalElement.scrollHeight + 100; // Add buffer
-      const fullWidth = modalElement.scrollWidth + 50;
-      
-      // Set explicit dimensions to force full expansion
-      modalElement.style.minHeight = `${fullHeight}px`;
-      modalContainer.style.minHeight = `${fullHeight}px`;
-      
-      // Wait a bit more for the forced expansion
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      console.log('Capturing modal - Full dimensions:', fullWidth, 'x', fullHeight);
-
-      // Capture the content as canvas with full dimensions
-      const canvas = await html2canvas(modalElement, {
-        scale: 1.5,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        width: fullWidth,
-        height: fullHeight,
-        scrollY: -window.scrollY,
-        scrollX: -window.scrollX
-      });
-
-      // Restore original styles
-      modalElement.style.overflow = originalModalBodyOverflow;
-      modalElement.style.maxHeight = originalModalBodyMaxHeight;
-      modalElement.style.height = originalModalBodyHeight;
-      modalElement.style.minHeight = originalModalBodyMinHeight;
-      modalContainer.style.maxHeight = originalModalContainerMaxHeight;
-      modalContainer.style.overflow = originalModalContainerOverflow;
-      modalContainer.style.minHeight = originalModalContainerMinHeight;
-      
-      // Restore table container styles
-      tableContainers.forEach((tc, index) => {
-        if (originalTableStyles[index]) {
-          tc.style.overflow = originalTableStyles[index].overflow;
-          tc.style.overflowX = originalTableStyles[index].overflowX;
-          tc.style.overflowY = originalTableStyles[index].overflowY;
-        }
-      });
-
-      console.log('Canvas captured - Dimensions:', canvas.width, 'x', canvas.height);
-
-      const imgData = canvas.toDataURL('image/png');
+      // Create PDF in landscape mode for better table fit
       const pdf = new jsPDF({
         orientation: 'landscape',
-        unit: 'px',
-        format: [canvas.width, canvas.height],
-        compress: true
+        unit: 'mm',
+        format: 'a4'
       });
 
-      // Add the full canvas as a single image
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const usableWidth = pageWidth - (margin * 2);
+      let yPosition = margin;
+
+      // Helper function to add new page if needed
+      const checkNewPage = (neededHeight) => {
+        if (yPosition + neededHeight > pageHeight - margin) {
+          pdf.addPage();
+          yPosition = margin;
+          return true;
+        }
+        return false;
+      };
+
+      // Set font
+      pdf.setFont('helvetica');
+
+      // Title
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`Products Affected by ${priceUpdateMode ? 'Price Update' : 'Price Change'}`, margin, yPosition + 6);
+      yPosition += 12;
+
+      // Price change description
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      const descText = priceChangeDescription || 'N/A';
+      const descLines = pdf.splitTextToSize(descText, usableWidth);
+      pdf.text(descLines, margin, yPosition + 4);
+      yPosition += (descLines.length * 4) + 6;
+
+      // Date
+      pdf.setFontSize(8);
+      pdf.text(`Date: ${priceChangeDate ? new Date(priceChangeDate).toLocaleString() : 'N/A'}`, margin, yPosition + 3);
+      yPosition += 8;
+
+      // Affected Materials section
+      if (affectedMaterials.length > 0) {
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Affected Materials:', margin, yPosition + 4);
+        yPosition += 6;
+
+        pdf.setFontSize(8);
+        pdf.setFont('helvetica', 'normal');
+        affectedMaterials.forEach((material) => {
+          checkNewPage(5);
+          const matText = `• ${material.ITEM_ID} - ${material.Item_Name} (${material.ITEM_TYPE})`;
+          pdf.text(matText, margin + 2, yPosition + 3);
+          yPosition += 4;
+        });
+        yPosition += 4;
+      }
+
+      // Products table header
+      checkNewPage(20);
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`Affected Products (${affectedProducts.length})`, margin, yPosition + 5);
+      yPosition += 10;
+
+      // Table configuration - 10 columns with Change column added
+      const colWidths = [22, 48, 26, 26, 26, 26, 32, 32, 20, 19]; // Adjusted widths to fit A4 landscape (277mm usable)
+      const colHeaders = ['ID', 'Product Name', 'Cost Before', 'Cost After', 'Change', 'HNA', 'HPP Before', 'HPP After', 'Impact HPP', 'Impact HNA'];
+      const rowHeight = 6;
+      const headerHeight = 8;
+
+      // Draw table header
+      const drawTableHeader = () => {
+        pdf.setFillColor(66, 139, 202); // Blue header
+        pdf.rect(margin, yPosition, usableWidth, headerHeight, 'F');
+        
+        pdf.setFontSize(7);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(255, 255, 255);
+        
+        let xPos = margin + 1;
+        colHeaders.forEach((header, i) => {
+          pdf.text(header, xPos, yPosition + 5);
+          xPos += colWidths[i];
+        });
+        
+        pdf.setTextColor(0, 0, 0);
+        yPosition += headerHeight;
+      };
+
+      drawTableHeader();
+
+      // Draw table rows
+      pdf.setFontSize(7);
+      pdf.setFont('helvetica', 'normal');
+
+      affectedProducts.forEach((product, index) => {
+        // Check if we need a new page
+        if (checkNewPage(rowHeight + 2)) {
+          drawTableHeader();
+        }
+
+        // Alternate row colors
+        if (index % 2 === 0) {
+          pdf.setFillColor(245, 245, 245);
+          pdf.rect(margin, yPosition, usableWidth, rowHeight, 'F');
+        }
+
+        // Calculate values
+        const materialBefore = parseFloat(product.totalBahanSebelum || 0);
+        const materialAfter = parseFloat(product.totalBahanSesudah || 0);
+        const overhead = calculateOverhead(product);
+        const marginBefore = calculateMarginValue(product, materialBefore);
+        const marginAfter = calculateMarginValue(product, materialAfter);
+        const costBefore = materialBefore + overhead + marginBefore;
+        const costAfter = materialAfter + overhead + marginAfter;
+        const costChange = costAfter - costBefore;
+        const hna = parseFloat(product.Product_SalesHNA || 0);
+        const hppBefore = parseFloat(product.HPPSebelum || 0);
+        const hppAfter = parseFloat(product.HPPSesudah || 0);
+        const impactHPP = parseFloat(product.persentase_perubahan || 0);
+        const impactHNA = calculateImpactHNA(product.Rasio_HPP_Sebelum, product.Rasio_HPP_Sesudah);
+
+        // Format helper
+        const fmtCurrency = (val) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(val);
+        const fmtCurrencyWithSign = (val) => {
+          const formatted = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(Math.abs(val));
+          return val > 0 ? `+${formatted}` : val < 0 ? `-${formatted}` : formatted;
+        };
+        const fmtPercent = (val) => {
+          const abs = Math.abs(val).toFixed(2);
+          return val > 0 ? `+${abs}%` : val < 0 ? `-${abs}%` : `${abs}%`;
+        };
+        const fmtHPPRatio = (hpp, ratio) => {
+          const hppStr = fmtCurrency(hpp);
+          const ratioStr = ratio ? `${(parseFloat(ratio) * 100).toFixed(1)}%` : '0%';
+          return `${hppStr} (${ratioStr})`;
+        };
+
+        // Truncate product name if too long
+        const productName = product.Product_Name || '';
+        const maxNameLen = 30;
+        const truncatedName = productName.length > maxNameLen 
+          ? productName.substring(0, maxNameLen - 2) + '..' 
+          : productName;
+
+        // Row data - 10 columns with Change added after Cost After
+        const rowData = [
+          product.Product_ID || '',
+          truncatedName,
+          fmtCurrency(costBefore),
+          fmtCurrency(costAfter),
+          fmtCurrencyWithSign(costChange),
+          fmtCurrency(hna),
+          fmtHPPRatio(hppBefore, product.Rasio_HPP_Sebelum),
+          fmtHPPRatio(hppAfter, product.Rasio_HPP_Sesudah),
+          fmtPercent(impactHPP),
+          fmtPercent(impactHNA)
+        ];
+
+        // Draw row
+        let xPos = margin + 1;
+        rowData.forEach((cell, i) => {
+          // Color code for Change column (index 4) and impact columns (8 and 9)
+          if (i === 4) {
+            // Change column - red for positive (cost increase), green for negative (cost decrease)
+            if (costChange > 0) pdf.setTextColor(220, 53, 69); // Red for increase
+            else if (costChange < 0) pdf.setTextColor(40, 167, 69); // Green for decrease
+            else pdf.setTextColor(108, 117, 125); // Gray for neutral
+          } else if (i === 8 || i === 9) {
+            const val = i === 8 ? impactHPP : impactHNA;
+            if (val > 0) pdf.setTextColor(220, 53, 69); // Red for increase
+            else if (val < 0) pdf.setTextColor(40, 167, 69); // Green for decrease
+            else pdf.setTextColor(108, 117, 125); // Gray for neutral
+          }
+          
+          pdf.text(String(cell), xPos, yPosition + 4);
+          pdf.setTextColor(0, 0, 0); // Reset color
+          xPos += colWidths[i];
+        });
+
+        yPosition += rowHeight;
+
+        // Draw light border
+        pdf.setDrawColor(200, 200, 200);
+        pdf.line(margin, yPosition, margin + usableWidth, yPosition);
+      });
+
+      // Footer with generation info
+      checkNewPage(10);
+      yPosition += 5;
+      pdf.setFontSize(7);
+      pdf.setTextColor(128, 128, 128);
+      pdf.text(`Generated on ${new Date().toLocaleString()} | Total: ${affectedProducts.length} products`, margin, yPosition + 3);
 
       // Generate filename
       const dateStr = new Date().toISOString().split('T')[0];
@@ -381,9 +456,6 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
 
       // Save PDF
       pdf.save(fileName);
-      
-      // Restore previous expanded state
-      setExpandedProducts(previousExpandedProducts);
       setIsExporting(false);
 
     } catch (error) {
@@ -496,11 +568,11 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
                       <table className="affected-products-table">
                         <thead>
                           <tr>
-                            <th style={{ width: "40px" }}>Details</th>
                             <th>ID</th>
                             <th>Product Name</th>
                             <th>Cost Before</th>
                             <th>Cost After</th>
+                            <th>Change</th>
                             <th>HNA</th>
                             <th>HPP Before</th>
                             <th>HPP After</th>
@@ -510,158 +582,77 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
                         </thead>
                         <tbody>
                           {affectedProducts.map((product, index) => {
-                            const isExpanded = expandedProducts.has(product.Product_ID);
                             const materialBefore = parseFloat(product.totalBahanSebelum || 0);
                             const materialAfter = parseFloat(product.totalBahanSesudah || 0);
                             const overhead = calculateOverhead(product);
                             const marginBefore = calculateMarginValue(product, materialBefore);
                             const marginAfter = calculateMarginValue(product, materialAfter);
+                            const costBefore = materialBefore + overhead + marginBefore;
+                            const costAfter = materialAfter + overhead + marginAfter;
+                            const costChange = costAfter - costBefore;
                             
                             return (
-                              <React.Fragment key={index}>
-                                <tr className={isExpanded ? "expanded" : ""}>
-                                  <td>
-                                    <button 
-                                      className="expand-btn"
-                                      onClick={() => toggleProductExpansion(product.Product_ID)}
-                                      title={isExpanded ? "Hide details" : "Show details"}
+                              <tr key={index}>
+                                <td className="product-id">{product.Product_ID}</td>
+                                <td className="product-name">{product.Product_Name}</td>
+                                <td className="material-cost-before">
+                                  {formatCurrency(costBefore)}
+                                </td>
+                                <td className="material-cost-after">
+                                  {formatCurrency(costAfter)}
+                                </td>
+                                <td className={`cost-change ${costChange > 0 ? 'increase' : costChange < 0 ? 'decrease' : 'neutral'}`}>
+                                  {costChange > 0 ? '+' : ''}{formatCurrency(costChange)}
+                                </td>
+                                <td className="hna">
+                                  {formatCurrency(parseFloat(product.Product_SalesHNA || 0))}
+                                </td>
+                                <td className="hpp-before">
+                                  {formatHPPWithRatio(product.HPPSebelum, product.Rasio_HPP_Sebelum)}
+                                </td>
+                                <td className="hpp-after">
+                                  {formatHPPWithRatio(product.HPPSesudah, product.Rasio_HPP_Sesudah)}
+                                </td>
+                                <td className="impact-cell">
+                                  <div className="impact-indicator">
+                                    {getTrendIcon(parseFloat(product.persentase_perubahan || 0))}
+                                    <span
+                                      className={`percentage ${
+                                        parseFloat(product.persentase_perubahan || 0) > 0
+                                          ? "increase"
+                                          : parseFloat(product.persentase_perubahan || 0) < 0
+                                          ? "decrease"
+                                          : "neutral"
+                                      }`}
                                     >
-                                      {isExpanded ? "▼" : "▶"}
-                                    </button>
-                                  </td>
-                                  <td className="product-id">{product.Product_ID}</td>
-                                  <td className="product-name">{product.Product_Name}</td>
-                                  <td className="material-cost-before">
-                                    {formatCurrency(materialBefore + overhead + marginBefore)}
-                                  </td>
-                                  <td className="material-cost-after">
-                                    {formatCurrency(materialAfter + overhead + marginAfter)}
-                                  </td>
-                                  <td className="hna">
-                                    {formatCurrency(parseFloat(product.Product_SalesHNA || 0))}
-                                  </td>
-                                  <td className="hpp-before">
-                                    {formatHPPWithRatio(product.HPPSebelum, product.Rasio_HPP_Sebelum)}
-                                  </td>
-                                  <td className="hpp-after">
-                                    {formatHPPWithRatio(product.HPPSesudah, product.Rasio_HPP_Sesudah)}
-                                  </td>
-                                  <td className="impact-cell">
-                                    <div className="impact-indicator">
-                                      {getTrendIcon(parseFloat(product.persentase_perubahan || 0))}
-                                      <span
-                                        className={`percentage ${
-                                          parseFloat(product.persentase_perubahan || 0) > 0
-                                            ? "increase"
-                                            : parseFloat(product.persentase_perubahan || 0) < 0
-                                            ? "decrease"
-                                            : "neutral"
-                                        }`}
-                                      >
-                                        {formatPercentage(parseFloat(product.persentase_perubahan || 0))}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className="impact-hna-cell">
-                                    <div className="impact-indicator">
-                                      {(() => {
-                                        const impactHNA = calculateImpactHNA(product.Rasio_HPP_Sebelum, product.Rasio_HPP_Sesudah);
-                                        return (
-                                          <>
-                                            {getTrendIcon(impactHNA)}
-                                            <span
-                                              className={`percentage ${
-                                                impactHNA > 0
-                                                  ? "increase"
-                                                  : impactHNA < 0
-                                                  ? "decrease"
-                                                  : "neutral"
-                                              }`}
-                                            >
-                                              {formatPercentage(impactHNA)}
-                                            </span>
-                                          </>
-                                        );
-                                      })()}
-                                    </div>
-                                  </td>
-                                </tr>
-                                {isExpanded && (
-                                  <tr className="detail-row">
-                                    <td colSpan="10">
-                                      <div className="product-detail-breakdown">
-                                        <div className="breakdown-columns">
-                                          <div className="breakdown-column">
-                                            <h4>Cost Breakdown - Before</h4>
-                                            <table className="breakdown-table">
-                                              <tbody>
-                                                <tr>
-                                                  <td>Materials</td>
-                                                  <td className="number">{formatCurrency(materialBefore)}</td>
-                                                </tr>
-                                                {(product.LOB === "ETHICAL" || product.LOB === "OTC") && (
-                                                  <tr>
-                                                    <td>Margin</td>
-                                                    <td className="number">{formatCurrency(marginBefore)}</td>
-                                                  </tr>
-                                                )}
-                                                <tr className="total-row">
-                                                  <td><strong>Total</strong></td>
-                                                  <td className="number"><strong>{formatCurrency(materialBefore + overhead + marginBefore)}</strong></td>
-                                                </tr>
-                                              </tbody>
-                                            </table>
-                                          </div>
-                                          
-                                          <div className="breakdown-column">
-                                            <h4>Cost Breakdown - After</h4>
-                                            <table className="breakdown-table">
-                                              <tbody>
-                                                <tr>
-                                                  <td>Materials</td>
-                                                  <td className="number">{formatCurrency(materialAfter)}</td>
-                                                </tr>
-                                                {(product.LOB === "ETHICAL" || product.LOB === "OTC") && (
-                                                  <tr>
-                                                    <td>Margin</td>
-                                                    <td className="number">{formatCurrency(marginAfter)}</td>
-                                                  </tr>
-                                                )}
-                                                <tr className="total-row">
-                                                  <td><strong>Total</strong></td>
-                                                  <td className="number"><strong>{formatCurrency(materialAfter + overhead + marginAfter)}</strong></td>
-                                                </tr>
-                                              </tbody>
-                                            </table>
-                                          </div>
-                                          
-                                          <div className="breakdown-column">
-                                            <h4>Change</h4>
-                                            <table className="breakdown-table">
-                                              <tbody>
-                                                <tr>
-                                                  <td>Materials Change</td>
-                                                  <td className="number">{formatCurrency(materialAfter - materialBefore)}</td>
-                                                </tr>
-                                                {(product.LOB === "ETHICAL" || product.LOB === "OTC") && (
-                                                  <tr>
-                                                    <td>Margin Change</td>
-                                                    <td className="number">{formatCurrency(marginAfter - marginBefore)}</td>
-                                                  </tr>
-                                                )}
-                                                <tr className="total-row">
-                                                  <td><strong>Total Change</strong></td>
-                                                  <td className="number"><strong>{formatCurrency((materialAfter + overhead + marginAfter) - (materialBefore + overhead + marginBefore))}</strong></td>
-                                                </tr>
-                                              </tbody>
-                                            </table>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                )}
-                              </React.Fragment>
+                                      {formatPercentage(parseFloat(product.persentase_perubahan || 0))}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="impact-hna-cell">
+                                  <div className="impact-indicator">
+                                    {(() => {
+                                      const impactHNA = calculateImpactHNA(product.Rasio_HPP_Sebelum, product.Rasio_HPP_Sesudah);
+                                      return (
+                                        <>
+                                          {getTrendIcon(impactHNA)}
+                                          <span
+                                            className={`percentage ${
+                                              impactHNA > 0
+                                                ? "increase"
+                                                : impactHNA < 0
+                                                ? "decrease"
+                                                : "neutral"
+                                            }`}
+                                          >
+                                            {formatPercentage(impactHNA)}
+                                          </span>
+                                        </>
+                                      );
+                                    })()}
+                                  </div>
+                                </td>
+                              </tr>
                             );
                           })}
                         </tbody>

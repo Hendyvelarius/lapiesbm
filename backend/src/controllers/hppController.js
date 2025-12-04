@@ -1,4 +1,4 @@
-const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, deleteSimulation, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, commitPriceUpdate } = require('../models/hppModel');
+const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, deleteSimulation, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
@@ -715,6 +715,81 @@ class HPPController {
       res.status(500).json({
         success: false,
         message: 'Error committing price update',
+        error: error.message
+      });
+    }
+  }
+
+  // Get simulations for product selection in a price change group
+  static async getSimulationsForPriceChangeGroup(req, res) {
+    try {
+      const { description, simulasiDate, simulationType } = req.body;
+
+      if (!description || !simulasiDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'description and simulasiDate are required'
+        });
+      }
+
+      // Format the date
+      const date = new Date(simulasiDate);
+      const formattedDate = date.toISOString().replace('T', ' ').replace('Z', '').slice(0, 23);
+
+      console.log('=== getSimulationsForPriceChangeGroup Controller ===');
+      console.log('Description:', description);
+      console.log('Formatted Date:', formattedDate);
+      console.log('Simulation Type:', simulationType || 'Price Changes');
+
+      const simulations = await getSimulationsForPriceChangeGroup(
+        description, 
+        formattedDate, 
+        simulationType || 'Price Changes'
+      );
+
+      res.status(200).json({
+        success: true,
+        data: simulations
+      });
+
+    } catch (error) {
+      console.error('Error getting simulations for price change group:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error getting simulations for product selection',
+        error: error.message
+      });
+    }
+  }
+
+  // Bulk update Versi field for multiple simulations
+  static async updateSimulationVersionBulk(req, res) {
+    try {
+      const { simulationVersions } = req.body;
+
+      if (!simulationVersions || !Array.isArray(simulationVersions) || simulationVersions.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'simulationVersions array is required'
+        });
+      }
+
+      console.log('=== updateSimulationVersionBulk Controller ===');
+      console.log('Number of updates:', simulationVersions.length);
+
+      const result = await updateSimulationVersionBulk(simulationVersions);
+
+      res.status(200).json({
+        success: true,
+        message: `Successfully updated ${result.updatedCount} simulations`,
+        data: result
+      });
+
+    } catch (error) {
+      console.error('Error updating simulation versions:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error updating simulation versions',
         error: error.message
       });
     }

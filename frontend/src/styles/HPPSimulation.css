@@ -4378,3 +4378,266 @@ html {
     gap: 12px;
   }
 }
+
+/* Select Products Button */
+.select-products-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: "Inter", sans-serif;
+}
+
+.select-products-btn:hover {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(139, 92, 246, 0.3);
+}
+
+.select-products-btn:active {
+  transform: translateY(0);
+}
+
+.select-products-btn span {
+  font-size: 12px;
+}
+
+/* Select Products Modal */
+.select-products-modal {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-width: 700px;
+  width: 90%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.select-products-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+}
+
+.select-products-modal .modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.select-products-modal .modal-close-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.select-products-modal .modal-close-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.select-products-modal .modal-content {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.select-products-info {
+  margin-bottom: 16px;
+}
+
+.select-products-info p {
+  color: #6b7280;
+  margin: 0 0 12px 0;
+  font-size: 14px;
+}
+
+.select-products-info .group-details {
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+
+.select-products-info .group-details p {
+  margin: 4px 0;
+  font-size: 13px;
+  color: #374151;
+}
+
+.select-products-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.select-all-btn,
+.unselect-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid;
+}
+
+.select-all-btn {
+  background: #dcfce7;
+  color: #16a34a;
+  border-color: #86efac;
+}
+
+.select-all-btn:hover:not(:disabled) {
+  background: #bbf7d0;
+}
+
+.unselect-all-btn {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.unselect-all-btn:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.loading-products {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px;
+  color: #6b7280;
+}
+
+.products-list-container {
+  max-height: 350px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.products-selection-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.products-selection-table th {
+  background: #f9fafb;
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+}
+
+.products-selection-table td {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #1f2937;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.products-selection-table tbody tr {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.products-selection-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.products-selection-table tbody tr.selected {
+  background: #ede9fe;
+}
+
+.products-selection-table tbody tr.selected:hover {
+  background: #ddd6fe;
+}
+
+.products-selection-table .checkbox-cell {
+  text-align: center;
+}
+
+.products-selection-table input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #8b5cf6;
+}
+
+.select-products-modal .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+}
+
+.select-products-modal .cancel-btn {
+  background: #6b7280;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.select-products-modal .cancel-btn:hover:not(:disabled) {
+  background: #4b5563;
+}
+
+.select-products-modal .save-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.select-products-modal .save-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(139, 92, 246, 0.3);
+}
+
+.select-products-modal .save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}

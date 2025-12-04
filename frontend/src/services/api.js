@@ -254,6 +254,18 @@ export const hppAPI = {
     method: 'POST',
     body: JSON.stringify({ materialPrices, periode }),
   }),
+
+  // Get simulations for product selection in a price change group
+  getSimulationsForGroup: (description, simulasiDate, simulationType = 'Price Changes') => apiRequest('/hpp/simulations-for-group', {
+    method: 'POST',
+    body: JSON.stringify({ description, simulasiDate, simulationType }),
+  }),
+
+  // Bulk update Versi field for multiple simulations
+  updateSimulationVersionBulk: (simulationVersions) => apiRequest('/hpp/simulation/version-bulk', {
+    method: 'PUT',
+    body: JSON.stringify({ simulationVersions }),
+  }),
 };
 
 // Combined service for creating complete HPP records

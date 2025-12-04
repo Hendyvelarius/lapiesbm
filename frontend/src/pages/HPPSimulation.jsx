@@ -22,6 +22,9 @@ import {
   Trash,
   Copy,
   Eye,
+  Users,
+  Check,
+  X,
 } from "lucide-react";
 import AffectedProductsModal from "../components/AffectedProductsModal";
 
@@ -182,6 +185,16 @@ export default function HPPSimulation() {
   const [bulkDeleteDate, setBulkDeleteDate] = useState("");
   const [bulkDeleteCount, setBulkDeleteCount] = useState(0);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // Select Products modal states
+  const [selectProductsModalOpen, setSelectProductsModalOpen] = useState(false);
+  const [selectProductsDescription, setSelectProductsDescription] = useState("");
+  const [selectProductsDate, setSelectProductsDate] = useState("");
+  const [selectProductsSimulationType, setSelectProductsSimulationType] = useState("Price Changes");
+  const [selectProductsList, setSelectProductsList] = useState([]);
+  const [selectProductsSelected, setSelectProductsSelected] = useState(new Set());
+  const [loadingSelectProducts, setLoadingSelectProducts] = useState(false);
+  const [savingSelectProducts, setSavingSelectProducts] = useState(false);
 
   // Available products with formulas (intersection of productName and chosenFormula)
   const [availableProducts, setAvailableProducts] = useState([]);
@@ -798,6 +811,106 @@ export default function HPPSimulation() {
       const notifier = new AWN();
       notifier.alert("Failed to delete price change group: " + error.message);
       setBulkDeleting(false);
+    }
+  };
+
+  // Open Select Products modal for filtering affected products
+  const handleOpenSelectProducts = async (description, date, simulationType, event) => {
+    event.stopPropagation(); // Prevent group toggle when clicking the button
+    setSelectProductsDescription(description);
+    setSelectProductsDate(date);
+    setSelectProductsSimulationType(simulationType || "Price Changes");
+    setSelectProductsModalOpen(true);
+    setLoadingSelectProducts(true);
+
+    try {
+      // Fetch simulations for this group
+      const response = await hppAPI.getSimulationsForGroup(description, date, simulationType || "Price Changes");
+      const simulations = response.data || [];
+      setSelectProductsList(simulations);
+      
+      // Initialize selection based on current Versi (1 = selected, 0 or other = not selected)
+      const initialSelected = new Set();
+      simulations.forEach(sim => {
+        if (sim.Versi === "1" || sim.Versi === 1) {
+          initialSelected.add(sim.Simulasi_ID);
+        }
+      });
+      // If no products have Versi=1, select all by default
+      if (initialSelected.size === 0) {
+        simulations.forEach(sim => initialSelected.add(sim.Simulasi_ID));
+      }
+      setSelectProductsSelected(initialSelected);
+    } catch (error) {
+      console.error("Error loading products for selection:", error);
+      notifier.alert("Failed to load products: " + error.message);
+    } finally {
+      setLoadingSelectProducts(false);
+    }
+  };
+
+  // Close Select Products modal
+  const handleCloseSelectProducts = () => {
+    setSelectProductsModalOpen(false);
+    setSelectProductsDescription("");
+    setSelectProductsDate("");
+    setSelectProductsList([]);
+    setSelectProductsSelected(new Set());
+    setLoadingSelectProducts(false);
+    setSavingSelectProducts(false);
+  };
+
+  // Toggle individual product selection
+  const handleToggleProductSelection = (simulasiId) => {
+    setSelectProductsSelected(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(simulasiId)) {
+        newSet.delete(simulasiId);
+      } else {
+        newSet.add(simulasiId);
+      }
+      return newSet;
+    });
+  };
+
+  // Select all products
+  const handleSelectAllProducts = () => {
+    const allIds = new Set(selectProductsList.map(sim => sim.Simulasi_ID));
+    setSelectProductsSelected(allIds);
+  };
+
+  // Unselect all products
+  const handleUnselectAllProducts = () => {
+    setSelectProductsSelected(new Set());
+  };
+
+  // Save product selection (update Versi in database)
+  const handleSaveProductSelection = async () => {
+    try {
+      setSavingSelectProducts(true);
+
+      // Build the array of updates
+      const simulationVersions = selectProductsList.map(sim => ({
+        simulasiId: sim.Simulasi_ID,
+        versi: selectProductsSelected.has(sim.Simulasi_ID) ? "1" : "0"
+      }));
+
+      // Call API to update
+      await hppAPI.updateSimulationVersionBulk(simulationVersions);
+
+      notifier.success(`Product selection saved! ${selectProductsSelected.size} of ${selectProductsList.length} products selected.`);
+      
+      // Close modal
+      handleCloseSelectProducts();
+
+      // Refresh simulation list to reflect changes
+      await loadSimulationList();
+
+    } catch (error) {
+      console.error("Error saving product selection:", error);
+      notifier.alert("Failed to save product selection: " + error.message);
+    } finally {
+      setSavingSelectProducts(false);
     }
   };
 
@@ -3496,6 +3609,21 @@ export default function HPPSimulation() {
                                         </span>
                                       </div>
                                       <div className="group-actions">
+                                        <button
+                                          className="select-products-btn"
+                                          onClick={(e) =>
+                                            handleOpenSelectProducts(
+                                              item.description,
+                                              item.date,
+                                              "Price Changes",
+                                              e
+                                            )
+                                          }
+                                          title="Select which products to include in affected products report"
+                                        >
+                                          <Users size={16} />
+                                          <span>Select Products</span>
+                                        </button>
                                         <button
                                           className="affected-products-btn"
                                           onClick={(e) =>
@@ -7568,6 +7696,118 @@ export default function HPPSimulation() {
                   <>
                     <Trash size={16} />
                     Delete {bulkDeleteCount} Simulations
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Select Products Modal */}
+      {selectProductsModalOpen && (
+        <div className="modal-overlay">
+          <div className="select-products-modal">
+            <div className="modal-header">
+              <h3>Select Products for Report</h3>
+              <button
+                className="modal-close-btn"
+                onClick={handleCloseSelectProducts}
+                disabled={savingSelectProducts}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-content">
+              <div className="select-products-info">
+                <p>Select which products to include in the Affected Products report:</p>
+                <div className="group-details">
+                  <p><strong>Description:</strong> {selectProductsDescription}</p>
+                  <p><strong>Total Products:</strong> {selectProductsList.length}</p>
+                  <p><strong>Selected:</strong> {selectProductsSelected.size} of {selectProductsList.length}</p>
+                </div>
+              </div>
+              
+              <div className="select-products-actions">
+                <button 
+                  className="select-all-btn"
+                  onClick={handleSelectAllProducts}
+                  disabled={loadingSelectProducts || savingSelectProducts}
+                >
+                  <Check size={14} />
+                  Select All
+                </button>
+                <button 
+                  className="unselect-all-btn"
+                  onClick={handleUnselectAllProducts}
+                  disabled={loadingSelectProducts || savingSelectProducts}
+                >
+                  <X size={14} />
+                  Unselect All
+                </button>
+              </div>
+
+              {loadingSelectProducts ? (
+                <div className="loading-products">
+                  <LoadingSpinner size="small" />
+                  <span>Loading products...</span>
+                </div>
+              ) : (
+                <div className="products-list-container">
+                  <table className="products-selection-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '50px' }}>Select</th>
+                        <th>Product ID</th>
+                        <th>Product Name</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectProductsList.map((sim) => (
+                        <tr 
+                          key={sim.Simulasi_ID}
+                          className={selectProductsSelected.has(sim.Simulasi_ID) ? 'selected' : ''}
+                          onClick={() => handleToggleProductSelection(sim.Simulasi_ID)}
+                        >
+                          <td className="checkbox-cell" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={selectProductsSelected.has(sim.Simulasi_ID)}
+                              onChange={() => handleToggleProductSelection(sim.Simulasi_ID)}
+                              disabled={savingSelectProducts}
+                            />
+                          </td>
+                          <td>{sim.Product_ID}</td>
+                          <td>{sim.Product_Name}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button
+                className="cancel-btn"
+                onClick={handleCloseSelectProducts}
+                disabled={savingSelectProducts}
+              >
+                Cancel
+              </button>
+              <button
+                className="save-btn"
+                onClick={handleSaveProductSelection}
+                disabled={loadingSelectProducts || savingSelectProducts || selectProductsSelected.size === 0}
+              >
+                {savingSelectProducts ? (
+                  <>
+                    <div className="esbm-spinner esbm-spinner-small" style={{ marginRight: '8px' }}></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Check size={16} />
+                    Save Selection ({selectProductsSelected.size} products)
                   </>
                 )}
               </button>
