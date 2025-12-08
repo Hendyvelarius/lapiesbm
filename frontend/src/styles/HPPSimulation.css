@@ -2418,6 +2418,31 @@
   flex: 1;
 }
 
+/* Price with Currency Selection Row */
+.price-currency-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.price-currency-row .currency-select {
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.price-currency-row .price-input {
+  flex: 1;
+}
+
+.currency-rate-hint {
+  font-size: 0.8rem;
+  color: #0369a1;
+  margin-top: 0.35rem;
+  background: #f0f9ff;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  border-left: 3px solid #0ea5e9;
+}
+
 .unit-arrow {
   display: flex;
   align-items: center;

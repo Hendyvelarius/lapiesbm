@@ -299,10 +299,15 @@ export default function HPPSimulation() {
   const [customMaterialData, setCustomMaterialData] = useState({
     name: '',
     purchasePrice: '',
+    currency: 'IDR',
     purchaseUnit: '',
     usageUnit: '',
     conversionRate: '',
   });
+
+  // Currency data for custom materials
+  const [currencyList, setCurrencyList] = useState([]);
+  const [currencyRates, setCurrencyRates] = useState({}); // { USD: 15000, EUR: 17000, etc }
 
   // Standard unit conversions (from purchase unit to usage unit)
   const unitConversions = {
@@ -395,17 +400,72 @@ export default function HPPSimulation() {
         materials = materialsResponse;
       }
       
-      setAllMaterials(materials);
+      // Filter to only latest year materials to avoid duplicates
+      if (materials.length > 0 && materials[0].Periode) {
+        // Find the latest year
+        const latestYear = Math.max(...materials.map(m => parseInt(m.Periode) || 0));
+        
+        // Filter to only materials from the latest year
+        const latestMaterials = materials.filter(m => parseInt(m.Periode) === latestYear);
+        
+        console.log(`Filtered materials: ${materials.length} total → ${latestMaterials.length} from year ${latestYear}`);
+        setAllMaterials(latestMaterials);
+      } else {
+        // Fallback: deduplicate by ITEM_ID (keep first occurrence)
+        const seen = new Set();
+        const uniqueMaterials = materials.filter(m => {
+          if (seen.has(m.ITEM_ID)) return false;
+          seen.add(m.ITEM_ID);
+          return true;
+        });
+        setAllMaterials(uniqueMaterials);
+      }
     } catch (error) {
       console.error('Error loading all materials:', error);
     }
   };
 
-  // Load simulation list, groups data, and materials on component mount
+  // Load currency data for custom material conversion
+  const loadCurrencyData = async () => {
+    try {
+      const response = await masterAPI.getCurrency();
+      if (response && Array.isArray(response) && response.length > 0) {
+        // Find the latest year
+        const latestYear = Math.max(...response.map(item => parseInt(item.Periode)));
+        
+        // Filter to only latest year currencies
+        const latestCurrencies = response.filter(item => parseInt(item.Periode) === latestYear);
+        
+        // Build currency rates map
+        const rates = {};
+        latestCurrencies.forEach(item => {
+          rates[item.Curr_Code] = parseFloat(item.Kurs);
+        });
+        
+        // Add IDR with rate 1 if not present
+        if (!rates['IDR']) {
+          rates['IDR'] = 1;
+        }
+        
+        setCurrencyRates(rates);
+        setCurrencyList(Object.keys(rates).sort((a, b) => a === 'IDR' ? -1 : b === 'IDR' ? 1 : a.localeCompare(b)));
+        
+        console.log(`Loaded ${Object.keys(rates).length} currencies for year ${latestYear}:`, rates);
+      }
+    } catch (error) {
+      console.error('Error loading currency data:', error);
+      // Default to IDR only
+      setCurrencyRates({ 'IDR': 1 });
+      setCurrencyList(['IDR']);
+    }
+  };
+
+  // Load simulation list, groups data, materials, and currency on component mount
   useEffect(() => {
     loadSimulationList();
     loadGroupsData();
     loadAllMaterials();
+    loadCurrencyData();
   }, []);
 
   // Get current location for navigation detection
@@ -2978,6 +3038,7 @@ export default function HPPSimulation() {
     setCustomMaterialData({
       name: '',
       purchasePrice: '',
+      currency: 'IDR',
       purchaseUnit: '',
       usageUnit: '',
       conversionRate: '',
@@ -3013,7 +3074,7 @@ export default function HPPSimulation() {
 
   // Confirm and add the custom material with calculated unit price
   const handleConfirmCustomMaterial = () => {
-    const { name, purchasePrice, purchaseUnit, usageUnit, conversionRate } = customMaterialData;
+    const { name, purchasePrice, currency, purchaseUnit, usageUnit, conversionRate } = customMaterialData;
     
     // Validation
     if (!name.trim()) {
@@ -3037,11 +3098,13 @@ export default function HPPSimulation() {
       return;
     }
     
-    // Calculate unit price based on purchase price and conversion rate
-    // Unit Price (per usage unit) = Purchase Price / Conversion Rate
+    // Calculate unit price based on purchase price, currency rate, and conversion rate
+    // Unit Price (per usage unit) = (Purchase Price * Currency Rate) / Conversion Rate
     const purchasePriceNum = parseFloat(purchasePrice);
     const conversionRateNum = parseFloat(conversionRate);
-    const unitPrice = purchasePriceNum / conversionRateNum;
+    const currencyRate = currencyRates[currency] || 1;
+    const priceInRupiah = purchasePriceNum * currencyRate;
+    const unitPrice = priceInRupiah / conversionRateNum;
     
     const nextSeqId = Math.max(...editableMaterialData.map((m) => m.Seq_ID || 0)) + 1;
     const customMaterial = {
@@ -3059,14 +3122,17 @@ export default function HPPSimulation() {
       purchasePrice: purchasePriceNum,
       purchaseUnit: purchaseUnit,
       conversionRate: conversionRateNum,
+      currency: currency,
+      currencyRate: currencyRate,
     };
 
     setEditableMaterialData([...editableMaterialData, customMaterial]);
     setShowCustomMaterialModal(false);
     setShowAddMaterialModal(false);
 
+    const currencyInfo = currency !== 'IDR' ? ` (${currency} ${purchasePriceNum.toLocaleString('id-ID')} × ${currencyRate.toLocaleString('id-ID')} = Rp ${priceInRupiah.toLocaleString('id-ID')})` : '';
     notifier.success(
-      `Custom material "${name}" added with unit price ${unitPrice.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} per ${usageUnit}. Set the quantity in the table.`
+      `Custom material "${name}" added with unit price Rp ${unitPrice.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} per ${usageUnit}${currencyInfo}. Set the quantity in the table.`
     );
   };
 
@@ -7508,19 +7574,39 @@ export default function HPPSimulation() {
                   />
                 </div>
 
-                {/* Purchase Price */}
+                {/* Purchase Price with Currency Selection */}
                 <div className="form-group">
-                  <label htmlFor="purchasePrice">Harga Pembelian (Rp) <span className="required">*</span></label>
-                  <input
-                    type="number"
-                    id="purchasePrice"
-                    placeholder="Contoh: 10000"
-                    value={customMaterialData.purchasePrice}
-                    onChange={(e) => handleCustomMaterialInputChange('purchasePrice', e.target.value)}
-                    className="form-input"
-                    min="0"
-                    step="0.01"
-                  />
+                  <label htmlFor="purchasePrice">Harga Pembelian <span className="required">*</span></label>
+                  <div className="price-currency-row">
+                    <select
+                      id="purchaseCurrency"
+                      value={customMaterialData.currency || 'IDR'}
+                      onChange={(e) => handleCustomMaterialInputChange('currency', e.target.value)}
+                      className="form-select currency-select"
+                    >
+                      {currencyList.map(curr => (
+                        <option key={curr} value={curr}>{curr}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      id="purchasePrice"
+                      placeholder="Contoh: 10000"
+                      value={customMaterialData.purchasePrice}
+                      onChange={(e) => handleCustomMaterialInputChange('purchasePrice', e.target.value)}
+                      className="form-input price-input"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  {customMaterialData.currency && customMaterialData.currency !== 'IDR' && currencyRates[customMaterialData.currency] && (
+                    <p className="currency-rate-hint">
+                      Kurs {customMaterialData.currency}: Rp {currencyRates[customMaterialData.currency].toLocaleString('id-ID')}
+                      {customMaterialData.purchasePrice && parseFloat(customMaterialData.purchasePrice) > 0 && (
+                        <span> = Rp {(parseFloat(customMaterialData.purchasePrice) * currencyRates[customMaterialData.currency]).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      )}
+                    </p>
+                  )}
                 </div>
 
                 {/* Unit Selection Row */}
@@ -7600,12 +7686,29 @@ export default function HPPSimulation() {
                 {customMaterialData.purchasePrice && customMaterialData.conversionRate && parseFloat(customMaterialData.conversionRate) > 0 && (
                   <div className="calculated-price-preview">
                     <div className="preview-label">Harga per Unit Penggunaan:</div>
-                    <div className="preview-value">
-                      Rp {(parseFloat(customMaterialData.purchasePrice) / parseFloat(customMaterialData.conversionRate)).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} / {customMaterialData.usageUnit || 'unit'}
-                    </div>
-                    <div className="preview-formula">
-                      ({formatNumber(parseFloat(customMaterialData.purchasePrice), 0)} ÷ {customMaterialData.conversionRate} = {(parseFloat(customMaterialData.purchasePrice) / parseFloat(customMaterialData.conversionRate)).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})
-                    </div>
+                    {(() => {
+                      const price = parseFloat(customMaterialData.purchasePrice);
+                      const conversion = parseFloat(customMaterialData.conversionRate);
+                      const currency = customMaterialData.currency || 'IDR';
+                      const rate = currencyRates[currency] || 1;
+                      const priceInRupiah = price * rate;
+                      const unitPrice = priceInRupiah / conversion;
+                      
+                      return (
+                        <>
+                          <div className="preview-value">
+                            Rp {unitPrice.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} / {customMaterialData.usageUnit || 'unit'}
+                          </div>
+                          <div className="preview-formula">
+                            {currency !== 'IDR' ? (
+                              <>({currency} {formatNumber(price, 2)} × {formatNumber(rate, 0)} ÷ {customMaterialData.conversionRate} = Rp {unitPrice.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})</>
+                            ) : (
+                              <>(Rp {formatNumber(price, 0)} ÷ {customMaterialData.conversionRate} = Rp {unitPrice.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 4 })})</>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
