@@ -370,3 +370,131 @@
     min-width: 90px;
   }
 }
+
+/* Import Periode Selection Styles */
+.import-periode-selection {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.import-periode-selection label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #374151;
+}
+
+.import-periode-select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.import-periode-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.import-periode-hint {
+  display: block;
+  margin-top: 0.5rem;
+  color: #6b7280;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.import-warning-note {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  color: #92400e;
+  font-size: 0.9rem;
+}
+
+/* Import Preview Modal Styles */
+.import-preview-modal {
+  max-width: 900px;
+  width: 90%;
+}
+
+.import-preview-summary {
+  margin-bottom: 1.5rem;
+}
+
+.import-preview-summary h3 {
+  margin: 0 0 0.5rem 0;
+  color: #1f2937;
+}
+
+.import-preview-summary p {
+  margin: 0.5rem 0;
+  color: #4b5563;
+}
+
+.detected-periodes {
+  color: #667eea !important;
+}
+
+.import-preview-table-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.import-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.import-preview-table thead {
+  position: sticky;
+  top: 0;
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  z-index: 1;
+}
+
+.import-preview-table th {
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.import-preview-table td {
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid #f3f4f6;
+  color: #4b5563;
+}
+
+.import-preview-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.import-preview-table .cost-cell {
+  text-align: right;
+  font-family: 'Courier New', monospace;
+}
+
+.preview-truncated {
+  text-align: center;
+  padding: 1rem;
+  color: #6b7280;
+  font-style: italic;
+  background: #f9fafb;
+  margin: 0;
+  border-top: 1px solid #e5e7eb;
+}

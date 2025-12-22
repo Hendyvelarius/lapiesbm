@@ -580,7 +580,7 @@ class MasterController {
 
     static async bulkImportGeneralCostsPerSediaan(req, res) {
         try {
-            const { items } = req.body;
+            const { items, periode } = req.body;
             
             if (!items || !Array.isArray(items) || items.length === 0) {
                 return res.status(400).json({
@@ -600,7 +600,8 @@ class MasterController {
                 }
             }
             
-            const result = await bulkInsertGeneralCostsPerSediaan(items);
+            // Pass periode to control which records get deleted
+            const result = await bulkInsertGeneralCostsPerSediaan(items, periode);
             
             res.status(200).json({
                 success: true,

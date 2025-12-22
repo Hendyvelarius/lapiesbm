@@ -1,6 +1,25 @@
 const { connect } = require('../../config/sqlserver');
 const sql = require('mssql');
 
+/**
+ * Get current local datetime as a string suitable for SQL Server.
+ * This avoids UTC conversion that happens with toISOString().
+ * Format: YYYY-MM-DD HH:MM:SS.mmm
+ * @returns {string} Local datetime string
+ */
+function getLocalDateTime() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+}
+
 // CRUD operations for M_COGS_PEMBEBANAN_TollFee
 class TollFeeModel {
   
@@ -231,8 +250,11 @@ class TollFeeModel {
   static async createTollFee(tollFeeData) {
     try {
       const pool = await connect();
+      const localDateTime = getLocalDateTime();
+      
       const query = `
         INSERT INTO M_COGS_PEMBEBANAN_TollFee (
+          Periode,
           ProductID,
           Toll_Fee,
           Rounded,
@@ -244,6 +266,7 @@ class TollFeeModel {
         )
         OUTPUT INSERTED.pk_id
         VALUES (
+          @periode,
           @productId,
           @tollFee,
           @rounded,
@@ -256,14 +279,15 @@ class TollFeeModel {
       `;
       
       const result = await pool.request()
+        .input('periode', sql.VarChar, tollFeeData.periode || new Date().getFullYear().toString())
         .input('productId', sql.NVarChar, tollFeeData.productId)
         .input('tollFee', sql.VarChar, tollFeeData.tollFeeRate) // Changed to VarChar to support "10%" format
         .input('rounded', sql.VarChar, tollFeeData.rounded || null)
         .input('userId', sql.NVarChar, tollFeeData.userId)
         .input('delegatedTo', sql.NVarChar, tollFeeData.delegatedTo || null)
-        .input('processDate', sql.DateTime, tollFeeData.processDate || new Date())
+        .input('processDate', sql.VarChar, localDateTime)
         .input('flagUpdate', sql.NVarChar, tollFeeData.flagUpdate || '0')
-        .input('fromUpdate', sql.NVarChar, tollFeeData.fromUpdate || 'INSERT')
+        .input('fromUpdate', sql.NVarChar, tollFeeData.fromUpdate || 'MANUAL')
         .query(query);
         
       return { pk_id: result.recordset[0].pk_id, ...tollFeeData };

@@ -5,6 +5,7 @@ import 'awesome-notifications/dist/style.css';
 import * as XLSX from 'xlsx';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { tollFeeAPI, masterAPI, productsAPI } from '../services/api';
+import { getCurrentUser } from '../utils/auth';
 import '../styles/TollFee.css';
 
 // Initialize awesome-notifications
@@ -47,7 +48,9 @@ const TollFee = ({ user }) => {
   // Add form data
   const [addFormData, setAddFormData] = useState({
     selectedProduct: null,
-    tollFeeRate: ''
+    tollFeeRate: '',
+    rounded: '',
+    periode: new Date().getFullYear().toString()
   });
   
   // Product selection for Add modal
@@ -232,20 +235,34 @@ const TollFee = ({ user }) => {
     }
   };
 
-  // Load available products for Add New (excluding existing toll fee entries)
-  const loadAvailableProducts = async () => {
+  // Load available products for Add New (excluding existing toll fee entries for the selected periode)
+  const loadAvailableProducts = async (periode) => {
     try {
-      if (productNames.length === 0) return;
+      // Fetch all products from the view for the selected kategori and periode
+      const result = await tollFeeAPI.getFromViewForExport(selectedKategori, periode);
       
-      // Get existing product IDs that already have toll fee rates
-      const existingProductIds = tollFeeData.map(item => item.productId);
+      if (!result || !result.success || !Array.isArray(result.data)) {
+        console.error('Failed to load products for Add');
+        setAvailableProducts([]);
+        return;
+      }
       
-      // Filter to exclude products that already have toll fee entries
-      const available = productNames.filter(product => 
-        !existingProductIds.includes(product.Product_ID)
+      // Get products that DON'T have toll fee (Toll_Fee is null or empty)
+      const unassignedProducts = result.data.filter(item => 
+        !item.Toll_Fee || item.Toll_Fee === '' || item.Toll_Fee === null
       );
       
-      setAvailableProducts(available);
+      // Transform to expected format
+      const transformed = unassignedProducts.map(item => ({
+        Product_ID: item.productid,
+        Product_Name: item.Product_Name,
+        LOB: item.LOB || '',
+        Jenis_Sediaan: item.Jenis_Sediaan || '',
+        Group_Dept: item.Group_Dept || ''
+      }));
+      
+      setAvailableProducts(transformed);
+      console.log(`Loaded ${transformed.length} available products for ${selectedKategori} ${periode}`);
     } catch (err) {
       console.error('Error loading available products:', err);
       setAvailableProducts([]);
@@ -419,12 +436,18 @@ const TollFee = ({ user }) => {
 
       setSubmitLoading(true);
       
+      // Get current user for user_id
+      const currentUser = getCurrentUser();
+      const userId = currentUser?.logNIK || currentUser?.nama || 'SYSTEM';
+      
       const newEntry = {
         productId: addFormData.selectedProduct.Product_ID,
-        tollFeeRate: addFormData.tollFeeRate.trim(), // Keep as string (varchar)
-        userId: user?.nama || user?.inisialNama || 'SYSTEM',
+        periode: addFormData.periode,
+        tollFeeRate: addFormData.tollFeeRate.trim(),
+        rounded: addFormData.rounded?.trim() || '',
+        userId: userId,
         delegatedTo: null
-        // Note: processDate is handled by the backend to ensure correct local timezone
+        // Note: processDate and fromUpdate are handled by the backend
       };
       
       const result = await tollFeeAPI.create(newEntry);
@@ -450,10 +473,13 @@ const TollFee = ({ user }) => {
     setShowAddModal(false);
     setAddFormData({
       selectedProduct: null,
-      tollFeeRate: ''
+      tollFeeRate: '',
+      rounded: '',
+      periode: selectedPeriode || new Date().getFullYear().toString()
     });
     setProductSearchTerm('');
     setShowProductDropdown(false);
+    setAvailableProducts([]);
   };
 
   // Delete handler
@@ -856,7 +882,11 @@ const TollFee = ({ user }) => {
               Import Excel
             </button>
             <button 
-              onClick={() => setShowAddModal(true)}
+              onClick={() => {
+                setAddFormData(prev => ({ ...prev, periode: selectedPeriode }));
+                loadAvailableProducts(selectedPeriode);
+                setShowAddModal(true);
+              }}
               className="toll-fee-btn-primary toll-fee-add-btn"
               title="Add new margin entry"
             >
@@ -1085,6 +1115,32 @@ const TollFee = ({ user }) => {
             </div>
             <div className="toll-fee-modal-body">
               <div className="toll-fee-form-group">
+                <label>Periode (Year): *</label>
+                <select
+                  value={addFormData.periode}
+                  onChange={(e) => {
+                    const newPeriode = e.target.value;
+                    handleAddFormChange('periode', newPeriode);
+                    // Reload available products for the new periode
+                    loadAvailableProducts(newPeriode);
+                    // Clear selected product when periode changes
+                    handleAddFormChange('selectedProduct', null);
+                    setProductSearchTerm('');
+                  }}
+                  className="toll-fee-periode-select"
+                >
+                  {[...Array(5)].map((_, i) => {
+                    const year = new Date().getFullYear() - 2 + i;
+                    return (
+                      <option key={year} value={year.toString()}>
+                        {year}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+              
+              <div className="toll-fee-form-group">
                 <label>Select Product: *</label>
                 <div className="toll-fee-product-search-container">
                   <input
@@ -1148,12 +1204,23 @@ const TollFee = ({ user }) => {
                 />
               </div>
               
+              <div className="toll-fee-form-group">
+                <label>Rounded:</label>
+                <input
+                  type="number"
+                  value={addFormData.rounded}
+                  onChange={(e) => handleAddFormChange('rounded', e.target.value)}
+                  placeholder="e.g., 100"
+                />
+                <small className="toll-fee-field-hint">Optional: Round margin to nearest value</small>
+              </div>
+              
               <div className="toll-fee-form-info">
                 <small>
                   * Required fields<br/>
                   • Select a product from the dropdown<br/>
                   • Margin can be a number (e.g., 10) or percentage (e.g., 10%)<br/>
-                  • Only products without existing margin entries are shown
+                  • Only products without existing margin entries for the selected year are shown
                 </small>
               </div>
             </div>

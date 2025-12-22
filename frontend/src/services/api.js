@@ -394,9 +394,11 @@ export const masterAPI = {
 
   deleteGeneralCostPerSediaan: (keys) => apiRequest(`/master/generalCostsPerSediaan/${encodeURIComponent(keys.periode)}/${encodeURIComponent(keys.lineProduction)}/${encodeURIComponent(keys.bentukSediaan)}`, {
     method: 'DELETE',
-  }),  bulkImportGeneralCostsPerSediaan: (items) => apiRequest('/master/generalCostsPerSediaan/bulk-import', {
+  }),
+  
+  bulkImportGeneralCostsPerSediaan: (items, periode = null) => apiRequest('/master/generalCostsPerSediaan/bulk-import', {
     method: 'POST',
-    body: JSON.stringify({ items }),
+    body: JSON.stringify({ items, periode }),
   }),
   
   // Get groups

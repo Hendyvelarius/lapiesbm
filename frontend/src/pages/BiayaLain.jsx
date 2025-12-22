@@ -54,8 +54,12 @@ const BiayaLain = () => {
     bentukSediaan: ''
   });
   
-  // Import warning modal state
+  // Import states
   const [showImportWarning, setShowImportWarning] = useState(false);
+  const [importPeriode, setImportPeriode] = useState('all');
+  const [importPreviewData, setImportPreviewData] = useState([]);
+  const [showImportPreview, setShowImportPreview] = useState(false);
+  const [importFilePeriodesDetected, setImportFilePeriodesDetected] = useState([]);
 
   // Fetch all data
   const fetchAllData = async () => {
@@ -382,10 +386,15 @@ const BiayaLain = () => {
     setDeletingItem(null);
   };
 
-  // Export function
+  // Export function - respects the selected periode filter
   const handleExportGeneralCosts = () => {
     try {
-      const exportData = processedData.map(item => ({
+      // Use filteredData if a specific periode is selected, otherwise use all data
+      const dataToExport = selectedPeriode !== 'All Periods' 
+        ? processedData.filter(item => item.periode === selectedPeriode)
+        : processedData;
+
+      const exportData = dataToExport.map(item => ({
         'Periode': item.periode,
         'Direct_Labor': item.directLabor || 0,
         'Factory_Over_Head': item.factoryOverHead || 0,
@@ -406,22 +415,47 @@ const BiayaLain = () => {
       ];
       worksheet['!cols'] = columnWidths;
       XLSX.utils.book_append_sheet(workbook, worksheet, 'General Costs per Sediaan');
-      const filename = `general_costs_per_sediaan_${new Date().toISOString().split('T')[0]}.xlsx`;
+      
+      const periodeSuffix = selectedPeriode !== 'All Periods' ? `_${selectedPeriode}` : '_all_periods';
+      const filename = `general_costs_per_sediaan${periodeSuffix}_${new Date().toISOString().split('T')[0]}.xlsx`;
       XLSX.writeFile(workbook, filename);
-      notifier.success(`Successfully exported ${exportData.length} general costs records to Excel`);
+      
+      const periodMessage = selectedPeriode !== 'All Periods' 
+        ? ` for periode ${selectedPeriode}` 
+        : ' (all periods)';
+      notifier.success(`Successfully exported ${exportData.length} general costs records${periodMessage} to Excel`);
     } catch (error) {
       console.error('Error exporting general costs data:', error);
       notifier.alert('Failed to export general costs data. Please try again.');
     }
   };
 
-  // Import function
+  // Import function - opens modal for periode selection
   const handleImportGeneralCosts = () => {
+    setImportPeriode('all');
+    setImportPreviewData([]);
+    setImportFilePeriodesDetected([]);
     setShowImportWarning(true);
   };
 
+  // Get available periodes for import dropdown
+  const getAvailableImportPeriodes = () => {
+    const currentYear = new Date().getFullYear();
+    const years = new Set();
+    
+    // Add current year and 2 years before/after
+    for (let i = -2; i <= 2; i++) {
+      years.add((currentYear + i).toString());
+    }
+    
+    // Add existing periodes from data
+    uniquePeriodes.forEach(p => years.add(p));
+    
+    // Sort descending and return
+    return Array.from(years).sort().reverse();
+  };
+
   const handleImportConfirm = () => {
-    setShowImportWarning(false);
     proceedWithImport();
   };
 
@@ -453,30 +487,53 @@ const BiayaLain = () => {
 
         if (importedData.length === 0) {
           notifier.alert('No data found in the uploaded file.');
+          setLoading(false);
           return;
         }
 
+        // Validate and map the data
         const validatedData = await validateAndMapImportData(importedData);
         
         if (validatedData.length === 0) {
           notifier.alert('No valid data found after validation. Please check your file format and data.');
+          setLoading(false);
           return;
         }
 
-        const result = await masterAPI.bulkImportGeneralCostsPerSediaan(validatedData);
-        console.log('Import successful:', result);
-        await fetchAllData();
+        // Detect unique periodes in the file
+        const fileperiodes = [...new Set(validatedData.map(item => item.periode))];
+        setImportFilePeriodesDetected(fileperiodes);
 
-        // Close import modal
+        // Handle validation based on selected import periode
+        if (importPeriode === 'all') {
+          // If importing all periods, file must have multiple periodes
+          if (fileperiodes.length === 1) {
+            notifier.alert(`The uploaded file only contains data for a single year (${fileperiodes[0]}). Please select that specific year in the import options instead of "All Periods".`);
+            setLoading(false);
+            return;
+          }
+          // Show preview with all data
+          setImportPreviewData(validatedData);
+        } else {
+          // Filter data for the selected periode only
+          const filteredForPeriode = validatedData.filter(item => item.periode === importPeriode);
+          
+          if (filteredForPeriode.length === 0) {
+            notifier.alert(`No data found for periode ${importPeriode} in the uploaded file. The file contains data for: ${fileperiodes.join(', ')}`);
+            setLoading(false);
+            return;
+          }
+          
+          setImportPreviewData(filteredForPeriode);
+        }
+
+        // Close warning modal and show preview
         setShowImportWarning(false);
-
-        notifier.success(`Import completed successfully! Deleted: ${result.data.deleted} old records, Inserted: ${result.data.inserted} new records`, {
-          durations: { success: 6000 }
-        });
+        setShowImportPreview(true);
 
       } catch (error) {
-        console.error('Error importing data:', error);
-        notifier.alert(`Failed to import data: ${error.message}`);
+        console.error('Error processing import file:', error);
+        notifier.alert(`Failed to process file: ${error.message}`);
       } finally {
         setLoading(false);
       }
@@ -485,6 +542,39 @@ const BiayaLain = () => {
     document.body.appendChild(input);
     input.click();
     document.body.removeChild(input);
+  };
+
+  // Confirm and execute the import
+  const handleConfirmImport = async () => {
+    try {
+      setLoading(true);
+      
+      const result = await masterAPI.bulkImportGeneralCostsPerSediaan(importPreviewData, importPeriode === 'all' ? 'all' : importPeriode);
+      console.log('Import successful:', result);
+      await fetchAllData();
+
+      // Close modals and reset state
+      setShowImportPreview(false);
+      setImportPreviewData([]);
+      setImportFilePeriodesDetected([]);
+
+      const periodeMessage = importPeriode === 'all' ? 'all periods' : `periode ${importPeriode}`;
+      notifier.success(`Import completed successfully for ${periodeMessage}! Deleted: ${result.data.deleted} old records, Inserted: ${result.data.inserted} new records`, {
+        durations: { success: 6000 }
+      });
+
+    } catch (error) {
+      console.error('Error importing data:', error);
+      notifier.alert(`Failed to import data: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelImportPreview = () => {
+    setShowImportPreview(false);
+    setImportPreviewData([]);
+    setImportFilePeriodesDetected([]);
   };
 
   const readFileAsText = (file) => {
@@ -1078,7 +1168,7 @@ const BiayaLain = () => {
         </div>
       )}
 
-      {/* Import Warning Modal - Need to implement */}
+      {/* Import Warning Modal - with Periode Selection */}
       {showImportWarning && (
         <div className="modal-overlay">
           <div className="modal-content import-warning-modal">
@@ -1094,8 +1184,29 @@ const BiayaLain = () => {
                 <Upload size={48} />
               </div>
               <h3>Import General Cost Entries</h3>
+              
+              <div className="import-periode-selection">
+                <label htmlFor="import-periode"><strong>Select Import Periode:</strong></label>
+                <select 
+                  id="import-periode"
+                  value={importPeriode} 
+                  onChange={(e) => setImportPeriode(e.target.value)}
+                  className="import-periode-select"
+                >
+                  <option value="all">All Periods (Multi-year file)</option>
+                  {getAvailableImportPeriodes().map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+                <small className="import-periode-hint">
+                  {importPeriode === 'all' 
+                    ? 'Select this when importing a file with multiple years. File must contain more than one year.'
+                    : `Only data for ${importPeriode} will be imported. Existing ${importPeriode} data will be replaced.`
+                  }
+                </small>
+              </div>
+              
               <p>
-                This will replace ALL existing general cost entries with the data from your file.
                 Make sure your file contains the correct format with the following columns:
               </p>
               <ul>
@@ -1106,6 +1217,13 @@ const BiayaLain = () => {
                 <li><strong>Line_Production</strong> - Production line (PN1, PN2, PN3)</li>
                 <li><strong>Bentuk_Sediaan</strong> - Dosage form</li>
               </ul>
+              
+              <div className="import-warning-note">
+                <strong>Note:</strong> {importPeriode === 'all' 
+                  ? 'This will replace ALL existing general cost entries with the data from your file.'
+                  : `This will replace existing entries for periode ${importPeriode} only.`
+                }
+              </div>
             </div>
             
             <div className="modal-actions">
@@ -1119,7 +1237,87 @@ const BiayaLain = () => {
                 className="modal-btn primary" 
                 onClick={handleImportConfirm}
               >
-                Continue Import
+                Select File
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Preview Modal */}
+      {showImportPreview && (
+        <div className="modal-overlay">
+          <div className="modal-content import-preview-modal">
+            <div className="modal-header">
+              <h2>Import Preview</h2>
+              <button className="modal-close" onClick={handleCancelImportPreview}>
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="import-preview-summary">
+                <h3>Ready to Import</h3>
+                <p>
+                  <strong>{importPreviewData.length}</strong> entries will be imported for{' '}
+                  <strong>{importPeriode === 'all' ? 'all periods' : `periode ${importPeriode}`}</strong>.
+                </p>
+                {importFilePeriodesDetected.length > 0 && (
+                  <p className="detected-periodes">
+                    Periodes detected in file: <strong>{importFilePeriodesDetected.join(', ')}</strong>
+                  </p>
+                )}
+                <div className="import-warning-note">
+                  <strong>Warning:</strong> This will delete existing entries for{' '}
+                  {importPeriode === 'all' ? 'ALL periods' : `periode ${importPeriode}`} and replace them with the new data.
+                </div>
+              </div>
+
+              <div className="import-preview-table-container">
+                <table className="import-preview-table">
+                  <thead>
+                    <tr>
+                      <th>Periode</th>
+                      <th>Line Production</th>
+                      <th>Bentuk Sediaan</th>
+                      <th>Direct Labor</th>
+                      <th>Factory Overhead</th>
+                      <th>Depreciation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importPreviewData.slice(0, 50).map((item, index) => (
+                      <tr key={index}>
+                        <td>{item.periode}</td>
+                        <td>{item.lineProduction}</td>
+                        <td>{item.bentukSediaan}</td>
+                        <td className="cost-cell">{parseFloat(item.directLabor || 0).toLocaleString('id-ID')}</td>
+                        <td className="cost-cell">{parseFloat(item.factoryOverHead || 0).toLocaleString('id-ID')}</td>
+                        <td className="cost-cell">{parseFloat(item.depresiasi || 0).toLocaleString('id-ID')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {importPreviewData.length > 50 && (
+                  <p className="preview-truncated">
+                    Showing first 50 of {importPreviewData.length} entries...
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            <div className="modal-actions">
+              <button 
+                className="modal-btn secondary" 
+                onClick={handleCancelImportPreview}
+              >
+                Cancel
+              </button>
+              <button 
+                className="modal-btn primary" 
+                onClick={handleConfirmImport}
+              >
+                Confirm Import ({importPreviewData.length} entries)
               </button>
             </div>
           </div>

@@ -135,7 +135,7 @@ class TollFeeController {
   // Create new toll fee entry
   static async createTollFee(req, res) {
     try {
-      const { productId, tollFeeRate, rounded, userId, delegatedTo, processDate } = req.body;
+      const { productId, periode, tollFeeRate, rounded, userId, delegatedTo } = req.body;
       
       // Validation
       if (!productId || productId.trim() === '') {
@@ -151,13 +151,13 @@ class TollFeeController {
       // Prepare data
       const tollFeeData = {
         productId: productId.trim(),
+        periode: periode || new Date().getFullYear().toString(),
         tollFeeRate: tollFeeRate || '',
         rounded: rounded || '',
         userId: userId || 'SYSTEM',
         delegatedTo: delegatedTo || null,
-        processDate: processDate ? new Date(processDate) : new Date(),
         flagUpdate: '0',
-        fromUpdate: 'INSERT'
+        fromUpdate: 'MANUAL'
       };
       
       const newTollFeeEntry = await TollFeeModel.createTollFee(tollFeeData);

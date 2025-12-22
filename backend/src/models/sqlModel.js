@@ -559,12 +559,21 @@ async function deleteGeneralCostPerSediaan(keys) {
   }
 }
 
-async function bulkInsertGeneralCostsPerSediaan(data) {
+async function bulkInsertGeneralCostsPerSediaan(data, periode = null) {
   try {
     const db = await connect();
     
-    // First, clear all existing data
-    const deleteResult = await db.request().query('DELETE FROM M_COGS_RATE_GENERAL_per_SEDIAAN');
+    // Delete based on periode parameter
+    let deleteResult;
+    if (periode && periode !== 'all') {
+      // Delete only for specific periode
+      deleteResult = await db.request()
+        .input('periode', periode)
+        .query('DELETE FROM M_COGS_RATE_GENERAL_per_SEDIAAN WHERE Periode = @periode');
+    } else {
+      // Delete all existing data (when importing all periods)
+      deleteResult = await db.request().query('DELETE FROM M_COGS_RATE_GENERAL_per_SEDIAAN');
+    }
     const deletedCount = deleteResult.rowsAffected[0] || 0;
 
     // Insert new data
@@ -591,7 +600,8 @@ async function bulkInsertGeneralCostsPerSediaan(data) {
       success: true,
       operation: 'bulk_insert',
       deleted: deletedCount,
-      inserted: insertedCount
+      inserted: insertedCount,
+      periode: periode || 'all'
     };
   } catch (error) {
     console.error('Error executing bulkInsertGeneralCostsPerSediaan query:', error);
