@@ -26,7 +26,8 @@ const Reagen = ({ user }) => {
   const [searchTerm, setSearchTerm] = useState('');
   
   // Period state
-  const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear().toString());
+  const [selectedPeriode, setSelectedPeriode] = useState('');
+  const [periodeLoaded, setPeriodeLoaded] = useState(false);
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -65,9 +66,16 @@ const Reagen = ({ user }) => {
         const response = await productsAPI.getDefaultYear();
         if (response.success && response.data?.defaultYear) {
           setSelectedPeriode(response.data.defaultYear);
+        } else {
+          // Fallback to current year if API fails
+          setSelectedPeriode(new Date().getFullYear().toString());
         }
       } catch (error) {
         console.error('Failed to fetch default year:', error);
+        // Fallback to current year if API fails
+        setSelectedPeriode(new Date().getFullYear().toString());
+      } finally {
+        setPeriodeLoaded(true);
       }
     };
 
@@ -223,8 +231,10 @@ const Reagen = ({ user }) => {
     }
   };
 
-  // Initial data load
+  // Initial data load - wait for periode to be loaded first
   useEffect(() => {
+    if (!periodeLoaded) return; // Don't load data until periode is set
+    
     const loadInitialData = async () => {
       // Load product names first, but don't wait for it to complete
       loadProductNames();
@@ -232,10 +242,11 @@ const Reagen = ({ user }) => {
       await loadReagenData();
     };
     loadInitialData();
-  }, []);
+  }, [periodeLoaded]);
 
-  // Reload data when periode changes
+  // Reload data when periode changes (after initial load)
   useEffect(() => {
+    if (!periodeLoaded) return; // Skip if periode hasn't been loaded yet
     if (productNames.length > 0) {
       loadReagenData();
       setCurrentPage(1); // Reset to first page when changing year
