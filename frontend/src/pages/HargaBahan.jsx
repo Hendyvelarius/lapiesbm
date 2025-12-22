@@ -391,12 +391,20 @@ const HargaBahan = () => {
     return new Intl.NumberFormat('id-ID').format(value);
   };
 
+  // Format date without timezone conversion (treats server date as local time)
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
+    if (!dateString) return '';
+    // Parse the date string manually to avoid timezone conversion
+    // SQL Server returns format like: "2025-12-04T10:30:00.000Z" or "2025-12-04 10:30:00"
+    const cleanDateStr = dateString.replace('T', ' ').replace('Z', '').split('.')[0];
+    const [datePart] = cleanDateStr.split(' ');
+    const [year, month, day] = datePart.split('-');
+    
+    // Month names in Indonesian
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const monthIndex = parseInt(month, 10) - 1;
+    
+    return `${parseInt(day, 10)} ${monthNames[monthIndex]} ${year}`;
   };
 
   // Format datetime without timezone conversion (treats server date as local time)
