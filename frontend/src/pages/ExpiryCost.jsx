@@ -61,6 +61,7 @@ const ExpiryCost = () => {
   const [allocationData, setAllocationData] = useState([]);
   const [productNames, setProductNames] = useState([]);
   const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear().toString());
+  const [periodeLoaded, setPeriodeLoaded] = useState(false); // Prevent race condition with default year
 
   const currentYear = new Date().getFullYear().toString();
 
@@ -74,6 +75,8 @@ const ExpiryCost = () => {
         }
       } catch (error) {
         console.error('Failed to fetch default year:', error);
+      } finally {
+        setPeriodeLoaded(true);
       }
     };
 
@@ -81,8 +84,9 @@ const ExpiryCost = () => {
   }, []);
 
   useEffect(() => {
+    if (!periodeLoaded) return; // Don't load until default year is loaded
     loadData();
-  }, [selectedPeriode]);
+  }, [selectedPeriode, periodeLoaded]);
 
   const loadData = async () => {
     try {

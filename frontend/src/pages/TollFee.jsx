@@ -29,6 +29,7 @@ const TollFee = ({ user }) => {
   // Category and Period states
   const [selectedKategori, setSelectedKategori] = useState('Toll In');
   const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear().toString());
+  const [periodeLoaded, setPeriodeLoaded] = useState(false); // Prevent race condition with default year
   const availableKategori = ['Toll In', 'Toll Out', 'Import', 'Lapi'];
   
   // Pagination states
@@ -73,6 +74,8 @@ const TollFee = ({ user }) => {
         }
       } catch (error) {
         console.error('Failed to fetch default year:', error);
+      } finally {
+        setPeriodeLoaded(true);
       }
     };
 
@@ -269,10 +272,11 @@ const TollFee = ({ user }) => {
     }
   };
 
-  // Initial data load
+  // Initial data load - wait for periode to be loaded first
   useEffect(() => {
+    if (!periodeLoaded) return; // Don't fetch until default year is loaded
     loadTollFeeData();
-  }, [selectedKategori, selectedPeriode]);
+  }, [selectedKategori, selectedPeriode, periodeLoaded]);
 
   // Re-map toll fee data when product names are loaded - REMOVED (no longer needed with view)
   

@@ -22,6 +22,7 @@ const FormulaAssignment = ({ user }) => {
   
   // Year selection states
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [yearLoaded, setYearLoaded] = useState(false); // Prevent race condition with default year
   const [availableYears, setAvailableYears] = useState([]);
   const [importYear, setImportYear] = useState(new Date().getFullYear().toString());
   const [addYear, setAddYear] = useState(new Date().getFullYear().toString());
@@ -113,6 +114,8 @@ const FormulaAssignment = ({ user }) => {
         }
       } catch (error) {
         console.error('Failed to fetch default year:', error);
+      } finally {
+        setYearLoaded(true);
       }
     };
 
@@ -155,6 +158,8 @@ const FormulaAssignment = ({ user }) => {
   }, [searchTerm, productList, chosenFormulas, showProductDropdown]);
 
   const loadData = useCallback(async () => {
+    if (!yearLoaded) return; // Don't fetch until default year is loaded
+    
     try {
       setLoading(true);
 
@@ -178,7 +183,7 @@ const FormulaAssignment = ({ user }) => {
     } finally {
       setLoading(false);
     }
-  }, [notifier, selectedYear]);
+  }, [notifier, selectedYear, yearLoaded]);
 
   // Load initial data
   useEffect(() => {

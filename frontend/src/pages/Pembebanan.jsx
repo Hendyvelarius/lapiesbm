@@ -28,6 +28,7 @@ const Pembebanan = () => {
   
   // Period state
   const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear().toString());
+  const [periodeLoaded, setPeriodeLoaded] = useState(false); // Prevent race condition with default year
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -84,6 +85,8 @@ const Pembebanan = () => {
         }
       } catch (error) {
         console.error('Failed to fetch default year:', error);
+      } finally {
+        setPeriodeLoaded(true);
       }
     };
 
@@ -110,10 +113,11 @@ const Pembebanan = () => {
     }
   };
 
-  // Initial data load
+  // Initial data load - wait for periode to load first
   useEffect(() => {
+    if (!periodeLoaded) return; // Don't fetch until default year is loaded
     fetchAllData();
-  }, []);
+  }, [periodeLoaded]);
   
   // Reload when periode changes
   useEffect(() => {

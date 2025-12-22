@@ -58,6 +58,7 @@ export default function GenerateHPP() {
   const [loading, setLoading] = useState(false);
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [yearLoaded, setYearLoaded] = useState(false); // Prevent showing wrong year initially
   const [showOverwriteModal, setShowOverwriteModal] = useState(false);
 
   const currentYear = new Date().getFullYear().toString();
@@ -72,6 +73,8 @@ export default function GenerateHPP() {
         }
       } catch (error) {
         console.error('Failed to fetch default year:', error);
+      } finally {
+        setYearLoaded(true);
       }
     };
 

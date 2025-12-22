@@ -365,6 +365,7 @@ const HPPResults = () => {
   const [activeTab, setActiveTab] = useState('ethical');
   const [exporting, setExporting] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [yearLoaded, setYearLoaded] = useState(false); // Prevent race condition with default year
   
   // Product HPP Report modal state
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -394,16 +395,20 @@ const HPPResults = () => {
         }
       } catch (error) {
         console.error('Failed to fetch default year:', error);
+        // Keep current year as fallback
+      } finally {
+        setYearLoaded(true);
       }
     };
 
     fetchDefaultYear();
   }, []);
 
-  // Fetch HPP results whenever selectedYear changes
+  // Fetch HPP results whenever selectedYear changes - but only after year is loaded
   useEffect(() => {
+    if (!yearLoaded) return; // Don't fetch until default year is loaded
     fetchHPPResults(selectedYear);
-  }, [selectedYear]);
+  }, [selectedYear, yearLoaded]);
 
   const fetchHPPResults = async (year = selectedYear) => {
     try {

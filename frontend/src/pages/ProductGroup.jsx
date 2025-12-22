@@ -30,6 +30,7 @@ const ProductGroup = () => {
   
   // Year/Periode filter state
   const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear());
+  const [periodeLoaded, setPeriodeLoaded] = useState(false); // Prevent race condition with default year
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -73,6 +74,8 @@ const ProductGroup = () => {
       } catch (error) {
         console.error('Failed to fetch default year:', error);
         // Keep current year as fallback if API fails
+      } finally {
+        setPeriodeLoaded(true);
       }
     };
 
@@ -80,8 +83,9 @@ const ProductGroup = () => {
   }, []);
 
   useEffect(() => {
+    if (!periodeLoaded) return; // Don't fetch until default year is loaded
     fetchAllData();
-  }, [selectedPeriode]); // Refetch when periode changes
+  }, [selectedPeriode, periodeLoaded]); // Refetch when periode changes
 
   useEffect(() => {
     filterData();

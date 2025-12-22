@@ -26,6 +26,7 @@ const HargaBahan = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Ingredients');
   const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear().toString());
+  const [periodeLoaded, setPeriodeLoaded] = useState(false); // Prevent race condition with default year
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -127,6 +128,8 @@ const HargaBahan = () => {
       } catch (error) {
         console.error('Failed to fetch default year:', error);
         // Keep current year as fallback if API fails
+      } finally {
+        setPeriodeLoaded(true);
       }
     };
 
@@ -177,8 +180,9 @@ const HargaBahan = () => {
   };
 
   useEffect(() => {
+    if (!periodeLoaded) return; // Don't fetch until default year is loaded
     fetchAllData();
-  }, [selectedPeriode]);
+  }, [selectedPeriode, periodeLoaded]);
 
   useEffect(() => {
     filterData();
