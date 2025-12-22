@@ -353,8 +353,8 @@ const TollFee = ({ user }) => {
         tollFeeRate: editFormData.tollFeeRate || '', // Keep as string (varchar)
         rounded: editFormData.rounded || '', // Keep as string (varchar)
         userId: user?.nama || user?.inisialNama || 'SYSTEM',
-        delegatedTo: originalItem.delegatedTo,
-        processDate: new Date().toISOString()
+        delegatedTo: originalItem.delegatedTo
+        // Note: processDate is handled by the backend to ensure correct local timezone
       };
       
       const result = await tollFeeAPI.updateByProductAndPeriode(
@@ -423,8 +423,8 @@ const TollFee = ({ user }) => {
         productId: addFormData.selectedProduct.Product_ID,
         tollFeeRate: addFormData.tollFeeRate.trim(), // Keep as string (varchar)
         userId: user?.nama || user?.inisialNama || 'SYSTEM',
-        delegatedTo: null,
-        processDate: new Date().toISOString()
+        delegatedTo: null
+        // Note: processDate is handled by the backend to ensure correct local timezone
       };
       
       const result = await tollFeeAPI.create(newEntry);
@@ -775,8 +775,8 @@ const TollFee = ({ user }) => {
         rounded: entry.rounded,
         periode: entry.periode,
         userId: userId,
-        delegatedTo: null,
-        processDate: new Date().toISOString()
+        delegatedTo: null
+        // Note: processDate is handled by the backend to ensure correct local timezone
       }));
 
       // Step 3: Bulk insert new entries

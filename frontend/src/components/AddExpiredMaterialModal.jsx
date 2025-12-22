@@ -162,8 +162,8 @@ const AddExpiredMaterialModal = ({ materials, onClose, onSave, currentYear }) =>
         itemQty: parseFloat(formData.itemQty),
         itemUnit: formData.itemUnit.trim(),
         periode: currentYear,
-        userId: currentUser?.logNIK || 'SYSTEM',
-        processDate: new Date().toISOString()
+        userId: currentUser?.logNIK || 'SYSTEM'
+        // Note: processDate is handled by the backend to ensure correct local timezone
       };
 
       const response = await apiCall('/expiry-cost', 'POST', submitData);

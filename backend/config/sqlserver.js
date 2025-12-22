@@ -7,6 +7,7 @@ const config = {
   server: process.env.SQL_HOST,
   port: parseInt(process.env.SQL_PORT, 10) || 1433,
   database: process.env.SQL_DATABASE,
+  requestTimeout: 120000, // 120 seconds for long-running stored procedures
   options: {
     encrypt: false, 
     trustServerCertificate: true

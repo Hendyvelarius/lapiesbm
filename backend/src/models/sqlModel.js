@@ -1,6 +1,25 @@
 const { connect } = require('../../config/sqlserver');
 const sql = require('mssql');
 
+/**
+ * Get current local datetime as a string suitable for SQL Server.
+ * This avoids UTC conversion that happens with toISOString().
+ * Format: YYYY-MM-DD HH:MM:SS.mmm
+ * @returns {string} Local datetime string
+ */
+function getLocalDateTime() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+}
+
 async function getCurrencyList() {
   try {
     const db = await connect();
@@ -73,7 +92,7 @@ async function getHargaBahan(periode = null) {
 async function addHargaBahan(itemId, itemType, unit, price, currency, rate, userId, periode = null) {
   try {
     const db = await connect();
-    const currentDateTime = new Date().toISOString();
+    const currentDateTime = getLocalDateTime();
     const insertPeriode = periode || new Date().getFullYear().toString();
     
     const query = `
@@ -135,7 +154,7 @@ async function addHargaBahan(itemId, itemType, unit, price, currency, rate, user
 async function updateHargaBahan(pkId, itemType, unit, price, currency, rate, userId, periode = null) {
   try {
     const db = await connect();
-    const currentDateTime = new Date().toISOString();
+    const currentDateTime = getLocalDateTime();
     const updatePeriode = periode || new Date().getFullYear().toString();
     
     const query = `
@@ -312,7 +331,7 @@ async function bulkInsertHargaBahan(dataArray) {
       
       // Add parameters for each row in this batch
       batch.forEach((item, rowIndex) => {
-        const currentDate = new Date();
+        const currentDateStr = getLocalDateTime();
         
         // Handle null/undefined values properly
         const price = item.ITEM_PURCHASE_STD_PRICE !== null && 
@@ -330,9 +349,9 @@ async function bulkInsertHargaBahan(dataArray) {
         request.input(`param${rowIndex}_6`, sql.VarChar, item.Periode || new Date().getFullYear().toString());
         request.input(`param${rowIndex}_7`, sql.VarChar, item.user_id || 'SYSTEM');
         request.input(`param${rowIndex}_8`, sql.VarChar, item.delegated_to || 'SYSTEM');
-        request.input(`param${rowIndex}_9`, sql.DateTime2, item.process_date || currentDate);
-        request.input(`param${rowIndex}_10`, sql.DateTime2, currentDate);
-        request.input(`param${rowIndex}_11`, sql.DateTime2, currentDate);
+        request.input(`param${rowIndex}_9`, sql.VarChar, item.process_date || currentDateStr);
+        request.input(`param${rowIndex}_10`, sql.VarChar, currentDateStr);
+        request.input(`param${rowIndex}_11`, sql.VarChar, currentDateStr);
       });
       
       const result = await request.query(insertQuery);

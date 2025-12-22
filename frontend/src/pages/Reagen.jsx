@@ -352,8 +352,8 @@ const Reagen = ({ user }) => {
         productId: originalItem.productId,
         reagenRate: parseFloat(editFormData.reagenRate) || 0,
         userId: user?.nama || user?.inisialNama || 'SYSTEM',
-        delegatedTo: originalItem.delegatedTo,
-        processDate: new Date().toISOString()
+        delegatedTo: originalItem.delegatedTo
+        // Note: processDate is handled by the backend to ensure correct local timezone
       };
       
       const result = await reagenAPI.update(editingRowId, updateData);
@@ -418,8 +418,8 @@ const Reagen = ({ user }) => {
         productId: addFormData.selectedProduct.Product_ID,
         reagenRate: parseFloat(addFormData.reagenRate),
         userId: user?.nama || user?.inisialNama || 'SYSTEM',
-        delegatedTo: null,
-        processDate: new Date().toISOString()
+        delegatedTo: null
+        // Note: processDate is handled by the backend to ensure correct local timezone
       };
       
       const result = await reagenAPI.create(newEntry);
@@ -684,8 +684,8 @@ const Reagen = ({ user }) => {
         reagenRate: entry.reagenRate,
         periode: selectedPeriode,
         userId: userId,
-        delegatedTo: null,
-        processDate: new Date().toISOString()
+        delegatedTo: null
+        // Note: processDate is handled by the backend to ensure correct local timezone
       }));
 
       // Step 3: Bulk insert new entries

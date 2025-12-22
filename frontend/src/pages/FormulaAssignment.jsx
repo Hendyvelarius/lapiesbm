@@ -1199,7 +1199,7 @@ const FormulaAssignment = ({ user }) => {
 
   // Transform import data to backend format
   const transformImportData = (processedData, formulas) => {
-    const processDate = new Date().toISOString();
+    // Note: process_date is handled by the backend to ensure correct local timezone
     const userName = user?.logNIK || 'SYSTEM';
     console.log('Import - user.logNIK:', user?.logNIK, 'userName:', userName);
     
@@ -1239,7 +1239,7 @@ const FormulaAssignment = ({ user }) => {
         isManual: null,
         user_id: userName,
         delegated_to: userName,
-        process_date: processDate,
+        process_date: null, // Backend will set this with local timezone
         flag_update: null,
         from_update: null
       };

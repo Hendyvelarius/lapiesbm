@@ -8,15 +8,19 @@ import ValidationModal from '../components/ValidationModal';
 // API base configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
-// Generic API request function
-const apiCall = async (endpoint, method = 'GET', data = null) => {
+// Generic API request function with configurable timeout
+const apiCall = async (endpoint, method = 'GET', data = null, timeout = 15000) => {
   const url = `${API_BASE_URL}${endpoint}`;
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
   
   const config = {
     method,
     headers: {
       'Content-Type': 'application/json',
     },
+    signal: controller.signal,
   };
 
   if (data && method !== 'GET') {
@@ -25,6 +29,7 @@ const apiCall = async (endpoint, method = 'GET', data = null) => {
 
   try {
     const response = await fetch(url, config);
+    clearTimeout(timeoutId);
     const result = await response.json();
 
     if (!response.ok) {
@@ -33,6 +38,10 @@ const apiCall = async (endpoint, method = 'GET', data = null) => {
 
     return result;
   } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('Request timeout - the operation took too long');
+    }
     console.error('API Request Error:', error);
     throw error;
   }
@@ -186,9 +195,10 @@ export default function GenerateHPP() {
   const performHPPCalculation = async () => {
     try {
       // Call the backend to execute sp_COGS_GenerateHPP with selected year
+      // Use 120 second timeout since the stored procedure can take a long time
       const response = await apiCall('/hpp/generate', 'POST', {
         periode: selectedYear.toString()
-      });
+      }, 120000);
 
       if (response.success) {
         setStepStatus(prev => ({ ...prev, calculation: 'completed' }));

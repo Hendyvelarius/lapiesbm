@@ -31,6 +31,10 @@ const HargaBahan = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(50); // Show only 50 items per page
 
+  // Sorting states
+  const [sortColumn, setSortColumn] = useState('itemId');
+  const [sortDirection, setSortDirection] = useState('asc');
+
   // Modal states
   const [showModal, setShowModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -178,7 +182,7 @@ const HargaBahan = () => {
 
   useEffect(() => {
     filterData();
-  }, [materialData, searchTerm, selectedCategory]);
+  }, [materialData, searchTerm, selectedCategory, sortColumn, sortDirection]);
 
   useEffect(() => {
     paginateData();
@@ -314,7 +318,56 @@ const HargaBahan = () => {
       filtered = filtered.filter(item => item.itemType === selectedCategory);
     }
 
+    // Sort the filtered data
+    filtered = [...filtered].sort((a, b) => {
+      let aValue = a[sortColumn];
+      let bValue = b[sortColumn];
+      
+      // Handle null/undefined values
+      if (aValue == null) aValue = '';
+      if (bValue == null) bValue = '';
+      
+      // Handle numeric sorting for price and rate columns
+      if (sortColumn === 'price' || sortColumn === 'rate') {
+        aValue = parseFloat(aValue) || 0;
+        bValue = parseFloat(bValue) || 0;
+      } else if (sortColumn === 'lastUpdated') {
+        // Handle date sorting
+        aValue = new Date(aValue).getTime() || 0;
+        bValue = new Date(bValue).getTime() || 0;
+      } else {
+        // String comparison (case-insensitive)
+        aValue = String(aValue).toLowerCase();
+        bValue = String(bValue).toLowerCase();
+      }
+      
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
     setFilteredData(filtered);
+  };
+
+  const handleSort = (column) => {
+    if (sortColumn === column) {
+      // Toggle direction if same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column, default to ascending
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1); // Reset to first page when sorting changes
+  };
+
+  const getSortIcon = (column) => {
+    if (sortColumn !== column) {
+      return <ChevronDown size={14} className="sort-icon inactive" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ChevronUp size={14} className="sort-icon active" />
+      : <ChevronDown size={14} className="sort-icon active" />;
   };
 
   const paginateData = () => {
@@ -1278,8 +1331,6 @@ const HargaBahan = () => {
     try {
       // Map processed Bahan Kemas data to database format
       const mappedData = importPreviewData.map((item) => {
-        const currentDateTime = new Date().toISOString();
-        
         // Fix price mapping - handle 0 values correctly (don't treat as falsy)
         let finalPrice = null;
         if (item.ITEM_PURCHASE_STD_PRICE !== undefined && item.ITEM_PURCHASE_STD_PRICE !== null) {
@@ -1305,8 +1356,8 @@ const HargaBahan = () => {
           ITEM_CURRENCY: item.ITEM_CURRENCY || item.finalCurrency || item.currency || 'IDR',
           ITEM_PRC_ID: item.ITEM_PRC_ID || item.principle || null,
           user_id: 'SYSTEM',
-          delegated_to: 'SYSTEM', 
-          process_date: currentDateTime
+          delegated_to: 'SYSTEM'
+          // Note: process_date is intentionally omitted - backend will use local server time
         };
       });
       
@@ -2138,14 +2189,38 @@ const HargaBahan = () => {
         <table className="materials-table">
           <thead>
             <tr>
-              <th>Item ID</th>
-              <th>Item Name</th>
-              <th>Item Type</th>
-              <th>Unit</th>
-              <th>Price</th>
-              <th>Currency</th>
-              <th>Rate</th>
-              <th>Last Updated</th>
+              <th className="sortable-header" onClick={() => handleSort('itemId')}>
+                <span>Item ID</span>
+                {getSortIcon('itemId')}
+              </th>
+              <th className="sortable-header" onClick={() => handleSort('itemName')}>
+                <span>Item Name</span>
+                {getSortIcon('itemName')}
+              </th>
+              <th className="sortable-header" onClick={() => handleSort('itemType')}>
+                <span>Item Type</span>
+                {getSortIcon('itemType')}
+              </th>
+              <th className="sortable-header" onClick={() => handleSort('unit')}>
+                <span>Unit</span>
+                {getSortIcon('unit')}
+              </th>
+              <th className="sortable-header" onClick={() => handleSort('price')}>
+                <span>Price</span>
+                {getSortIcon('price')}
+              </th>
+              <th className="sortable-header" onClick={() => handleSort('currency')}>
+                <span>Currency</span>
+                {getSortIcon('currency')}
+              </th>
+              <th className="sortable-header" onClick={() => handleSort('rate')}>
+                <span>Rate</span>
+                {getSortIcon('rate')}
+              </th>
+              <th className="sortable-header" onClick={() => handleSort('lastUpdated')}>
+                <span>Last Updated</span>
+                {getSortIcon('lastUpdated')}
+              </th>
               <th>Actions</th>
             </tr>
           </thead>
