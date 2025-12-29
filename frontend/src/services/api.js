@@ -655,6 +655,19 @@ export const tollFeeAPI = {
   getStats: () => apiRequest('/toll-fee/stats'),
 };
 
+// Dashboard API
+export const dashboardAPI = {
+  // Get comprehensive dashboard statistics
+  // Query: ?year=2025 (optional, defaults to latest year)
+  getStats: (year = null) => {
+    const url = year ? `/dashboard/stats?year=${year}` : '/dashboard/stats';
+    return apiRequest(url);
+  },
+
+  // Get available years for dashboard dropdown
+  getYears: () => apiRequest('/dashboard/years'),
+};
+
 // Health check
 export const healthAPI = {
   check: () => apiRequest('/health', { method: 'GET' }),
@@ -667,5 +680,6 @@ export default {
   master: masterAPI,
   reagen: reagenAPI,
   tollFee: tollFeeAPI,
+  dashboard: dashboardAPI,
   health: healthAPI,
 };
