@@ -22,6 +22,12 @@ async function getLatestPeriode() {
 /**
  * Get HPP data for dashboard statistics
  * Returns all products from the latest year with HPP, HNA, and category information
+ * 
+ * IMPORTANT: Generik Type 1 and Generik Type 2 contain the SAME products.
+ * They are just different calculation types. We only use Generik Type 1 data
+ * and completely ignore Generik Type 2 to avoid duplicates.
+ * 
+ * Category (Toll In, Toll Out, Import, Lapi) comes directly from the HPP list procedure.
  */
 async function getDashboardHPPData(year = null) {
   try {
@@ -32,34 +38,63 @@ async function getDashboardHPPData(year = null) {
     const result = await request.query(`exec sp_COGS_HPP_List @year`);
 
     // The stored procedure returns three recordsets: ethical, generik1, generik2
+    // IMPORTANT: generik1 and generik2 have the SAME products - only use generik1
     const ethical = result.recordsets[0] || [];
     const generik1 = result.recordsets[1] || [];
-    const generik2 = result.recordsets[2] || [];
+    // generik2 is intentionally ignored - same products as generik1, different calculation type
 
-    // Combine all products with category info
+    // Combine ethical and generik1 products (NOT generik2)
+    // HPP Logic: Use HPP2 if it has a value > 0, otherwise use HPP
     const allProducts = [
-      ...ethical.map(p => ({ ...p, category: 'ETHICAL' })),
-      ...generik1.map(p => ({ ...p, category: 'GENERIK' })),
-      ...generik2.map(p => ({ ...p, category: 'GENERIK' }))
+      ...ethical.map(p => {
+        const hpp2 = parseFloat(p.HPP2) || 0;
+        const hpp = hpp2 > 0 ? hpp2 : (parseFloat(p.HPP) || 0);
+        return { ...p, HPP: hpp, productType: 'ETHICAL' };
+      }),
+      ...generik1.map(p => {
+        const hpp2 = parseFloat(p.HPP2) || 0;
+        const hpp = hpp2 > 0 ? hpp2 : (parseFloat(p.HPP) || 0);
+        return { ...p, HPP: hpp, productType: 'GENERIK' };
+      })
     ];
 
-    // Separate OTC from ETHICAL based on LOB field
+    // Categorize products and get toll category from Category column in HPP list
     const categorizedProducts = allProducts.map(p => {
-      // Determine actual category based on LOB field
-      let actualCategory = p.category;
+      // Determine LOB category based on LOB field
+      let actualCategory = p.productType;
       if (p.LOB) {
         const lob = p.LOB.toUpperCase();
         if (lob === 'OTC') actualCategory = 'OTC';
         else if (lob === 'ETHICAL') actualCategory = 'ETHICAL';
         else if (lob.includes('GENERIC') || lob.includes('GENERIK')) actualCategory = 'GENERIK';
       }
-      return { ...p, actualCategory };
+      
+      // Get toll category directly from Category column in HPP list
+      // Values: 'Toll In', 'Toll Out', 'Import', 'Lapi'
+      const tollCategory = p.Category || null;
+      
+      return { ...p, actualCategory, tollCategory };
     });
+
+    // Count products by toll category directly from HPP list data
+    const tollCounts = {
+      tollIn: categorizedProducts.filter(p => p.tollCategory === 'Toll In').length,
+      tollOut: categorizedProducts.filter(p => p.tollCategory === 'Toll Out').length,
+      import: categorizedProducts.filter(p => p.tollCategory === 'Import').length,
+      lapi: categorizedProducts.filter(p => p.tollCategory === 'Lapi').length
+    };
+
+    // Debug: Log unique Category values to verify format
+    const uniqueCategories = [...new Set(allProducts.map(p => p.Category))];
+    console.log(`Dashboard HPP data for periode ${periode}: ${categorizedProducts.length} products (ethical: ${ethical.length}, generik1: ${generik1.length})`);
+    console.log(`Unique Category values from HPP List:`, uniqueCategories);
+    console.log(`Category counts:`, tollCounts);
 
     return {
       periode,
       products: categorizedProducts,
-      rawData: { ethical, generik1, generik2 }
+      tollCounts,
+      rawData: { ethical, generik1 }
     };
   } catch (error) {
     console.error("Error getting dashboard HPP data:", error);
@@ -72,13 +107,17 @@ async function getDashboardHPPData(year = null) {
  */
 async function getDashboardStats(year = null) {
   try {
-    const { periode, products, rawData } = await getDashboardHPPData(year);
+    const { periode, products, tollCounts, rawData } = await getDashboardHPPData(year);
 
-    // Count products by category
+    // Count products by LOB category
     const ethicalCount = products.filter(p => p.actualCategory === 'ETHICAL').length;
     const otcCount = products.filter(p => p.actualCategory === 'OTC').length;
     const generikCount = products.filter(p => p.actualCategory === 'GENERIK').length;
     const totalProducts = products.length;
+
+    // Toll counts come from the authoritative view (vw_COGS_Pembebanan_TollFee)
+    // These counts represent ALL products in each toll category, not just those with HPP
+    const { tollIn: tollInCount, tollOut: tollOutCount, import: importCount, lapi: lapiCount } = tollCounts;
 
     // Calculate Cost Management (COGS) statistics
     // COGS = (Total HPP / HNA) * 100
@@ -98,8 +137,10 @@ async function getDashboardStats(year = null) {
     const productsLowCOGS = validProducts.length - productsHighCOGS;
 
     // Pricing Risk Indicator - Average COGS by category
-    const calculateAvgCOGS = (category) => {
-      const categoryProducts = validProducts.filter(p => p.actualCategory === category);
+    const calculateAvgCOGS = (category, isTollCategory = false) => {
+      const categoryProducts = isTollCategory
+        ? validProducts.filter(p => p.tollCategory === category)
+        : validProducts.filter(p => p.actualCategory === category);
       if (categoryProducts.length === 0) return 0;
       const totalCOGS = categoryProducts.reduce((sum, p) => {
         return sum + ((parseFloat(p.HPP) / parseFloat(p.Product_SalesHNA)) * 100);
@@ -107,9 +148,16 @@ async function getDashboardStats(year = null) {
       return totalCOGS / categoryProducts.length;
     };
 
+    // LOB category averages
     const avgCOGSEthical = calculateAvgCOGS('ETHICAL');
     const avgCOGSOTC = calculateAvgCOGS('OTC');
     const avgCOGSGenerik = calculateAvgCOGS('GENERIK');
+
+    // Toll category averages
+    const avgCOGSTollIn = calculateAvgCOGS('Toll In', true);
+    const avgCOGSTollOut = calculateAvgCOGS('Toll Out', true);
+    const avgCOGSImport = calculateAvgCOGS('Import', true);
+    const avgCOGSLapi = calculateAvgCOGS('Lapi', true);
 
     // Average HPP distribution (BB, BK, Others)
     // Others = (MH_Proses_Std * Biaya_Proses) + (MH_Kemas_Std * Biaya_Kemas) + Expiry Cost + Margin
@@ -180,32 +228,105 @@ async function getDashboardStats(year = null) {
     };
 
     // Calculate category-specific statistics
-    const calculateCategoryStats = (category) => {
-      const categoryProducts = category === 'ALL' 
-        ? validProducts 
-        : validProducts.filter(p => p.actualCategory === category);
+    // Total count includes ALL products (even HNA=0), but COGS breakdown only for valid products
+    const calculateCategoryStats = (category, isTollCategory = false) => {
+      // Get ALL products for this category (for total count)
+      let allCategoryProducts;
+      if (category === 'ALL') {
+        allCategoryProducts = products;
+      } else if (isTollCategory) {
+        allCategoryProducts = products.filter(p => p.tollCategory === category);
+      } else {
+        allCategoryProducts = products.filter(p => p.actualCategory === category);
+      }
       
-      const count = categoryProducts.length;
-      const highCOGS = categoryProducts.filter(p => {
+      // Get only valid products (HNA > 0) for COGS breakdown
+      let validCategoryProducts;
+      if (category === 'ALL') {
+        validCategoryProducts = validProducts;
+      } else if (isTollCategory) {
+        validCategoryProducts = validProducts.filter(p => p.tollCategory === category);
+      } else {
+        validCategoryProducts = validProducts.filter(p => p.actualCategory === category);
+      }
+      
+      const count = allCategoryProducts.length; // Total includes all products
+      const highCOGS = validCategoryProducts.filter(p => {
         const cogs = (parseFloat(p.HPP) / parseFloat(p.Product_SalesHNA)) * 100;
         return cogs >= 30;
       }).length;
-      const lowCOGS = count - highCOGS;
+      const lowCOGS = validCategoryProducts.length - highCOGS; // Only valid products can have COGS
       
       return { count, highCOGS, lowCOGS };
     };
 
-    // Cost distribution by category
+    // Cost distribution by LOB category
     const costDistributionAll = calculateCostDistribution(products);
     const costDistributionEthical = calculateCostDistribution(products.filter(p => p.actualCategory === 'ETHICAL'));
     const costDistributionOTC = calculateCostDistribution(products.filter(p => p.actualCategory === 'OTC'));
     const costDistributionGenerik = calculateCostDistribution(products.filter(p => p.actualCategory === 'GENERIK'));
+    
+    // Cost distribution by Toll category
+    const costDistributionTollIn = calculateCostDistribution(products.filter(p => p.tollCategory === 'Toll In'));
+    const costDistributionTollOut = calculateCostDistribution(products.filter(p => p.tollCategory === 'Toll Out'));
+    const costDistributionImport = calculateCostDistribution(products.filter(p => p.tollCategory === 'Import'));
+    const costDistributionLapi = calculateCostDistribution(products.filter(p => p.tollCategory === 'Lapi'));
 
-    // HPP info cards by category
+    // HPP info cards by LOB category
     const hppStatsAll = calculateCategoryStats('ALL');
     const hppStatsEthical = calculateCategoryStats('ETHICAL');
     const hppStatsOTC = calculateCategoryStats('OTC');
     const hppStatsGenerik = calculateCategoryStats('GENERIK');
+    
+    // HPP info cards by Toll category
+    const hppStatsTollIn = calculateCategoryStats('Toll In', true);
+    const hppStatsTollOut = calculateCategoryStats('Toll Out', true);
+    const hppStatsImport = calculateCategoryStats('Import', true);
+    const hppStatsLapi = calculateCategoryStats('Lapi', true);
+
+    // Heat Map: LOB x Category matrix
+    // Shows total products and high COGS count for each combination
+    const calculateHeatMapCell = (lob, tollCategory) => {
+      // Get all products matching this LOB and toll category
+      const cellProducts = products.filter(p => 
+        p.actualCategory === lob && p.tollCategory === tollCategory
+      );
+      const total = cellProducts.length;
+      
+      // Get products with valid HNA for COGS calculation
+      const validCellProducts = cellProducts.filter(p => 
+        p.Product_SalesHNA && parseFloat(p.Product_SalesHNA) > 0
+      );
+      const highCOGS = validCellProducts.filter(p => {
+        const cogs = (parseFloat(p.HPP) / parseFloat(p.Product_SalesHNA)) * 100;
+        return cogs >= 30;
+      }).length;
+      
+      return { total, highCOGS };
+    };
+
+    const heatMap = {
+      lapi: {
+        ethical: calculateHeatMapCell('ETHICAL', 'Lapi'),
+        otc: calculateHeatMapCell('OTC', 'Lapi'),
+        generik: calculateHeatMapCell('GENERIK', 'Lapi')
+      },
+      import: {
+        ethical: calculateHeatMapCell('ETHICAL', 'Import'),
+        otc: calculateHeatMapCell('OTC', 'Import'),
+        generik: calculateHeatMapCell('GENERIK', 'Import')
+      },
+      tollIn: {
+        ethical: calculateHeatMapCell('ETHICAL', 'Toll In'),
+        otc: calculateHeatMapCell('OTC', 'Toll In'),
+        generik: calculateHeatMapCell('GENERIK', 'Toll In')
+      },
+      tollOut: {
+        ethical: calculateHeatMapCell('ETHICAL', 'Toll Out'),
+        otc: calculateHeatMapCell('OTC', 'Toll Out'),
+        generik: calculateHeatMapCell('GENERIK', 'Toll Out')
+      }
+    };
 
     return {
       periode,
@@ -213,7 +334,12 @@ async function getDashboardStats(year = null) {
         total: totalProducts,
         ethical: ethicalCount,
         otc: otcCount,
-        generik: generikCount
+        generik: generikCount,
+        // Toll category counts
+        tollIn: tollInCount,
+        tollOut: tollOutCount,
+        import: importCount,
+        lapi: lapiCount
       },
       costManagement: {
         totalHPP,
@@ -222,24 +348,45 @@ async function getDashboardStats(year = null) {
         productsWithData: validProducts.length
       },
       pricingRiskIndicator: {
+        // LOB categories
         ethical: avgCOGSEthical.toFixed(2),
         otc: avgCOGSOTC.toFixed(2),
-        generik: avgCOGSGenerik.toFixed(2)
+        generik: avgCOGSGenerik.toFixed(2),
+        // Toll categories
+        tollIn: avgCOGSTollIn.toFixed(2),
+        tollOut: avgCOGSTollOut.toFixed(2),
+        import: avgCOGSImport.toFixed(2),
+        lapi: avgCOGSLapi.toFixed(2)
       },
       costDistribution: {
+        // LOB categories
         all: costDistributionAll,
         ethical: costDistributionEthical,
         otc: costDistributionOTC,
-        generik: costDistributionGenerik
+        generik: costDistributionGenerik,
+        // Toll categories
+        tollIn: costDistributionTollIn,
+        tollOut: costDistributionTollOut,
+        import: costDistributionImport,
+        lapi: costDistributionLapi
       },
       hppStats: {
+        // LOB categories
         all: hppStatsAll,
         ethical: hppStatsEthical,
         otc: hppStatsOTC,
-        generik: hppStatsGenerik
+        generik: hppStatsGenerik,
+        // Toll categories
+        tollIn: hppStatsTollIn,
+        tollOut: hppStatsTollOut,
+        import: hppStatsImport,
+        lapi: hppStatsLapi
       },
-      // Include raw products for detailed view with full cost breakdown
-      products: validProducts.map(p => {
+      // Heat map data for LOB x Category matrix
+      heatMap,
+      // Include ALL products for detailed view (including those with HNA=0)
+      // Products with HNA=0 will show COGS as 0 but are excluded from calculations
+      products: products.map(p => {
         const bb = parseFloat(p.totalBB) || 0;
         const bk = parseFloat(p.totalBK) || 0;
         const hpp = parseFloat(p.HPP) || 0;
@@ -273,6 +420,7 @@ async function getDashboardStats(year = null) {
           Product_ID: p.Product_ID,
           Product_Name: p.Product_Name,
           category: p.actualCategory,
+          tollCategory: p.tollCategory,
           LOB: p.LOB,
           HPP: hpp,
           HNA: hna,

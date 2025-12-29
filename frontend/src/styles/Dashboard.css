@@ -453,6 +453,69 @@
 .breakdown-item.otc .breakdown-value { color: #059669; }
 .breakdown-item.generik .breakdown-value { color: #d97706; }
 
+/* Toll Category Breakdown Items */
+.breakdown-item.toll-in {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(124, 58, 237, 0.05));
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.breakdown-item.toll-out {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.1), rgba(219, 39, 119, 0.05));
+  border: 1px solid rgba(236, 72, 153, 0.2);
+}
+
+.breakdown-item.import {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(2, 132, 199, 0.05));
+  border: 1px solid rgba(14, 165, 233, 0.2);
+}
+
+.breakdown-item.lapi {
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.1), rgba(225, 29, 72, 0.05));
+  border: 1px solid rgba(244, 63, 94, 0.2);
+}
+
+.breakdown-item.toll-in .breakdown-value { color: #7c3aed; }
+.breakdown-item.toll-out .breakdown-value { color: #db2777; }
+.breakdown-item.import .breakdown-value { color: #0284c7; }
+.breakdown-item.lapi .breakdown-value { color: #e11d48; }
+
+/* Stat Breakdown Section Styling */
+.stat-breakdown-section {
+  margin-top: 12px;
+}
+
+.stat-breakdown-section:first-of-type {
+  margin-top: 16px;
+}
+
+.breakdown-section-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.toll-breakdown {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.toll-breakdown .breakdown-item {
+  padding: 8px;
+}
+
+.toll-breakdown .breakdown-label {
+  font-size: 10px;
+}
+
+.toll-breakdown .breakdown-value {
+  font-size: 18px;
+}
+
 /* Cost Management Card */
 .cost-management-card .card-body {
   display: flex;
@@ -513,7 +576,6 @@
   font-weight: 500;
 }
 
-/* Pricing Risk Indicator */
 .pricing-risk-card .card-body {
   display: flex;
   flex-direction: column;
@@ -575,6 +637,190 @@
   background: linear-gradient(90deg, #f59e0b, #fbbf24);
 }
 
+/* Toll Category Risk Bars */
+.risk-bar.toll-in-bar {
+  background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+}
+
+.risk-bar.toll-out-bar {
+  background: linear-gradient(90deg, #ec4899, #f472b6);
+}
+
+.risk-bar.import-bar {
+  background: linear-gradient(90deg, #0ea5e9, #38bdf8);
+}
+
+.risk-bar.lapi-bar {
+  background: linear-gradient(90deg, #f43f5e, #fb7185);
+}
+
+/* Risk Section Styling */
+.risk-section {
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.risk-section:last-child {
+  margin-bottom: 0;
+}
+
+.risk-section-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+/* Risk Gauges - LOB Categories */
+.risk-gauges {
+  display: flex;
+  justify-content: space-around;
+  gap: 16px;
+}
+
+.risk-gauge-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.risk-gauge-ring {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--color) 0% var(--progress),
+    #e5e7eb var(--progress) 100%
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.risk-gauge-inner {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.risk-gauge-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.risk-gauge-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.risk-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 10px;
+}
+
+.risk-badge.low {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+.risk-badge.medium {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.risk-badge.high {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+/* Risk Compact Bars - Toll Categories */
+.toll-section {
+  background: #f9fafb;
+  padding: 12px;
+  border-radius: 10px;
+  margin-top: 16px;
+  width: 100%;
+}
+
+.risk-compact-bars {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 20px;
+}
+
+.risk-compact-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.risk-compact-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.risk-compact-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.risk-compact-value {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.risk-compact-value.low {
+  color: #059669;
+}
+
+.risk-compact-value.medium {
+  color: #d97706;
+}
+
+.risk-compact-value.high {
+  color: #dc2626;
+}
+
+.risk-compact-bar-bg {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  position: relative;
+  overflow: visible;
+}
+
+.risk-compact-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease-out;
+}
+
+.risk-threshold-marker {
+  position: absolute;
+  top: -2px;
+  width: 2px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 1px;
+  opacity: 0.6;
+}
+
 .risk-value {
   width: 50px;
   font-size: 13px;
@@ -615,6 +861,44 @@
   background: white;
   color: #3b82f6;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Category Mode Toggle */
+.category-mode-toggle {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 3px;
+  background: #e5e7eb;
+  border-radius: 8px;
+  width: fit-content;
+}
+
+.mode-btn {
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-btn:hover {
+  color: #374151;
+}
+
+.mode-btn.active {
+  background: white;
+  color: #3b82f6;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Toll Category Buttons in Switcher */
+.category-btn.toll-cat {
+  font-size: 12px;
 }
 
 .distribution-chart {
@@ -769,7 +1053,26 @@
   color: #6b7280;
 }
 
-/* Quick Actions Card */
+/* Heat Map Card (replaces Quick Actions) */
+.heat-map-card {
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+}
+
+.heat-map-card .card-header {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.heat-map-card .card-header h3 {
+  color: #1f2937;
+}
+
+.heat-map-card .card-hint {
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+/* Legacy Quick Actions Card (kept for reference) */
 .quick-actions-card {
   background: linear-gradient(135deg, #1e293b, #334155);
 }
@@ -886,19 +1189,27 @@
   width: 36px;
   height: 36px;
   border: none;
-  background: #f3f4f6;
+  background: #fee2e2;
   border-radius: 8px;
-  color: #6b7280;
+  color: #dc2626;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.modal-close-btn svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2.5;
 }
 
 .modal-close-btn:hover {
-  background: #e5e7eb;
-  color: #374151;
+  background: #fecaca;
+  color: #b91c1c;
+  transform: scale(1.05);
 }
 
 .modal-controls {
@@ -1017,6 +1328,35 @@
 .category-badge.generik {
   background: #fef3c7;
   color: #b45309;
+}
+
+/* Toll Category Badges */
+.toll-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.toll-badge.toll-in {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.toll-badge.toll-out {
+  background: #fce7f3;
+  color: #be185d;
+}
+
+.toll-badge.import {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+.toll-badge.lapi {
+  background: #d1fae5;
+  color: #047857;
 }
 
 .cogs-value {
@@ -1151,5 +1491,280 @@
   .modal-content {
     max-height: 90vh;
     border-radius: 12px;
+  }
+}
+
+/* ============================================
+   Stacked Horizontal Bars - HPP Distribution
+   ============================================ */
+
+.hpp-distribution-card .card-body {
+  padding: 16px;
+}
+
+.stacked-bars-legend {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.stacked-bars-legend .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.stacked-bars-legend .legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.stacked-bars-legend .legend-color.bb {
+  background: #3b82f6;
+}
+
+.stacked-bars-legend .legend-color.bk {
+  background: #10b981;
+}
+
+.stacked-bars-legend .legend-color.others {
+  background: #f59e0b;
+}
+
+.stacked-bars-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stacked-bars-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stacked-bars-section .section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.stacked-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stacked-bar-row.clickable {
+  cursor: pointer;
+}
+
+.stacked-bar-row.clickable:hover .stacked-bar-container {
+  transform: scaleY(1.1);
+}
+
+.stacked-bar-label {
+  width: 60px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.stacked-bar-container {
+  flex: 1;
+  height: 20px;
+  display: flex;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #f3f4f6;
+  transition: transform 0.2s ease;
+}
+
+.stacked-bar-segment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  min-width: 0;
+}
+
+.stacked-bar-segment span {
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.stacked-bar-segment.bb {
+  background: #3b82f6;
+}
+
+.stacked-bar-segment.bk {
+  background: #10b981;
+}
+
+.stacked-bar-segment.others {
+  background: #f59e0b;
+}
+
+.stacked-bar-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* ============================================
+   Heat Map - COGS Risk Matrix
+   ============================================ */
+
+.heat-map-card .card-body {
+  padding: 16px;
+}
+
+.heat-map-legend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.heat-map-legend .legend-item {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.heat-map-legend .legend-item.low {
+  color: #059669;
+}
+
+.heat-map-legend .legend-item.medium {
+  color: #d97706;
+}
+
+.heat-map-legend .legend-item.high {
+  color: #dc2626;
+}
+
+.heat-map-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.heat-map-table th {
+  padding: 10px 8px;
+  font-weight: 600;
+  color: #374151;
+  background: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+  text-align: center;
+}
+
+.heat-map-table th:first-child {
+  text-align: left;
+  width: 80px;
+}
+
+.heat-map-table td.row-header {
+  font-weight: 600;
+  color: #374151;
+  padding: 10px 8px;
+  background: #f9fafb;
+  border-right: 2px solid #e5e7eb;
+}
+
+.heat-map-cell {
+  padding: 10px 8px;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.heat-map-cell.empty {
+  background: #f9fafb;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.heat-map-cell.low {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.heat-map-cell.medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.heat-map-cell.high {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.heat-map-cell:hover:not(.empty) {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 1;
+  position: relative;
+}
+
+.heat-cell-value {
+  display: block;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.heat-cell-percent {
+  display: block;
+  font-size: 10px;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+/* Responsive adjustments for new components */
+@media (max-width: 768px) {
+  .stacked-bar-label {
+    width: 50px;
+    font-size: 11px;
+  }
+  
+  .stacked-bar-segment span {
+    font-size: 9px;
+  }
+  
+  .heat-map-legend {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .heat-map-table {
+    font-size: 11px;
+  }
+  
+  .heat-cell-value {
+    font-size: 12px;
+  }
+  
+  .heat-cell-percent {
+    font-size: 9px;
   }
 }

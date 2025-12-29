@@ -11,7 +11,8 @@ import {
   BarChart3,
   DollarSign,
   Loader2,
-  Calendar
+  Calendar,
+  Grid3X3
 } from 'lucide-react';
 import { dashboardAPI } from '../services/api';
 import '../styles/Dashboard.css';
@@ -27,6 +28,18 @@ const formatCurrency = (value) => {
   }).format(value);
 };
 
+// Format large currency values in abbreviated form (Miliar/Juta)
+const formatCurrencyAbbrev = (value) => {
+  if (value === null || value === undefined || isNaN(value)) return 'Rp 0';
+  const num = parseFloat(value);
+  if (num >= 1000000000) {
+    return `Rp ${(num / 1000000000).toFixed(2)} M`;
+  } else if (num >= 1000000) {
+    return `Rp ${(num / 1000000).toFixed(2)} Jt`;
+  }
+  return formatCurrency(value);
+};
+
 const formatNumber = (value) => {
   if (value === null || value === undefined || isNaN(value)) return '0';
   return new Intl.NumberFormat('id-ID').format(value);
@@ -37,10 +50,79 @@ const formatPercent = (value) => {
   return `${parseFloat(value).toFixed(1)}%`;
 };
 
+// Stacked Horizontal Bar Component for HPP Distribution
+const StackedBar = ({ label, bb, bk, others, onClick }) => {
+  const total = bb + bk + others;
+  const bbPercent = total > 0 ? (bb / total) * 100 : 0;
+  const bkPercent = total > 0 ? (bk / total) * 100 : 0;
+  const othersPercent = total > 0 ? (others / total) * 100 : 0;
+  
+  const hasData = total > 0;
+  
+  return (
+    <div className={`stacked-bar-row ${onClick ? 'clickable' : ''}`} onClick={onClick}>
+      <span className="stacked-bar-label">{label}</span>
+      <div className="stacked-bar-container">
+        {hasData ? (
+          <>
+            <div 
+              className="stacked-bar-segment bb" 
+              style={{ width: `${bbPercent}%` }}
+              title={`BB: ${bbPercent.toFixed(1)}%`}
+            >
+              {bbPercent >= 10 && <span>{bbPercent.toFixed(0)}%</span>}
+            </div>
+            <div 
+              className="stacked-bar-segment bk" 
+              style={{ width: `${bkPercent}%` }}
+              title={`BK: ${bkPercent.toFixed(1)}%`}
+            >
+              {bkPercent >= 10 && <span>{bkPercent.toFixed(0)}%</span>}
+            </div>
+            <div 
+              className="stacked-bar-segment others" 
+              style={{ width: `${othersPercent}%` }}
+              title={`Others: ${othersPercent.toFixed(1)}%`}
+            >
+              {othersPercent >= 10 && <span>{othersPercent.toFixed(0)}%</span>}
+            </div>
+          </>
+        ) : (
+          <div className="stacked-bar-empty">No data</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Heat Map Cell Component
+const HeatMapCell = ({ total, highCOGS, onClick }) => {
+  if (total === 0) {
+    return (
+      <td className="heat-map-cell empty" onClick={onClick}>
+        <span className="heat-cell-value">-</span>
+      </td>
+    );
+  }
+  
+  const percent = (highCOGS / total) * 100;
+  const riskLevel = percent >= 50 ? 'high' : percent >= 10 ? 'medium' : 'low';
+  
+  return (
+    <td className={`heat-map-cell ${riskLevel}`} onClick={onClick}>
+      <span className="heat-cell-value">{highCOGS}/{total}</span>
+      <span className="heat-cell-percent">({percent.toFixed(0)}%)</span>
+    </td>
+  );
+};
+
 // Simple Pie Chart Component (SVG-based)
 const PieChart2D = ({ data, colors, size = 200, showLegend = true }) => {
   const total = data.reduce((sum, item) => sum + item.value, 0);
-  if (total === 0) {
+  
+  // Check if we have any data at all (even if some categories are 0)
+  const hasAnyData = data.some(item => item.value > 0);
+  if (!hasAnyData) {
     return (
       <div className="pie-chart-empty">
         <span>No data available</span>
@@ -242,6 +324,7 @@ const ProductListModal = ({ isOpen, onClose, products, title, displayMode = 'cog
               <tr>
                 <th>Product ID</th>
                 <th>Product Name</th>
+                <th>LOB</th>
                 <th>Category</th>
                 <th>HNA</th>
                 {displayMode === 'hpp-breakdown' ? (
@@ -264,6 +347,11 @@ const ProductListModal = ({ isOpen, onClose, products, title, displayMode = 'cog
                   <td>
                     <span className={`category-badge ${product.category?.toLowerCase()}`}>
                       {product.category}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`toll-badge ${product.tollCategory?.toLowerCase().replace(' ', '-')}`}>
+                      {product.tollCategory || '-'}
                     </span>
                   </td>
                   <td>{formatCurrency(product.HNA)}</td>
@@ -311,10 +399,16 @@ export default function Dashboard() {
   const [selectedYear, setSelectedYear] = useState(null);
   const [availableYears, setAvailableYears] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [categoryMode, setCategoryMode] = useState('lob'); // 'lob' or 'toll'
   const [showProductModal, setShowProductModal] = useState(false);
   const [showHPPBreakdownModal, setShowHPPBreakdownModal] = useState(false);
+  const [hppBreakdownFilter, setHppBreakdownFilter] = useState('ALL');
+  const [hppBreakdownMode, setHppBreakdownMode] = useState('lob'); // 'lob' or 'toll'
   const [showJumlahProdukModal, setShowJumlahProdukModal] = useState(false);
   const [jumlahProdukFilter, setJumlahProdukFilter] = useState('ALL');
+  const [jumlahProdukMode, setJumlahProdukMode] = useState('lob'); // 'lob' or 'toll'
+  const [showHeatMapModal, setShowHeatMapModal] = useState(false);
+  const [heatMapFilter, setHeatMapFilter] = useState({ lob: null, category: null });
   const [refreshing, setRefreshing] = useState(false);
   const [showYearDropdown, setShowYearDropdown] = useState(false);
 
@@ -381,14 +475,48 @@ export default function Dashboard() {
   // Get cost distribution based on selected category
   const getCurrentCostDistribution = () => {
     if (!dashboardData) return { bb: 0, bk: 0, others: 0 };
-    const key = selectedCategory.toLowerCase();
+    
+    // Map category to key based on mode
+    let key;
+    if (selectedCategory === 'ALL') {
+      key = 'all';
+    } else if (categoryMode === 'toll') {
+      // Map toll categories
+      const tollKeyMap = {
+        'TOLL_IN': 'tollIn',
+        'TOLL_OUT': 'tollOut',
+        'IMPORT': 'import',
+        'LAPI': 'lapi'
+      };
+      key = tollKeyMap[selectedCategory] || 'all';
+    } else {
+      key = selectedCategory.toLowerCase();
+    }
+    
     return dashboardData.costDistribution[key] || dashboardData.costDistribution.all;
   };
 
   // Get HPP stats based on selected category
   const getCurrentHPPStats = () => {
     if (!dashboardData) return { count: 0, highCOGS: 0, lowCOGS: 0 };
-    const key = selectedCategory.toLowerCase();
+    
+    // Map category to key based on mode
+    let key;
+    if (selectedCategory === 'ALL') {
+      key = 'all';
+    } else if (categoryMode === 'toll') {
+      // Map toll categories
+      const tollKeyMap = {
+        'TOLL_IN': 'tollIn',
+        'TOLL_OUT': 'tollOut',
+        'IMPORT': 'import',
+        'LAPI': 'lapi'
+      };
+      key = tollKeyMap[selectedCategory] || 'all';
+    } else {
+      key = selectedCategory.toLowerCase();
+    }
+    
     return dashboardData.hppStats[key] || dashboardData.hppStats.all;
   };
 
@@ -396,19 +524,69 @@ export default function Dashboard() {
   const getFilteredProductsForJumlahProduk = () => {
     if (!dashboardData?.products) return [];
     if (jumlahProdukFilter === 'ALL') return dashboardData.products;
+    
+    if (jumlahProdukMode === 'toll') {
+      // Map toll filter to actual category values
+      const tollCategoryMap = {
+        'TOLL_IN': 'Toll In',
+        'TOLL_OUT': 'Toll Out',
+        'IMPORT': 'Import',
+        'LAPI': 'Lapi'
+      };
+      return dashboardData.products.filter(p => p.tollCategory === tollCategoryMap[jumlahProdukFilter]);
+    }
+    
     return dashboardData.products.filter(p => p.category?.toUpperCase() === jumlahProdukFilter);
   };
 
   // Get filtered products for HPP breakdown modal
   const getFilteredProductsForHPPBreakdown = () => {
     if (!dashboardData?.products) return [];
-    if (selectedCategory === 'ALL') return dashboardData.products;
-    return dashboardData.products.filter(p => p.category?.toUpperCase() === selectedCategory);
+    if (hppBreakdownFilter === 'ALL') return dashboardData.products;
+    
+    if (hppBreakdownMode === 'toll') {
+      // Map toll filter to actual category values
+      const tollCategoryMap = {
+        'TOLL_IN': 'Toll In',
+        'TOLL_OUT': 'Toll Out',
+        'IMPORT': 'Import',
+        'LAPI': 'Lapi'
+      };
+      return dashboardData.products.filter(p => p.tollCategory === tollCategoryMap[hppBreakdownFilter]);
+    }
+    
+    return dashboardData.products.filter(p => p.category?.toUpperCase() === hppBreakdownFilter);
+  };
+
+  // Get filtered products for Heat Map modal (LOB x Category)
+  const getFilteredProductsForHeatMap = () => {
+    if (!dashboardData?.products) return [];
+    const { lob, category } = heatMapFilter;
+    if (!lob || !category) return [];
+    
+    return dashboardData.products.filter(p => 
+      p.category?.toUpperCase() === lob.toUpperCase() && 
+      p.tollCategory === category
+    );
+  };
+
+  // Handle HPP Distribution bar click
+  const handleHPPDistributionClick = (filter, mode = 'lob') => {
+    setHppBreakdownFilter(filter);
+    setHppBreakdownMode(mode);
+    setShowHPPBreakdownModal(true);
+  };
+
+  // Handle Heat Map cell click
+  const handleHeatMapClick = (lob, category) => {
+    setHeatMapFilter({ lob, category });
+    setShowHeatMapModal(true);
   };
 
   // Handle Jumlah Produk click
-  const handleJumlahProdukClick = (filter) => {
+  const handleJumlahProdukClick = (filter, mode = 'lob') => {
     setJumlahProdukFilter(filter);
+    setJumlahProdukMode(mode);
     setShowJumlahProdukModal(true);
   };
 
@@ -431,7 +609,7 @@ export default function Dashboard() {
     );
   }
 
-  const costDistribution = getCurrentCostDistribution();
+  const costDistribution = getCurrentCostDistribution(); // Keep for potential future use
   const hppStats = getCurrentHPPStats();
 
   return (
@@ -489,18 +667,44 @@ export default function Dashboard() {
               <span className="stat-number">{formatNumber(dashboardData?.productCounts?.total)}</span>
               <span className="stat-label">Total Produk</span>
             </div>
-            <div className="stat-breakdown">
-              <div className="breakdown-item ethical clickable" onClick={() => handleJumlahProdukClick('ETHICAL')}>
-                <span className="breakdown-label">Ethical</span>
-                <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.ethical)}</span>
+            {/* LOB Categories Row */}
+            <div className="stat-breakdown-section">
+              <span className="breakdown-section-label">By LOB</span>
+              <div className="stat-breakdown">
+                <div className="breakdown-item ethical clickable" onClick={() => handleJumlahProdukClick('ETHICAL', 'lob')}>
+                  <span className="breakdown-label">Ethical</span>
+                  <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.ethical)}</span>
+                </div>
+                <div className="breakdown-item otc clickable" onClick={() => handleJumlahProdukClick('OTC', 'lob')}>
+                  <span className="breakdown-label">OTC</span>
+                  <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.otc)}</span>
+                </div>
+                <div className="breakdown-item generik clickable" onClick={() => handleJumlahProdukClick('GENERIK', 'lob')}>
+                  <span className="breakdown-label">Generik</span>
+                  <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.generik)}</span>
+                </div>
               </div>
-              <div className="breakdown-item otc clickable" onClick={() => handleJumlahProdukClick('OTC')}>
-                <span className="breakdown-label">OTC</span>
-                <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.otc)}</span>
-              </div>
-              <div className="breakdown-item generik clickable" onClick={() => handleJumlahProdukClick('GENERIK')}>
-                <span className="breakdown-label">Generik</span>
-                <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.generik)}</span>
+            </div>
+            {/* Category Row (Toll In/Out/Import/Lapi) */}
+            <div className="stat-breakdown-section">
+              <span className="breakdown-section-label">By Category</span>
+              <div className="stat-breakdown toll-breakdown">
+                <div className="breakdown-item toll-in clickable" onClick={() => handleJumlahProdukClick('TOLL_IN', 'toll')}>
+                  <span className="breakdown-label">Toll In</span>
+                  <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.tollIn)}</span>
+                </div>
+                <div className="breakdown-item toll-out clickable" onClick={() => handleJumlahProdukClick('TOLL_OUT', 'toll')}>
+                  <span className="breakdown-label">Toll Out</span>
+                  <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.tollOut)}</span>
+                </div>
+                <div className="breakdown-item import clickable" onClick={() => handleJumlahProdukClick('IMPORT', 'toll')}>
+                  <span className="breakdown-label">Import</span>
+                  <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.import)}</span>
+                </div>
+                <div className="breakdown-item lapi clickable" onClick={() => handleJumlahProdukClick('LAPI', 'toll')}>
+                  <span className="breakdown-label">LAPI</span>
+                  <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.lapi)}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -524,17 +728,21 @@ export default function Dashboard() {
             <div className="cost-summary">
               <div className="cost-item">
                 <span className="cost-label">Total HPP</span>
-                <span className="cost-value">{formatCurrency(dashboardData?.costManagement?.totalHPP)}</span>
+                <span className="cost-value" title={formatCurrency(dashboardData?.costManagement?.totalHPP)}>
+                  {formatCurrencyAbbrev(dashboardData?.costManagement?.totalHPP)}
+                </span>
               </div>
               <div className="cost-item">
                 <span className="cost-label">Total HNA</span>
-                <span className="cost-value">{formatCurrency(dashboardData?.costManagement?.totalHNA)}</span>
+                <span className="cost-value" title={formatCurrency(dashboardData?.costManagement?.totalHNA)}>
+                  {formatCurrencyAbbrev(dashboardData?.costManagement?.totalHNA)}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Pricing Risk Indicator Card */}
+        {/* Pricing Risk Indicator Card - Redesigned */}
         <div className="dashboard-card pricing-risk-card">
           <div className="card-header">
             <TrendingUp size={24} />
@@ -542,60 +750,143 @@ export default function Dashboard() {
           </div>
           <div className="card-body">
             <p className="card-description">Average COGS % by Category</p>
-            <div className="risk-indicators">
-              <div className="risk-item">
-                <span className="risk-label">Ethical</span>
-                <div className="risk-bar-container">
-                  <div 
-                    className="risk-bar ethical-bar" 
-                    style={{ width: `${Math.min(100, dashboardData?.pricingRiskIndicator?.ethical || 0)}%` }}
-                  />
-                </div>
-                <span className="risk-value">{formatPercent(dashboardData?.pricingRiskIndicator?.ethical)}</span>
+            
+            {/* LOB Categories - Gauge Style */}
+            <div className="risk-section">
+              <span className="risk-section-label">By LOB</span>
+              <div className="risk-gauges">
+                {[
+                  { key: 'ethical', label: 'Ethical', color: '#3b82f6' },
+                  { key: 'otc', label: 'OTC', color: '#10b981' },
+                  { key: 'generik', label: 'Generik', color: '#f59e0b' }
+                ].map(item => {
+                  const value = parseFloat(dashboardData?.pricingRiskIndicator?.[item.key] || 0);
+                  const riskLevel = value >= 40 ? 'high' : value >= 25 ? 'medium' : 'low';
+                  return (
+                    <div key={item.key} className={`risk-gauge-item ${riskLevel}`}>
+                      <div className="risk-gauge-ring" style={{ '--progress': `${Math.min(100, value)}%`, '--color': item.color }}>
+                        <div className="risk-gauge-inner">
+                          <span className="risk-gauge-value">{value.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                      <span className="risk-gauge-label">{item.label}</span>
+                      <span className={`risk-badge ${riskLevel}`}>
+                        {riskLevel === 'high' ? '⚠️ High' : riskLevel === 'medium' ? '⚡ Medium' : '✅ Low'}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="risk-item">
-                <span className="risk-label">OTC</span>
-                <div className="risk-bar-container">
-                  <div 
-                    className="risk-bar otc-bar" 
-                    style={{ width: `${Math.min(100, dashboardData?.pricingRiskIndicator?.otc || 0)}%` }}
-                  />
-                </div>
-                <span className="risk-value">{formatPercent(dashboardData?.pricingRiskIndicator?.otc)}</span>
-              </div>
-              <div className="risk-item">
-                <span className="risk-label">Generik</span>
-                <div className="risk-bar-container">
-                  <div 
-                    className="risk-bar generik-bar" 
-                    style={{ width: `${Math.min(100, dashboardData?.pricingRiskIndicator?.generik || 0)}%` }}
-                  />
-                </div>
-                <span className="risk-value">{formatPercent(dashboardData?.pricingRiskIndicator?.generik)}</span>
+            </div>
+            
+            {/* Category Section (Toll In/Out/Import/Lapi) - Compact Bars */}
+            <div className="risk-section toll-section">
+              <span className="risk-section-label">By Category</span>
+              <div className="risk-compact-bars">
+                {[
+                  { key: 'tollIn', label: 'Toll In', color: '#8b5cf6' },
+                  { key: 'tollOut', label: 'Toll Out', color: '#ec4899' },
+                  { key: 'import', label: 'Import', color: '#0ea5e9' },
+                  { key: 'lapi', label: 'LAPI', color: '#f43f5e' }
+                ].map(item => {
+                  const value = parseFloat(dashboardData?.pricingRiskIndicator?.[item.key] || 0);
+                  const riskLevel = value >= 40 ? 'high' : value >= 25 ? 'medium' : 'low';
+                  return (
+                    <div key={item.key} className="risk-compact-item">
+                      <div className="risk-compact-header">
+                        <span className="risk-compact-label">{item.label}</span>
+                        <span className={`risk-compact-value ${riskLevel}`}>{value.toFixed(1)}%</span>
+                      </div>
+                      <div className="risk-compact-bar-bg">
+                        <div 
+                          className="risk-compact-bar-fill"
+                          style={{ width: `${Math.min(100, value)}%`, backgroundColor: item.color }}
+                        />
+                        <div className="risk-threshold-marker" style={{ left: '30%' }} title="30% threshold" />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Average HPP Distribution Card */}
-        <div className="dashboard-card hpp-distribution-card clickable" onClick={() => setShowHPPBreakdownModal(true)}>
+        {/* Average HPP Distribution Card - Stacked Bars */}
+        <div className="dashboard-card hpp-distribution-card">
           <div className="card-header">
             <BarChart3 size={24} />
-            <h3>Average HPP</h3>
-            <span className="category-indicator">{selectedCategory === 'ALL' ? 'All Products' : selectedCategory}</span>
-            <span className="card-hint">Click for details</span>
+            <h3>HPP Distribution</h3>
           </div>
           <div className="card-body">
-            <div className="distribution-chart">
-              <PieChart2D
-                data={[
-                  { label: 'Bahan Baku (BB)', value: costDistribution.bb },
-                  { label: 'Bahan Kemas (BK)', value: costDistribution.bk },
-                  { label: 'Others', value: costDistribution.others }
-                ]}
-                colors={['#3b82f6', '#10b981', '#f59e0b']}
-                size={180}
-              />
+            <div className="stacked-bars-legend">
+              <span className="legend-item"><span className="legend-color bb"></span>BB</span>
+              <span className="legend-item"><span className="legend-color bk"></span>BK</span>
+              <span className="legend-item"><span className="legend-color others"></span>Others</span>
+            </div>
+            <div className="stacked-bars-container">
+              <div className="stacked-bars-section">
+                <span className="section-label">By LOB</span>
+                <StackedBar 
+                  label="All" 
+                  bb={dashboardData?.costDistribution?.all?.bb || 0}
+                  bk={dashboardData?.costDistribution?.all?.bk || 0}
+                  others={dashboardData?.costDistribution?.all?.others || 0}
+                  onClick={() => handleHPPDistributionClick('ALL', 'lob')}
+                />
+                <StackedBar 
+                  label="Ethical" 
+                  bb={dashboardData?.costDistribution?.ethical?.bb || 0}
+                  bk={dashboardData?.costDistribution?.ethical?.bk || 0}
+                  others={dashboardData?.costDistribution?.ethical?.others || 0}
+                  onClick={() => handleHPPDistributionClick('ETHICAL', 'lob')}
+                />
+                <StackedBar 
+                  label="OTC" 
+                  bb={dashboardData?.costDistribution?.otc?.bb || 0}
+                  bk={dashboardData?.costDistribution?.otc?.bk || 0}
+                  others={dashboardData?.costDistribution?.otc?.others || 0}
+                  onClick={() => handleHPPDistributionClick('OTC', 'lob')}
+                />
+                <StackedBar 
+                  label="Generik" 
+                  bb={dashboardData?.costDistribution?.generik?.bb || 0}
+                  bk={dashboardData?.costDistribution?.generik?.bk || 0}
+                  others={dashboardData?.costDistribution?.generik?.others || 0}
+                  onClick={() => handleHPPDistributionClick('GENERIK', 'lob')}
+                />
+              </div>
+              <div className="stacked-bars-section">
+                <span className="section-label">By Category</span>
+                <StackedBar 
+                  label="Toll In" 
+                  bb={dashboardData?.costDistribution?.tollIn?.bb || 0}
+                  bk={dashboardData?.costDistribution?.tollIn?.bk || 0}
+                  others={dashboardData?.costDistribution?.tollIn?.others || 0}
+                  onClick={() => handleHPPDistributionClick('TOLL_IN', 'toll')}
+                />
+                <StackedBar 
+                  label="Toll Out" 
+                  bb={dashboardData?.costDistribution?.tollOut?.bb || 0}
+                  bk={dashboardData?.costDistribution?.tollOut?.bk || 0}
+                  others={dashboardData?.costDistribution?.tollOut?.others || 0}
+                  onClick={() => handleHPPDistributionClick('TOLL_OUT', 'toll')}
+                />
+                <StackedBar 
+                  label="Import" 
+                  bb={dashboardData?.costDistribution?.import?.bb || 0}
+                  bk={dashboardData?.costDistribution?.import?.bk || 0}
+                  others={dashboardData?.costDistribution?.import?.others || 0}
+                  onClick={() => handleHPPDistributionClick('IMPORT', 'toll')}
+                />
+                <StackedBar 
+                  label="LAPI" 
+                  bb={dashboardData?.costDistribution?.lapi?.bb || 0}
+                  bk={dashboardData?.costDistribution?.lapi?.bk || 0}
+                  others={dashboardData?.costDistribution?.lapi?.others || 0}
+                  onClick={() => handleHPPDistributionClick('LAPI', 'toll')}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -608,16 +899,45 @@ export default function Dashboard() {
             <span className="card-hint">Click for details</span>
           </div>
           <div className="card-body">
+            {/* Category Mode Toggle */}
+            <div className="category-mode-toggle" onClick={(e) => e.stopPropagation()}>
+              <button
+                className={`mode-btn ${categoryMode === 'lob' ? 'active' : ''}`}
+                onClick={() => { setCategoryMode('lob'); setSelectedCategory('ALL'); }}
+              >
+                By LOB
+              </button>
+              <button
+                className={`mode-btn ${categoryMode === 'toll' ? 'active' : ''}`}
+                onClick={() => { setCategoryMode('toll'); setSelectedCategory('ALL'); }}
+              >
+                By Category
+              </button>
+            </div>
             <div className="category-switcher" onClick={(e) => e.stopPropagation()}>
-              {['ALL', 'ETHICAL', 'OTC', 'GENERIK'].map(cat => (
-                <button
-                  key={cat}
-                  className={`category-btn ${selectedCategory === cat ? 'active' : ''}`}
-                  onClick={() => setSelectedCategory(cat)}
-                >
-                  {cat === 'ALL' ? 'All' : cat.charAt(0) + cat.slice(1).toLowerCase()}
-                </button>
-              ))}
+              {categoryMode === 'lob' ? (
+                // LOB Categories
+                ['ALL', 'ETHICAL', 'OTC', 'GENERIK'].map(cat => (
+                  <button
+                    key={cat}
+                    className={`category-btn ${selectedCategory === cat ? 'active' : ''}`}
+                    onClick={() => setSelectedCategory(cat)}
+                  >
+                    {cat === 'ALL' ? 'All' : cat.charAt(0) + cat.slice(1).toLowerCase()}
+                  </button>
+                ))
+              ) : (
+                // Toll Categories
+                ['ALL', 'TOLL_IN', 'TOLL_OUT', 'IMPORT', 'LAPI'].map(cat => (
+                  <button
+                    key={cat}
+                    className={`category-btn toll-cat ${selectedCategory === cat ? 'active' : ''}`}
+                    onClick={() => setSelectedCategory(cat)}
+                  >
+                    {cat === 'ALL' ? 'All' : cat === 'TOLL_IN' ? 'Toll In' : cat === 'TOLL_OUT' ? 'Toll Out' : cat}
+                  </button>
+                ))
+              )}
             </div>
             <div className="hpp-stats-grid">
               <div className="hpp-stat-item total">
@@ -657,26 +977,103 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Quick Actions Card */}
-        <div className="dashboard-card quick-actions-card">
+        {/* COGS Heat Map Card */}
+        <div className="dashboard-card heat-map-card">
           <div className="card-header">
-            <h3>Quick Actions</h3>
+            <Grid3X3 size={24} />
+            <h3>COGS Heat Map</h3>
+            <span className="card-hint">High COGS (≥30%) / Total Products</span>
           </div>
           <div className="card-body">
-            <div className="action-buttons">
-              <button className="action-btn primary" onClick={() => navigate('/hpp-results')}>
-                <BarChart3 size={20} />
-                <span>View HPP Results</span>
-              </button>
-              <button className="action-btn secondary" onClick={() => navigate('/hpp-simulation')}>
-                <TrendingUp size={20} />
-                <span>HPP Simulation</span>
-              </button>
-              <button className="action-btn secondary" onClick={() => navigate('/generate-hpp')}>
-                <RefreshCw size={20} />
-                <span>Generate HPP</span>
-              </button>
+            <div className="heat-map-legend">
+              <span className="legend-item low">●  &lt;10% (Low)</span>
+              <span className="legend-item medium">●  10-50% (Medium)</span>
+              <span className="legend-item high">●  &gt;50% (High)</span>
             </div>
+            <table className="heat-map-table">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Ethical</th>
+                  <th>OTC</th>
+                  <th>Generik</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="row-header">LAPI</td>
+                  <HeatMapCell 
+                    total={dashboardData?.heatMap?.lapi?.ethical?.total || 0}
+                    highCOGS={dashboardData?.heatMap?.lapi?.ethical?.highCOGS || 0}
+                    onClick={() => handleHeatMapClick('ETHICAL', 'Lapi')}
+                  />
+                  <HeatMapCell 
+                    total={dashboardData?.heatMap?.lapi?.otc?.total || 0}
+                    highCOGS={dashboardData?.heatMap?.lapi?.otc?.highCOGS || 0}
+                    onClick={() => handleHeatMapClick('OTC', 'Lapi')}
+                  />
+                  <HeatMapCell 
+                    total={dashboardData?.heatMap?.lapi?.generik?.total || 0}
+                    highCOGS={dashboardData?.heatMap?.lapi?.generik?.highCOGS || 0}
+                    onClick={() => handleHeatMapClick('GENERIK', 'Lapi')}
+                  />
+                </tr>
+                <tr>
+                  <td className="row-header">Import</td>
+                  <HeatMapCell 
+                    total={dashboardData?.heatMap?.import?.ethical?.total || 0}
+                    highCOGS={dashboardData?.heatMap?.import?.ethical?.highCOGS || 0}
+                    onClick={() => handleHeatMapClick('ETHICAL', 'Import')}
+                  />
+                  <HeatMapCell 
+                    total={dashboardData?.heatMap?.import?.otc?.total || 0}
+                    highCOGS={dashboardData?.heatMap?.import?.otc?.highCOGS || 0}
+                    onClick={() => handleHeatMapClick('OTC', 'Import')}
+                  />
+                  <HeatMapCell 
+                    total={dashboardData?.heatMap?.import?.generik?.total || 0}
+                    highCOGS={dashboardData?.heatMap?.import?.generik?.highCOGS || 0}
+                    onClick={() => handleHeatMapClick('GENERIK', 'Import')}
+                  />
+                </tr>
+                <tr>
+                  <td className="row-header">Toll In</td>
+                  <HeatMapCell 
+                    total={dashboardData?.heatMap?.tollIn?.ethical?.total || 0}
+                    highCOGS={dashboardData?.heatMap?.tollIn?.ethical?.highCOGS || 0}
+                    onClick={() => handleHeatMapClick('ETHICAL', 'Toll In')}
+                  />
+                  <HeatMapCell 
+                    total={dashboardData?.heatMap?.tollIn?.otc?.total || 0}
+                    highCOGS={dashboardData?.heatMap?.tollIn?.otc?.highCOGS || 0}
+                    onClick={() => handleHeatMapClick('OTC', 'Toll In')}
+                  />
+                  <HeatMapCell 
+                    total={dashboardData?.heatMap?.tollIn?.generik?.total || 0}
+                    highCOGS={dashboardData?.heatMap?.tollIn?.generik?.highCOGS || 0}
+                    onClick={() => handleHeatMapClick('GENERIK', 'Toll In')}
+                  />
+                </tr>
+                <tr>
+                  <td className="row-header">Toll Out</td>
+                  <HeatMapCell 
+                    total={dashboardData?.heatMap?.tollOut?.ethical?.total || 0}
+                    highCOGS={dashboardData?.heatMap?.tollOut?.ethical?.highCOGS || 0}
+                    onClick={() => handleHeatMapClick('ETHICAL', 'Toll Out')}
+                  />
+                  <HeatMapCell 
+                    total={dashboardData?.heatMap?.tollOut?.otc?.total || 0}
+                    highCOGS={dashboardData?.heatMap?.tollOut?.otc?.highCOGS || 0}
+                    onClick={() => handleHeatMapClick('OTC', 'Toll Out')}
+                  />
+                  <HeatMapCell 
+                    total={dashboardData?.heatMap?.tollOut?.generik?.total || 0}
+                    highCOGS={dashboardData?.heatMap?.tollOut?.generik?.highCOGS || 0}
+                    onClick={() => handleHeatMapClick('GENERIK', 'Toll Out')}
+                  />
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -695,8 +1092,25 @@ export default function Dashboard() {
         isOpen={showHPPBreakdownModal}
         onClose={() => setShowHPPBreakdownModal(false)}
         products={getFilteredProductsForHPPBreakdown()}
-        title={`HPP Breakdown (BB/BK/Others) - ${selectedCategory === 'ALL' ? 'All Products' : selectedCategory}`}
+        title={`HPP Breakdown (BB/BK/Others) - ${
+          hppBreakdownFilter === 'ALL' ? 'All Products' : 
+          hppBreakdownMode === 'toll' ? 
+            (hppBreakdownFilter === 'TOLL_IN' ? 'Toll In' : 
+             hppBreakdownFilter === 'TOLL_OUT' ? 'Toll Out' : 
+             hppBreakdownFilter === 'IMPORT' ? 'Import' : 
+             hppBreakdownFilter === 'LAPI' ? 'LAPI' : hppBreakdownFilter) :
+          hppBreakdownFilter
+        }`}
         displayMode="hpp-breakdown"
+      />
+
+      {/* Heat Map Modal - LOB x Category */}
+      <ProductListModal
+        isOpen={showHeatMapModal}
+        onClose={() => setShowHeatMapModal(false)}
+        products={getFilteredProductsForHeatMap()}
+        title={`Products - ${heatMapFilter.lob || ''} × ${heatMapFilter.category || ''}`}
+        displayMode="cogs"
       />
 
       {/* Jumlah Produk Modal */}
@@ -704,7 +1118,13 @@ export default function Dashboard() {
         isOpen={showJumlahProdukModal}
         onClose={() => setShowJumlahProdukModal(false)}
         products={getFilteredProductsForJumlahProduk()}
-        title={`Product List - ${jumlahProdukFilter === 'ALL' ? 'All Products' : jumlahProdukFilter}`}
+        title={`Product List - ${
+          jumlahProdukFilter === 'ALL' ? 'All Products' : 
+          jumlahProdukMode === 'toll' ? 
+            (jumlahProdukFilter === 'TOLL_IN' ? 'Toll In' : 
+             jumlahProdukFilter === 'TOLL_OUT' ? 'Toll Out' : jumlahProdukFilter) :
+          jumlahProdukFilter
+        }`}
         displayMode="cogs"
       />
     </div>
