@@ -131,7 +131,7 @@ const createPriceChangeGroupKey = (description, simulasiDate) => {
   };
 
 export default function HPPSimulation() {
-  const [step, setStep] = useState(0); // Start with simulation list view
+  const [step, setStep] = useState(-1); // Start with simulation type selection landing page
   const [simulationType, setSimulationType] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productSearchQuery, setProductSearchQuery] = useState("");
@@ -195,6 +195,10 @@ export default function HPPSimulation() {
   const [selectProductsSelected, setSelectProductsSelected] = useState(new Set());
   const [loadingSelectProducts, setLoadingSelectProducts] = useState(false);
   const [savingSelectProducts, setSavingSelectProducts] = useState(false);
+
+  // State for showing affected products after select products modal closes
+  const [pendingAffectedProducts, setPendingAffectedProducts] = useState(null);
+  const [isNewPriceChangeSimulation, setIsNewPriceChangeSimulation] = useState(false);
 
   // Available products with formulas (intersection of productName and chosenFormula)
   const [availableProducts, setAvailableProducts] = useState([]);
@@ -471,11 +475,11 @@ export default function HPPSimulation() {
   // Get current location for navigation detection
   const location = useLocation();
 
-  // Reset to simulation list (step 0) when user navigates to this page from sidebar
+  // Reset to landing page (step -1) when user navigates to this page from sidebar
   // This detects both initial load and navigation from sidebar
   useEffect(() => {
-    // Reset to step 0 whenever the location changes (including clicking sidebar link)
-    setStep(0);
+    // Reset to step -1 (landing page) whenever the location changes (including clicking sidebar link)
+    setStep(-1);
     setSimulationType("");
     setSelectedProduct(null);
     setError("");
@@ -876,7 +880,9 @@ export default function HPPSimulation() {
 
   // Open Select Products modal for filtering affected products
   const handleOpenSelectProducts = async (description, date, simulationType, event) => {
-    event.stopPropagation(); // Prevent group toggle when clicking the button
+    if (event) {
+      event.stopPropagation(); // Prevent group toggle when clicking the button
+    }
     setSelectProductsDescription(description);
     setSelectProductsDate(date);
     setSelectProductsSimulationType(simulationType || "Price Changes");
@@ -909,6 +915,53 @@ export default function HPPSimulation() {
     }
   };
 
+  // Load products for selection and open modal (used after price change generation)
+  const loadAndOpenSelectProductsModal = async (description, date, simulationType) => {
+    setLoadingSelectProducts(true);
+    setSelectProductsDescription(description);
+    setSelectProductsDate(date);
+    setSelectProductsSimulationType(simulationType || "Price Changes");
+
+    try {
+      // Fetch simulations for this group - add retries for newly created simulations
+      let simulations = [];
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        const response = await hppAPI.getSimulationsForGroup(description, date, simulationType || "Price Changes");
+        simulations = response.data || [];
+        
+        if (simulations.length > 0) {
+          break; // Found simulations, exit retry loop
+        }
+        
+        // Wait before retrying
+        retryCount++;
+        if (retryCount < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+        }
+      }
+      
+      setSelectProductsList(simulations);
+      
+      // Initialize selection - select all by default for new simulations
+      const initialSelected = new Set();
+      simulations.forEach(sim => initialSelected.add(sim.Simulasi_ID));
+      setSelectProductsSelected(initialSelected);
+      
+      // Now open the modal with data loaded
+      setSelectProductsModalOpen(true);
+    } catch (error) {
+      console.error("Error loading products for selection:", error);
+      notifier.alert("Failed to load products: " + error.message);
+      setLoadingSelectProducts(false);
+      return;
+    } finally {
+      setLoadingSelectProducts(false);
+    }
+  };
+
   // Close Select Products modal
   const handleCloseSelectProducts = () => {
     setSelectProductsModalOpen(false);
@@ -918,6 +971,7 @@ export default function HPPSimulation() {
     setSelectProductsSelected(new Set());
     setLoadingSelectProducts(false);
     setSavingSelectProducts(false);
+    setPendingAffectedProducts(null); // Clear pending state if user cancels
   };
 
   // Toggle individual product selection
@@ -960,11 +1014,24 @@ export default function HPPSimulation() {
 
       notifier.success(`Product selection saved! ${selectProductsSelected.size} of ${selectProductsList.length} products selected.`);
       
+      // Check if there's a pending affected products modal to open
+      const hasPendingAffected = pendingAffectedProducts !== null;
+      const pendingDescription = pendingAffectedProducts?.description;
+      const pendingDate = pendingAffectedProducts?.date;
+      
       // Close modal
       handleCloseSelectProducts();
 
       // Refresh simulation list to reflect changes
       await loadSimulationList();
+
+      // If there's pending affected products modal, open it now
+      if (hasPendingAffected && pendingDescription && pendingDate) {
+        setPendingAffectedProducts(null); // Clear pending state
+        setSelectedPriceChangeDescription(pendingDescription);
+        setSelectedPriceChangeDate(pendingDate);
+        setAffectedProductsModalOpen(true);
+      }
 
     } catch (error) {
       console.error("Error saving product selection:", error);
@@ -1265,10 +1332,9 @@ export default function HPPSimulation() {
     }
   };
 
-  // Start new simulation
+  // Start new simulation - skip step 1, use current tab to determine type
   const handleNewSimulation = () => {
-    setStep(1);
-    setSimulationType("");
+    // Reset states first
     setSelectedProduct(null);
     setProductSearchQuery("");
     setProductOptions([]);
@@ -1281,6 +1347,22 @@ export default function HPPSimulation() {
     setIsEditMode(false); // New simulation mode
     setEditableDescription(null); // Reset description for new simulation
     setIsCustomFormula(false); // Reset custom formula flag
+
+    // Set simulation type based on current active tab and go to appropriate step
+    if (activeTab === "existing") {
+      setSimulationType("existing");
+      setStep(2); // Go directly to product selection
+    } else if (activeTab === "custom") {
+      setSimulationType("custom");
+      initializeCustomFormula();
+      setStep(4); // Go directly to custom formula editor
+    } else if (activeTab === "price-change") {
+      setSimulationType("price-change");
+      setIsNewPriceChangeSimulation(true); // Mark as new simulation for select products flow
+      setStep(5); // Go directly to price change simulation
+      // Initialize price change simulation (this loads materials)
+      initializePriceChangeSimulation();
+    }
   };
 
   // Go back to simulation list
@@ -1305,6 +1387,7 @@ export default function HPPSimulation() {
     setSimulationSummary(null); // Clear simulation summary data
     setLoadingDetails(false); // Reset loading details state
     setIsEditMode(false); // Reset edit mode
+    setIsNewPriceChangeSimulation(false); // Reset new simulation flag
     loadSimulationList(); // Refresh the list
   };
 
@@ -1422,16 +1505,29 @@ export default function HPPSimulation() {
         materialData = materialResponse.data || materialResponse;
       }
 
-
-
       // Create a map of material names for quick lookup
       const materialNameMap = {};
       materialData.forEach((material) => {
         materialNameMap[material.ITEM_ID] = material.Item_Name;
       });
 
+      // Filter for only the latest year's data per material
+      // Group by ITEM_ID and keep only the record with the latest Periode
+      const latestPriceMap = {};
+      priceData.forEach((priceItem) => {
+        const itemId = priceItem.ITEM_ID;
+        const periode = priceItem.Periode || "0";
+        
+        if (!latestPriceMap[itemId] || periode > latestPriceMap[itemId].Periode) {
+          latestPriceMap[itemId] = priceItem;
+        }
+      });
+      
+      // Convert back to array with only latest prices
+      const latestPriceData = Object.values(latestPriceMap);
+
       // Merge price data with material names
-      const mergedMaterials = priceData.map((priceItem) => ({
+      const mergedMaterials = latestPriceData.map((priceItem) => ({
         ...priceItem,
         ITEM_NAME:
           materialNameMap[priceItem.ITEM_ID] ||
@@ -1443,7 +1539,7 @@ export default function HPPSimulation() {
 
 
       setPriceMaterials(mergedMaterials);
-      setFilteredMaterials(mergedMaterials); // Initialize filtered materials
+      setFilteredMaterials([...mergedMaterials]); // Initialize filtered materials with a copy
       setCurrentMaterialPage(1); // Reset pagination
     } catch (error) {
       console.error("Error loading price materials:", error);
@@ -1580,16 +1676,35 @@ export default function HPPSimulation() {
           }
           
           if (matchingSimulation) {
-            setSelectedPriceChangeDescription(matchingSimulation.Simulasi_Deskripsi);
-            setSelectedPriceChangeDate(matchingSimulation.Simulasi_Date);
-            setAffectedProductsModalOpen(true);
+            // If this is a new simulation, force user to select products first
+            if (isNewPriceChangeSimulation) {
+              setIsNewPriceChangeSimulation(false); // Reset the flag
+              // Store simulation info for later use
+              setPendingAffectedProducts({
+                description: matchingSimulation.Simulasi_Deskripsi,
+                date: matchingSimulation.Simulasi_Date
+              });
+              // Load products and then open the modal (with retries for newly created data)
+              await loadAndOpenSelectProductsModal(
+                matchingSimulation.Simulasi_Deskripsi, 
+                matchingSimulation.Simulasi_Date, 
+                "Price Changes"
+              );
+            } else {
+              // Normal flow - directly open affected products modal
+              setSelectedPriceChangeDescription(matchingSimulation.Simulasi_Deskripsi);
+              setSelectedPriceChangeDate(matchingSimulation.Simulasi_Date);
+              setAffectedProductsModalOpen(true);
+            }
           } else {
             console.warn("Could not find matching simulation for automatic modal opening");
             // Fallback - just notify user that simulation was created
             notifier.info("Price change simulation created. You can view affected products from the simulation list.");
+            setIsNewPriceChangeSimulation(false); // Reset the flag
           }
         } catch (error) {
           console.error("Error finding matching simulation:", error);
+          setIsNewPriceChangeSimulation(false); // Reset the flag
           // Don't show error to user, just log it
         }
       }, 1000); // Longer delay to ensure the simulation is fully created and available
@@ -1608,36 +1723,32 @@ export default function HPPSimulation() {
     setCurrentMaterialPage(1); // Reset to first page when searching
 
     if (!searchTerm.trim()) {
-      setFilteredMaterials(priceMaterials);
+      // When search is empty, show all materials (create a copy to avoid reference issues)
+      setFilteredMaterials([...priceMaterials]);
     } else {
+      const searchLower = searchTerm.toLowerCase();
       const filtered = priceMaterials.filter(
         (material) =>
-          material.ITEM_NAME?.toLowerCase().includes(
-            searchTerm.toLowerCase()
-          ) ||
-          material.ITEM_ID?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          material.ITEM_TYP?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          material.UNIT?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          material.CURRENCY?.toLowerCase().includes(searchTerm.toLowerCase())
+          material.ITEM_NAME?.toLowerCase().includes(searchLower) ||
+          material.ITEM_ID?.toLowerCase().includes(searchLower) ||
+          material.ITEM_TYP?.toLowerCase().includes(searchLower) ||
+          material.UNIT?.toLowerCase().includes(searchLower) ||
+          material.CURRENCY?.toLowerCase().includes(searchLower)
       );
       setFilteredMaterials(filtered);
     }
   };
 
-  // Get paginated materials
+  // Get paginated materials - always use filteredMaterials which is kept in sync by handleMaterialSearch
   const getPaginatedMaterials = () => {
-    const materialsToShow =
-      filteredMaterials.length > 0 ? filteredMaterials : priceMaterials;
     const startIndex = (currentMaterialPage - 1) * materialsPerPage;
     const endIndex = startIndex + materialsPerPage;
-    return materialsToShow.slice(startIndex, endIndex);
+    return filteredMaterials.slice(startIndex, endIndex);
   };
 
   // Get total pages for materials
   const getTotalMaterialPages = () => {
-    const materialsToShow =
-      filteredMaterials.length > 0 ? filteredMaterials : priceMaterials;
-    return Math.ceil(materialsToShow.length / materialsPerPage);
+    return Math.ceil(filteredMaterials.length / materialsPerPage);
   };
 
   // Format price with currency symbol
@@ -3491,9 +3602,88 @@ export default function HPPSimulation() {
       >
         {error && <div className="error-message">{error}</div>}
 
+        {/* Step -1: Landing Page - Choose Simulation Type First */}
+        {step === -1 && (
+          <div className="simulation-step landing-page">
+            <div className="landing-header">
+              <h1>HPP Simulation</h1>
+              <p className="landing-subtitle">Select the type of simulation you want to perform</p>
+            </div>
+
+            <div className="landing-options">
+              <div
+                className="landing-option existing"
+                onClick={() => {
+                  setActiveTab("existing");
+                  setSimulationType("existing");
+                  setStep(0);
+                }}
+              >
+                <div className="landing-option-icon">📋</div>
+                <h3>Existing Formula</h3>
+                <p>Simulate HPP using an existing product formula that has already been configured in the system.</p>
+                <div className="landing-option-features">
+                  <span>✓ Use predefined formulas</span>
+                  <span>✓ Quick simulation</span>
+                  <span>✓ Based on real product data</span>
+                </div>
+                <button className="landing-option-btn">View Simulations →</button>
+              </div>
+
+              <div
+                className="landing-option custom"
+                onClick={() => {
+                  setActiveTab("custom");
+                  setSimulationType("custom");
+                  setStep(0);
+                }}
+              >
+                <div className="landing-option-icon">⚙️</div>
+                <h3>New Product</h3>
+                <p>Create a custom simulation with your own formula parameters and ingredient specifications.</p>
+                <div className="landing-option-features">
+                  <span>✓ Custom ingredients</span>
+                  <span>✓ Flexible parameters</span>
+                  <span>✓ What-if scenarios</span>
+                </div>
+                <button className="landing-option-btn">View Simulations →</button>
+              </div>
+
+              <div
+                className="landing-option price-change"
+                onClick={() => {
+                  setActiveTab("price-change");
+                  setSimulationType("price-change");
+                  setStep(0);
+                }}
+              >
+                <div className="landing-option-icon">📊</div>
+                <h3>Price Change Simulation</h3>
+                <p>Simulate the impact of material price changes on existing products. Automatically identifies affected products.</p>
+                <div className="landing-option-features">
+                  <span>✓ Price impact analysis</span>
+                  <span>✓ Multi-product simulation</span>
+                  <span>✓ Automatic product detection</span>
+                </div>
+                <button className="landing-option-btn">View Simulations →</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Step 0: Simulation List */}
         {step === 0 && (
           <div className="simulation-step">
+            {/* Back button and header */}
+            <div className="step0-header">
+              <button 
+                className="back-to-landing-btn" 
+                onClick={() => setStep(-1)}
+              >
+                ← Back to Selection
+              </button>
+            </div>
+
             {/* Tabs for simulation types */}
             <div className="simulation-tabs">
               <button
@@ -7238,17 +7428,11 @@ export default function HPPSimulation() {
                       className="material-search-input"
                     />
                     <div className="material-stats">
-                      {filteredMaterials.length > 0 ? (
-                        <span>
-                          Showing {getPaginatedMaterials().length} of{" "}
-                          {filteredMaterials.length} materials
-                        </span>
-                      ) : (
-                        <span>
-                          Showing {getPaginatedMaterials().length} of{" "}
-                          {priceMaterials.length} materials
-                        </span>
-                      )}
+                      <span>
+                        Showing {getPaginatedMaterials().length} of{" "}
+                        {filteredMaterials.length} materials
+                        {materialSearchTerm.trim() && " (filtered)"}
+                      </span>
                       {selectedMaterials.length > 0 && (
                         <span className="selected-count">
                           {" "}
