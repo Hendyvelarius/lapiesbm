@@ -426,75 +426,10 @@ async function deleteSimulation(simulasiId) {
 // Generate price change simulation using stored procedure
 async function generatePriceChangeSimulation(parameterString) {
   try {
-    console.log("=== Price Change Simulation Debug ===");
-    console.log("Parameter string:", parameterString);
-
     const db = await connect();
 
-    // First, let's check the connection context and settings
-    const contextResult = await db.request().query(`
-      SELECT 
-        DB_NAME() as current_database,
-        SYSTEM_USER as [current_user],
-        @@SPID as session_id,
-        @@TRANCOUNT as transaction_count
-    `);
-    console.log("Connection context:", contextResult.recordset[0]);
-
-    // Check if the material exists
-    const materialId = parameterString.split(":")[0];
-    const newPrice = parameterString.split(":")[1];
-
-    const materialCheck = await db.request().query(`
-      SELECT 
-        h.ITEM_ID,
-        m.Item_Name,
-        h.ITEM_PURCHASE_STD_PRICE,
-        h.ITEM_CURRENCY,
-        h.ITEM_PURCHASE_UNIT,
-        m.Item_Unit,
-        dbo.fnConvertBJ(h.ITEM_ID, 1, h.ITEM_PURCHASE_UNIT, m.Item_Unit) as conversion_factor,
-        dbo.fnConvertBJ(h.ITEM_ID, 1, h.ITEM_PURCHASE_UNIT, m.Item_Unit) * h.ITEM_PURCHASE_STD_PRICE as calculated_unit_price
-      FROM M_COGS_STD_HRG_BAHAN h
-      INNER JOIN m_item_Manufacturing m ON h.ITEM_ID = m.Item_ID
-      WHERE h.ITEM_ID = '${materialId}'
-    `);
-    console.log("Material exists:", materialCheck.recordset);
-    console.log("New price to set:", newPrice);
-
-    // Check if we have valid unit conversion data
-    if (materialCheck.recordset.length > 0) {
-      const material = materialCheck.recordset[0];
-      console.log("=== Material Unit Conversion Analysis ===");
-      console.log("Purchase Unit:", material.ITEM_PURCHASE_UNIT);
-      console.log("Manufacturing Unit:", material.Item_Unit);
-      console.log("Conversion Factor:", material.conversion_factor);
-      console.log(
-        "Current Calculated Unit Price:",
-        material.calculated_unit_price
-      );
-      console.log("New Price (raw):", newPrice);
-      console.log(
-        "Expected New Unit Price:",
-        parseFloat(newPrice) * (material.conversion_factor || 1)
-      );
-    }
-
-    // Now try the stored procedure
-    console.log("Executing stored procedure...");
-
-    // Try different parameter formats - the stored procedure might expect different input
-    console.log("=== Testing Different Parameter Formats ===");
-
-    // Option 1: Original format
     const directQuery = `exec sp_generate_simulasi_cogs_price_changes '${parameterString}'`;
-    console.log("SQL:", directQuery);
-
     const result = await db.request().query(directQuery);
-
-    console.log("SUCCESS! Stored procedure executed");
-    console.log("Recordsets:", result.recordsets?.length || 0);
-    console.log("Rows affected:", result.rowsAffected);
 
     return {
       recordsets: result.recordsets,
@@ -502,27 +437,7 @@ async function generatePriceChangeSimulation(parameterString) {
       returnValue: result.returnValue,
     };
   } catch (error) {
-    console.error("=== Stored Procedure Error Details ===");
-    console.error("Error message:", error.message);
-    console.error("Error number:", error.number);
-    console.error("Line number:", error.lineNumber);
-    console.error("Procedure name:", error.procName);
-
-    // The error suggests the SP is trying to insert NULL into Item_Unit_Price
-    // Let's provide more context about what this means
-    console.error("=== Analysis ===");
-    console.error(
-      "The stored procedure is trying to insert NULL values into Item_Unit_Price column."
-    );
-    console.error("This suggests either:");
-    console.error(
-      "1. The parameter format is not being parsed correctly by the SP"
-    );
-    console.error("2. The SP has a bug in how it processes the parameter");
-    console.error("3. There are missing required parameters or context");
-    console.error("Parameter we sent:", parameterString);
-    console.error('Expected format: materialId:newPrice (e.g., "IN 009:25")');
-
+    console.error("Error in generatePriceChangeSimulation:", error.message);
     throw error;
   }
 }
@@ -530,21 +445,10 @@ async function generatePriceChangeSimulation(parameterString) {
 // Generate price update simulation (with Periode parameter)
 async function generatePriceUpdateSimulation(parameterString, periode) {
   try {
-    console.log("=== Price Update Simulation Debug ===");
-    console.log("Parameter string:", parameterString);
-    console.log("Periode:", periode);
-
     const db = await connect();
 
-    // Execute the stored procedure with periode parameter
     const directQuery = `exec sp_generate_simulasi_cogs_price_update '${parameterString}', '${periode}'`;
-    console.log("SQL:", directQuery);
-
     const result = await db.request().query(directQuery);
-
-    console.log("SUCCESS! Stored procedure executed");
-    console.log("Recordsets:", result.recordsets?.length || 0);
-    console.log("Rows affected:", result.rowsAffected);
 
     return {
       recordsets: result.recordsets,
@@ -552,15 +456,7 @@ async function generatePriceUpdateSimulation(parameterString, periode) {
       returnValue: result.returnValue,
     };
   } catch (error) {
-    console.error("=== Stored Procedure Error Details ===");
-    console.error("Error message:", error.message);
-    console.error("Error number:", error.number);
-    console.error("Line number:", error.lineNumber);
-    console.error("Procedure name:", error.procName);
-    console.error("Parameter we sent:", parameterString);
-    console.error("Periode:", periode);
-    console.error('Expected format: materialId:newPrice#materialId2:newPrice2, YYYY');
-
+    console.error("Error in generatePriceUpdateSimulation:", error.message);
     throw error;
   }
 }
@@ -568,10 +464,6 @@ async function generatePriceUpdateSimulation(parameterString, periode) {
 // Get affected products for price change simulation
 async function getPriceChangeAffectedProducts(description, formattedDate) {
   try {
-    console.log('=== Executing getPriceChangeAffectedProducts ===');
-    console.log('Description:', description);
-    console.log('Formatted Date:', formattedDate);
-
     const db = await connect();
     
     // First, get the list of selected Simulasi_IDs (Versi = '1')
@@ -591,7 +483,6 @@ async function getPriceChangeAffectedProducts(description, formattedDate) {
       .query(selectedIdsQuery);
     
     const selectedProductIds = new Set(selectedIds.recordset.map(r => r.Product_ID));
-    console.log('Selected Product IDs (Versi=1):', selectedProductIds.size);
     
     // Execute the stored procedure
     const query = `EXEC [sp_COGS_HPP_List_Simulasi_PriceChange] @Description, @FormattedDate`;
@@ -602,33 +493,17 @@ async function getPriceChangeAffectedProducts(description, formattedDate) {
       .input('FormattedDate', sql.VarChar(50), formattedDate)
       .query(query);
 
-    console.log('=== Stored Procedure Result ===');
-    console.log('Records returned (before filter):', result.recordset?.length || 0);
-    
     // Filter results to only include selected products (Versi = '1')
     // If no products have Versi = '1', return all (for backwards compatibility)
     let filteredResults = result.recordset || [];
     if (selectedProductIds.size > 0) {
       filteredResults = filteredResults.filter(record => selectedProductIds.has(record.Product_ID));
-      console.log('Records returned (after filter):', filteredResults.length);
-    }
-    
-    if (filteredResults.length > 0) {
-      console.log('Sample record:', JSON.stringify(filteredResults[0], null, 2));
     }
 
     return filteredResults;
 
   } catch (error) {
-    console.error('=== getPriceChangeAffectedProducts Error ===');
-    console.error('Error message:', error.message);
-    console.error('Error number:', error.number);
-    console.error('Line number:', error.lineNumber);
-    console.error('Procedure name:', error.procName);
-    console.error('Parameters sent:');
-    console.error('- Description:', description);
-    console.error('- FormattedDate:', formattedDate);
-    
+    console.error('Error in getPriceChangeAffectedProducts:', error.message);
     throw error;
   }
 }
@@ -636,10 +511,6 @@ async function getPriceChangeAffectedProducts(description, formattedDate) {
 // Get affected products for price update simulation (uses Simulasi_Date just like Price Change)
 async function getPriceUpdateAffectedProducts(description, formattedDate) {
   try {
-    console.log('=== Executing getPriceUpdateAffectedProducts ===');
-    console.log('Description:', description);
-    console.log('Formatted Date:', formattedDate);
-
     const db = await connect();
     
     // First, get the list of selected products (Versi = '1')
@@ -662,8 +533,6 @@ async function getPriceUpdateAffectedProducts(description, formattedDate) {
       selectedProductsResult.recordset.map(row => row.Product_ID)
     );
     
-    console.log('Selected Product IDs (Versi=1):', selectedProductIds.size);
-    
     // Execute the stored procedure - same pattern as Price Change
     const query = `EXEC [sp_COGS_HPP_List_Simulasi_PriceUpdate] @Description, @FormattedDate`;
     
@@ -673,9 +542,6 @@ async function getPriceUpdateAffectedProducts(description, formattedDate) {
       .input('FormattedDate', sql.VarChar(50), formattedDate)
       .query(query);
 
-    console.log('=== Stored Procedure Result ===');
-    console.log('Records returned before filtering:', result.recordset?.length || 0);
-    
     // Filter to only include selected products (Versi = '1')
     // If no products are explicitly selected (all have default Versi), return all
     let filteredResults = result.recordset || [];
@@ -684,24 +550,11 @@ async function getPriceUpdateAffectedProducts(description, formattedDate) {
         selectedProductIds.has(record.Product_ID)
       );
     }
-    
-    console.log('Records returned after filtering:', filteredResults.length);
-    if (filteredResults.length > 0) {
-      console.log('Sample record:', JSON.stringify(filteredResults[0], null, 2));
-    }
 
     return filteredResults;
 
   } catch (error) {
-    console.error('=== getPriceUpdateAffectedProducts Error ===');
-    console.error('Error message:', error.message);
-    console.error('Error number:', error.number);
-    console.error('Line number:', error.lineNumber);
-    console.error('Procedure name:', error.procName);
-    console.error('Parameters sent:');
-    console.error('- Description:', description);
-    console.error('- FormattedDate:', formattedDate);
-    
+    console.error('Error in getPriceUpdateAffectedProducts:', error.message);
     throw error;
   }
 }
@@ -709,11 +562,6 @@ async function getPriceUpdateAffectedProducts(description, formattedDate) {
 // Bulk delete price change group (all simulations with matching description and date)
 async function bulkDeletePriceChangeGroup(description, formattedDate) {
   try {
-    console.log('=== bulkDeletePriceChangeGroup Model Function ===');
-    console.log('Parameters received:');
-    console.log('- Description:', description);
-    console.log('- FormattedDate:', formattedDate);
-
     const db = await connect();
     
     // First, get the Simulasi_IDs that will be deleted (for deleting detail records)
@@ -725,27 +573,17 @@ async function bulkDeletePriceChangeGroup(description, formattedDate) {
       AND Simulasi_Type = 'Price Changes'
     `;
 
-    console.log('=== Getting Simulasi_IDs ===');
-    console.log('Query:', getIdsQuery.replace(/\s+/g, ' ').trim());
-
     const simulasiIds = await db
       .request()
       .input('Description', sql.VarChar(255), description)
       .input('FormattedDate', sql.VarChar(50), formattedDate)
       .query(getIdsQuery);
 
-    console.log('Found Simulasi_IDs to delete:', simulasiIds.recordset.map(r => r.Simulasi_ID));
-
     // Delete detail records first (to maintain referential integrity)
     if (simulasiIds.recordset.length > 0) {
       const idList = simulasiIds.recordset.map(r => r.Simulasi_ID).join(',');
       const deleteDetailsQuery = `DELETE FROM t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan WHERE Simulasi_ID IN (${idList})`;
-      
-      console.log('=== Deleting Detail Records ===');
-      console.log('Query:', deleteDetailsQuery);
-      
-      const detailResult = await db.request().query(deleteDetailsQuery);
-      console.log('Detail records deleted:', detailResult.rowsAffected?.[0] || 0);
+      await db.request().query(deleteDetailsQuery);
     }
 
     // Then delete header records
@@ -756,17 +594,11 @@ async function bulkDeletePriceChangeGroup(description, formattedDate) {
       AND Simulasi_Type = 'Price Changes'
     `;
 
-    console.log('=== Deleting Header Records ===');
-    console.log('Query:', deleteHeaderQuery.replace(/\s+/g, ' ').trim());
-
     const result = await db
       .request()
       .input('Description', sql.VarChar(255), description)
       .input('FormattedDate', sql.VarChar(50), formattedDate)
       .query(deleteHeaderQuery);
-
-    console.log('=== Bulk Delete Result ===');
-    console.log('Header rows affected:', result.rowsAffected?.[0] || 0);
 
     return {
       deletedCount: result.rowsAffected?.[0] || 0,
@@ -774,14 +606,7 @@ async function bulkDeletePriceChangeGroup(description, formattedDate) {
     };
 
   } catch (error) {
-    console.error('=== bulkDeletePriceChangeGroup Error ===');
-    console.error('Error message:', error.message);
-    console.error('Error number:', error.number);
-    console.error('Line number:', error.lineNumber);
-    console.error('Parameters sent:');
-    console.error('- Description:', description);
-    console.error('- FormattedDate:', formattedDate);
-    
+    console.error('Error in bulkDeletePriceChangeGroup:', error.message);
     throw error;
   }
 }
@@ -789,9 +614,6 @@ async function bulkDeletePriceChangeGroup(description, formattedDate) {
 // Get simulation summary with HNA data using stored procedure
 async function getSimulationSummary(simulasiId) {
   try {
-    console.log('=== Executing getSimulationSummary ===');
-    console.log('Simulasi ID:', simulasiId);
-
     const db = await connect();
     
     // Execute the stored procedure
@@ -802,23 +624,10 @@ async function getSimulationSummary(simulasiId) {
       .input('SimulasiId', sql.VarChar(20), simulasiId)
       .query(query);
 
-    console.log('=== Stored Procedure Result ===');
-    console.log('Records returned:', result.recordset?.length || 0);
-    if (result.recordset?.length > 0) {
-      console.log('Sample record:', JSON.stringify(result.recordset[0], null, 2));
-    }
-
     return result.recordset || [];
 
   } catch (error) {
-    console.error('=== getSimulationSummary Error ===');
-    console.error('Error message:', error.message);
-    console.error('Error number:', error.number);
-    console.error('Line number:', error.lineNumber);
-    console.error('Procedure name:', error.procName);
-    console.error('Parameters sent:');
-    console.error('- SimulasiId:', simulasiId);
-    
+    console.error('Error in getSimulationSummary:', error.message);
     throw error;
   }
 }
@@ -903,21 +712,10 @@ async function cloneSimulation(originalSimulasiId, cloneDescription) {
 // Commit price update - execute sp_generate_simulasi_cogs_price_update_commit
 async function commitPriceUpdate(parameterString, periode) {
   try {
-    console.log("=== Commit Price Update Debug ===");
-    console.log("Parameter string:", parameterString);
-    console.log("Periode:", periode);
-
     const db = await connect();
 
-    // Execute the stored procedure to commit price update
     const directQuery = `exec sp_generate_simulasi_cogs_price_update_commit '${parameterString}', '${periode}'`;
-    console.log("SQL:", directQuery);
-
     const result = await db.request().query(directQuery);
-
-    console.log("SUCCESS! Price update committed");
-    console.log("Recordsets:", result.recordsets?.length || 0);
-    console.log("Rows affected:", result.rowsAffected);
 
     return {
       success: true,
@@ -926,15 +724,7 @@ async function commitPriceUpdate(parameterString, periode) {
       returnValue: result.returnValue,
     };
   } catch (error) {
-    console.error("=== Commit Price Update Error Details ===");
-    console.error("Error message:", error.message);
-    console.error("Error number:", error.number);
-    console.error("Line number:", error.lineNumber);
-    console.error("Procedure name:", error.procName);
-    console.error("Parameter we sent:", parameterString);
-    console.error("Periode:", periode);
-    console.error('Expected format: materialId:newPrice#materialId2:newPrice2, YYYY');
-
+    console.error("Error in commitPriceUpdate:", error.message);
     throw error;
   }
 }
@@ -942,11 +732,6 @@ async function commitPriceUpdate(parameterString, periode) {
 // Get all simulations in a price change group for product selection
 async function getSimulationsForPriceChangeGroup(description, formattedDate, simulationType = 'Price Changes') {
   try {
-    console.log('=== getSimulationsForPriceChangeGroup ===');
-    console.log('Description:', description);
-    console.log('Formatted Date:', formattedDate);
-    console.log('Simulation Type:', simulationType);
-
     const db = await connect();
     
     const query = `

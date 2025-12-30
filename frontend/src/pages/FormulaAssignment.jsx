@@ -565,7 +565,6 @@ const FormulaAssignment = ({ user }) => {
       } else {
         // Add new
         const userName = user?.logNIK || 'SYSTEM';
-        console.log('Add - user.logNIK:', user?.logNIK, 'userName:', userName);
         const dataToSend = {
           ...formData,
           isManual: 1,  // Default to manual (important)
@@ -939,8 +938,6 @@ const FormulaAssignment = ({ user }) => {
 
   // Process raw Excel data to group by Product_ID and filter by HPP='aktif'
   const processRawExcelData = (rawData) => {
-    console.log('Processing raw Excel data:', rawData);
-    
     // Group by Product_ID
     const groupedByProduct = {};
     
@@ -973,8 +970,6 @@ const FormulaAssignment = ({ user }) => {
       });
     });
     
-    console.log('Grouped by product:', groupedByProduct);
-    
     // Filter each product's formulas to only include HPP='aktif' (case insensitive)
     const processedProducts = [];
     
@@ -990,8 +985,6 @@ const FormulaAssignment = ({ user }) => {
         });
       }
     });
-    
-    console.log('Processed products with active formulas:', processedProducts);
     
     return processedProducts;
   };
@@ -1206,7 +1199,6 @@ const FormulaAssignment = ({ user }) => {
   const transformImportData = (processedData, formulas) => {
     // Note: process_date is handled by the backend to ensure correct local timezone
     const userName = user?.logNIK || 'SYSTEM';
-    console.log('Import - user.logNIK:', user?.logNIK, 'userName:', userName);
     
     return processedData.map(product => {
       const productId = product.Product_ID;

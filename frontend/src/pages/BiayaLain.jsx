@@ -550,7 +550,6 @@ const BiayaLain = () => {
       setLoading(true);
       
       const result = await masterAPI.bulkImportGeneralCostsPerSediaan(importPreviewData, importPeriode === 'all' ? 'all' : importPeriode);
-      console.log('Import successful:', result);
       await fetchAllData();
 
       // Close modals and reset state

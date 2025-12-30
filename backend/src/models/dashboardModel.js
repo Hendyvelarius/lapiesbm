@@ -86,9 +86,6 @@ async function getDashboardHPPData(year = null) {
 
     // Debug: Log unique Category values to verify format
     const uniqueCategories = [...new Set(allProducts.map(p => p.Category))];
-    console.log(`Dashboard HPP data for periode ${periode}: ${categorizedProducts.length} products (ethical: ${ethical.length}, generik1: ${generik1.length})`);
-    console.log(`Unique Category values from HPP List:`, uniqueCategories);
-    console.log(`Category counts:`, tollCounts);
 
     return {
       periode,

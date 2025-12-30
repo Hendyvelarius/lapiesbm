@@ -240,8 +240,6 @@ class ReagenModel {
         .input('periode', sql.VarChar, periode)
         .query(query);
       
-      console.log(`Bulk delete by periode completed: ${result.rowsAffected[0]} entries removed for year ${periode}`);
-      
       return {
         deleted: true,
         operation: 'bulk_delete_by_periode',

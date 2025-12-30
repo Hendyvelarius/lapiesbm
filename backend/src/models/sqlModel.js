@@ -245,7 +245,6 @@ async function bulkDeleteBBHargaBahan(periode = null) {
     
     const result = await request.query(deleteQuery);
       
-    console.log(`Bulk deleted ${result.rowsAffected[0]} BB records`);
     return {
       success: true,
       rowsAffected: result.rowsAffected[0]
@@ -276,7 +275,6 @@ async function bulkDeleteBKHargaBahan(periode = null) {
     
     const result = await request.query(deleteQuery);
       
-    console.log(`Bulk deleted ${result.rowsAffected[0]} BK records (preserving 2-character ITEM_IDs like BA, C0, J1)`);
     return {
       success: true,
       rowsAffected: result.rowsAffected[0]
@@ -295,8 +293,6 @@ async function bulkInsertHargaBahan(dataArray) {
       return { success: true, rowsInserted: 0 };
     }
     
-    console.log(`Starting bulk insert of ${dataArray.length} records in batches...`);
-    
     // SQL Server has a limit of 2100 parameters per query
     // With 12 columns per record, we can insert max ~175 records per batch
     const BATCH_SIZE = 150; // Safe batch size (12 × 150 = 1800 parameters)
@@ -308,8 +304,6 @@ async function bulkInsertHargaBahan(dataArray) {
       const batch = dataArray.slice(i, i + BATCH_SIZE);
       const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
       const totalBatches = Math.ceil(totalRecords / BATCH_SIZE);
-      
-      console.log(`Processing batch ${batchNumber}/${totalBatches} - ${batch.length} records`);
       
       // Build bulk insert query for this batch
       const columns = [
@@ -357,11 +351,8 @@ async function bulkInsertHargaBahan(dataArray) {
       const result = await request.query(insertQuery);
       const batchInserted = result.rowsAffected[0] || 0;
       totalInserted += batchInserted;
-      
-      console.log(`Batch ${batchNumber} completed: ${batchInserted} records inserted`);
     }
     
-    console.log(`Bulk insert completed: ${totalInserted} total records inserted`);
     return {
       success: true,
       rowsInserted: totalInserted
@@ -800,8 +791,6 @@ async function bulkDeleteGenerikGroups(userId = "system") {
     
     const result = await db.request().query(deleteQuery);
     
-    console.log(`Bulk delete completed: ${result.rowsAffected[0]} Generik groups removed`);
-    
     return {
       success: true,
       rowsAffected: result.rowsAffected[0],
@@ -884,8 +873,6 @@ async function bulkInsertGenerikGroups(generikData, userId = "system") {
     
     const finalQuery = insertQuery + values.join(',');
     const result = await request.query(finalQuery);
-    
-    console.log(`Bulk insert completed: ${result.rowsAffected[0]} Generik groups inserted`);
     
     return {
       success: true,
@@ -1053,8 +1040,6 @@ async function bulkDeletePembebananByPeriode(periode, userId = "system") {
     const result = await db.request()
       .input('periode', sql.VarChar, periode)
       .query(deleteQuery);
-    
-    console.log(`Bulk delete by periode completed: ${result.rowsAffected[0]} entries removed for year ${periode}`);
     
     return {
       success: true,
@@ -1587,8 +1572,6 @@ async function bulkDeleteProductGroupByPeriode(periode) {
       .input('periode', sql.NVarChar, periode.toString())
       .query(deleteQuery);
     
-    console.log(`Bulk delete by periode completed: ${result.rowsAffected[0]} groups removed for year ${periode}`);
-    
     return {
       success: true,
       rowsAffected: result.rowsAffected[0],
@@ -1617,13 +1600,9 @@ async function bulkInsertProductGroup(productData, periode, userId = "SYSTEM") {
     const BATCH_SIZE = 140;
     let totalRowsAffected = 0;
     
-    console.log(`Starting bulk insert for ${productData.length} rows in batches of ${BATCH_SIZE}`);
-    
     // Process in batches
     for (let i = 0; i < productData.length; i += BATCH_SIZE) {
       const batch = productData.slice(i, i + BATCH_SIZE);
-      
-      console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1}: rows ${i + 1} to ${i + batch.length}`);
       
       // Get fresh connection for each batch
       const db = await connect();
@@ -1694,11 +1673,7 @@ async function bulkInsertProductGroup(productData, periode, userId = "SYSTEM") {
       const result = await request.query(finalQuery);
       
       totalRowsAffected += result.rowsAffected[0];
-      
-      console.log(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: Inserted ${result.rowsAffected[0]} rows`);
     }
-    
-    console.log(`Bulk insert completed: ${totalRowsAffected} product groups inserted for year ${periode}`);
     
     return {
       success: true,

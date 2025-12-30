@@ -404,6 +404,7 @@ export default function Dashboard() {
   const [showHPPBreakdownModal, setShowHPPBreakdownModal] = useState(false);
   const [hppBreakdownFilter, setHppBreakdownFilter] = useState('ALL');
   const [hppBreakdownMode, setHppBreakdownMode] = useState('lob'); // 'lob' or 'toll'
+  const [hppBreakdownCogsFilter, setHppBreakdownCogsFilter] = useState('all'); // 'all', 'high', 'low'
   const [showJumlahProdukModal, setShowJumlahProdukModal] = useState(false);
   const [jumlahProdukFilter, setJumlahProdukFilter] = useState('ALL');
   const [jumlahProdukMode, setJumlahProdukMode] = useState('lob'); // 'lob' or 'toll'
@@ -542,20 +543,33 @@ export default function Dashboard() {
   // Get filtered products for HPP breakdown modal
   const getFilteredProductsForHPPBreakdown = () => {
     if (!dashboardData?.products) return [];
-    if (hppBreakdownFilter === 'ALL') return dashboardData.products;
     
-    if (hppBreakdownMode === 'toll') {
-      // Map toll filter to actual category values
-      const tollCategoryMap = {
-        'TOLL_IN': 'Toll In',
-        'TOLL_OUT': 'Toll Out',
-        'IMPORT': 'Import',
-        'LAPI': 'Lapi'
-      };
-      return dashboardData.products.filter(p => p.tollCategory === tollCategoryMap[hppBreakdownFilter]);
+    let filtered = dashboardData.products;
+    
+    // First filter by category/lob
+    if (hppBreakdownFilter !== 'ALL') {
+      if (hppBreakdownMode === 'toll') {
+        // Map toll filter to actual category values
+        const tollCategoryMap = {
+          'TOLL_IN': 'Toll In',
+          'TOLL_OUT': 'Toll Out',
+          'IMPORT': 'Import',
+          'LAPI': 'Lapi'
+        };
+        filtered = filtered.filter(p => p.tollCategory === tollCategoryMap[hppBreakdownFilter]);
+      } else {
+        filtered = filtered.filter(p => p.category?.toUpperCase() === hppBreakdownFilter);
+      }
     }
     
-    return dashboardData.products.filter(p => p.category?.toUpperCase() === hppBreakdownFilter);
+    // Then filter by COGS level
+    if (hppBreakdownCogsFilter === 'high') {
+      filtered = filtered.filter(p => parseFloat(p.COGS) >= 30);
+    } else if (hppBreakdownCogsFilter === 'low') {
+      filtered = filtered.filter(p => parseFloat(p.COGS) < 30);
+    }
+    
+    return filtered;
   };
 
   // Get filtered products for Heat Map modal (LOB x Category)
@@ -574,6 +588,15 @@ export default function Dashboard() {
   const handleHPPDistributionClick = (filter, mode = 'lob') => {
     setHppBreakdownFilter(filter);
     setHppBreakdownMode(mode);
+    setHppBreakdownCogsFilter('all'); // Reset COGS filter when clicking HPP Distribution
+    setShowHPPBreakdownModal(true);
+  };
+
+  // Handle HPP Info click - uses current selectedCategory and categoryMode
+  const handleHPPInfoClick = (cogsFilter = 'all') => {
+    setHppBreakdownFilter(selectedCategory);
+    setHppBreakdownMode(categoryMode);
+    setHppBreakdownCogsFilter(cogsFilter);
     setShowHPPBreakdownModal(true);
   };
 
@@ -592,9 +615,25 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="dashboard-loading">
-        <Loader2 className="loading-spinner" size={48} />
-        <p>Loading dashboard...</p>
+      <div className="dashboard-loading-screen">
+        <div className="loading-content">
+          <div className="loading-logo">
+            <BarChart3 size={56} className="loading-icon" />
+          </div>
+          <div className="loading-spinner-ring">
+            <div className="spinner-ring"></div>
+          </div>
+          <div className="loading-text">
+            <h2>Loading Dashboard</h2>
+            <p>Preparing your HPP analytics...</p>
+          </div>
+          <div className="loading-progress">
+            <div className="progress-bar">
+              <div className="progress-fill"></div>
+            </div>
+          </div>
+          <p className="loading-hint">Please wait while we fetch your data</p>
+        </div>
       </div>
     );
   }
@@ -892,11 +931,11 @@ export default function Dashboard() {
         </div>
 
         {/* HPP Info Cards */}
-        <div className="dashboard-card hpp-info-card clickable" onClick={() => setShowHPPBreakdownModal(true)}>
+        <div className="dashboard-card hpp-info-card">
           <div className="card-header">
             <DollarSign size={24} />
             <h3>HPP Info</h3>
-            <span className="card-hint">Click for details</span>
+            <span className="card-hint">Click stats for details</span>
           </div>
           <div className="card-body">
             {/* Category Mode Toggle */}
@@ -940,21 +979,21 @@ export default function Dashboard() {
               )}
             </div>
             <div className="hpp-stats-grid">
-              <div className="hpp-stat-item total">
+              <div className="hpp-stat-item total clickable" onClick={() => handleHPPInfoClick('all')}>
                 <span className="stat-icon">📦</span>
                 <div className="stat-content">
                   <span className="stat-value">{formatNumber(hppStats.count)}</span>
                   <span className="stat-label">Total Products</span>
                 </div>
               </div>
-              <div className="hpp-stat-item high-risk">
+              <div className="hpp-stat-item high-risk clickable" onClick={() => handleHPPInfoClick('high')}>
                 <span className="stat-icon">⚠️</span>
                 <div className="stat-content">
                   <span className="stat-value">{formatNumber(hppStats.highCOGS)}</span>
                   <span className="stat-label">≥30% HNA</span>
                 </div>
               </div>
-              <div className="hpp-stat-item low-risk">
+              <div className="hpp-stat-item low-risk clickable" onClick={() => handleHPPInfoClick('low')}>
                 <span className="stat-icon">✅</span>
                 <div className="stat-content">
                   <span className="stat-value">{formatNumber(hppStats.lowCOGS)}</span>
@@ -1100,7 +1139,7 @@ export default function Dashboard() {
              hppBreakdownFilter === 'IMPORT' ? 'Import' : 
              hppBreakdownFilter === 'LAPI' ? 'LAPI' : hppBreakdownFilter) :
           hppBreakdownFilter
-        }`}
+        }${hppBreakdownCogsFilter !== 'all' ? ` (COGS ${hppBreakdownCogsFilter === 'high' ? '≥30%' : '<30%'})` : ''}`}
         displayMode="hpp-breakdown"
       />
 

@@ -412,7 +412,6 @@ export default function HPPSimulation() {
         // Filter to only materials from the latest year
         const latestMaterials = materials.filter(m => parseInt(m.Periode) === latestYear);
         
-        console.log(`Filtered materials: ${materials.length} total → ${latestMaterials.length} from year ${latestYear}`);
         setAllMaterials(latestMaterials);
       } else {
         // Fallback: deduplicate by ITEM_ID (keep first occurrence)
@@ -453,8 +452,6 @@ export default function HPPSimulation() {
         
         setCurrencyRates(rates);
         setCurrencyList(Object.keys(rates).sort((a, b) => a === 'IDR' ? -1 : b === 'IDR' ? 1 : a.localeCompare(b)));
-        
-        console.log(`Loaded ${Object.keys(rates).length} currencies for year ${latestYear}:`, rates);
       }
     } catch (error) {
       console.error('Error loading currency data:', error);

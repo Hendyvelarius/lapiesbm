@@ -252,6 +252,7 @@ class TollFeeModel {
       const pool = await connect();
       const localDateTime = getLocalDateTime();
       
+      // Use SCOPE_IDENTITY() instead of OUTPUT clause because the table has triggers
       const query = `
         INSERT INTO M_COGS_PEMBEBANAN_TollFee (
           Periode,
@@ -264,7 +265,6 @@ class TollFeeModel {
           flag_update,
           from_update
         )
-        OUTPUT INSERTED.pk_id
         VALUES (
           @periode,
           @productId,
@@ -275,7 +275,8 @@ class TollFeeModel {
           @processDate,
           @flagUpdate,
           @fromUpdate
-        )
+        );
+        SELECT SCOPE_IDENTITY() AS pk_id;
       `;
       
       const result = await pool.request()
@@ -453,8 +454,6 @@ class TollFeeModel {
       const result = await pool.request()
         .input('periode', sql.VarChar, periode)
         .query(query);
-      
-      console.log(`Bulk delete by periode completed: ${result.rowsAffected[0]} entries removed for year ${periode}`);
       
       return {
         deleted: true,
