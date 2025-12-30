@@ -482,12 +482,11 @@ export default function Dashboard() {
     if (selectedCategory === 'ALL') {
       key = 'all';
     } else if (categoryMode === 'toll') {
-      // Map toll categories
+      // Map toll categories (Toll In excluded)
       const tollKeyMap = {
-        'TOLL_IN': 'tollIn',
         'TOLL_OUT': 'tollOut',
         'IMPORT': 'import',
-        'LAPI': 'lapi'
+        'INHOUSE': 'inhouse'
       };
       key = tollKeyMap[selectedCategory] || 'all';
     } else {
@@ -506,12 +505,11 @@ export default function Dashboard() {
     if (selectedCategory === 'ALL') {
       key = 'all';
     } else if (categoryMode === 'toll') {
-      // Map toll categories
+      // Map toll categories (Toll In excluded)
       const tollKeyMap = {
-        'TOLL_IN': 'tollIn',
         'TOLL_OUT': 'tollOut',
         'IMPORT': 'import',
-        'LAPI': 'lapi'
+        'INHOUSE': 'inhouse'
       };
       key = tollKeyMap[selectedCategory] || 'all';
     } else {
@@ -527,12 +525,11 @@ export default function Dashboard() {
     if (jumlahProdukFilter === 'ALL') return dashboardData.products;
     
     if (jumlahProdukMode === 'toll') {
-      // Map toll filter to actual category values
+      // Map toll filter to actual category values (Toll In excluded)
       const tollCategoryMap = {
-        'TOLL_IN': 'Toll In',
         'TOLL_OUT': 'Toll Out',
         'IMPORT': 'Import',
-        'LAPI': 'Lapi'
+        'INHOUSE': 'Inhouse'
       };
       return dashboardData.products.filter(p => p.tollCategory === tollCategoryMap[jumlahProdukFilter]);
     }
@@ -549,12 +546,11 @@ export default function Dashboard() {
     // First filter by category/lob
     if (hppBreakdownFilter !== 'ALL') {
       if (hppBreakdownMode === 'toll') {
-        // Map toll filter to actual category values
+        // Map toll filter to actual category values (Toll In excluded)
         const tollCategoryMap = {
-          'TOLL_IN': 'Toll In',
           'TOLL_OUT': 'Toll Out',
           'IMPORT': 'Import',
-          'LAPI': 'Lapi'
+          'INHOUSE': 'Inhouse'
         };
         filtered = filtered.filter(p => p.tollCategory === tollCategoryMap[hppBreakdownFilter]);
       } else {
@@ -724,14 +720,10 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
-            {/* Category Row (Toll In/Out/Import/Lapi) */}
+            {/* Category Row (Toll Out/Import/Inhouse - excluding Toll In) */}
             <div className="stat-breakdown-section">
               <span className="breakdown-section-label">By Category</span>
               <div className="stat-breakdown toll-breakdown">
-                <div className="breakdown-item toll-in clickable" onClick={() => handleJumlahProdukClick('TOLL_IN', 'toll')}>
-                  <span className="breakdown-label">Toll In</span>
-                  <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.tollIn)}</span>
-                </div>
                 <div className="breakdown-item toll-out clickable" onClick={() => handleJumlahProdukClick('TOLL_OUT', 'toll')}>
                   <span className="breakdown-label">Toll Out</span>
                   <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.tollOut)}</span>
@@ -740,9 +732,9 @@ export default function Dashboard() {
                   <span className="breakdown-label">Import</span>
                   <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.import)}</span>
                 </div>
-                <div className="breakdown-item lapi clickable" onClick={() => handleJumlahProdukClick('LAPI', 'toll')}>
-                  <span className="breakdown-label">LAPI</span>
-                  <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.lapi)}</span>
+                <div className="breakdown-item inhouse clickable" onClick={() => handleJumlahProdukClick('INHOUSE', 'toll')}>
+                  <span className="breakdown-label">Inhouse</span>
+                  <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.inhouse)}</span>
                 </div>
               </div>
             </div>
@@ -761,23 +753,9 @@ export default function Dashboard() {
               value={dashboardData?.costManagement?.totalHPP || 0}
               total={dashboardData?.costManagement?.totalHNA || 1}
               color="#ef4444"
-              size={140}
+              size={180}
               label="COGS Ratio"
             />
-            <div className="cost-summary">
-              <div className="cost-item">
-                <span className="cost-label">Total HPP</span>
-                <span className="cost-value" title={formatCurrency(dashboardData?.costManagement?.totalHPP)}>
-                  {formatCurrencyAbbrev(dashboardData?.costManagement?.totalHPP)}
-                </span>
-              </div>
-              <div className="cost-item">
-                <span className="cost-label">Total HNA</span>
-                <span className="cost-value" title={formatCurrency(dashboardData?.costManagement?.totalHNA)}>
-                  {formatCurrencyAbbrev(dashboardData?.costManagement?.totalHNA)}
-                </span>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -818,15 +796,14 @@ export default function Dashboard() {
               </div>
             </div>
             
-            {/* Category Section (Toll In/Out/Import/Lapi) - Compact Bars */}
+            {/* Category Section (Toll Out/Import/Inhouse) - Compact Bars */}
             <div className="risk-section toll-section">
               <span className="risk-section-label">By Category</span>
               <div className="risk-compact-bars">
                 {[
-                  { key: 'tollIn', label: 'Toll In', color: '#8b5cf6' },
                   { key: 'tollOut', label: 'Toll Out', color: '#ec4899' },
                   { key: 'import', label: 'Import', color: '#0ea5e9' },
-                  { key: 'lapi', label: 'LAPI', color: '#f43f5e' }
+                  { key: 'inhouse', label: 'Inhouse', color: '#f43f5e' }
                 ].map(item => {
                   const value = parseFloat(dashboardData?.pricingRiskIndicator?.[item.key] || 0);
                   const riskLevel = value >= 40 ? 'high' : value >= 25 ? 'medium' : 'low';
@@ -898,13 +875,6 @@ export default function Dashboard() {
               <div className="stacked-bars-section">
                 <span className="section-label">By Category</span>
                 <StackedBar 
-                  label="Toll In" 
-                  bb={dashboardData?.costDistribution?.tollIn?.bb || 0}
-                  bk={dashboardData?.costDistribution?.tollIn?.bk || 0}
-                  others={dashboardData?.costDistribution?.tollIn?.others || 0}
-                  onClick={() => handleHPPDistributionClick('TOLL_IN', 'toll')}
-                />
-                <StackedBar 
                   label="Toll Out" 
                   bb={dashboardData?.costDistribution?.tollOut?.bb || 0}
                   bk={dashboardData?.costDistribution?.tollOut?.bk || 0}
@@ -919,11 +889,11 @@ export default function Dashboard() {
                   onClick={() => handleHPPDistributionClick('IMPORT', 'toll')}
                 />
                 <StackedBar 
-                  label="LAPI" 
-                  bb={dashboardData?.costDistribution?.lapi?.bb || 0}
-                  bk={dashboardData?.costDistribution?.lapi?.bk || 0}
-                  others={dashboardData?.costDistribution?.lapi?.others || 0}
-                  onClick={() => handleHPPDistributionClick('LAPI', 'toll')}
+                  label="Inhouse" 
+                  bb={dashboardData?.costDistribution?.inhouse?.bb || 0}
+                  bk={dashboardData?.costDistribution?.inhouse?.bk || 0}
+                  others={dashboardData?.costDistribution?.inhouse?.others || 0}
+                  onClick={() => handleHPPDistributionClick('INHOUSE', 'toll')}
                 />
               </div>
             </div>
@@ -966,14 +936,14 @@ export default function Dashboard() {
                   </button>
                 ))
               ) : (
-                // Toll Categories
-                ['ALL', 'TOLL_IN', 'TOLL_OUT', 'IMPORT', 'LAPI'].map(cat => (
+                // Toll Categories (excluding Toll In)
+                ['ALL', 'TOLL_OUT', 'IMPORT', 'INHOUSE'].map(cat => (
                   <button
                     key={cat}
                     className={`category-btn toll-cat ${selectedCategory === cat ? 'active' : ''}`}
                     onClick={() => setSelectedCategory(cat)}
                   >
-                    {cat === 'ALL' ? 'All' : cat === 'TOLL_IN' ? 'Toll In' : cat === 'TOLL_OUT' ? 'Toll Out' : cat}
+                    {cat === 'ALL' ? 'All' : cat === 'TOLL_OUT' ? 'Toll Out' : cat === 'INHOUSE' ? 'Inhouse' : cat}
                   </button>
                 ))
               )}
@@ -1040,21 +1010,21 @@ export default function Dashboard() {
               </thead>
               <tbody>
                 <tr>
-                  <td className="row-header">LAPI</td>
+                  <td className="row-header">Inhouse</td>
                   <HeatMapCell 
-                    total={dashboardData?.heatMap?.lapi?.ethical?.total || 0}
-                    highCOGS={dashboardData?.heatMap?.lapi?.ethical?.highCOGS || 0}
-                    onClick={() => handleHeatMapClick('ETHICAL', 'Lapi')}
+                    total={dashboardData?.heatMap?.inhouse?.ethical?.total || 0}
+                    highCOGS={dashboardData?.heatMap?.inhouse?.ethical?.highCOGS || 0}
+                    onClick={() => handleHeatMapClick('ETHICAL', 'Inhouse')}
                   />
                   <HeatMapCell 
-                    total={dashboardData?.heatMap?.lapi?.otc?.total || 0}
-                    highCOGS={dashboardData?.heatMap?.lapi?.otc?.highCOGS || 0}
-                    onClick={() => handleHeatMapClick('OTC', 'Lapi')}
+                    total={dashboardData?.heatMap?.inhouse?.otc?.total || 0}
+                    highCOGS={dashboardData?.heatMap?.inhouse?.otc?.highCOGS || 0}
+                    onClick={() => handleHeatMapClick('OTC', 'Inhouse')}
                   />
                   <HeatMapCell 
-                    total={dashboardData?.heatMap?.lapi?.generik?.total || 0}
-                    highCOGS={dashboardData?.heatMap?.lapi?.generik?.highCOGS || 0}
-                    onClick={() => handleHeatMapClick('GENERIK', 'Lapi')}
+                    total={dashboardData?.heatMap?.inhouse?.generik?.total || 0}
+                    highCOGS={dashboardData?.heatMap?.inhouse?.generik?.highCOGS || 0}
+                    onClick={() => handleHeatMapClick('GENERIK', 'Inhouse')}
                   />
                 </tr>
                 <tr>
@@ -1073,24 +1043,6 @@ export default function Dashboard() {
                     total={dashboardData?.heatMap?.import?.generik?.total || 0}
                     highCOGS={dashboardData?.heatMap?.import?.generik?.highCOGS || 0}
                     onClick={() => handleHeatMapClick('GENERIK', 'Import')}
-                  />
-                </tr>
-                <tr>
-                  <td className="row-header">Toll In</td>
-                  <HeatMapCell 
-                    total={dashboardData?.heatMap?.tollIn?.ethical?.total || 0}
-                    highCOGS={dashboardData?.heatMap?.tollIn?.ethical?.highCOGS || 0}
-                    onClick={() => handleHeatMapClick('ETHICAL', 'Toll In')}
-                  />
-                  <HeatMapCell 
-                    total={dashboardData?.heatMap?.tollIn?.otc?.total || 0}
-                    highCOGS={dashboardData?.heatMap?.tollIn?.otc?.highCOGS || 0}
-                    onClick={() => handleHeatMapClick('OTC', 'Toll In')}
-                  />
-                  <HeatMapCell 
-                    total={dashboardData?.heatMap?.tollIn?.generik?.total || 0}
-                    highCOGS={dashboardData?.heatMap?.tollIn?.generik?.highCOGS || 0}
-                    onClick={() => handleHeatMapClick('GENERIK', 'Toll In')}
                   />
                 </tr>
                 <tr>
@@ -1134,10 +1086,9 @@ export default function Dashboard() {
         title={`HPP Breakdown (BB/BK/Others) - ${
           hppBreakdownFilter === 'ALL' ? 'All Products' : 
           hppBreakdownMode === 'toll' ? 
-            (hppBreakdownFilter === 'TOLL_IN' ? 'Toll In' : 
-             hppBreakdownFilter === 'TOLL_OUT' ? 'Toll Out' : 
+            (hppBreakdownFilter === 'TOLL_OUT' ? 'Toll Out' : 
              hppBreakdownFilter === 'IMPORT' ? 'Import' : 
-             hppBreakdownFilter === 'LAPI' ? 'LAPI' : hppBreakdownFilter) :
+             hppBreakdownFilter === 'INHOUSE' ? 'Inhouse' : hppBreakdownFilter) :
           hppBreakdownFilter
         }${hppBreakdownCogsFilter !== 'all' ? ` (COGS ${hppBreakdownCogsFilter === 'high' ? '≥30%' : '<30%'})` : ''}`}
         displayMode="hpp-breakdown"
@@ -1160,8 +1111,7 @@ export default function Dashboard() {
         title={`Product List - ${
           jumlahProdukFilter === 'ALL' ? 'All Products' : 
           jumlahProdukMode === 'toll' ? 
-            (jumlahProdukFilter === 'TOLL_IN' ? 'Toll In' : 
-             jumlahProdukFilter === 'TOLL_OUT' ? 'Toll Out' : jumlahProdukFilter) :
+            (jumlahProdukFilter === 'TOLL_OUT' ? 'Toll Out' : jumlahProdukFilter) :
           jumlahProdukFilter
         }`}
         displayMode="cogs"

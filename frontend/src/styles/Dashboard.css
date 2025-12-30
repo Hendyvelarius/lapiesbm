@@ -421,6 +421,11 @@
   gap: 24px;
   width: 100%;
   padding-bottom: 24px;
+  align-items: stretch;
+}
+
+.dashboard-grid > .dashboard-card {
+  height: 100%;
 }
 
 /* Base Card Styles */
@@ -604,7 +609,7 @@
   border: 1px solid rgba(14, 165, 233, 0.2);
 }
 
-.breakdown-item.lapi {
+.breakdown-item.inhouse {
   background: linear-gradient(135deg, rgba(244, 63, 94, 0.1), rgba(225, 29, 72, 0.05));
   border: 1px solid rgba(244, 63, 94, 0.2);
 }
@@ -612,7 +617,7 @@
 .breakdown-item.toll-in .breakdown-value { color: #7c3aed; }
 .breakdown-item.toll-out .breakdown-value { color: #db2777; }
 .breakdown-item.import .breakdown-value { color: #0284c7; }
-.breakdown-item.lapi .breakdown-value { color: #e11d48; }
+.breakdown-item.inhouse .breakdown-value { color: #e11d48; }
 
 /* Stat Breakdown Section Styling */
 .stat-breakdown-section {
@@ -635,7 +640,7 @@
 
 .toll-breakdown {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 
@@ -652,10 +657,17 @@
 }
 
 /* Cost Management Card */
+.cost-management-card {
+  display: flex;
+  flex-direction: column;
+}
+
 .cost-management-card .card-body {
   display: flex;
   align-items: center;
-  gap: 24px;
+  justify-content: center;
+  padding: 24px;
+  flex: 1;
 }
 
 .cost-summary {
@@ -785,7 +797,7 @@
   background: linear-gradient(90deg, #0ea5e9, #38bdf8);
 }
 
-.risk-bar.lapi-bar {
+.risk-bar.inhouse-bar {
   background: linear-gradient(90deg, #f43f5e, #fb7185);
 }
 
@@ -1493,7 +1505,7 @@
   color: #4338ca;
 }
 
-.toll-badge.lapi {
+.toll-badge.inhouse {
   background: #d1fae5;
   color: #047857;
 }

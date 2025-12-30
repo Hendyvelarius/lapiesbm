@@ -59,7 +59,7 @@ async function getDashboardHPPData(year = null) {
     ];
 
     // Categorize products and get toll category from Category column in HPP list
-    const categorizedProducts = allProducts.map(p => {
+    const allCategorizedProducts = allProducts.map(p => {
       // Determine LOB category based on LOB field
       let actualCategory = p.productType;
       if (p.LOB) {
@@ -76,12 +76,16 @@ async function getDashboardHPPData(year = null) {
       return { ...p, actualCategory, tollCategory };
     });
 
-    // Count products by toll category directly from HPP list data
+    // IMPORTANT: Exclude all Toll In products from dashboard
+    // Toll In products are completely removed from all calculations and displays
+    const categorizedProducts = allCategorizedProducts.filter(p => p.tollCategory !== 'Toll In');
+
+    // Count products by toll category (excluding Toll In)
+    // Note: 'Lapi' from database is displayed as 'Inhouse' in frontend
     const tollCounts = {
-      tollIn: categorizedProducts.filter(p => p.tollCategory === 'Toll In').length,
       tollOut: categorizedProducts.filter(p => p.tollCategory === 'Toll Out').length,
       import: categorizedProducts.filter(p => p.tollCategory === 'Import').length,
-      lapi: categorizedProducts.filter(p => p.tollCategory === 'Lapi').length
+      inhouse: categorizedProducts.filter(p => p.tollCategory === 'Lapi').length
     };
 
     // Debug: Log unique Category values to verify format
@@ -112,9 +116,8 @@ async function getDashboardStats(year = null) {
     const generikCount = products.filter(p => p.actualCategory === 'GENERIK').length;
     const totalProducts = products.length;
 
-    // Toll counts come from the authoritative view (vw_COGS_Pembebanan_TollFee)
-    // These counts represent ALL products in each toll category, not just those with HPP
-    const { tollIn: tollInCount, tollOut: tollOutCount, import: importCount, lapi: lapiCount } = tollCounts;
+    // Toll counts (Toll In excluded from dashboard)
+    const { tollOut: tollOutCount, import: importCount, inhouse: inhouseCount } = tollCounts;
 
     // Calculate Cost Management (COGS) statistics
     // COGS = (Total HPP / HNA) * 100
@@ -150,11 +153,11 @@ async function getDashboardStats(year = null) {
     const avgCOGSOTC = calculateAvgCOGS('OTC');
     const avgCOGSGenerik = calculateAvgCOGS('GENERIK');
 
-    // Toll category averages
-    const avgCOGSTollIn = calculateAvgCOGS('Toll In', true);
+    // Toll category averages (Toll In excluded)
+    // Note: 'Lapi' from database is displayed as 'Inhouse' in frontend
     const avgCOGSTollOut = calculateAvgCOGS('Toll Out', true);
     const avgCOGSImport = calculateAvgCOGS('Import', true);
-    const avgCOGSLapi = calculateAvgCOGS('Lapi', true);
+    const avgCOGSInhouse = calculateAvgCOGS('Lapi', true);
 
     // Average HPP distribution (BB, BK, Others)
     // Others = (MH_Proses_Std * Biaya_Proses) + (MH_Kemas_Std * Biaya_Kemas) + Expiry Cost + Margin
@@ -263,11 +266,11 @@ async function getDashboardStats(year = null) {
     const costDistributionOTC = calculateCostDistribution(products.filter(p => p.actualCategory === 'OTC'));
     const costDistributionGenerik = calculateCostDistribution(products.filter(p => p.actualCategory === 'GENERIK'));
     
-    // Cost distribution by Toll category
-    const costDistributionTollIn = calculateCostDistribution(products.filter(p => p.tollCategory === 'Toll In'));
+    // Cost distribution by Toll category (Toll In excluded)
+    // Note: 'Lapi' from database is displayed as 'Inhouse' in frontend
     const costDistributionTollOut = calculateCostDistribution(products.filter(p => p.tollCategory === 'Toll Out'));
     const costDistributionImport = calculateCostDistribution(products.filter(p => p.tollCategory === 'Import'));
-    const costDistributionLapi = calculateCostDistribution(products.filter(p => p.tollCategory === 'Lapi'));
+    const costDistributionInhouse = calculateCostDistribution(products.filter(p => p.tollCategory === 'Lapi'));
 
     // HPP info cards by LOB category
     const hppStatsAll = calculateCategoryStats('ALL');
@@ -275,11 +278,11 @@ async function getDashboardStats(year = null) {
     const hppStatsOTC = calculateCategoryStats('OTC');
     const hppStatsGenerik = calculateCategoryStats('GENERIK');
     
-    // HPP info cards by Toll category
-    const hppStatsTollIn = calculateCategoryStats('Toll In', true);
+    // HPP info cards by Toll category (Toll In excluded)
+    // Note: 'Lapi' from database is displayed as 'Inhouse' in frontend
     const hppStatsTollOut = calculateCategoryStats('Toll Out', true);
     const hppStatsImport = calculateCategoryStats('Import', true);
-    const hppStatsLapi = calculateCategoryStats('Lapi', true);
+    const hppStatsInhouse = calculateCategoryStats('Lapi', true);
 
     // Heat Map: LOB x Category matrix
     // Shows total products and high COGS count for each combination
@@ -302,8 +305,10 @@ async function getDashboardStats(year = null) {
       return { total, highCOGS };
     };
 
+    // Heat map data (Toll In excluded)
+    // Note: 'Lapi' from database is displayed as 'Inhouse' in frontend
     const heatMap = {
-      lapi: {
+      inhouse: {
         ethical: calculateHeatMapCell('ETHICAL', 'Lapi'),
         otc: calculateHeatMapCell('OTC', 'Lapi'),
         generik: calculateHeatMapCell('GENERIK', 'Lapi')
@@ -312,11 +317,6 @@ async function getDashboardStats(year = null) {
         ethical: calculateHeatMapCell('ETHICAL', 'Import'),
         otc: calculateHeatMapCell('OTC', 'Import'),
         generik: calculateHeatMapCell('GENERIK', 'Import')
-      },
-      tollIn: {
-        ethical: calculateHeatMapCell('ETHICAL', 'Toll In'),
-        otc: calculateHeatMapCell('OTC', 'Toll In'),
-        generik: calculateHeatMapCell('GENERIK', 'Toll In')
       },
       tollOut: {
         ethical: calculateHeatMapCell('ETHICAL', 'Toll Out'),
@@ -332,11 +332,10 @@ async function getDashboardStats(year = null) {
         ethical: ethicalCount,
         otc: otcCount,
         generik: generikCount,
-        // Toll category counts
-        tollIn: tollInCount,
+        // Toll category counts (Toll In excluded)
         tollOut: tollOutCount,
         import: importCount,
-        lapi: lapiCount
+        inhouse: inhouseCount
       },
       costManagement: {
         totalHPP,
@@ -349,11 +348,10 @@ async function getDashboardStats(year = null) {
         ethical: avgCOGSEthical.toFixed(2),
         otc: avgCOGSOTC.toFixed(2),
         generik: avgCOGSGenerik.toFixed(2),
-        // Toll categories
-        tollIn: avgCOGSTollIn.toFixed(2),
+        // Toll categories (Toll In excluded)
         tollOut: avgCOGSTollOut.toFixed(2),
         import: avgCOGSImport.toFixed(2),
-        lapi: avgCOGSLapi.toFixed(2)
+        inhouse: avgCOGSInhouse.toFixed(2)
       },
       costDistribution: {
         // LOB categories
@@ -361,11 +359,10 @@ async function getDashboardStats(year = null) {
         ethical: costDistributionEthical,
         otc: costDistributionOTC,
         generik: costDistributionGenerik,
-        // Toll categories
-        tollIn: costDistributionTollIn,
+        // Toll categories (Toll In excluded)
         tollOut: costDistributionTollOut,
         import: costDistributionImport,
-        lapi: costDistributionLapi
+        inhouse: costDistributionInhouse
       },
       hppStats: {
         // LOB categories
@@ -373,11 +370,10 @@ async function getDashboardStats(year = null) {
         ethical: hppStatsEthical,
         otc: hppStatsOTC,
         generik: hppStatsGenerik,
-        // Toll categories
-        tollIn: hppStatsTollIn,
+        // Toll categories (Toll In excluded)
         tollOut: hppStatsTollOut,
         import: hppStatsImport,
-        lapi: hppStatsLapi
+        inhouse: hppStatsInhouse
       },
       // Heat map data for LOB x Category matrix
       heatMap,
@@ -417,7 +413,8 @@ async function getDashboardStats(year = null) {
           Product_ID: p.Product_ID,
           Product_Name: p.Product_Name,
           category: p.actualCategory,
-          tollCategory: p.tollCategory,
+          // Map 'Lapi' to 'Inhouse' for display
+          tollCategory: p.tollCategory === 'Lapi' ? 'Inhouse' : p.tollCategory,
           LOB: p.LOB,
           HPP: hpp,
           HNA: hna,
