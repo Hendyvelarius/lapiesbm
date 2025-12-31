@@ -121,13 +121,26 @@ async function getDashboardStats(year = null) {
 
     // Calculate Cost Management (COGS) statistics
     // COGS = (Total HPP / HNA) * 100
-    const validProducts = products.filter(p => 
-      p.HPP && p.Product_SalesHNA && p.Product_SalesHNA > 0
-    );
+    // IMPORTANT: Exclude products with 0% COGS (HPP = 0 or HNA = 0) from calculations
+    // Using parseFloat and explicit > 0 check to handle string values from database
+    const validProducts = products.filter(p => {
+      const hpp = parseFloat(p.HPP) || 0;
+      const hna = parseFloat(p.Product_SalesHNA) || 0;
+      // Only include products where both HPP > 0 AND HNA > 0
+      // This ensures 0% COGS products don't affect the average calculations
+      return hpp > 0 && hna > 0;
+    });
 
     const totalHPP = validProducts.reduce((sum, p) => sum + (parseFloat(p.HPP) || 0), 0);
     const totalHNA = validProducts.reduce((sum, p) => sum + (parseFloat(p.Product_SalesHNA) || 0), 0);
-    const overallCOGS = totalHNA > 0 ? (totalHPP / totalHNA) * 100 : 0;
+    
+    // Calculate COGS Ratio using Simple Average (consistent with category averages)
+    // This treats each product equally, rather than weighting by HNA value
+    const overallCOGS = validProducts.length > 0 
+      ? validProducts.reduce((sum, p) => {
+          return sum + ((parseFloat(p.HPP) / parseFloat(p.Product_SalesHNA)) * 100);
+        }, 0) / validProducts.length
+      : 0;
 
     // Products with COGS >= 30% vs < 30%
     const productsHighCOGS = validProducts.filter(p => {

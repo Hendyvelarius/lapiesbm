@@ -751,8 +751,8 @@ export default function Dashboard() {
           <div className="card-body">
             <div className="cogs-ratio-section clickable" onClick={() => setShowProductModal(true)}>
               <DonutChart 
-                value={dashboardData?.costManagement?.totalHPP || 0}
-                total={dashboardData?.costManagement?.totalHNA || 1}
+                value={parseFloat(dashboardData?.costManagement?.overallCOGS) || 0}
+                total={100}
                 color="#ef4444"
                 size={160}
                 label="COGS Ratio"
