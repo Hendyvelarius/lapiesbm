@@ -806,7 +806,7 @@ export default function Dashboard() {
             <h3>Pricing Risk Indicator</h3>
           </div>
           <div className="card-body">
-            <p className="card-description">Average COGS % by Category</p>
+            <p className="card-description">COGS Ratio by Category</p>
             
             {/* LOB Categories - Gauge Style */}
             <div className="risk-section">
