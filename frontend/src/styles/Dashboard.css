@@ -664,10 +664,138 @@
 
 .cost-management-card .card-body {
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 20px 24px 24px;
+  flex: 1;
+  gap: 20px;
+}
+
+.cogs-ratio-section {
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 8px;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.cogs-ratio-section.clickable {
+  cursor: pointer;
+}
+
+.cogs-ratio-section.clickable:hover {
+  background: rgba(59, 130, 246, 0.05);
+  transform: scale(1.02);
+}
+
+/* Overall Distribution Section */
+.overall-distribution-section {
+  width: 100%;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.distribution-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.distribution-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.distribution-legend {
+  display: flex;
+  gap: 12px;
+}
+
+.distribution-legend .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.distribution-legend .legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.distribution-legend .legend-dot.bb {
+  background: #3b82f6;
+}
+
+.distribution-legend .legend-dot.bk {
+  background: #10b981;
+}
+
+.distribution-legend .legend-dot.others {
+  background: #f59e0b;
+}
+
+.overall-distribution-bar {
+  display: flex;
+  width: 100%;
+  height: 36px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f3f4f6;
+  transition: all 0.2s ease;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.overall-distribution-bar.clickable {
+  cursor: pointer;
+}
+
+.overall-distribution-bar.clickable:hover {
+  transform: scaleY(1.08);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.dist-segment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.dist-segment .segment-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.dist-segment.bb {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.dist-segment.bk {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.dist-segment.others {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.dist-empty {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #9ca3af;
+  font-style: italic;
 }
 
 .cost-summary {
@@ -1788,8 +1916,50 @@
   padding: 16px;
 }
 
-.heat-map-legend {
+/* Heat Map Explainer - Prominent Explanation */
+.heat-map-explainer {
   display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border-radius: 8px;
+  border: 1px solid #f59e0b;
+}
+
+.explainer-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #dc2626;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.explainer-badge svg {
+  flex-shrink: 0;
+}
+
+.explainer-divider {
+  font-size: 16px;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.explainer-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #92400e;
+}
+
+/* Legacy Heat Map Legend - Top Position (deprecated) */
+.heat-map-legend {
+  display: none; /* Hidden - using bottom legend now */
   justify-content: center;
   gap: 16px;
   margin-bottom: 16px;
@@ -1812,6 +1982,66 @@
 
 .heat-map-legend .legend-item.high {
   color: #dc2626;
+}
+
+/* Heat Map Legend - Bottom Position */
+.heat-map-legend-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.heat-map-legend-bottom .legend-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.heat-map-legend-bottom .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.heat-map-legend-bottom .legend-item .legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.heat-map-legend-bottom .legend-item.low {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+.heat-map-legend-bottom .legend-item.low .legend-dot {
+  background: #10b981;
+}
+
+.heat-map-legend-bottom .legend-item.medium {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.heat-map-legend-bottom .legend-item.medium .legend-dot {
+  background: #f59e0b;
+}
+
+.heat-map-legend-bottom .legend-item.high {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.heat-map-legend-bottom .legend-item.high .legend-dot {
+  background: #ef4444;
 }
 
 .heat-map-table {
@@ -1902,9 +2132,15 @@
     font-size: 9px;
   }
   
-  .heat-map-legend {
+  .heat-map-legend-bottom {
     flex-wrap: wrap;
     gap: 8px;
+  }
+  
+  .heat-map-explainer {
+    flex-wrap: wrap;
+    gap: 6px;
+    text-align: center;
   }
   
   .heat-map-table {
@@ -1917,5 +2153,19 @@
   
   .heat-cell-percent {
     font-size: 9px;
+  }
+  
+  .overall-distribution-bar {
+    height: 30px;
+  }
+  
+  .dist-segment .segment-label {
+    font-size: 10px;
+  }
+  
+  .distribution-header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
   }
 }

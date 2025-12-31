@@ -742,20 +742,60 @@ export default function Dashboard() {
         </div>
 
         {/* Cost Management Card */}
-        <div className="dashboard-card cost-management-card clickable" onClick={() => setShowProductModal(true)}>
+        <div className="dashboard-card cost-management-card">
           <div className="card-header">
             <PieChart size={24} />
             <h3>Cost Management</h3>
-            <span className="card-hint">Click for details</span>
+            <span className="card-hint">Click ratio for details</span>
           </div>
           <div className="card-body">
-            <DonutChart 
-              value={dashboardData?.costManagement?.totalHPP || 0}
-              total={dashboardData?.costManagement?.totalHNA || 1}
-              color="#ef4444"
-              size={180}
-              label="COGS Ratio"
-            />
+            <div className="cogs-ratio-section clickable" onClick={() => setShowProductModal(true)}>
+              <DonutChart 
+                value={dashboardData?.costManagement?.totalHPP || 0}
+                total={dashboardData?.costManagement?.totalHNA || 1}
+                color="#ef4444"
+                size={160}
+                label="COGS Ratio"
+              />
+            </div>
+            <div className="overall-distribution-section">
+              <div className="distribution-header">
+                <span className="distribution-title">Overall HPP Distribution</span>
+                <div className="distribution-legend">
+                  <span className="legend-item"><span className="legend-dot bb"></span>BB</span>
+                  <span className="legend-item"><span className="legend-dot bk"></span>BK</span>
+                  <span className="legend-item"><span className="legend-dot others"></span>Others</span>
+                </div>
+              </div>
+              <div 
+                className="overall-distribution-bar clickable"
+                onClick={() => handleHPPDistributionClick('ALL', 'lob')}
+                title="Click to view all products"
+              >
+                {(() => {
+                  const all = dashboardData?.costDistribution?.all || { bb: 0, bk: 0, others: 0 };
+                  const total = all.bb + all.bk + all.others;
+                  const bbPercent = total > 0 ? (all.bb / total) * 100 : 0;
+                  const bkPercent = total > 0 ? (all.bk / total) * 100 : 0;
+                  const othersPercent = total > 0 ? (all.others / total) * 100 : 0;
+                  return total > 0 ? (
+                    <>
+                      <div className="dist-segment bb" style={{ width: `${bbPercent}%` }}>
+                        <span className="segment-label">{bbPercent.toFixed(0)}%</span>
+                      </div>
+                      <div className="dist-segment bk" style={{ width: `${bkPercent}%` }}>
+                        <span className="segment-label">{bkPercent.toFixed(0)}%</span>
+                      </div>
+                      <div className="dist-segment others" style={{ width: `${othersPercent}%` }}>
+                        <span className="segment-label">{othersPercent.toFixed(0)}%</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="dist-empty">No data</div>
+                  );
+                })()}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -843,13 +883,6 @@ export default function Dashboard() {
             <div className="stacked-bars-container">
               <div className="stacked-bars-section">
                 <span className="section-label">By LOB</span>
-                <StackedBar 
-                  label="All" 
-                  bb={dashboardData?.costDistribution?.all?.bb || 0}
-                  bk={dashboardData?.costDistribution?.all?.bk || 0}
-                  others={dashboardData?.costDistribution?.all?.others || 0}
-                  onClick={() => handleHPPDistributionClick('ALL', 'lob')}
-                />
                 <StackedBar 
                   label="Ethical" 
                   bb={dashboardData?.costDistribution?.ethical?.bb || 0}
@@ -991,13 +1024,15 @@ export default function Dashboard() {
           <div className="card-header">
             <Grid3X3 size={24} />
             <h3>COGS Heat Map</h3>
-            <span className="card-hint">High COGS (≥30%) / Total Products</span>
           </div>
           <div className="card-body">
-            <div className="heat-map-legend">
-              <span className="legend-item low">●  &lt;10% (Low)</span>
-              <span className="legend-item medium">●  10-50% (Medium)</span>
-              <span className="legend-item high">●  &gt;50% (High)</span>
+            <div className="heat-map-explainer">
+              <div className="explainer-badge">
+                <AlertTriangle size={14} />
+                <span>High COGS (≥30%)</span>
+              </div>
+              <span className="explainer-divider">/</span>
+              <span className="explainer-text">Total Products per Cell</span>
             </div>
             <table className="heat-map-table">
               <thead>
@@ -1065,6 +1100,12 @@ export default function Dashboard() {
                 </tr>
               </tbody>
             </table>
+            <div className="heat-map-legend-bottom">
+              <span className="legend-label">Risk Level:</span>
+              <span className="legend-item low"><span className="legend-dot"></span>&lt;10% Low</span>
+              <span className="legend-item medium"><span className="legend-dot"></span>10-50% Medium</span>
+              <span className="legend-item high"><span className="legend-dot"></span>&gt;50% High</span>
+            </div>
           </div>
         </div>
       </div>
