@@ -191,13 +191,15 @@ async function getDashboardStats(year = null) {
         const expiryCost = parseFloat(p.Beban_Sisa_Bahan_Exp) || 0;
         
         // Margin calculation - if margin exists as percentage, calculate based on subtotal
+        // IMPORTANT: toll_fee is per unit, must multiply by Batch_Size to match batch-level costs (BB, BK, etc.)
         let marginCost = 0;
+        const batchSize = parseFloat(p.Batch_Size) || 1;
         if (p.margin && parseFloat(p.margin) > 0) {
           const marginPercent = parseFloat(p.margin);
           const subtotal = bb + bk + biayaProses + biayaKemas + expiryCost;
           marginCost = subtotal * marginPercent;
         } else if (p.toll_fee && parseFloat(p.toll_fee) > 0) {
-          marginCost = parseFloat(p.toll_fee) || 0;
+          marginCost = (parseFloat(p.toll_fee) || 0) * batchSize;
         }
         
         // For Generik products, include additional costs
@@ -403,13 +405,15 @@ async function getDashboardStats(year = null) {
         const biayaKemas = (parseFloat(p.MH_Kemas_Std) || 0) * (parseFloat(p.Biaya_Kemas) || 0);
         const expiryCost = parseFloat(p.Beban_Sisa_Bahan_Exp) || 0;
         
+        // IMPORTANT: toll_fee is per unit, must multiply by Batch_Size to match batch-level costs (BB, BK, etc.)
         let marginCost = 0;
+        const batchSize = parseFloat(p.Batch_Size) || 1;
         if (p.margin && parseFloat(p.margin) > 0) {
           const marginPercent = parseFloat(p.margin);
           const subtotal = bb + bk + biayaProses + biayaKemas + expiryCost;
           marginCost = subtotal * marginPercent;
         } else if (p.toll_fee && parseFloat(p.toll_fee) > 0) {
-          marginCost = parseFloat(p.toll_fee) || 0;
+          marginCost = (parseFloat(p.toll_fee) || 0) * batchSize;
         }
         
         const biayaReagen = parseFloat(p.Biaya_Reagen) || 0;
