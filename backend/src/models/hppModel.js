@@ -172,7 +172,8 @@ async function updateSimulationHeader(simulasiId, headerData) {
         Direct_Labor = @DirectLabor,
         Factory_Over_Head = @FactoryOverHead,
         Depresiasi = @Depresiasi,
-        Beban_Sisa_Bahan_Exp = @BebanSisaBahanExp
+        Beban_Sisa_Bahan_Exp = @BebanSisaBahanExp,
+        Margin = @Margin
       WHERE Simulasi_ID = @SimulasiId
     `;
 
@@ -221,6 +222,7 @@ async function updateSimulationHeader(simulasiId, headerData) {
         sql.Decimal(18, 2),
         headerData.Beban_Sisa_Bahan_Exp || null
       )
+      .input("Margin", sql.Decimal(18, 6), headerData.Margin || null)
       .query(query);
 
     return result.rowsAffected[0];
@@ -246,7 +248,7 @@ async function createSimulationHeader(headerData) {
         Simulasi_Deskripsi, Simulasi_Date, Simulasi_Type, Group_Rendemen, Batch_Size, LOB, Versi,
         MH_Proses_Std, MH_Kemas_Std, MH_Analisa_Std, MH_Timbang_BB, MH_Timbang_BK, MH_Mesin_Std,
         Biaya_Proses, Biaya_Kemas, Biaya_Analisa, Biaya_Generik, Biaya_Reagen, Toll_Fee, Rate_PLN,
-        Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp,
+        Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp, Margin,
         user_id, process_date, flag_delete
       ) 
       VALUES (
@@ -254,7 +256,7 @@ async function createSimulationHeader(headerData) {
         @SimulasiDeskripsi, @SimulasiDate, @SimulasiType, @GroupRendemen, @BatchSize, @LOB, @Versi,
         @MHProsesStd, @MHKemasStd, @MHAnalisaStd, @MHTimbangBB, @MHTimbangBK, @MHMesinStd,
         @BiayaProses, @BiayaKemas, @BiayaAnalisa, @BiayaGenerik, @BiayaReagen, @TollFee, @RatePLN,
-        @DirectLabor, @FactoryOverHead, @Depresiasi, @BebanSisaBahanExp,
+        @DirectLabor, @FactoryOverHead, @Depresiasi, @BebanSisaBahanExp, @Margin,
         @UserId, GETDATE(), 0
       )
     `;
@@ -320,6 +322,7 @@ async function createSimulationHeader(headerData) {
         sql.Decimal(18, 2),
         headerData.Beban_Sisa_Bahan_Exp || null
       )
+      .input("Margin", sql.Decimal(18, 6), headerData.Margin || null)
       .input("UserId", sql.VarChar(50), headerData.user_id || null)
       .query(query);
 

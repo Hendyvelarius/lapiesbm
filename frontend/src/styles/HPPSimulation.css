@@ -5055,3 +5055,38 @@ html {
 .marked-delete-table thead th {
   background: rgba(239, 68, 68, 0.1);
 }
+
+/* Marked Groups in Delete Tab */
+.marked-group {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.08) 0%, rgba(249, 115, 22, 0.05) 100%);
+}
+
+.marked-group:hover {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.12) 0%, rgba(249, 115, 22, 0.08) 100%);
+}
+
+.marked-group .group-header-content {
+  padding: 10px 12px;
+}
+
+.marked-group .group-description {
+  color: #b91c1c;
+}
+
+.marked-group .group-meta-left {
+  gap: 12px;
+}
+
+/* Group child row in marked delete tab */
+.marked-for-delete-row.group-child {
+  background: rgba(239, 68, 68, 0.03);
+  border-left: 3px solid rgba(239, 68, 68, 0.3);
+}
+
+.marked-for-delete-row.group-child:hover {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.marked-for-delete-row.group-child td:first-child {
+  padding-left: 24px;
+}

@@ -159,6 +159,8 @@ export default function HPPSimulation() {
   // Marked for deletion state
   const [markedForDeleteList, setMarkedForDeleteList] = useState([]);
   const [loadingMarkedForDelete, setLoadingMarkedForDelete] = useState(false);
+  const [groupedMarkedForDelete, setGroupedMarkedForDelete] = useState({}); // Grouped marked simulations
+  const [expandedMarkedGroups, setExpandedMarkedGroups] = useState(new Set()); // Track expanded groups in marked tab
 
   // Current user info for permission checks
   const currentUser = getCurrentUser();
@@ -681,6 +683,100 @@ export default function HPPSimulation() {
       });
     }
   }, [filteredSimulationList, allMaterials]);
+
+  // Group Marked for Delete simulations by description AND date/time (for Price Changes)
+  useEffect(() => {
+    const grouped = {};
+
+    markedForDeleteList.forEach((simulation) => {
+      if (simulation.Simulasi_Type === "Price Changes") {
+        const description = simulation.Simulasi_Deskripsi || "No Description";
+        const groupKey = createPriceChangeGroupKey(description, simulation.Simulasi_Date);
+
+        if (!grouped[groupKey]) {
+          grouped[groupKey] = {
+            groupKey: groupKey,
+            description: description,
+            simulations: [],
+            count: 0,
+            date: simulation.Simulasi_Date,
+            formattedDate: getDateFromGroupKey(groupKey),
+            user_id: simulation.user_id,
+          };
+        }
+
+        grouped[groupKey].simulations.push(simulation);
+        grouped[groupKey].count = grouped[groupKey].simulations.length;
+      }
+    });
+
+    setGroupedMarkedForDelete(grouped);
+  }, [markedForDeleteList]);
+
+  // Create display list for marked-for-delete that handles grouping
+  const markedForDeleteDisplayList = useMemo(() => {
+    const displayList = [];
+    const processedPriceChangeGroups = new Set();
+
+    markedForDeleteList.forEach((simulation) => {
+      if (simulation.Simulasi_Type === "Price Changes") {
+        const description = simulation.Simulasi_Deskripsi || "No Description";
+        const groupKey = createPriceChangeGroupKey(description, simulation.Simulasi_Date);
+
+        // Only add the group header once per unique group key
+        if (!processedPriceChangeGroups.has(groupKey)) {
+          processedPriceChangeGroups.add(groupKey);
+          
+          // Add the group header
+          displayList.push({
+            type: "group",
+            groupKey: groupKey,
+            ...groupedMarkedForDelete[groupKey],
+          });
+        }
+      } else {
+        // Regular simulations
+        displayList.push({
+          type: "simulation",
+          isGroupChild: false,
+          ...simulation,
+        });
+      }
+    });
+
+    // Now expand groups if needed
+    const finalList = [];
+    displayList.forEach((item) => {
+      if (item.type === "group") {
+        finalList.push(item);
+        // Add children if expanded
+        if (expandedMarkedGroups.has(item.groupKey)) {
+          groupedMarkedForDelete[item.groupKey]?.simulations?.forEach((sim) => {
+            finalList.push({
+              type: "simulation",
+              isGroupChild: true,
+              ...sim,
+            });
+          });
+        }
+      } else {
+        finalList.push(item);
+      }
+    });
+
+    return finalList;
+  }, [markedForDeleteList, groupedMarkedForDelete, expandedMarkedGroups]);
+
+  // Toggle group expansion for marked-for-delete
+  const toggleMarkedGroup = (groupKey) => {
+    const newExpanded = new Set(expandedMarkedGroups);
+    if (newExpanded.has(groupKey)) {
+      newExpanded.delete(groupKey);
+    } else {
+      newExpanded.add(groupKey);
+    }
+    setExpandedMarkedGroups(newExpanded);
+  };
 
   // Create final paginated list that handles both grouped and regular simulations
   const paginatedDisplayList = useMemo(() => {
@@ -1232,7 +1328,7 @@ export default function HPPSimulation() {
   // Permanently delete simulation (PL Admin only)
   const handlePermanentDelete = async (simulasiId) => {
     if (!isPLAdmin) {
-      notifier.alert("Only PL administrators can permanently delete simulations.");
+      notifier.alert("Only Head of Plant can permanently delete simulations.");
       return;
     }
 
@@ -1274,7 +1370,7 @@ export default function HPPSimulation() {
   // Permanently delete all marked simulations (PL Admin only)
   const handlePermanentDeleteAll = async () => {
     if (!isPLAdmin) {
-      notifier.alert("Only PL administrators can permanently delete simulations.");
+      notifier.alert("Only Head of Plants can permanently delete simulations.");
       return;
     }
 
@@ -1311,6 +1407,99 @@ export default function HPPSimulation() {
       {
         labels: {
           confirm: "Delete All Permanently",
+          cancel: "Cancel",
+        },
+      }
+    );
+  };
+
+  // Permanently delete a specific group of marked simulations
+  const handlePermanentDeleteGroup = async (groupSimulations) => {
+    if (!isPLAdmin) {
+      notifier.alert("Only Head of Plants can permanently delete simulations.");
+      return;
+    }
+
+    if (!groupSimulations || groupSimulations.length === 0) {
+      notifier.info("No simulations in this group.");
+      return;
+    }
+
+    notifier.confirm(
+      `Are you sure you want to PERMANENTLY DELETE ${groupSimulations.length} simulations in this group? This action cannot be undone!`,
+      async () => {
+        try {
+          setLoading(true);
+          
+          // Delete each simulation in the group
+          for (const sim of groupSimulations) {
+            await hppAPI.permanentlyDeleteSimulation(
+              sim.Simulasi_ID,
+              currentUser?.empDeptID,
+              currentUser?.empJobLevelID
+            );
+          }
+
+          // Reload both lists
+          await loadSimulationList();
+          await loadMarkedForDeleteList();
+
+          notifier.success(`${groupSimulations.length} simulations permanently deleted!`);
+        } catch (error) {
+          console.error("Error permanently deleting group:", error);
+          notifier.alert(error.message || "Failed to permanently delete group.");
+        } finally {
+          setLoading(false);
+        }
+      },
+      () => {
+        // Cancelled
+      },
+      {
+        labels: {
+          confirm: "Delete Group Permanently",
+          cancel: "Cancel",
+        },
+      }
+    );
+  };
+
+  // Restore all simulations in a group
+  const handleRestoreGroup = async (groupSimulations) => {
+    if (!groupSimulations || groupSimulations.length === 0) {
+      notifier.info("No simulations in this group.");
+      return;
+    }
+
+    notifier.confirm(
+      `Restore ${groupSimulations.length} simulations in this group?`,
+      async () => {
+        try {
+          setLoading(true);
+          
+          // Restore each simulation in the group
+          for (const sim of groupSimulations) {
+            await hppAPI.restoreSimulation(sim.Simulasi_ID);
+          }
+
+          // Reload both lists
+          await loadSimulationList();
+          await loadMarkedForDeleteList();
+
+          notifier.success(`${groupSimulations.length} simulations restored!`);
+        } catch (error) {
+          console.error("Error restoring group:", error);
+          notifier.alert(error.message || "Failed to restore group.");
+        } finally {
+          setLoading(false);
+        }
+      },
+      () => {
+        // Cancelled
+      },
+      {
+        labels: {
+          confirm: "Restore Group",
           cancel: "Cancel",
         },
       }
@@ -2661,6 +2850,9 @@ export default function HPPSimulation() {
           Factory_Over_Head: editableOverheadData.Factory_Over_Head || 0,
           Depresiasi: editableOverheadData.Depresiasi || 0,
           Beban_Sisa_Bahan_Exp: editableOverheadData.Beban_Sisa_Bahan_Exp || 0,
+          Margin: marginType === "percent" 
+            ? (editableOverheadData.Margin || 0) / 100 
+            : (editableOverheadData.Margin || 0),
           user_id: currentUser?.logNIK || null,
         };
 
@@ -2772,6 +2964,10 @@ export default function HPPSimulation() {
           Beban_Sisa_Bahan_Exp:
             editableOverheadData.Beban_Sisa_Bahan_Exp ||
             simulationResults[0].Beban_Sisa_Bahan_Exp,
+          // Margin: convert from display value back to stored value
+          Margin: marginType === "percent" 
+            ? (editableOverheadData.Margin || 0) / 100  // Convert percent (e.g., 10) to decimal (0.1)
+            : (editableOverheadData.Margin || 0),       // Keep as direct value
         };
 
         // Prepare materials data from current editable state
@@ -4370,8 +4566,8 @@ export default function HPPSimulation() {
                       <p>
                         <strong>⚠️ These simulations are marked for deletion.</strong>
                         {isPLAdmin 
-                          ? " As a PL administrator, you can restore them or permanently delete them." 
-                          : " Only PL administrators can permanently delete these simulations."}
+                          ? " As a Head of Plant, you can restore them or permanently delete them." 
+                          : " Only Head of Plant can permanently delete these simulations."}
                       </p>
                     </div>
                     <table className="simulation-list-table marked-delete-table">
@@ -4389,38 +4585,120 @@ export default function HPPSimulation() {
                         </tr>
                       </thead>
                       <tbody>
-                        {markedForDeleteList.map((simulation) => (
-                          <tr key={simulation.Simulasi_ID} className="marked-for-delete-row">
-                            <td>{simulation.Simulasi_ID}</td>
-                            <td className="type-cell">{simulation.Simulasi_Type}</td>
-                            <td>{simulation.Product_ID}</td>
-                            <td className="product-name-cell">{simulation.Product_Name}</td>
-                            <td className="formula-cell">{simulation.Formula}</td>
-                            <td className="description-cell">{simulation.Simulasi_Deskripsi || "-"}</td>
-                            <td>{new Date(simulation.Simulasi_Date).toLocaleDateString("id-ID")}</td>
-                            <td className="user-cell">{simulation.user_id || "-"}</td>
-                            <td className="actions-cell">
-                              <button
-                                className="restore-btn"
-                                onClick={() => handleRestoreSimulation(simulation.Simulasi_ID)}
-                                disabled={loading}
-                                title="Restore Simulation"
+                        {markedForDeleteDisplayList.map((item, index) => {
+                          if (item.type === "group") {
+                            // Render Price Changes group header
+                            const isExpanded = expandedMarkedGroups.has(item.groupKey);
+                            return (
+                              <tr
+                                key={`marked-group-${item.groupKey}`}
+                                className="price-changes-group marked-group"
+                                onClick={() => toggleMarkedGroup(item.groupKey)}
+                                style={{ cursor: "pointer" }}
                               >
-                                <RotateCcw size={16} />
-                              </button>
-                              {isPLAdmin && (
-                                <button
-                                  className="permanent-delete-btn"
-                                  onClick={() => handlePermanentDelete(simulation.Simulasi_ID)}
-                                  disabled={loading}
-                                  title="Permanently Delete (Cannot be undone)"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
+                                <td colSpan="9" className="group-header">
+                                  <div className="group-header-content">
+                                    <div className="group-toggle">
+                                      {isExpanded ? (
+                                        <ChevronDown size={16} />
+                                      ) : (
+                                        <ChevronRight size={16} />
+                                      )}
+                                    </div>
+                                    <div className="group-info">
+                                      <span 
+                                        className="group-description"
+                                        title={item.description}
+                                      >
+                                        {item.description}
+                                      </span>
+                                      <div className="group-meta">
+                                        <div className="group-meta-left">
+                                          <span className="group-date">
+                                            {item.formattedDate}
+                                          </span>
+                                          <span className="group-count">
+                                            ({item.count} products)
+                                          </span>
+                                          <span className="group-user">
+                                            <User size={12} />
+                                            {item.user_id || "-"}
+                                          </span>
+                                        </div>
+                                        <div className="group-actions">
+                                          <button
+                                            className="restore-btn"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleRestoreGroup(item.simulations);
+                                            }}
+                                            disabled={loading}
+                                            title="Restore all simulations in this group"
+                                          >
+                                            <RotateCcw size={16} />
+                                            <span>Restore Group</span>
+                                          </button>
+                                          {isPLAdmin && (
+                                            <button
+                                              className="permanent-delete-btn"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handlePermanentDeleteGroup(item.simulations);
+                                              }}
+                                              disabled={loading}
+                                              title="Permanently delete all simulations in this group"
+                                            >
+                                              <Trash2 size={16} />
+                                              <span>Delete Group</span>
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          } else {
+                            // Render individual simulation
+                            const simulation = item;
+                            return (
+                              <tr 
+                                key={simulation.Simulasi_ID} 
+                                className={`marked-for-delete-row ${item.isGroupChild ? "group-child" : ""}`}
+                              >
+                                <td>{simulation.Simulasi_ID}</td>
+                                <td className="type-cell">{simulation.Simulasi_Type}</td>
+                                <td>{simulation.Product_ID}</td>
+                                <td className="product-name-cell">{simulation.Product_Name}</td>
+                                <td className="formula-cell">{simulation.Formula}</td>
+                                <td className="description-cell">{simulation.Simulasi_Deskripsi || "-"}</td>
+                                <td>{new Date(simulation.Simulasi_Date).toLocaleDateString("id-ID")}</td>
+                                <td className="user-cell">{simulation.user_id || "-"}</td>
+                                <td className="actions-cell">
+                                  <button
+                                    className="restore-btn"
+                                    onClick={() => handleRestoreSimulation(simulation.Simulasi_ID)}
+                                    disabled={loading}
+                                    title="Restore Simulation"
+                                  >
+                                    <RotateCcw size={16} />
+                                  </button>
+                                  {isPLAdmin && (
+                                    <button
+                                      className="permanent-delete-btn"
+                                      onClick={() => handlePermanentDelete(simulation.Simulasi_ID)}
+                                      disabled={loading}
+                                      title="Permanently Delete (Cannot be undone)"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          }
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -8250,7 +8528,7 @@ export default function HPPSimulation() {
                 </div>
                 <div className="warning-note">
                   <strong>ℹ️ Note:</strong> These simulations will be moved to the "Marked for Delete" tab.
-                  Only PL administrators can permanently delete them later. You can restore them at any time before permanent deletion.
+                  Only Head of Plant can permanently delete them later. You can restore them at any time before permanent deletion.
                 </div>
               </div>
             </div>
