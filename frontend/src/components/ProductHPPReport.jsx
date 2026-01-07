@@ -3,7 +3,7 @@ import { X, Download, FileText, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { masterAPI } from '../services/api';
+import { masterAPI, tollFeeAPI } from '../services/api';
 import '../styles/ProductHPPReport.css';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
@@ -127,7 +127,32 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear, isBeforeAfte
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [tollOutProductIds, setTollOutProductIds] = useState(new Set());
   const modalContentRef = useRef(null);
+
+  // Load Toll Out product IDs
+  useEffect(() => {
+    const loadTollOutProducts = async () => {
+      try {
+        const currentYear = selectedYear?.toString() || new Date().getFullYear().toString();
+        const response = await tollFeeAPI.getFromViewForExport('Toll Out', currentYear);
+        if (response && response.success && Array.isArray(response.data)) {
+          const productIds = new Set(response.data.map(item => item.productid));
+          setTollOutProductIds(productIds);
+        }
+      } catch (error) {
+        console.error('Failed to load Toll Out products:', error);
+        // Non-critical, just use empty set
+      }
+    };
+    loadTollOutProducts();
+  }, [selectedYear]);
+
+  // Check if current product is Toll Out
+  const isTollOutProduct = () => {
+    if (!product) return false;
+    return tollOutProductIds.has(product.Product_ID);
+  };
 
   useEffect(() => {
     if (isOpen && product && selectedYear) {
@@ -322,7 +347,8 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear, isBeforeAfte
         
         // Add toll fee row after total if applicable
         if (product.toll_fee && product.toll_fee > 0) {
-          ethicalRows.push(['Toll Fee (Per Unit)', '', '', '', '', '', formatNumber(product.toll_fee || 0)]);
+          const tollFeeLabel = isTollOutProduct() ? 'HPP (Per Unit)' : 'Toll Fee (Per Unit)';
+          ethicalRows.push([tollFeeLabel, '', '', '', '', '', formatNumber(product.toll_fee || 0)]);
         }
         
         XLSX.utils.sheet_add_aoa(ws, ethicalRows, { origin: `A${currentRow}` });
@@ -371,10 +397,11 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear, isBeforeAfte
       }
 
       // Final total
+      const isTollOut = isTollOutProduct();
       XLSX.utils.sheet_add_aoa(ws, [
         ['', '', '', '', '', '', ''],
-        ['Total HPP Estimasi', '', '', '', 'Total HPP', formatNumber(totalBB + totalBK + totalOverheadCost), formatNumber(totalHPPPerPack)],
-        ['HNA', '', '', '', 'HPP/HNA', formatCurrency(product?.Product_SalesHNA), formatHPPRatio(product?.HPP_Ratio)]
+        [isTollOut ? 'Total Cost Estimasi' : 'Total HPP Estimasi', '', '', '', isTollOut ? 'Unit Cost' : 'Total HPP', formatNumber(totalBB + totalBK + totalOverheadCost), formatNumber(totalHPPPerPack)],
+        ['HNA', '', '', '', isTollOut ? 'Cost/HNA' : 'HPP/HNA', formatCurrency(product?.Product_SalesHNA), formatHPPRatio(product?.HPP_Ratio)]
       ], { origin: `A${currentRow}` });
 
       // Apply some basic formatting
@@ -1105,25 +1132,25 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear, isBeforeAfte
                 <table className="excel-table">
                   <tbody>
                     <tr className="final-total">
-                      <td><strong>Total HPP Estimasi</strong></td>
+                      <td><strong>{isTollOutProduct() ? "Total Cost Estimasi" : "Total HPP Estimasi"}</strong></td>
                       <td colSpan="3"></td>
-                      <td><strong>HPP</strong></td>
+                      <td><strong>{isTollOutProduct() ? "Unit Cost" : "HPP"}</strong></td>
                       <td className="number final"><strong>{formatNumber(totalBB + totalBK + totalOverheadCost)}</strong></td>
                       <td className="number final"><strong>{formatCurrency(product?.HPP)}</strong></td>
                     </tr>
                     <tr className="final-total">
                       <td><strong>HNA</strong></td>
                       <td colSpan="3"></td>
-                      <td><strong>HPP/HNA</strong></td>
+                      <td><strong>{isTollOutProduct() ? "Cost/HNA" : "HPP/HNA"}</strong></td>
                       <td className="number final"><strong>{formatCurrency(product?.Product_SalesHNA)}</strong></td>
                       <td className="number final"><strong>{formatHPPRatio(product?.HPP_Ratio)}</strong></td>
                     </tr>
-                    {/* Show Margin + Rounded and Toll Fee for Ethical products with HPP2 */}
+                    {/* Show Margin + Rounded and Toll Fee/HPP for Ethical products with HPP2 */}
                     {(productType === 'Ethical' && product?.HPP2 && product.HPP2 !== 0) ? (
                       <tr className="final-total">
                         <td><strong>Margin + Rounded</strong></td>
                         <td colSpan="3"></td>
-                        <td><strong>Toll Fee</strong></td>
+                        <td><strong>{isTollOutProduct() ? "HPP" : "Toll Fee"}</strong></td>
                         <td className="number final"><strong>{formatNumber((product.toll_fee || 0) + (parseFloat(product.rounded) || 0))}</strong></td>
                         <td className="number final"><strong>{formatNumber(product.HPP2)}</strong></td>
                       </tr>

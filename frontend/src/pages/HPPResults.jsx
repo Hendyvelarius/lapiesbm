@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Download, FileText, Loader2, ChevronLeft, ChevronRight, Search, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import * as XLSX from 'xlsx';
-import { hppAPI, masterAPI, productsAPI } from '../services/api';
+import { hppAPI, masterAPI, productsAPI, tollFeeAPI } from '../services/api';
 import ProductHPPReport from '../components/ProductHPPReport';
 import '../styles/HPPResults.css';
 
@@ -138,7 +138,7 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
             <th>Margin</th>
             <th>Rounded</th>
             <th>HPP</th>
-            <th>Toll Fee</th>
+            <th>Toll Fee / Total HPP</th>
             <th>HNA</th>
             <th>HPP/HNA</th>
           </tr>

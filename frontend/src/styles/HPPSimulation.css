@@ -4869,6 +4869,15 @@ html {
   margin-bottom: 16px;
 }
 
+/* Step 0 Footer with Back Button */
+.step0-footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-start;
+}
+
 .back-to-landing-btn {
   background: transparent;
   border: none;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation } from "react-router";
-import { masterAPI, productsAPI, hppAPI } from "../services/api";
+import { masterAPI, productsAPI, hppAPI, tollFeeAPI } from "../services/api";
 import { getCurrentUser } from "../utils/auth";
 import AWN from "awesome-notifications";
 import "awesome-notifications/dist/style.css";
@@ -299,6 +299,9 @@ export default function HPPSimulation() {
   const [customFormulaName, setCustomFormulaName] = useState("");
   const [customLine, setCustomLine] = useState("PN1"); // Default to PN1
 
+  // Toll Out products state (for label changes)
+  const [tollOutProductIds, setTollOutProductIds] = useState(new Set());
+
   // Group selection state
   const [selectedGroup, setSelectedGroup] = useState("");
   const [groupsData, setGroupsData] = useState([]);
@@ -482,6 +485,24 @@ export default function HPPSimulation() {
     loadGroupsData();
     loadAllMaterials();
     loadCurrencyData();
+  }, []);
+
+  // Load Toll Out product IDs for label changes
+  useEffect(() => {
+    const loadTollOutProducts = async () => {
+      try {
+        const currentYear = new Date().getFullYear().toString();
+        const response = await tollFeeAPI.getFromViewForExport('Toll Out', currentYear);
+        if (response && response.success && Array.isArray(response.data)) {
+          const productIds = new Set(response.data.map(item => item.productid));
+          setTollOutProductIds(productIds);
+        }
+      } catch (error) {
+        console.error('Failed to load Toll Out products:', error);
+        // Non-critical, just use empty set
+      }
+    };
+    loadTollOutProducts();
   }, []);
 
   // Get current location for navigation detection
@@ -1259,6 +1280,14 @@ export default function HPPSimulation() {
     // PL Admin can mark any simulation
     if (isPLAdmin) return true;
     // Users can only mark their own simulations
+    return simulation.user_id === currentUser?.logNIK || !simulation.user_id;
+  };
+
+  // Check if user can edit a simulation
+  const canEditSimulation = (simulation) => {
+    // PL Admin can edit any simulation
+    if (isPLAdmin) return true;
+    // Users can only edit their own simulations or legacy ones (no user_id)
     return simulation.user_id === currentUser?.logNIK || !simulation.user_id;
   };
 
@@ -3065,6 +3094,13 @@ export default function HPPSimulation() {
     return "ETHICAL";
   };
 
+  // Check if current product is a Toll Out product
+  const isTollOutProduct = () => {
+    if (!simulationResults || !simulationResults[0]) return false;
+    const productId = simulationResults[0].Product_ID;
+    return productId && tollOutProductIds.has(productId);
+  };
+
   // Helper function to get actual batch size with rendemen
   const getActualBatchSize = () => {
     const batchSize =
@@ -4043,16 +4079,6 @@ export default function HPPSimulation() {
         {/* Step 0: Simulation List */}
         {step === 0 && (
           <div className="simulation-step">
-            {/* Back button and header */}
-            <div className="step0-header">
-              <button 
-                className="back-to-landing-btn" 
-                onClick={() => setStep(-1)}
-              >
-                ← Back to Selection
-              </button>
-            </div>
-
             {/* Tabs for simulation types */}
             <div className="simulation-tabs">
               <button
@@ -4364,16 +4390,18 @@ export default function HPPSimulation() {
                                 >
                                   <Eye size={16} />
                                 </button>
-                                <button
-                                  className="edit-btn"
-                                  onClick={() =>
-                                    handleEditSimulation(simulation)
-                                  }
-                                  disabled={loading}
-                                  title="Edit Simulation"
-                                >
-                                  {loading ? "⏳" : <Edit size={16} />}
-                                </button>
+                                {canEditSimulation(simulation) && (
+                                  <button
+                                    className="edit-btn"
+                                    onClick={() =>
+                                      handleEditSimulation(simulation)
+                                    }
+                                    disabled={loading}
+                                    title="Edit Simulation"
+                                  >
+                                    {loading ? "⏳" : <Edit size={16} />}
+                                  </button>
+                                )}
                                 {simulation.Simulasi_Type !== "Price Changes" && (
                                   <button
                                     className="clone-btn"
@@ -4705,6 +4733,16 @@ export default function HPPSimulation() {
                 )}
               </>
             )}
+
+            {/* Back to Selection button at bottom */}
+            <div className="step0-footer">
+              <button 
+                className="back-to-landing-btn" 
+                onClick={() => setStep(-1)}
+              >
+                ← Back to Selection
+              </button>
+            </div>
           </div>
         )}
 
@@ -6389,7 +6427,7 @@ export default function HPPSimulation() {
                           )}
                         </div>
                         <span className="overhead-value" style={{ fontSize: '11px', color: '#666' }}>
-                          Applied to Toll Fee
+                          {isTollOutProduct() ? "Applied to HPP" : "Applied to Toll Fee"}
                         </span>
                       </div>
                     </div>
@@ -7039,7 +7077,7 @@ export default function HPPSimulation() {
                               : `Rp ${formatNumber(editableOverheadData.Margin || 0, 2)} (per unit)`}
                           </td>
                           <td style={{ width: "20%" }} className="number">
-                            <span style={{ color: '#666', fontSize: '12px' }}>Applied to Toll Fee</span>
+                            <span style={{ color: '#666', fontSize: '12px' }}>{isTollOutProduct() ? "Applied to HPP" : "Applied to Toll Fee"}</span>
                           </td>
                         </tr>
                         {getRoundedValue() > 0 && (
@@ -7201,7 +7239,7 @@ export default function HPPSimulation() {
                               : `Rp ${formatNumber(editableOverheadData.Margin || 0, 2)} (per unit)`}
                           </td>
                           <td style={{ width: "20%" }} className="number">
-                            <span style={{ color: '#666', fontSize: '12px' }}>Applied to Toll Fee</span>
+                            <span style={{ color: '#666', fontSize: '12px' }}>{isTollOutProduct() ? "Applied to HPP" : "Applied to Toll Fee"}</span>
                           </td>
                         </tr>
                         {getRoundedValue() > 0 && (
@@ -7689,11 +7727,11 @@ export default function HPPSimulation() {
                     <tbody>
                       <tr className="final-total">
                         <td>
-                          <strong>Total HPP Estimasi</strong>
+                          <strong>{isTollOutProduct() ? "Total Cost Estimasi" : "Total HPP Estimasi"}</strong>
                         </td>
                         <td colSpan="2"></td>
                         <td>
-                          <strong>HPP</strong>
+                          <strong>{isTollOutProduct() ? "Unit Cost" : "HPP"}</strong>
                         </td>
                         <td className="number final">
                           <strong>
@@ -7720,7 +7758,7 @@ export default function HPPSimulation() {
                         </td>
                         <td colSpan="2"></td>
                         <td>
-                          <strong>HPP/HNA</strong>
+                          <strong>{isTollOutProduct() ? "Cost/HNA" : "HPP/HNA"}</strong>
                         </td>
                         <td className="number final">
                           <strong>
@@ -7748,7 +7786,7 @@ export default function HPPSimulation() {
                           </strong>
                         </td>
                       </tr>
-                      {/* Show Margin + Rounded and Toll Fee for ETHICAL/OTC products with margin */}
+                      {/* Show Margin + Rounded and Toll Fee/HPP for ETHICAL/OTC products with margin */}
                       {(getCurrentLOB() === "ETHICAL" || getCurrentLOB() === "OTC") && (editableOverheadData.Margin > 0 || getRoundedValue() > 0) && (
                         <tr className="final-total">
                           <td>
@@ -7756,7 +7794,7 @@ export default function HPPSimulation() {
                           </td>
                           <td colSpan="2"></td>
                           <td>
-                            <strong>Toll Fee</strong>
+                            <strong>{isTollOutProduct() ? "HPP" : "Toll Fee"}</strong>
                           </td>
                           <td className="number final">
                             <strong>
