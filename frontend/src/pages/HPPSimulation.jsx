@@ -7802,7 +7802,7 @@ export default function HPPSimulation() {
                         </td>
                         <td colSpan="2"></td>
                         <td>
-                          <strong>{isTollOutProduct() ? "Cost/HNA" : "HPP/HNA"}</strong>
+                          <strong>HPP/HNA</strong>
                         </td>
                         <td className="number final">
                           <strong>
@@ -7817,11 +7817,14 @@ export default function HPPSimulation() {
                         <td className="number final">
                           <strong>
                             {(() => {
-                              const hppPerPack = calculateGrandTotal() / getActualBatchSize();
+                              const unitCost = calculateGrandTotal() / getActualBatchSize();
+                              const marginValue = calculateMarginValue() || 0;
+                              const roundedValue = getRoundedValue() || 0;
+                              const trueHPP = unitCost + marginValue + roundedValue;
                               const hna = simulationSummary?.HNA || hppResultsData?.Product_SalesHNA;
                               
                               if (hna && hna > 0) {
-                                const ratio = (hppPerPack / hna) * 100;
+                                const ratio = (trueHPP / hna) * 100;
                                 return `${ratio.toFixed(2).replace('.', ',')}%`;
                               }
                               
