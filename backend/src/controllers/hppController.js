@@ -1,4 +1,4 @@
-const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, deleteSimulation, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk } = require('../models/hppModel');
+const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, getMarkedForDeleteList, deleteSimulation, markSimulationForDelete, restoreSimulation, bulkMarkForDelete, permanentlyDeleteMarked, getSimulationOwner, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk, bulkMarkPriceChangeGroupForDelete, bulkDeletePriceChangeGroup } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
@@ -89,7 +89,7 @@ class HPPController {
   // Generate HPP simulation for existing product
   static async generateHPPSimulation(req, res) {
     try {
-      const { productId, formulaString } = req.body;
+      const { productId, formulaString, userId } = req.body;
       
       // Validate required parameters
       if (!productId || !formulaString) {
@@ -99,7 +99,7 @@ class HPPController {
         });
       }
       
-      const result = await generateHPPSimulation(productId, formulaString);
+      const result = await generateHPPSimulation(productId, formulaString, userId);
       
       res.status(200).json({
         success: true,
@@ -322,7 +322,7 @@ class HPPController {
   static async cloneSimulation(req, res) {
     try {
       const { simulasiId } = req.params;
-      const { cloneDescription } = req.body;
+      const { cloneDescription, userId } = req.body;
       
       // Validate required parameter
       if (!simulasiId) {
@@ -333,7 +333,7 @@ class HPPController {
       }
       
       const { cloneSimulation } = require('../models/hppModel');
-      const newSimulasiId = await cloneSimulation(simulasiId, cloneDescription);
+      const newSimulasiId = await cloneSimulation(simulasiId, cloneDescription, userId);
       
       res.status(201).json({
         success: true,
@@ -359,7 +359,7 @@ class HPPController {
       console.log('=== Price Change Simulation Request ===');
       console.log('Request body:', JSON.stringify(req.body, null, 2));
       
-      const { materialPriceChanges } = req.body;
+      const { materialPriceChanges, userId } = req.body;
       
       // Validate input
       if (!materialPriceChanges || !Array.isArray(materialPriceChanges) || materialPriceChanges.length === 0) {
@@ -393,7 +393,7 @@ class HPPController {
       console.log('Parameter string length:', parameterString.length);
 
       // Execute the stored procedure
-      const result = await generatePriceChangeSimulation(parameterString);
+      const result = await generatePriceChangeSimulation(parameterString, userId);
 
       console.log('=== Stored Procedure Result ===');
       console.log('SP result:', JSON.stringify(result, null, 2));
@@ -420,7 +420,7 @@ class HPPController {
       console.log('=== Price Update Simulation Request ===');
       console.log('Request body:', JSON.stringify(req.body, null, 2));
       
-      const { materialPriceChanges, periode } = req.body;
+      const { materialPriceChanges, periode, userId } = req.body;
       
       // Validate input
       if (!materialPriceChanges || !Array.isArray(materialPriceChanges) || materialPriceChanges.length === 0) {
@@ -463,7 +463,7 @@ class HPPController {
       console.log('Periode:', periode);
 
       // Execute the stored procedure
-      const result = await generatePriceUpdateSimulation(parameterString, periode);
+      const result = await generatePriceUpdateSimulation(parameterString, periode, userId);
 
       console.log('=== Stored Procedure Result ===');
       console.log('SP result:', JSON.stringify(result, null, 2));
@@ -790,6 +790,281 @@ class HPPController {
       res.status(500).json({
         success: false,
         message: 'Error updating simulation versions',
+        error: error.message
+      });
+    }
+  }
+
+  // Get simulations marked for deletion
+  static async getMarkedForDeleteList(req, res) {
+    try {
+      const result = await getMarkedForDeleteList();
+      
+      res.status(200).json({
+        success: true,
+        message: 'Marked for deletion list retrieved successfully',
+        data: result
+      });
+    } catch (error) {
+      console.error('Get Marked For Delete List Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving marked for deletion list',
+        error: error.message
+      });
+    }
+  }
+
+  // Mark simulation for deletion (soft delete)
+  static async markSimulationForDelete(req, res) {
+    try {
+      const { simulasiId } = req.params;
+      const { userId, empDeptID, empJobLevelID } = req.body;
+      
+      if (!simulasiId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Simulasi ID is required'
+        });
+      }
+
+      // Get simulation owner
+      const simulation = await getSimulationOwner(simulasiId);
+      
+      if (!simulation) {
+        return res.status(404).json({
+          success: false,
+          message: `Simulation with ID ${simulasiId} not found`
+        });
+      }
+
+      // Check if user can mark this simulation for deletion
+      // PL department with PL job level can mark any simulation
+      // Others can only mark their own simulations
+      const isPLAdmin = empDeptID === 'PL' && empJobLevelID === 'PL';
+      const isOwner = simulation.user_id === userId || !simulation.user_id; // Allow if owner or if no owner set
+      
+      if (!isPLAdmin && !isOwner) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only mark your own simulations for deletion'
+        });
+      }
+
+      const result = await markSimulationForDelete(simulasiId, userId);
+
+      res.status(200).json({
+        success: true,
+        message: `Simulation ${simulasiId} marked for deletion`,
+        data: result
+      });
+    } catch (error) {
+      console.error('Mark Simulation For Delete Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error marking simulation for deletion',
+        error: error.message
+      });
+    }
+  }
+
+  // Restore simulation from deletion
+  static async restoreSimulation(req, res) {
+    try {
+      const { simulasiId } = req.params;
+      
+      if (!simulasiId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Simulasi ID is required'
+        });
+      }
+
+      const result = await restoreSimulation(simulasiId);
+
+      if (!result.success) {
+        return res.status(404).json({
+          success: false,
+          message: `Simulation with ID ${simulasiId} not found`
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: `Simulation ${simulasiId} restored successfully`,
+        data: result
+      });
+    } catch (error) {
+      console.error('Restore Simulation Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error restoring simulation',
+        error: error.message
+      });
+    }
+  }
+
+  // Bulk mark price change group for deletion
+  static async bulkMarkPriceChangeGroupForDelete(req, res) {
+    try {
+      const { description, simulasiDate, userId, empDeptID, empJobLevelID } = req.body;
+
+      if (!description || !simulasiDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'description and simulasiDate are required'
+        });
+      }
+
+      // Format the date
+      const date = new Date(simulasiDate);
+      const formattedDate = date.toISOString().replace('T', ' ').replace('Z', '').slice(0, 23);
+
+      // Get first simulation in the group to check ownership
+      const { getSimulationsForPriceChangeGroup } = require('../models/hppModel');
+      const simulations = await getSimulationsForPriceChangeGroup(description, formattedDate);
+      
+      if (!simulations || simulations.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'No simulations found in this group'
+        });
+      }
+
+      // Check permission - PL/PL can delete any, others can only delete their own or legacy (no user_id)
+      const groupOwnerId = simulations[0]?.user_id;
+      const isPLAdmin = empDeptID === 'PL' && empJobLevelID === 'PL';
+      const isOwner = groupOwnerId === userId || !groupOwnerId; // Allow if owner or if no owner set (legacy)
+      
+      if (!isPLAdmin && !isOwner) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only mark your own simulation groups for deletion'
+        });
+      }
+
+      const result = await bulkMarkForDelete(description, formattedDate, 'Price Changes');
+
+      res.status(200).json({
+        success: true,
+        message: `Successfully marked ${result.markedCount} simulations for deletion`,
+        data: result
+      });
+    } catch (error) {
+      console.error('Bulk Mark For Delete Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error marking simulations for deletion',
+        error: error.message
+      });
+    }
+  }
+
+  // Permanently delete all marked simulations (only for PL/PL users)
+  static async permanentlyDeleteMarked(req, res) {
+    try {
+      const { empDeptID, empJobLevelID } = req.body;
+
+      // Check if user has permission - only PL department with PL job level can permanently delete
+      if (empDeptID !== 'PL' || empJobLevelID !== 'PL') {
+        return res.status(403).json({
+          success: false,
+          message: 'Only PL department administrators can permanently delete simulations'
+        });
+      }
+
+      const result = await permanentlyDeleteMarked();
+
+      res.status(200).json({
+        success: true,
+        message: `Permanently deleted ${result.deletedCount} simulations and ${result.materialsDeleted} material records`,
+        data: result
+      });
+    } catch (error) {
+      console.error('Permanently Delete Marked Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error permanently deleting simulations',
+        error: error.message
+      });
+    }
+  }
+
+  // Permanently delete a single simulation (only for PL/PL users)
+  static async permanentlyDeleteSimulation(req, res) {
+    try {
+      const { simulasiId } = req.params;
+      const { empDeptID, empJobLevelID } = req.body;
+
+      if (!simulasiId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Simulasi ID is required'
+        });
+      }
+
+      // Check if user has permission - only PL department with PL job level can permanently delete
+      if (empDeptID !== 'PL' || empJobLevelID !== 'PL') {
+        return res.status(403).json({
+          success: false,
+          message: 'Only PL department administrators can permanently delete simulations'
+        });
+      }
+
+      const result = await deleteSimulation(simulasiId);
+
+      if (result.headerDeleted === 0) {
+        return res.status(404).json({
+          success: false,
+          message: `Simulation with ID ${simulasiId} not found`
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: `Simulation ${simulasiId} permanently deleted`,
+        data: result
+      });
+    } catch (error) {
+      console.error('Permanently Delete Simulation Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error permanently deleting simulation',
+        error: error.message
+      });
+    }
+  }
+
+  // Get simulation owner info
+  static async getSimulationOwner(req, res) {
+    try {
+      const { simulasiId } = req.params;
+
+      if (!simulasiId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Simulasi ID is required'
+        });
+      }
+
+      const result = await getSimulationOwner(simulasiId);
+
+      if (!result) {
+        return res.status(404).json({
+          success: false,
+          message: `Simulation with ID ${simulasiId} not found`
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('Get Simulation Owner Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error getting simulation owner',
         error: error.message
       });
     }

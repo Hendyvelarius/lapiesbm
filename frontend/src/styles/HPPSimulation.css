@@ -3723,10 +3723,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 1; /* Allow left side to shrink if needed */
+  flex-shrink: 0; /* Don't shrink left side */
   min-width: 0;
-  overflow: hidden;
-  max-width: 250px; /* Limit the space for date/count info */
+  overflow: visible; /* Allow content to be visible */
 }
 
 .group-count {
@@ -3738,6 +3737,20 @@
   border-radius: 6px;
   white-space: nowrap;
   flex-shrink: 0; /* Don't shrink count */
+}
+
+.group-user {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #059669;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 2px 6px;
+  background: rgba(5, 150, 105, 0.1);
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .group-date {
@@ -4875,4 +4888,170 @@ html {
 .back-to-landing-btn:hover {
   background: #f3f4f6;
   color: #3b82f6;
+}
+
+/* Marked for Delete Tab Styles */
+.simulation-tab.has-items {
+  color: #ef4444;
+}
+
+.simulation-tab.has-items:not(.active) {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.simulation-tab.has-items.active {
+  border-bottom-color: #ef4444;
+  color: #ef4444;
+}
+
+.simulation-tab svg {
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+/* Delete All Button */
+.delete-all-btn {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Inter", sans-serif;
+}
+
+.delete-all-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.delete-all-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Marked for Delete Info */
+.marked-delete-info {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.marked-delete-info p {
+  margin: 0;
+  color: #92400e;
+  font-size: 14px;
+}
+
+/* Marked for Delete Table Row */
+.marked-for-delete-row {
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.marked-for-delete-row:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Restore Button */
+.restore-btn {
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.restore-btn:hover:not(:disabled) {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.restore-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Permanent Delete Button */
+.permanent-delete-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.permanent-delete-btn:hover:not(:disabled) {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.permanent-delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* User Cell */
+.user-cell {
+  white-space: nowrap;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.empty-state svg {
+  color: #d1d5db;
+  margin-bottom: 16px;
+}
+
+.empty-state h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 8px 0;
+}
+
+.empty-state p {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Marked Delete Table */
+.marked-delete-table {
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.marked-delete-table thead th {
+  background: rgba(239, 68, 68, 0.1);
 }

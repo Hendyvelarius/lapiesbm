@@ -153,9 +153,9 @@ export const hppAPI = {
   }),
 
   // Generate HPP simulation for existing product with selected formulas
-  generateSimulation: (productId, formulaString) => apiRequest('/hpp/simulate-existing', {
+  generateSimulation: (productId, formulaString, userId) => apiRequest('/hpp/simulate-existing', {
     method: 'POST',
-    body: JSON.stringify({ productId, formulaString }),
+    body: JSON.stringify({ productId, formulaString, userId }),
   }),
 
   // Get simulation header details by Simulasi_ID
@@ -177,9 +177,9 @@ export const hppAPI = {
   }),
 
   // Clone simulation (duplicate existing simulation)
-  cloneSimulation: (simulasiId, cloneDescription) => apiRequest(`/hpp/simulation/clone/${simulasiId}`, {
+  cloneSimulation: (simulasiId, cloneDescription, userId) => apiRequest(`/hpp/simulation/clone/${simulasiId}`, {
     method: 'POST',
-    body: JSON.stringify({ cloneDescription }),
+    body: JSON.stringify({ cloneDescription, userId }),
   }),
 
   // Get list of all simulation records
@@ -217,15 +217,15 @@ export const hppAPI = {
   }),
 
   // Generate price change simulation using stored procedure
-  generatePriceChangeSimulation: (materialPriceChanges) => apiRequest('/hpp/generate-price-change-simulation', {
+  generatePriceChangeSimulation: (materialPriceChanges, userId) => apiRequest('/hpp/generate-price-change-simulation', {
     method: 'POST',
-    body: JSON.stringify({ materialPriceChanges }),
+    body: JSON.stringify({ materialPriceChanges, userId }),
   }),
 
   // Generate price update simulation with Periode parameter
-  generatePriceUpdateSimulation: (materialPriceChanges, periode) => apiRequest('/hpp/generate-price-update-simulation', {
+  generatePriceUpdateSimulation: (materialPriceChanges, periode, userId) => apiRequest('/hpp/generate-price-update-simulation', {
     method: 'POST',
-    body: JSON.stringify({ materialPriceChanges, periode }),
+    body: JSON.stringify({ materialPriceChanges, periode, userId }),
   }),
 
   // Get affected products for price change simulation
@@ -240,11 +240,46 @@ export const hppAPI = {
     body: JSON.stringify({ description, simulasiDate }),
   }),
 
-  // Bulk delete price change group (all simulations with matching description and date)
-  bulkDeletePriceChangeGroup: (description, simulasiDate) => apiRequest('/hpp/simulation/bulk-delete-price-change-group', {
+  // Bulk delete price change group (all simulations with matching description and date) - PERMANENT (PL/PL only)
+  bulkDeletePriceChangeGroup: (description, simulasiDate, empDeptID, empJobLevelID) => apiRequest('/hpp/simulation/bulk-delete-price-change-group', {
     method: 'DELETE',
-    body: JSON.stringify({ description, simulasiDate }),
+    body: JSON.stringify({ description, simulasiDate, empDeptID, empJobLevelID }),
   }),
+
+  // Get simulations marked for deletion
+  getMarkedForDeleteList: () => apiRequest('/hpp/simulation/marked-for-delete'),
+
+  // Mark simulation for deletion (soft delete)
+  markSimulationForDelete: (simulasiId, userId, empDeptID, empJobLevelID) => apiRequest(`/hpp/simulation/${simulasiId}/mark-delete`, {
+    method: 'PUT',
+    body: JSON.stringify({ userId, empDeptID, empJobLevelID }),
+  }),
+
+  // Restore simulation from deletion
+  restoreSimulation: (simulasiId) => apiRequest(`/hpp/simulation/${simulasiId}/restore`, {
+    method: 'PUT',
+  }),
+
+  // Bulk mark price change group for deletion (soft delete)
+  bulkMarkPriceChangeGroupForDelete: (description, simulasiDate, userId, empDeptID, empJobLevelID) => apiRequest('/hpp/simulation/bulk-mark-delete', {
+    method: 'PUT',
+    body: JSON.stringify({ description, simulasiDate, userId, empDeptID, empJobLevelID }),
+  }),
+
+  // Permanently delete all marked simulations (PL/PL only)
+  permanentlyDeleteMarked: (empDeptID, empJobLevelID) => apiRequest('/hpp/simulation/permanently-delete-marked', {
+    method: 'DELETE',
+    body: JSON.stringify({ empDeptID, empJobLevelID }),
+  }),
+
+  // Permanently delete a single simulation (PL/PL only)
+  permanentlyDeleteSimulation: (simulasiId, empDeptID, empJobLevelID) => apiRequest(`/hpp/simulation/${simulasiId}/permanent`, {
+    method: 'DELETE',
+    body: JSON.stringify({ empDeptID, empJobLevelID }),
+  }),
+
+  // Get simulation owner info
+  getSimulationOwner: (simulasiId) => apiRequest(`/hpp/simulation/${simulasiId}/owner`),
 
   // Get simulation summary with HNA and HPP ratio data
   getSimulationSummary: (simulasiId) => apiRequest(`/hpp/simulation/${simulasiId}/summary`),

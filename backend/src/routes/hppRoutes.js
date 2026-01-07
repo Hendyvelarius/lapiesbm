@@ -35,14 +35,39 @@ router.post('/simulation/create-custom', HPPController.createCustomSimulation);
 // Body: { cloneDescription?: "Custom description for the clone" }
 router.post('/simulation/clone/:simulasiId', HPPController.cloneSimulation);
 
-// GET /api/hpp/simulation/list - Get list of all simulation records
+// GET /api/hpp/simulation/list - Get list of all simulation records (excludes soft-deleted)
 router.get('/simulation/list', HPPController.getSimulationList);
 
-// DELETE /api/hpp/simulation/bulk-delete-price-change-group - Bulk delete price change group
+// GET /api/hpp/simulation/marked-for-delete - Get list of simulations marked for deletion
+router.get('/simulation/marked-for-delete', HPPController.getMarkedForDeleteList);
+
+// PUT /api/hpp/simulation/:simulasiId/mark-delete - Mark simulation for deletion (soft delete)
+// Body: { userId: "ABC123", empDeptID: "PL", empJobLevelID: "PL" }
+router.put('/simulation/:simulasiId/mark-delete', HPPController.markSimulationForDelete);
+
+// PUT /api/hpp/simulation/:simulasiId/restore - Restore simulation from deletion
+router.put('/simulation/:simulasiId/restore', HPPController.restoreSimulation);
+
+// PUT /api/hpp/simulation/bulk-mark-delete - Bulk mark price change group for deletion
+// Body: { description: "Price Changes : ...", simulasiDate: "2025-09-24T00:27:38.087Z", userId: "ABC", empDeptID: "PL", empJobLevelID: "PL" }
+router.put('/simulation/bulk-mark-delete', HPPController.bulkMarkPriceChangeGroupForDelete);
+
+// DELETE /api/hpp/simulation/permanently-delete-marked - Permanently delete all marked simulations (PL/PL only)
+// Body: { empDeptID: "PL", empJobLevelID: "PL" }
+router.delete('/simulation/permanently-delete-marked', HPPController.permanentlyDeleteMarked);
+
+// DELETE /api/hpp/simulation/:simulasiId/permanent - Permanently delete a single simulation (PL/PL only)
+// Body: { empDeptID: "PL", empJobLevelID: "PL" }
+router.delete('/simulation/:simulasiId/permanent', HPPController.permanentlyDeleteSimulation);
+
+// GET /api/hpp/simulation/:simulasiId/owner - Get simulation owner info
+router.get('/simulation/:simulasiId/owner', HPPController.getSimulationOwner);
+
+// DELETE /api/hpp/simulation/bulk-delete-price-change-group - Bulk delete price change group (PERMANENT - PL/PL only)
 // Body: { description: "Price Changes : AC 014B: 22 -> 31; ", simulasiDate: "2025-09-24T00:27:38.087Z" }
 router.delete('/simulation/bulk-delete-price-change-group', HPPController.bulkDeletePriceChangeGroup);
 
-// DELETE /api/hpp/simulation/:simulasiId - Delete simulation by ID
+// DELETE /api/hpp/simulation/:simulasiId - Delete simulation by ID (kept for backwards compatibility, but should use mark-delete)
 router.delete('/simulation/:simulasiId', HPPController.deleteSimulation);
 
 // POST /api/hpp/generate-price-change-simulation - Generate price change simulation using stored procedure

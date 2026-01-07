@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation } from "react-router";
 import { masterAPI, productsAPI, hppAPI } from "../services/api";
+import { getCurrentUser } from "../utils/auth";
 import AWN from "awesome-notifications";
 import "awesome-notifications/dist/style.css";
 import "../styles/HPPSimulation.css";
@@ -25,8 +26,11 @@ import {
   Users,
   Check,
   X,
+  RotateCcw,
+  User,
 } from "lucide-react";
 import AffectedProductsModal from "../components/AffectedProductsModal";
+
 
 // Initialize awesome-notifications
 const notifier = new AWN({
@@ -146,11 +150,19 @@ export default function HPPSimulation() {
   const [isEditMode, setIsEditMode] = useState(false); // Track if we're editing an existing simulation
 
   // Tab state for grouping simulations by type
-  const [activeTab, setActiveTab] = useState("existing"); // 'existing', 'custom', or 'price-change'
+  const [activeTab, setActiveTab] = useState("existing"); // 'existing', 'custom', 'price-change', or 'marked-delete'
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredSimulationList, setFilteredSimulationList] = useState([]);
+
+  // Marked for deletion state
+  const [markedForDeleteList, setMarkedForDeleteList] = useState([]);
+  const [loadingMarkedForDelete, setLoadingMarkedForDelete] = useState(false);
+
+  // Current user info for permission checks
+  const currentUser = getCurrentUser();
+  const isPLAdmin = currentUser?.empDeptID === 'PL' && currentUser?.empJobLevelID === 'PL';
 
   // Ref for table container scroll detection
   const tableContainerRef = useRef(null);
@@ -464,6 +476,7 @@ export default function HPPSimulation() {
   // Load simulation list, groups data, materials, and currency on component mount
   useEffect(() => {
     loadSimulationList();
+    loadMarkedForDeleteList();
     loadGroupsData();
     loadAllMaterials();
     loadCurrencyData();
@@ -639,6 +652,7 @@ export default function HPPSimulation() {
             count: 0,
             date: simulation.Simulasi_Date, // Use the first simulation's date for sorting
             formattedDate: getDateFromGroupKey(groupKey), // For display purposes
+            user_id: simulation.user_id, // All simulations in a group have the same user
           };
         }
 
@@ -824,9 +838,25 @@ export default function HPPSimulation() {
     setSelectedPriceChangeDate("");
   };
 
+  // Check if user can bulk delete a Price Change group
+  const canBulkDeleteGroup = (group) => {
+    // PL Admin can delete any group
+    if (isPLAdmin) return true;
+    // Users can delete their own groups OR groups with no user_id (legacy)
+    return group.user_id === currentUser?.logNIK || !group.user_id;
+  };
+
   // Handle bulk delete confirmation
-  const handleBulkDeleteGroup = (description, date, count, event) => {
+  const handleBulkDeleteGroup = (description, date, count, userId, event) => {
     event.stopPropagation(); // Prevent group toggle when clicking the button
+    
+    // Check permission - user can only delete their own groups or legacy (empty user_id)
+    if (!isPLAdmin && userId && userId !== currentUser?.logNIK) {
+      const notifier = new AWN();
+      notifier.alert("You can only mark your own simulation groups for deletion.");
+      return;
+    }
+    
     setBulkDeleteDescription(description);
     setBulkDeleteDate(date);
     setBulkDeleteCount(count);
@@ -842,35 +872,39 @@ export default function HPPSimulation() {
     setBulkDeleting(false);
   };
 
-  // Execute bulk delete
+  // Execute bulk mark for delete (soft delete)
   const handleConfirmBulkDelete = async () => {
     try {
       setBulkDeleting(true);
       
       const notifier = new AWN();
-      notifier.info("Deleting price change group...");
+      notifier.info("Marking price change group for deletion...");
 
-      // Call the API to bulk delete
-      const response = await hppAPI.bulkDeletePriceChangeGroup(
+      // Call the API to bulk mark for delete (soft delete)
+      const response = await hppAPI.bulkMarkPriceChangeGroupForDelete(
         bulkDeleteDescription,
-        bulkDeleteDate
+        bulkDeleteDate,
+        currentUser?.logNIK,
+        currentUser?.empDeptID,
+        currentUser?.empJobLevelID
       );
 
       // Show success message
       notifier.success(
-        `Successfully deleted ${response.data?.deletedCount || bulkDeleteCount} price change simulations`
+        `Successfully marked ${response.data?.markedCount || bulkDeleteCount} price change simulations for deletion`
       );
 
       // Close modal
       handleCloseBulkDeleteModal();
 
-      // Refresh the simulation list
+      // Refresh both lists
       await loadSimulationList();
+      await loadMarkedForDeleteList();
 
     } catch (error) {
-      console.error("Error bulk deleting price change group:", error);
+      console.error("Error bulk marking price change group for deletion:", error);
       const notifier = new AWN();
-      notifier.alert("Failed to delete price change group: " + error.message);
+      notifier.alert("Failed to mark price change group for deletion: " + error.message);
       setBulkDeleting(false);
     }
   };
@@ -1054,6 +1088,19 @@ export default function HPPSimulation() {
     }
   };
 
+  // Load simulations marked for deletion
+  const loadMarkedForDeleteList = async () => {
+    try {
+      setLoadingMarkedForDelete(true);
+      const response = await hppAPI.getMarkedForDeleteList();
+      setMarkedForDeleteList(response.data || []);
+    } catch (error) {
+      console.error("Error loading marked for delete list:", error);
+    } finally {
+      setLoadingMarkedForDelete(false);
+    }
+  };
+
   // Load groups data for group selection
   const loadGroupsData = async () => {
     try {
@@ -1111,33 +1158,159 @@ export default function HPPSimulation() {
 
   };
 
-  // Delete simulation
-  const handleDeleteSimulation = async (simulasiId) => {
+  // Check if user can mark a simulation for deletion
+  const canMarkForDelete = (simulation) => {
+    // PL Admin can mark any simulation
+    if (isPLAdmin) return true;
+    // Users can only mark their own simulations
+    return simulation.user_id === currentUser?.logNIK || !simulation.user_id;
+  };
+
+  // Mark simulation for deletion (soft delete)
+  const handleMarkForDelete = async (simulasiId, simulation) => {
+    // Check permission
+    if (!canMarkForDelete(simulation)) {
+      notifier.alert("You can only mark your own simulations for deletion.");
+      return;
+    }
+
     notifier.confirm(
-      "Are you sure you want to delete this simulation? This action cannot be undone.",
+      "Are you sure you want to mark this simulation for deletion? It will be moved to the 'Marked for Delete' tab.",
       async () => {
-        // This runs if user clicks OK/Yes
         try {
           setLoading(true);
-          await hppAPI.deleteSimulation(simulasiId);
+          await hppAPI.markSimulationForDelete(
+            simulasiId,
+            currentUser?.logNIK,
+            currentUser?.empDeptID,
+            currentUser?.empJobLevelID
+          );
 
-          // Reload the simulation list
+          // Reload both lists
           await loadSimulationList();
+          await loadMarkedForDeleteList();
 
-          notifier.success("Simulation deleted successfully!");
+          notifier.success("Simulation marked for deletion!");
         } catch (error) {
-          console.error("Error deleting simulation:", error);
-          notifier.alert("Failed to delete simulation. Please try again.");
+          console.error("Error marking simulation for deletion:", error);
+          notifier.alert(error.message || "Failed to mark simulation for deletion. Please try again.");
         } finally {
           setLoading(false);
         }
       },
       () => {
-        // This runs if user clicks Cancel/No - do nothing
+        // Cancelled
       },
       {
         labels: {
-          confirm: "Delete",
+          confirm: "Mark for Delete",
+          cancel: "Cancel",
+        },
+      }
+    );
+  };
+
+  // Restore simulation from deletion
+  const handleRestoreSimulation = async (simulasiId) => {
+    try {
+      setLoading(true);
+      await hppAPI.restoreSimulation(simulasiId);
+
+      // Reload both lists
+      await loadSimulationList();
+      await loadMarkedForDeleteList();
+
+      notifier.success("Simulation restored successfully!");
+    } catch (error) {
+      console.error("Error restoring simulation:", error);
+      notifier.alert("Failed to restore simulation. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Permanently delete simulation (PL Admin only)
+  const handlePermanentDelete = async (simulasiId) => {
+    if (!isPLAdmin) {
+      notifier.alert("Only PL administrators can permanently delete simulations.");
+      return;
+    }
+
+    notifier.confirm(
+      "Are you sure you want to PERMANENTLY DELETE this simulation? This action cannot be undone!",
+      async () => {
+        try {
+          setLoading(true);
+          await hppAPI.permanentlyDeleteSimulation(
+            simulasiId,
+            currentUser?.empDeptID,
+            currentUser?.empJobLevelID
+          );
+
+          // Reload both lists
+          await loadSimulationList();
+          await loadMarkedForDeleteList();
+
+          notifier.success("Simulation permanently deleted!");
+        } catch (error) {
+          console.error("Error permanently deleting simulation:", error);
+          notifier.alert(error.message || "Failed to permanently delete simulation.");
+        } finally {
+          setLoading(false);
+        }
+      },
+      () => {
+        // Cancelled
+      },
+      {
+        labels: {
+          confirm: "Delete Permanently",
+          cancel: "Cancel",
+        },
+      }
+    );
+  };
+
+  // Permanently delete all marked simulations (PL Admin only)
+  const handlePermanentDeleteAll = async () => {
+    if (!isPLAdmin) {
+      notifier.alert("Only PL administrators can permanently delete simulations.");
+      return;
+    }
+
+    if (markedForDeleteList.length === 0) {
+      notifier.info("No simulations are marked for deletion.");
+      return;
+    }
+
+    notifier.confirm(
+      `Are you sure you want to PERMANENTLY DELETE all ${markedForDeleteList.length} marked simulations? This action cannot be undone!`,
+      async () => {
+        try {
+          setLoading(true);
+          await hppAPI.permanentlyDeleteMarked(
+            currentUser?.empDeptID,
+            currentUser?.empJobLevelID
+          );
+
+          // Reload both lists
+          await loadSimulationList();
+          await loadMarkedForDeleteList();
+
+          notifier.success("All marked simulations permanently deleted!");
+        } catch (error) {
+          console.error("Error permanently deleting all simulations:", error);
+          notifier.alert(error.message || "Failed to permanently delete simulations.");
+        } finally {
+          setLoading(false);
+        }
+      },
+      () => {
+        // Cancelled
+      },
+      {
+        labels: {
+          confirm: "Delete All Permanently",
           cancel: "Cancel",
         },
       }
@@ -1155,7 +1328,7 @@ export default function HPPSimulation() {
       const cloneDescription = `Clone of: ${simulation.Simulasi_Deskripsi || simulation.Formula || `Simulasi_ID ${simulation.Simulasi_ID}`}`;
       
       // Use the new clone API that copies everything
-      const response = await hppAPI.cloneSimulation(simulation.Simulasi_ID, cloneDescription);
+      const response = await hppAPI.cloneSimulation(simulation.Simulasi_ID, cloneDescription, currentUser?.logNIK || null);
       const newSimulasiId = response.data.newSimulasiId;
       
       // Load the cloned simulation data for editing
@@ -1627,7 +1800,8 @@ export default function HPPSimulation() {
 
       // Call the backend API
       const result = await hppAPI.generatePriceChangeSimulation(
-        materialPriceChanges
+        materialPriceChanges,
+        currentUser?.logNIK || null
       );
 
       // Store the materials that were changed for finding the created simulation
@@ -2294,7 +2468,8 @@ export default function HPPSimulation() {
       const formulaString = buildFormulaString();
       const response = await hppAPI.generateSimulation(
         selectedProduct.Product_ID,
-        formulaString
+        formulaString,
+        currentUser?.logNIK || null
       );
 
       const results = response.data || response;
@@ -2486,6 +2661,7 @@ export default function HPPSimulation() {
           Factory_Over_Head: editableOverheadData.Factory_Over_Head || 0,
           Depresiasi: editableOverheadData.Depresiasi || 0,
           Beban_Sisa_Bahan_Exp: editableOverheadData.Beban_Sisa_Bahan_Exp || 0,
+          user_id: currentUser?.logNIK || null,
         };
 
         // Prepare materials data for custom formula
@@ -3713,6 +3889,18 @@ export default function HPPSimulation() {
               >
                 Price Changes
               </button>
+              <button
+                className={`simulation-tab ${activeTab === "marked-delete" ? "active" : ""} ${markedForDeleteList.length > 0 ? "has-items" : ""}`}
+                onClick={() => {
+                  setActiveTab("marked-delete");
+                  setCurrentPage(1);
+                  setSearchQuery("");
+                  loadMarkedForDeleteList(); // Refresh the list when tab is clicked
+                }}
+              >
+                <Trash size={14} />
+                Marked for Delete {markedForDeleteList.length > 0 && `(${markedForDeleteList.length})`}
+              </button>
             </div>
 
             <div className="simulation-list-header">
@@ -3724,13 +3912,24 @@ export default function HPPSimulation() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="simulation-search-input"
                 />
-                <button
-                  className="new-simulation-btn"
-                  onClick={handleNewSimulation}
-                  disabled={loading}
-                >
-                  + New Simulation
-                </button>
+                {activeTab !== "marked-delete" && (
+                  <button
+                    className="new-simulation-btn"
+                    onClick={handleNewSimulation}
+                    disabled={loading}
+                  >
+                    + New Simulation
+                  </button>
+                )}
+                {activeTab === "marked-delete" && isPLAdmin && markedForDeleteList.length > 0 && (
+                  <button
+                    className="delete-all-btn"
+                    onClick={handlePermanentDeleteAll}
+                    disabled={loading}
+                  >
+                    <Trash size={14} /> Delete All Permanently
+                  </button>
+                )}
               </div>
             </div>
 
@@ -3743,9 +3942,12 @@ export default function HPPSimulation() {
               </div>
             )}
 
-            {loadingList ? (
+            {/* Regular Simulation List (for existing, custom, price-change tabs) */}
+            {activeTab !== "marked-delete" && loadingList && (
               <div className="loading-message">Loading simulations...</div>
-            ) : (
+            )}
+            
+            {activeTab !== "marked-delete" && !loadingList && (
               <div className="simulation-table-container" ref={tableContainerRef}>
                 <table className="simulation-list-table">
                   <thead>
@@ -3756,9 +3958,9 @@ export default function HPPSimulation() {
                         title="Click to sort by ID"
                       >
                         ID {renderSortIcon("Simulasi_ID")}
-                      </th>
-                      <th
-                        className="sortable-header"
+                          </th>
+                          <th
+                            className="sortable-header"
                         onClick={() => handleSort("Simulasi_Type")}
                         title="Click to sort by Type"
                       >
@@ -3799,6 +4001,13 @@ export default function HPPSimulation() {
                       >
                         Date {renderSortIcon("Simulasi_Date")}
                       </th>
+                      <th
+                        className="sortable-header"
+                        onClick={() => handleSort("user_id")}
+                        title="Click to sort by User"
+                      >
+                        User {renderSortIcon("user_id")}
+                      </th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -3807,7 +4016,7 @@ export default function HPPSimulation() {
                       if (paginatedDisplayList.length === 0) {
                         return (
                           <tr>
-                            <td colSpan="8" className="no-data">
+                            <td colSpan="9" className="no-data">
                               {searchQuery.trim()
                                 ? `No simulations found matching "${searchQuery}". Try adjusting your search terms.`
                                 : 'No simulations found. Click "New Simulation" to create your first simulation.'}
@@ -3827,7 +4036,7 @@ export default function HPPSimulation() {
                               onClick={() => toggleGroup(item.groupKey)}
                               style={{ cursor: "pointer" }}
                             >
-                              <td colSpan="8" className="group-header">
+                              <td colSpan="9" className="group-header">
                                 <div className="group-header-content">
                                   <div className="group-toggle">
                                     {isExpanded ? (
@@ -3860,6 +4069,10 @@ export default function HPPSimulation() {
                                         <span className="group-count">
                                           ({item.count} products)
                                         </span>
+                                        <span className="group-user">
+                                          <User size={12} />
+                                          {item.user_id || "-"}
+                                        </span>
                                       </div>
                                       <div className="group-actions">
                                         <button
@@ -3891,21 +4104,24 @@ export default function HPPSimulation() {
                                           <BarChart3 size={16} />
                                           <span>Affected Products</span>
                                         </button>
-                                        <button
-                                          className="bulk-delete-group-btn"
-                                          onClick={(e) =>
-                                            handleBulkDeleteGroup(
-                                              item.description,
-                                              item.date,
-                                              item.count,
-                                              e
-                                            )
-                                          }
-                                          title={`Delete all ${item.count} simulations in this price change group`}
-                                        >
-                                          <Trash size={16} />
-                                          <span>Delete Group</span>
-                                        </button>
+                                        {canBulkDeleteGroup(item) && (
+                                          <button
+                                            className="bulk-delete-group-btn"
+                                            onClick={(e) =>
+                                              handleBulkDeleteGroup(
+                                                item.description,
+                                                item.date,
+                                                item.count,
+                                                item.user_id,
+                                                e
+                                              )
+                                            }
+                                            title={`Mark all ${item.count} simulations in this price change group for deletion`}
+                                          >
+                                            <Trash size={16} />
+                                            <span>Delete Group</span>
+                                          </button>
+                                        )}
                                       </div>
                                     </div>
                                   </div>
@@ -3937,6 +4153,9 @@ export default function HPPSimulation() {
                                 {new Date(
                                   simulation.Simulasi_Date
                                 ).toLocaleDateString("id-ID")}
+                              </td>
+                              <td className="user-cell">
+                                {simulation.user_id || "-"}
                               </td>
                               <td className="actions-cell">
                                 <button
@@ -3971,18 +4190,21 @@ export default function HPPSimulation() {
                                     <Copy size={16} />
                                   </button>
                                 )}
-                                <button
-                                  className="delete-btn"
-                                  onClick={() =>
-                                    handleDeleteSimulation(
-                                      simulation.Simulasi_ID
-                                    )
-                                  }
-                                  disabled={loading}
-                                  title="Delete Simulation"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
+                                {canMarkForDelete(simulation) && (
+                                  <button
+                                    className="delete-btn"
+                                    onClick={() =>
+                                      handleMarkForDelete(
+                                        simulation.Simulasi_ID,
+                                        simulation
+                                      )
+                                    }
+                                    disabled={loading}
+                                    title="Mark for Deletion"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           );
@@ -3995,7 +4217,7 @@ export default function HPPSimulation() {
             )}
 
             {/* Pagination Controls */}
-            {!loadingList && filteredSimulationList.length > 0 && (
+            {activeTab !== "marked-delete" && !loadingList && filteredSimulationList.length > 0 && (
               <div className="pagination-container">
                 <div className="pagination-info">
                   Showing simulation entries
@@ -4123,12 +4345,87 @@ export default function HPPSimulation() {
             )}
 
             {/* Show info message when groups are expanded */}
-            {!loadingList && filteredSimulationList.length > 0 && expandedGroups.size > 0 && (
+            {activeTab !== "marked-delete" && !loadingList && filteredSimulationList.length > 0 && expandedGroups.size > 0 && (
               <div className="expanded-groups-info">
                 <p>
                   <strong>📋 Smart Pagination Active</strong> - Expanded group children are shown in full while maintaining normal pagination for group headers. You can see all items within expanded groups on this page.
                 </p>
               </div>
+            )}
+
+            {/* Marked for Delete Tab Content */}
+            {activeTab === "marked-delete" && (
+              <>
+                {loadingMarkedForDelete ? (
+                  <div className="loading-message">Loading marked simulations...</div>
+                ) : markedForDeleteList.length === 0 ? (
+                  <div className="empty-state">
+                    <Trash size={48} />
+                    <h3>No Simulations Marked for Deletion</h3>
+                    <p>Simulations that are marked for deletion will appear here.</p>
+                  </div>
+                ) : (
+                  <div className="simulation-table-container">
+                    <div className="marked-delete-info">
+                      <p>
+                        <strong>⚠️ These simulations are marked for deletion.</strong>
+                        {isPLAdmin 
+                          ? " As a PL administrator, you can restore them or permanently delete them." 
+                          : " Only PL administrators can permanently delete these simulations."}
+                      </p>
+                    </div>
+                    <table className="simulation-list-table marked-delete-table">
+                      <thead>
+                        <tr>
+                          <th>ID</th>
+                          <th>Type</th>
+                          <th>Product ID</th>
+                          <th>Product Name</th>
+                          <th>Formula</th>
+                          <th>Description</th>
+                          <th>Date</th>
+                          <th>User</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {markedForDeleteList.map((simulation) => (
+                          <tr key={simulation.Simulasi_ID} className="marked-for-delete-row">
+                            <td>{simulation.Simulasi_ID}</td>
+                            <td className="type-cell">{simulation.Simulasi_Type}</td>
+                            <td>{simulation.Product_ID}</td>
+                            <td className="product-name-cell">{simulation.Product_Name}</td>
+                            <td className="formula-cell">{simulation.Formula}</td>
+                            <td className="description-cell">{simulation.Simulasi_Deskripsi || "-"}</td>
+                            <td>{new Date(simulation.Simulasi_Date).toLocaleDateString("id-ID")}</td>
+                            <td className="user-cell">{simulation.user_id || "-"}</td>
+                            <td className="actions-cell">
+                              <button
+                                className="restore-btn"
+                                onClick={() => handleRestoreSimulation(simulation.Simulasi_ID)}
+                                disabled={loading}
+                                title="Restore Simulation"
+                              >
+                                <RotateCcw size={16} />
+                              </button>
+                              {isPLAdmin && (
+                                <button
+                                  className="permanent-delete-btn"
+                                  onClick={() => handlePermanentDelete(simulation.Simulasi_ID)}
+                                  disabled={loading}
+                                  title="Permanently Delete (Cannot be undone)"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -7927,7 +8224,7 @@ export default function HPPSimulation() {
         <div className="modal-overlay">
           <div className="bulk-delete-modal">
             <div className="modal-header">
-              <h3>⚠️ Confirm Bulk Delete</h3>
+              <h3>⚠️ Mark for Deletion</h3>
               <button
                 className="modal-close-btn"
                 onClick={handleCloseBulkDeleteModal}
@@ -7939,7 +8236,7 @@ export default function HPPSimulation() {
             <div className="modal-content">
               <div className="bulk-delete-warning">
                 <p>
-                  You are about to <strong>permanently delete</strong> all{" "}
+                  You are about to <strong>mark for deletion</strong> all{" "}
                   <strong>{bulkDeleteCount} simulations</strong> in this Price Change group:
                 </p>
                 <div className="group-details">
@@ -7952,9 +8249,8 @@ export default function HPPSimulation() {
                   </p>
                 </div>
                 <div className="warning-note">
-                  <strong>⚠️ Warning:</strong> This action cannot be undone. All
-                  simulation data, materials, and calculations for this price change
-                  will be permanently removed.
+                  <strong>ℹ️ Note:</strong> These simulations will be moved to the "Marked for Delete" tab.
+                  Only PL administrators can permanently delete them later. You can restore them at any time before permanent deletion.
                 </div>
               </div>
             </div>
@@ -7974,12 +8270,12 @@ export default function HPPSimulation() {
                 {bulkDeleting ? (
                   <>
                     <div className="esbm-spinner esbm-spinner-small" style={{ marginRight: '8px' }}></div>
-                    Deleting...
+                    Processing...
                   </>
                 ) : (
                   <>
                     <Trash size={16} />
-                    Delete {bulkDeleteCount} Simulations
+                    Mark {bulkDeleteCount} for Deletion
                   </>
                 )}
               </button>

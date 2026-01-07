@@ -77,7 +77,7 @@ async function checkHPPDataExists(year) {
 }
 
 // Generate HPP simulation for existing product with selected formulas
-async function generateHPPSimulation(productId, formulaString) {
+async function generateHPPSimulation(productId, formulaString, userId = null) {
   try {
     const db = await connect();
     const query = `exec sp_generate_simulasi_cogs_product_existing @productId, @formulaString`;
@@ -87,6 +87,17 @@ async function generateHPPSimulation(productId, formulaString) {
       .input("productId", sql.VarChar(10), productId)
       .input("formulaString", sql.VarChar(50), formulaString)
       .query(query);
+
+    // If userId is provided and we have results, update the user_id field
+    if (userId && result.recordset && result.recordset.length > 0) {
+      const simulasiId = result.recordset[0].Simulasi_ID;
+      if (simulasiId) {
+        await db.request()
+          .input("simulasiId", sql.Int, simulasiId)
+          .input("userId", sql.VarChar(50), userId)
+          .query(`UPDATE t_COGS_HPP_Product_Header_Simulasi SET user_id = @userId, process_date = GETDATE() WHERE Simulasi_ID = @simulasiId`);
+      }
+    }
 
     // Return the first recordset from the stored procedure
     return result.recordset || [];
@@ -235,14 +246,16 @@ async function createSimulationHeader(headerData) {
         Simulasi_Deskripsi, Simulasi_Date, Simulasi_Type, Group_Rendemen, Batch_Size, LOB, Versi,
         MH_Proses_Std, MH_Kemas_Std, MH_Analisa_Std, MH_Timbang_BB, MH_Timbang_BK, MH_Mesin_Std,
         Biaya_Proses, Biaya_Kemas, Biaya_Analisa, Biaya_Generik, Biaya_Reagen, Toll_Fee, Rate_PLN,
-        Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp
+        Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp,
+        user_id, process_date, flag_delete
       ) 
       VALUES (
         @SimulasiID, @ProductID, @ProductName, @Formula, @GroupPNCategory, @GroupPNCategoryDept, @Periode,
         @SimulasiDeskripsi, @SimulasiDate, @SimulasiType, @GroupRendemen, @BatchSize, @LOB, @Versi,
         @MHProsesStd, @MHKemasStd, @MHAnalisaStd, @MHTimbangBB, @MHTimbangBK, @MHMesinStd,
         @BiayaProses, @BiayaKemas, @BiayaAnalisa, @BiayaGenerik, @BiayaReagen, @TollFee, @RatePLN,
-        @DirectLabor, @FactoryOverHead, @Depresiasi, @BebanSisaBahanExp
+        @DirectLabor, @FactoryOverHead, @Depresiasi, @BebanSisaBahanExp,
+        @UserId, GETDATE(), 0
       )
     `;
 
@@ -307,6 +320,7 @@ async function createSimulationHeader(headerData) {
         sql.Decimal(18, 2),
         headerData.Beban_Sisa_Bahan_Exp || null
       )
+      .input("UserId", sql.VarChar(50), headerData.user_id || null)
       .query(query);
 
     return nextSimulasiId;
@@ -377,19 +391,38 @@ async function insertSimulationMaterials(
   }
 }
 
-// Get all simulation records from header table
-async function getSimulationList() {
+// Get all simulation records from header table (exclude soft-deleted by default)
+async function getSimulationList(includeDeleted = false) {
   try {
     const db = await connect();
     const query = `
       SELECT *
       FROM t_COGS_HPP_Product_Header_Simulasi 
+      ${includeDeleted ? '' : 'WHERE ISNULL(flag_delete, 0) = 0'}
     `;
 
     const result = await db.request().query(query);
     return result.recordset;
   } catch (error) {
     console.error("Error executing getSimulationList query:", error);
+    throw error;
+  }
+}
+
+// Get simulations marked for deletion
+async function getMarkedForDeleteList() {
+  try {
+    const db = await connect();
+    const query = `
+      SELECT *
+      FROM t_COGS_HPP_Product_Header_Simulasi 
+      WHERE flag_delete = 1
+    `;
+
+    const result = await db.request().query(query);
+    return result.recordset;
+  } catch (error) {
+    console.error("Error executing getMarkedForDeleteList query:", error);
     throw error;
   }
 }
@@ -423,13 +456,176 @@ async function deleteSimulation(simulasiId) {
   }
 }
 
+// Mark simulation for deletion (soft delete)
+async function markSimulationForDelete(simulasiId, userId) {
+  try {
+    const db = await connect();
+    
+    const query = `
+      UPDATE t_COGS_HPP_Product_Header_Simulasi 
+      SET flag_delete = 1,
+          process_date = GETDATE()
+      WHERE Simulasi_ID = @SimulasiId
+    `;
+
+    const result = await db
+      .request()
+      .input("SimulasiId", sql.Int, simulasiId)
+      .query(query);
+
+    return {
+      success: result.rowsAffected[0] > 0,
+      affectedRows: result.rowsAffected[0] || 0,
+    };
+  } catch (error) {
+    console.error("Error marking simulation for delete:", error);
+    throw error;
+  }
+}
+
+// Restore simulation from deletion (unmark)
+async function restoreSimulation(simulasiId) {
+  try {
+    const db = await connect();
+    
+    const query = `
+      UPDATE t_COGS_HPP_Product_Header_Simulasi 
+      SET flag_delete = 0,
+          process_date = GETDATE()
+      WHERE Simulasi_ID = @SimulasiId
+    `;
+
+    const result = await db
+      .request()
+      .input("SimulasiId", sql.Int, simulasiId)
+      .query(query);
+
+    return {
+      success: result.rowsAffected[0] > 0,
+      affectedRows: result.rowsAffected[0] || 0,
+    };
+  } catch (error) {
+    console.error("Error restoring simulation:", error);
+    throw error;
+  }
+}
+
+// Bulk mark simulations for deletion in a price change group
+async function bulkMarkForDelete(description, formattedDate, simulationType = 'Price Changes') {
+  try {
+    const db = await connect();
+    
+    const query = `
+      UPDATE t_COGS_HPP_Product_Header_Simulasi 
+      SET flag_delete = 1,
+          process_date = GETDATE()
+      WHERE Simulasi_Deskripsi = @Description 
+      AND CONVERT(varchar, Simulasi_Date, 121) = @FormattedDate
+      AND Simulasi_Type = @SimulationType
+    `;
+
+    const result = await db
+      .request()
+      .input('Description', sql.VarChar(255), description)
+      .input('FormattedDate', sql.VarChar(50), formattedDate)
+      .input('SimulationType', sql.VarChar(50), simulationType)
+      .query(query);
+
+    return {
+      success: true,
+      markedCount: result.rowsAffected[0] || 0,
+    };
+  } catch (error) {
+    console.error("Error bulk marking for delete:", error);
+    throw error;
+  }
+}
+
+// Permanently delete all simulations marked for deletion
+async function permanentlyDeleteMarked() {
+  try {
+    const db = await connect();
+    
+    // First get the IDs that will be deleted
+    const getIdsQuery = `
+      SELECT Simulasi_ID 
+      FROM t_COGS_HPP_Product_Header_Simulasi 
+      WHERE flag_delete = 1
+    `;
+    const simulasiIds = await db.request().query(getIdsQuery);
+    
+    if (simulasiIds.recordset.length === 0) {
+      return { success: true, deletedCount: 0, materialsDeleted: 0 };
+    }
+    
+    // Delete detail records first
+    const idList = simulasiIds.recordset.map(r => r.Simulasi_ID).join(',');
+    const deleteDetailsQuery = `DELETE FROM t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan WHERE Simulasi_ID IN (${idList})`;
+    const detailResult = await db.request().query(deleteDetailsQuery);
+    
+    // Then delete header records
+    const deleteHeaderQuery = `
+      DELETE FROM t_COGS_HPP_Product_Header_Simulasi 
+      WHERE flag_delete = 1
+    `;
+    const headerResult = await db.request().query(deleteHeaderQuery);
+
+    return {
+      success: true,
+      deletedCount: headerResult.rowsAffected[0] || 0,
+      materialsDeleted: detailResult.rowsAffected[0] || 0,
+    };
+  } catch (error) {
+    console.error("Error permanently deleting marked simulations:", error);
+    throw error;
+  }
+}
+
+// Get simulation owner (user_id) by Simulasi_ID
+async function getSimulationOwner(simulasiId) {
+  try {
+    const db = await connect();
+    
+    const query = `
+      SELECT user_id, Simulasi_ID, Simulasi_Deskripsi
+      FROM t_COGS_HPP_Product_Header_Simulasi 
+      WHERE Simulasi_ID = @SimulasiId
+    `;
+
+    const result = await db
+      .request()
+      .input("SimulasiId", sql.Int, simulasiId)
+      .query(query);
+
+    return result.recordset[0] || null;
+  } catch (error) {
+    console.error("Error getting simulation owner:", error);
+    throw error;
+  }
+}
+
 // Generate price change simulation using stored procedure
-async function generatePriceChangeSimulation(parameterString) {
+async function generatePriceChangeSimulation(parameterString, userId = null) {
   try {
     const db = await connect();
 
+    // Get max Simulasi_ID before running the stored procedure
+    let maxIdBefore = 0;
+    if (userId) {
+      const maxIdResult = await db.request().query(`SELECT ISNULL(MAX(Simulasi_ID), 0) as MaxId FROM t_COGS_HPP_Product_Header_Simulasi`);
+      maxIdBefore = maxIdResult.recordset[0].MaxId;
+    }
+
     const directQuery = `exec sp_generate_simulasi_cogs_price_changes '${parameterString}'`;
     const result = await db.request().query(directQuery);
+
+    // If userId is provided, update only the newly created simulations (ID > maxIdBefore)
+    if (userId && maxIdBefore >= 0) {
+      await db.request()
+        .input("userId", sql.VarChar(50), userId)
+        .input("maxIdBefore", sql.Int, maxIdBefore)
+        .query(`UPDATE t_COGS_HPP_Product_Header_Simulasi SET user_id = @userId, process_date = GETDATE() WHERE Simulasi_ID > @maxIdBefore`);
+    }
 
     return {
       recordsets: result.recordsets,
@@ -443,12 +639,27 @@ async function generatePriceChangeSimulation(parameterString) {
 }
 
 // Generate price update simulation (with Periode parameter)
-async function generatePriceUpdateSimulation(parameterString, periode) {
+async function generatePriceUpdateSimulation(parameterString, periode, userId = null) {
   try {
     const db = await connect();
 
+    // Get max Simulasi_ID before running the stored procedure
+    let maxIdBefore = 0;
+    if (userId) {
+      const maxIdResult = await db.request().query(`SELECT ISNULL(MAX(Simulasi_ID), 0) as MaxId FROM t_COGS_HPP_Product_Header_Simulasi`);
+      maxIdBefore = maxIdResult.recordset[0].MaxId;
+    }
+
     const directQuery = `exec sp_generate_simulasi_cogs_price_update '${parameterString}', '${periode}'`;
     const result = await db.request().query(directQuery);
+
+    // If userId is provided, update only the newly created simulations (ID > maxIdBefore)
+    if (userId && maxIdBefore >= 0) {
+      await db.request()
+        .input("userId", sql.VarChar(50), userId)
+        .input("maxIdBefore", sql.Int, maxIdBefore)
+        .query(`UPDATE t_COGS_HPP_Product_Header_Simulasi SET user_id = @userId, process_date = GETDATE() WHERE Simulasi_ID > @maxIdBefore`);
+    }
 
     return {
       recordsets: result.recordsets,
@@ -559,7 +770,7 @@ async function getPriceUpdateAffectedProducts(description, formattedDate) {
   }
 }
 
-// Bulk delete price change group (all simulations with matching description and date)
+// Bulk delete price change group - PERMANENTLY (only for PL/PL users)
 async function bulkDeletePriceChangeGroup(description, formattedDate) {
   try {
     const db = await connect();
@@ -611,6 +822,37 @@ async function bulkDeletePriceChangeGroup(description, formattedDate) {
   }
 }
 
+// Bulk mark price change group for deletion (soft delete)
+async function bulkMarkPriceChangeGroupForDelete(description, formattedDate) {
+  try {
+    const db = await connect();
+    
+    const query = `
+      UPDATE t_COGS_HPP_Product_Header_Simulasi 
+      SET flag_delete = 1,
+          process_date = GETDATE()
+      WHERE Simulasi_Deskripsi = @Description 
+      AND CONVERT(varchar, Simulasi_Date, 121) = @FormattedDate
+      AND Simulasi_Type = 'Price Changes'
+    `;
+
+    const result = await db
+      .request()
+      .input('Description', sql.VarChar(255), description)
+      .input('FormattedDate', sql.VarChar(50), formattedDate)
+      .query(query);
+
+    return {
+      markedCount: result.rowsAffected?.[0] || 0,
+      success: true
+    };
+
+  } catch (error) {
+    console.error('Error in bulkMarkPriceChangeGroupForDelete:', error.message);
+    throw error;
+  }
+}
+
 // Get simulation summary with HNA data using stored procedure
 async function getSimulationSummary(simulasiId) {
   try {
@@ -633,7 +875,7 @@ async function getSimulationSummary(simulasiId) {
 }
 
 // Clone simulation (duplicate all data)
-async function cloneSimulation(originalSimulasiId, cloneDescription) {
+async function cloneSimulation(originalSimulasiId, cloneDescription, userId = null) {
   try {
     const db = await connect();
     
@@ -654,14 +896,16 @@ async function cloneSimulation(originalSimulasiId, cloneDescription) {
           Simulasi_Deskripsi, Simulasi_Date, Simulasi_Type, Group_Rendemen, Batch_Size, LOB, Versi,
           MH_Proses_Std, MH_Kemas_Std, MH_Analisa_Std, MH_Timbang_BB, MH_Timbang_BK, MH_Mesin_Std,
           Biaya_Proses, Biaya_Kemas, Biaya_Analisa, Biaya_Generik, Biaya_Reagen, Toll_Fee, Rate_PLN,
-          Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp
+          Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp,
+          user_id, process_date, flag_delete
         )
         SELECT 
           @NewSimulasiId, Product_ID, Product_Name, Formula, Group_PNCategory, Group_PNCategory_Dept, Periode,
           @CloneDescription, GETDATE(), Simulasi_Type, Group_Rendemen, Batch_Size, LOB, Versi,
           MH_Proses_Std, MH_Kemas_Std, MH_Analisa_Std, MH_Timbang_BB, MH_Timbang_BK, MH_Mesin_Std,
           Biaya_Proses, Biaya_Kemas, Biaya_Analisa, Biaya_Generik, Biaya_Reagen, Toll_Fee, Rate_PLN,
-          Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp
+          Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp,
+          @UserId, GETDATE(), 0
         FROM t_COGS_HPP_Product_Header_Simulasi 
         WHERE Simulasi_ID = @OriginalSimulasiId
       `;
@@ -673,6 +917,7 @@ async function cloneSimulation(originalSimulasiId, cloneDescription) {
         .input('NewSimulasiId', sql.Int, newSimulasiId)
         .input('OriginalSimulasiId', sql.Int, originalSimulasiId)
         .input('CloneDescription', sql.VarChar(255), finalCloneDescription)
+        .input('UserId', sql.VarChar(50), userId)
         .query(cloneHeaderQuery);
       
       // Clone the materials - copy ALL columns except change Simulasi_ID and generate new Seq_ID
@@ -818,13 +1063,20 @@ module.exports = {
   deleteSimulationMaterials,
   insertSimulationMaterials,
   getSimulationList,
+  getMarkedForDeleteList,
   deleteSimulation,
+  markSimulationForDelete,
+  restoreSimulation,
+  bulkMarkForDelete,
+  permanentlyDeleteMarked,
+  getSimulationOwner,
   cloneSimulation,
   generatePriceChangeSimulation,
   generatePriceUpdateSimulation,
   getPriceChangeAffectedProducts,
   getPriceUpdateAffectedProducts,
   bulkDeletePriceChangeGroup,
+  bulkMarkPriceChangeGroupForDelete,
   getSimulationSummary,
   checkHPPDataExists,
   commitPriceUpdate,

@@ -499,6 +499,9 @@ const HargaBahan = () => {
     setSubmitLoading(true);
 
     try {
+      // Get current user for tracking
+      const currentUser = getCurrentUser();
+      
       // Prepare material price changes array
       const materialPriceChanges = selectedMaterialsForUpdate.map(material => ({
         materialId: material.itemId,
@@ -513,7 +516,8 @@ const HargaBahan = () => {
       // Call the API
       const result = await hppAPI.generatePriceUpdateSimulation(
         materialPriceChanges,
-        updatePeriode
+        updatePeriode,
+        currentUser?.logNIK || null
       );
 
       console.log('Price update simulation result:', result);
