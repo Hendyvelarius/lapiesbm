@@ -173,7 +173,8 @@ async function updateSimulationHeader(simulasiId, headerData) {
         Factory_Over_Head = @FactoryOverHead,
         Depresiasi = @Depresiasi,
         Beban_Sisa_Bahan_Exp = @BebanSisaBahanExp,
-        Margin = @Margin
+        Margin = @Margin,
+        process_date = GETDATE()
       WHERE Simulasi_ID = @SimulasiId
     `;
 

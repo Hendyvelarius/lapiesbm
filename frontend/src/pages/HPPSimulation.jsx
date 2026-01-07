@@ -4235,6 +4235,13 @@ export default function HPPSimulation() {
                       </th>
                       <th
                         className="sortable-header"
+                        onClick={() => handleSort("process_date")}
+                        title="Click to sort by Last Updated"
+                      >
+                        Last Updated {renderSortIcon("process_date")}
+                      </th>
+                      <th
+                        className="sortable-header"
                         onClick={() => handleSort("user_id")}
                         title="Click to sort by User"
                       >
@@ -4248,7 +4255,7 @@ export default function HPPSimulation() {
                       if (paginatedDisplayList.length === 0) {
                         return (
                           <tr>
-                            <td colSpan="9" className="no-data">
+                            <td colSpan="10" className="no-data">
                               {searchQuery.trim()
                                 ? `No simulations found matching "${searchQuery}". Try adjusting your search terms.`
                                 : 'No simulations found. Click "New Simulation" to create your first simulation.'}
@@ -4268,7 +4275,7 @@ export default function HPPSimulation() {
                               onClick={() => toggleGroup(item.groupKey)}
                               style={{ cursor: "pointer" }}
                             >
-                              <td colSpan="9" className="group-header">
+                              <td colSpan="10" className="group-header">
                                 <div className="group-header-content">
                                   <div className="group-toggle">
                                     {isExpanded ? (
@@ -4385,6 +4392,13 @@ export default function HPPSimulation() {
                                 {new Date(
                                   simulation.Simulasi_Date
                                 ).toLocaleDateString("id-ID")}
+                              </td>
+                              <td>
+                                {simulation.process_date
+                                  ? new Date(
+                                      simulation.process_date
+                                    ).toLocaleDateString("id-ID")
+                                  : "-"}
                               </td>
                               <td className="user-cell">
                                 {simulation.user_id || "-"}
@@ -4618,6 +4632,7 @@ export default function HPPSimulation() {
                           <th>Formula</th>
                           <th>Description</th>
                           <th>Date</th>
+                          <th>Last Updated</th>
                           <th>User</th>
                           <th>Actions</th>
                         </tr>
@@ -4634,7 +4649,7 @@ export default function HPPSimulation() {
                                 onClick={() => toggleMarkedGroup(item.groupKey)}
                                 style={{ cursor: "pointer" }}
                               >
-                                <td colSpan="9" className="group-header">
+                                <td colSpan="10" className="group-header">
                                   <div className="group-header-content">
                                     <div className="group-toggle">
                                       {isExpanded ? (
@@ -4712,6 +4727,11 @@ export default function HPPSimulation() {
                                 <td className="formula-cell">{simulation.Formula}</td>
                                 <td className="description-cell">{simulation.Simulasi_Deskripsi || "-"}</td>
                                 <td>{new Date(simulation.Simulasi_Date).toLocaleDateString("id-ID")}</td>
+                                <td>
+                                  {simulation.process_date
+                                    ? new Date(simulation.process_date).toLocaleDateString("id-ID")
+                                    : "-"}
+                                </td>
                                 <td className="user-cell">{simulation.user_id || "-"}</td>
                                 <td className="actions-cell">
                                   <button
