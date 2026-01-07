@@ -148,6 +148,7 @@ export default function HPPSimulation() {
   const [loadingList, setLoadingList] = useState(true);
   const [listError, setListError] = useState("");
   const [isEditMode, setIsEditMode] = useState(false); // Track if we're editing an existing simulation
+  const [canEditCurrentSimulation, setCanEditCurrentSimulation] = useState(true); // Track if current user can edit the loaded simulation
 
   // Tab state for grouping simulations by type
   const [activeTab, setActiveTab] = useState("existing"); // 'existing', 'custom', 'price-change', or 'marked-delete'
@@ -517,6 +518,7 @@ export default function HPPSimulation() {
     setSelectedProduct(null);
     setError("");
     setIsEditMode(false);
+    setCanEditCurrentSimulation(true);
   }, [location.key]); // location.key changes on every navigation, even to same path
 
   // Generate random sample when materials are loaded and modal type is set
@@ -1733,6 +1735,7 @@ export default function HPPSimulation() {
     setSimulationSummary(null); // Clear simulation summary data
     setLoadingDetails(false); // Reset loading details state
     setIsEditMode(false); // New simulation mode
+    setCanEditCurrentSimulation(true); // New simulations are always editable
     setEditableDescription(null); // Reset description for new simulation
     setIsCustomFormula(false); // Reset custom formula flag
 
@@ -1775,6 +1778,7 @@ export default function HPPSimulation() {
     setSimulationSummary(null); // Clear simulation summary data
     setLoadingDetails(false); // Reset loading details state
     setIsEditMode(false); // Reset edit mode
+    setCanEditCurrentSimulation(true); // Reset edit permission
     setIsNewPriceChangeSimulation(false); // Reset new simulation flag
     loadSimulationList(); // Refresh the list
   };
@@ -2356,6 +2360,10 @@ export default function HPPSimulation() {
       // Set edit mode
       setIsEditMode(true);
 
+      // Check if current user can edit this simulation
+      const canEdit = isPLAdmin || simulation.user_id === currentUser?.logNIK || !simulation.user_id;
+      setCanEditCurrentSimulation(canEdit);
+
       // Navigate to Step 4 (Simulation Results)
       setStep(4);
 
@@ -2476,12 +2484,14 @@ export default function HPPSimulation() {
       // Go directly to custom Step 4 (results/configuration)
       setStep(4);
       setIsEditMode(false); // This is a new custom simulation
+      setCanEditCurrentSimulation(true); // New simulations are always editable
       // Initialize empty custom formula simulation
       initializeCustomFormula();
     } else if (type === "price-change") {
       // Move to price change configuration step
       setStep(5); // New step for price change simulation
       setIsEditMode(false); // This is a new price change simulation
+      setCanEditCurrentSimulation(true); // New simulations are always editable
       // Initialize price change simulation
       initializePriceChangeSimulation();
     } else {
@@ -5156,13 +5166,25 @@ export default function HPPSimulation() {
 
         {/* Step 4: Simulation Results */}
         {step === 4 && simulationResults && (
-          <div className="simulation-step">
+          <div className={`simulation-step ${!canEditCurrentSimulation ? 'read-only-mode' : ''}`}>
             <div className="step-header">
               <button className="back-btn" onClick={handleBackToList}>
                 ← Back to List
               </button>
               <h2>Step 4: Simulation Results</h2>
             </div>
+
+            {/* Read-only warning banner */}
+            {!canEditCurrentSimulation && (
+              <div className="read-only-warning">
+                <span className="warning-icon">🔒</span>
+                <span>
+                  <strong>View Only Mode:</strong> This simulation belongs to another user. 
+                  You can view the details but cannot make changes.
+                </span>
+              </div>
+            )}
+
             <p>
               HPP simulation completed for{" "}
               <strong>
@@ -6533,10 +6555,12 @@ export default function HPPSimulation() {
                 onClick={handleSaveSimulation}
                 disabled={
                   loading ||
+                  !canEditCurrentSimulation ||
                   (!isCustomFormula &&
                     (!simulationResults || !simulationResults[0]?.Simulasi_ID))
                 }
                 className="save-simulation-btn"
+                title={!canEditCurrentSimulation ? "You can only save your own simulations" : "Save Simulation"}
               >
                 💾 Save Simulation
               </button>

@@ -5099,3 +5099,46 @@ html {
 .marked-for-delete-row.group-child td:first-child {
   padding-left: 24px;
 }
+
+/* Read-only mode styles */
+.read-only-warning {
+  background: linear-gradient(90deg, #fef3c7 0%, #fef9c3 100%);
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #92400e;
+  font-size: 14px;
+}
+
+.read-only-warning .warning-icon {
+  font-size: 20px;
+}
+
+/* Disable all inputs in read-only mode */
+.simulation-step.read-only-mode input,
+.simulation-step.read-only-mode select,
+.simulation-step.read-only-mode textarea {
+  pointer-events: none;
+  background-color: #f3f4f6 !important;
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.simulation-step.read-only-mode .add-material-btn,
+.simulation-step.read-only-mode .delete-material-btn,
+.simulation-step.read-only-mode .remove-custom-material-btn {
+  pointer-events: none;
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.simulation-step.read-only-mode .save-simulation-btn {
+  pointer-events: none;
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #9ca3af !important;
+}
