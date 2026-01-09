@@ -19,9 +19,33 @@ import {
   getCurrentUser, 
   isAuthenticated, 
   clearAuthData,
-  cleanAuthFromURL 
+  cleanAuthFromURL,
+  getAccessLevel 
 } from './utils/auth';
 import './styles/App.css';
+
+// Component for restricted pages (shown to limited access users)
+function RestrictedPage({ pageName }) {
+  return (
+    <div className="restricted-page">
+      <div className="restricted-content">
+        <h2>🔒 Access Restricted</h2>
+        <p>You do not have permission to access <strong>{pageName}</strong>.</p>
+        <p>Your account has limited access to this application.</p>
+        <div className="restricted-info">
+          <p><strong>Available pages for your access level:</strong></p>
+          <ul>
+            <li>Dashboard</li>
+            <li>HPP Simulation</li>
+          </ul>
+        </div>
+        <p style={{ marginTop: '20px', color: '#6b7280' }}>
+          If you need access to additional features, please contact your administrator.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 function AppContent() {
   const location = useLocation();
@@ -32,6 +56,7 @@ function AppContent() {
     isLoading: true,
     isAuthenticated: false,
     user: null,
+    accessLevel: null,
     authError: null
   });
 
@@ -49,6 +74,7 @@ function AppContent() {
             isLoading: false,
             isAuthenticated: true,
             user: urlAuthResult.user,
+            accessLevel: urlAuthResult.accessLevel,
             authError: null
           });
           
@@ -64,6 +90,7 @@ function AppContent() {
               isLoading: false,
               isAuthenticated: true,
               user: storedAuth.user,
+              accessLevel: storedAuth.accessLevel,
               authError: null
             });
           } else {
@@ -73,6 +100,7 @@ function AppContent() {
               isLoading: false,
               isAuthenticated: false,
               user: null,
+              accessLevel: null,
               authError: urlAuthResult.message || 'Authentication required'
             });
           }
@@ -83,6 +111,7 @@ function AppContent() {
           isLoading: false,
           isAuthenticated: false,
           user: null,
+          accessLevel: null,
           authError: `Authentication error: ${error.message}`
         });
       }
@@ -189,14 +218,15 @@ function AppContent() {
               <div className="auth-info">
                 <p><strong>🚫 Department Access Restriction:</strong></p>
                 <ul>
-                  <li>This application is restricted to <strong>NT and PL department</strong> staff only</li>
-                  <li>Your current department does not have access to this system</li>
+                  <li>This application is restricted to authorized personnel only</li>
+                  <li><strong>Full Access:</strong> NT and PL department staff</li>
+                  <li><strong>Limited Access:</strong> RD1/RD2/RD3 Managers, HD HO</li>
+                  <li>Your current department/job level combination does not have access</li>
                   <li>If you believe this is an error, please contact your system administrator</li>
-                  <li>Only users with empDeptID "NT" or "PL" can access the Manufacturing Cost System</li>
                 </ul>
                 <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '4px' }}>
                   <p style={{ margin: 0, color: '#dc2626', fontWeight: 'bold' }}>
-                    ⚠️ Access is limited to authorized NT and PL department personnel only
+                    ⚠️ Access is limited to authorized personnel only
                   </p>
                 </div>
               </div>
@@ -271,7 +301,7 @@ function AppContent() {
   // Show main app if authenticated
   return (
     <div className="app-layout">
-      <Sidebar user={authState.user} />
+      <Sidebar user={authState.user} accessLevel={authState.accessLevel} />
       <TopNavbar 
         notificationCount={getNotificationCount()} 
         pageTitle={getPageTitle()} 
@@ -283,13 +313,42 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<Dashboard user={authState.user} />} />
           <Route path="/hpp-simulation" element={<HPPSimulation user={authState.user} />} />
-          <Route path="/currency" element={<Currency user={authState.user} />} />
-          <Route path="/harga-bahan" element={<HargaBahan user={authState.user} />} />
-          <Route path="/cost-management" element={<CostManagement user={authState.user} />} />
-          <Route path="/formula-assignment" element={<FormulaAssignment user={authState.user} />} />
-          <Route path="/product-formula" element={<ProductFormula user={authState.user} />} />
-          <Route path="/generate-hpp" element={<GenerateHPP user={authState.user} />} />
-          <Route path="/hpp-results" element={<HPPResults user={authState.user} />} />
+          {/* Routes below are only accessible to users with full access */}
+          <Route path="/currency" element={
+            authState.accessLevel === 'full' 
+              ? <Currency user={authState.user} /> 
+              : <RestrictedPage pageName="Exchange Rates" />
+          } />
+          <Route path="/harga-bahan" element={
+            authState.accessLevel === 'full' 
+              ? <HargaBahan user={authState.user} /> 
+              : <RestrictedPage pageName="Material Prices" />
+          } />
+          <Route path="/cost-management" element={
+            authState.accessLevel === 'full' 
+              ? <CostManagement user={authState.user} /> 
+              : <RestrictedPage pageName="Cost Management" />
+          } />
+          <Route path="/formula-assignment" element={
+            authState.accessLevel === 'full' 
+              ? <FormulaAssignment user={authState.user} /> 
+              : <RestrictedPage pageName="Formula Assignment" />
+          } />
+          <Route path="/product-formula" element={
+            authState.accessLevel === 'full' 
+              ? <ProductFormula user={authState.user} /> 
+              : <RestrictedPage pageName="Product Formula" />
+          } />
+          <Route path="/generate-hpp" element={
+            authState.accessLevel === 'full' 
+              ? <GenerateHPP user={authState.user} /> 
+              : <RestrictedPage pageName="Generate HPP" />
+          } />
+          <Route path="/hpp-results" element={
+            authState.accessLevel === 'full' 
+              ? <HPPResults user={authState.user} /> 
+              : <RestrictedPage pageName="HPP Results" />
+          } />
         </Routes>
       </main>
     </div>

@@ -138,7 +138,7 @@ export const extractUserInfo = (payload) => {
 /**
  * Check if user has department access based on department and job level rules
  * @param {object} userInfo - User information object
- * @returns {object} - Access result with allowed status and message
+ * @returns {object} - Access result with allowed status, access level, and message
  */
 const checkDepartmentAccess = (userInfo) => {
   const empDeptID = userInfo.empDeptID;
@@ -148,32 +148,66 @@ const checkDepartmentAccess = (userInfo) => {
   if (['NT', 'PL'].includes(empDeptID)) {
     return {
       allowed: true,
-      message: 'Access granted',
+      accessLevel: 'full',
+      message: 'Full access granted',
       reason: null
     };
   }
   
-  // RD1 and RD2 have access only if job level is MGR
-  if (['RD1', 'RD2'].includes(empDeptID)) {
+  // RD2 MGR gets full access (same as NT/PL)
+  if (empDeptID === 'RD2' && empJobLevelID === 'MGR') {
+    return {
+      allowed: true,
+      accessLevel: 'full',
+      message: 'Full access granted for RD2 manager',
+      reason: null
+    };
+  }
+  
+  // RD1, RD3 managers get limited access (Dashboard + HPP Simulation only)
+  if (['RD1', 'RD3'].includes(empDeptID)) {
     if (empJobLevelID === 'MGR') {
       return {
         allowed: true,
-        message: 'Access granted for manager level',
+        accessLevel: 'limited',
+        message: 'Limited access granted for manager level (Dashboard and HPP Simulation)',
         reason: null
       };
     } else {
       return {
         allowed: false,
-        message: `Access denied. RD1 and RD2 department staff require Manager level access. Your department: ${empDeptID}, Job Level: ${empJobLevelID || 'Unknown'}. Please contact your administrator if you believe this is an error.`,
+        accessLevel: null,
+        message: `Access denied. RD1 and RD3 department staff require Manager level access. Your department: ${empDeptID}, Job Level: ${empJobLevelID || 'Unknown'}. Please contact your administrator if you believe this is an error.`,
         reason: 'job_level_restriction'
       };
     }
   }
   
+  // RD2 non-managers are denied
+  if (empDeptID === 'RD2' && empJobLevelID !== 'MGR') {
+    return {
+      allowed: false,
+      accessLevel: null,
+      message: `Access denied. RD2 department staff require Manager level access. Your department: ${empDeptID}, Job Level: ${empJobLevelID || 'Unknown'}. Please contact your administrator if you believe this is an error.`,
+      reason: 'job_level_restriction'
+    };
+  }
+  
+  // HD department with HO job level gets limited access (Dashboard + HPP Simulation only)
+  if (empDeptID === 'HD' && empJobLevelID === 'HO') {
+    return {
+      allowed: true,
+      accessLevel: 'limited',
+      message: 'Limited access granted (Dashboard and HPP Simulation)',
+      reason: null
+    };
+  }
+  
   // All other departments are denied
   return {
     allowed: false,
-    message: `Access denied. This application is restricted to NT, PL department staff, and RD1/RD2 managers only. Your department: ${empDeptID || 'Unknown'}. Please contact your administrator if you believe this is an error.`,
+    accessLevel: null,
+    message: `Access denied. This application is restricted to NT, PL department staff, RD1/RD2/RD3 managers, and HD HO only. Your department: ${empDeptID || 'Unknown'}, Job Level: ${empJobLevelID || 'Unknown'}. Please contact your administrator if you believe this is an error.`,
     reason: 'department_restriction'
   };
 };
@@ -241,6 +275,7 @@ export const authenticateFromURL = (url) => {
         message: hasAccess.message,
         user: userInfo,
         token: authToken,
+        accessLevel: null,
         unauthorizedReason: hasAccess.reason
       };
     }
@@ -249,7 +284,8 @@ export const authenticateFromURL = (url) => {
       success: true,
       message: 'Authentication successful',
       user: userInfo,
-      token: authToken
+      token: authToken,
+      accessLevel: hasAccess.accessLevel
     };
     
   } catch (error) {
@@ -344,6 +380,31 @@ export const hasDesktopAccess = () => {
 export const getCurrentUser = () => {
   const authData = getStoredAuthData();
   return authData && authData.success ? authData.user : null;
+};
+
+/**
+ * Get current user's access level
+ * @returns {string|null} - 'full', 'limited', or null if not authenticated
+ */
+export const getAccessLevel = () => {
+  const authData = getStoredAuthData();
+  return authData && authData.success ? authData.accessLevel : null;
+};
+
+/**
+ * Check if user has full access
+ * @returns {boolean} - True if user has full access, false otherwise
+ */
+export const hasFullAccess = () => {
+  return getAccessLevel() === 'full';
+};
+
+/**
+ * Check if user has limited access (simulation only)
+ * @returns {boolean} - True if user has limited access, false otherwise
+ */
+export const hasLimitedAccess = () => {
+  return getAccessLevel() === 'limited';
 };
 
 /**

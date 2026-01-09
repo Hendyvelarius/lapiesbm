@@ -391,6 +391,36 @@ class ProductController {
       });
     }
   }
+
+  // Get locked products for a specific period (lightweight endpoint)
+  static async getLockedProducts(req, res) {
+    try {
+      const { periode } = req.query;
+      
+      if (!periode) {
+        return res.status(400).json({
+          success: false,
+          message: 'Periode is required'
+        });
+      }
+
+      const lockedProducts = await productModel.getLockedProducts(periode);
+      
+      res.status(200).json({
+        success: true,
+        data: lockedProducts,
+        count: lockedProducts.length,
+        periode: periode
+      });
+    } catch (error) {
+      console.error('Error getting locked products:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error getting locked products',
+        error: error.message
+      });
+    }
+  }
 }
 
 module.exports = ProductController;

@@ -3,7 +3,7 @@ import api, { productsAPI } from '../services/api';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import * as XLSX from 'xlsx';
-import { FileDown, FileUp } from 'lucide-react';
+import { FileDown, FileUp, Filter, X } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import '../styles/FormulaAssignment.css';
 
@@ -96,6 +96,13 @@ const FormulaAssignment = ({ user }) => {
   
   // Table search state
   const [tableSearchTerm, setTableSearchTerm] = useState('');
+  
+  // Advanced filter states
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState({
+    lockStatus: 'all', // 'all', 'unlocked', 'locked'
+    formulaStatus: 'all' // 'all', 'complete', 'incomplete', 'hasPI', 'hasPS', 'hasKP', 'hasKS', 'missingPI', 'missingPS', 'missingKP', 'missingKS'
+  });
 
   // Import-related states
   const [showImportModal, setShowImportModal] = useState(false);
@@ -1341,25 +1348,105 @@ const FormulaAssignment = ({ user }) => {
     }
   };
 
-  // Filter and sort chosen formulas based on search term and importance
+  // Helper function to check if a formula type is assigned
+  const hasFormula = (value) => value !== null && value !== undefined;
+
+  // Helper function to check if all formulas are complete (PI, PS, KP, KS all assigned)
+  const isFormulaComplete = (formula) => {
+    return hasFormula(formula.PI) && hasFormula(formula.PS) && 
+           hasFormula(formula.KP) && hasFormula(formula.KS);
+  };
+
+  // Filter and sort chosen formulas based on search term and advanced filters
   const filteredChosenFormulas = chosenFormulas
     .filter(formula => {
-      if (!tableSearchTerm.trim()) return true;
+      // Text search filter
+      if (tableSearchTerm.trim()) {
+        const searchLower = tableSearchTerm.toLowerCase();
+        const productName = getProductName(formula.Product_ID);
+        const matchesSearch = formula.Product_ID.toLowerCase().includes(searchLower) ||
+               productName.toLowerCase().includes(searchLower);
+        if (!matchesSearch) return false;
+      }
       
-      const searchLower = tableSearchTerm.toLowerCase();
-      const productName = getProductName(formula.Product_ID);
+      // Lock status filter
+      if (advancedFilters.lockStatus === 'unlocked' && formula.isLock === 1) return false;
+      if (advancedFilters.lockStatus === 'locked' && formula.isLock !== 1) return false;
       
-      return formula.Product_ID.toLowerCase().includes(searchLower) ||
-             productName.toLowerCase().includes(searchLower);
+      // Formula status filter
+      switch (advancedFilters.formulaStatus) {
+        case 'complete':
+          if (!isFormulaComplete(formula)) return false;
+          break;
+        case 'incomplete':
+          if (isFormulaComplete(formula)) return false;
+          break;
+        case 'hasPI':
+          if (!hasFormula(formula.PI)) return false;
+          break;
+        case 'hasPS':
+          if (!hasFormula(formula.PS)) return false;
+          break;
+        case 'hasKP':
+          if (!hasFormula(formula.KP)) return false;
+          break;
+        case 'hasKS':
+          if (!hasFormula(formula.KS)) return false;
+          break;
+        case 'missingPI':
+          if (hasFormula(formula.PI)) return false;
+          break;
+        case 'missingPS':
+          if (hasFormula(formula.PS)) return false;
+          break;
+        case 'missingKP':
+          if (hasFormula(formula.KP)) return false;
+          break;
+        case 'missingKS':
+          if (hasFormula(formula.KS)) return false;
+          break;
+        default:
+          break;
+      }
+      
+      return true;
     })
     .sort((a, b) => {
-      // Sort by isManual first (important products first)
+      // Sort unlocked products first
+      if (a.isLock !== 1 && b.isLock === 1) return -1;
+      if (a.isLock === 1 && b.isLock !== 1) return 1;
+      
+      // Then sort by isManual (important products first)
       if (a.isManual === 1 && b.isManual !== 1) return -1;
       if (a.isManual !== 1 && b.isManual === 1) return 1;
       
       // Then sort by Product_ID for consistent ordering
       return a.Product_ID.localeCompare(b.Product_ID);
     });
+
+  // Calculate filter statistics
+  const filterStats = useMemo(() => {
+    const total = chosenFormulas.length;
+    const unlocked = chosenFormulas.filter(f => f.isLock !== 1).length;
+    const locked = chosenFormulas.filter(f => f.isLock === 1).length;
+    const complete = chosenFormulas.filter(f => isFormulaComplete(f)).length;
+    const incomplete = total - complete;
+    
+    return { total, unlocked, locked, complete, incomplete };
+  }, [chosenFormulas]);
+
+  // Check if any advanced filter is active
+  const hasActiveFilters = advancedFilters.lockStatus !== 'all' || 
+                           advancedFilters.formulaStatus !== 'all';
+
+  // Reset all filters
+  const resetFilters = () => {
+    setAdvancedFilters({
+      lockStatus: 'all',
+      formulaStatus: 'all'
+    });
+    setTableSearchTerm('');
+  };
 
   if (loading && chosenFormulas.length === 0) {
     return (
@@ -1407,11 +1494,13 @@ const FormulaAssignment = ({ user }) => {
               </button>
             )}
           </div>
-          {tableSearchTerm.trim() && (
-            <span className="search-results-count">
-              {filteredChosenFormulas.length} of {chosenFormulas.length} results
-            </span>
-          )}
+          <div className="filter-results-info">
+            {(tableSearchTerm.trim() || hasActiveFilters) && (
+              <span className="search-results-count">
+                Showing {filteredChosenFormulas.length} of {chosenFormulas.length} products
+              </span>
+            )}
+          </div>
           <div className="header-actions">
             <div className="table-search">
               <input
@@ -1422,6 +1511,17 @@ const FormulaAssignment = ({ user }) => {
                 className="table-search-input"
               />
             </div>
+            <button
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className={`btn-filter ${showAdvancedFilters ? 'active' : ''} ${hasActiveFilters ? 'has-filters' : ''}`}
+              title="Advanced Filters"
+            >
+              <Filter size={16} />
+              Filters {hasActiveFilters && `(${[
+                advancedFilters.lockStatus !== 'all' ? 1 : 0,
+                advancedFilters.formulaStatus !== 'all' ? 1 : 0
+              ].reduce((a, b) => a + b, 0)})`}
+            </button>
             <button 
               onClick={handleExportExcel}
               className="btn-secondary export-btn"
@@ -1460,10 +1560,64 @@ const FormulaAssignment = ({ user }) => {
           </div>
         </div>
 
+        {/* Advanced Filters Panel */}
+        {showAdvancedFilters && (
+          <div className="advanced-filters-panel">
+            <div className="filter-group">
+              <label>Lock Status:</label>
+              <select
+                value={advancedFilters.lockStatus}
+                onChange={(e) => setAdvancedFilters(prev => ({ ...prev, lockStatus: e.target.value }))}
+                className="filter-select"
+              >
+                <option value="all">All ({filterStats.total})</option>
+                <option value="unlocked">🔓 Unlocked ({filterStats.unlocked})</option>
+                <option value="locked">🔒 Locked ({filterStats.locked})</option>
+              </select>
+            </div>
+            
+            <div className="filter-group">
+              <label>Formula Status:</label>
+              <select
+                value={advancedFilters.formulaStatus}
+                onChange={(e) => setAdvancedFilters(prev => ({ ...prev, formulaStatus: e.target.value }))}
+                className="filter-select"
+              >
+                <option value="all">All Formulas</option>
+                <option value="complete">✅ Complete (PI+PS+KP+KS) ({filterStats.complete})</option>
+                <option value="incomplete">⚠️ Incomplete ({filterStats.incomplete})</option>
+                <optgroup label="Has Formula">
+                  <option value="hasPI">Has PI</option>
+                  <option value="hasPS">Has PS</option>
+                  <option value="hasKP">Has KP</option>
+                  <option value="hasKS">Has KS</option>
+                </optgroup>
+                <optgroup label="Missing Formula">
+                  <option value="missingPI">Missing PI</option>
+                  <option value="missingPS">Missing PS</option>
+                  <option value="missingKP">Missing KP</option>
+                  <option value="missingKS">Missing KS</option>
+                </optgroup>
+              </select>
+            </div>
+            
+            {hasActiveFilters && (
+              <button
+                onClick={resetFilters}
+                className="btn-reset-filters"
+                title="Clear all filters"
+              >
+                <X size={14} /> Clear Filters
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="table-container">
           <table className="formula-assignment-table">
             <thead>
               <tr>
+                <th>Lock</th>
                 <th>Product ID</th>
                 <th>Product Name</th>
                 <th>PI</th>
@@ -1477,16 +1631,22 @@ const FormulaAssignment = ({ user }) => {
             <tbody>
               {filteredChosenFormulas.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="no-data">
-                    {tableSearchTerm.trim() 
-                      ? `No formula assignments found matching "${tableSearchTerm}".`
+                  <td colSpan="9" className="no-data">
+                    {(tableSearchTerm.trim() || hasActiveFilters)
+                      ? `No formula assignments found matching your filters.`
                       : "No formula assignments found. Click \"Add New Assignment\" to get started."
                     }
+                    {hasActiveFilters && (
+                      <button onClick={resetFilters} className="btn-link">Clear filters</button>
+                    )}
                   </td>
                 </tr>
               ) : (
                 filteredChosenFormulas.map((formula, index) => (
-                  <tr key={`${formula.Product_ID}-${index}`}>
+                  <tr key={`${formula.Product_ID}-${index}`} className={formula.isLock === 1 ? 'row-locked' : ''}>
+                    <td className="lock-status-cell">
+                      {formula.isLock === 1 ? '🔒' : '🔓'}
+                    </td>
                     <td>{formula.Product_ID}</td>
                     <td>{getProductName(formula.Product_ID)}</td>
                     <td>{getFormulaDetails(formula.PI)}</td>

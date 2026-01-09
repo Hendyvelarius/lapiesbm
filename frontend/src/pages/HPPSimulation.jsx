@@ -1948,7 +1948,10 @@ export default function HPPSimulation() {
       const materialWithNewPrice = {
         ...material,
         originalPrice: material.ITEM_PURCHASE_STD_PRICE,
-        newPrice: material.ITEM_PURCHASE_STD_PRICE, // Start with current price
+        originalCurrency: material.CURRENCY || 'IDR',
+        selectedCurrency: material.CURRENCY || 'IDR', // Default to original currency
+        newPrice: material.ITEM_PURCHASE_STD_PRICE, // Start with current price in original currency
+        displayCurrentPrice: material.ITEM_PURCHASE_STD_PRICE, // Current price in selected currency
         priceChange: 0,
         priceChangePercent: 0,
       };
@@ -1961,19 +1964,74 @@ export default function HPPSimulation() {
     }
   };
 
+  // Convert price between currencies
+  const convertPrice = (price, fromCurrency, toCurrency) => {
+    if (!price || fromCurrency === toCurrency) return price;
+    
+    const fromRate = currencyRates[fromCurrency] || 1;
+    const toRate = currencyRates[toCurrency] || 1;
+    
+    // Convert: price in fromCurrency -> IDR -> toCurrency
+    // price * fromRate = IDR value
+    // IDR value / toRate = price in toCurrency
+    return (price * fromRate) / toRate;
+  };
+
+  // Handle currency change for selected material
+  const handleCurrencyChange = (materialId, newCurrency) => {
+    setSelectedMaterials((prev) =>
+      prev.map((material) => {
+        if (material.ITEM_ID === materialId) {
+          const originalCurrency = material.originalCurrency;
+          
+          // Convert original price to the new selected currency for display
+          const displayCurrentPrice = convertPrice(
+            material.originalPrice,
+            originalCurrency,
+            newCurrency
+          );
+          
+          // Convert the current newPrice from old selected currency to new selected currency
+          const oldSelectedCurrency = material.selectedCurrency;
+          const convertedNewPrice = convertPrice(
+            material.newPrice,
+            oldSelectedCurrency,
+            newCurrency
+          );
+          
+          // Calculate price change based on converted values
+          const priceChange = convertedNewPrice - displayCurrentPrice;
+          const priceChangePercent =
+            displayCurrentPrice !== 0 ? (priceChange / displayCurrentPrice) * 100 : 0;
+
+          return {
+            ...material,
+            selectedCurrency: newCurrency,
+            displayCurrentPrice,
+            newPrice: convertedNewPrice,
+            priceChange,
+            priceChangePercent,
+          };
+        }
+        return material;
+      })
+    );
+  };
+
   // Update new price for selected material
   const handlePriceChange = (materialId, newPrice) => {
     setSelectedMaterials((prev) =>
       prev.map((material) => {
         if (material.ITEM_ID === materialId) {
-          const originalPrice = material.originalPrice;
-          const priceChange = newPrice - originalPrice;
+          const displayCurrentPrice = material.displayCurrentPrice;
+          const parsedPrice = parseFloat(newPrice) || 0;
+          const priceChange = parsedPrice - displayCurrentPrice;
           const priceChangePercent =
-            originalPrice !== 0 ? (priceChange / originalPrice) * 100 : 0;
+            displayCurrentPrice !== 0 ? (priceChange / displayCurrentPrice) * 100 : 0;
 
           return {
             ...material,
-            newPrice: parseFloat(newPrice) || 0,
+            newPrice: parsedPrice,
             priceChange,
             priceChangePercent,
           };
@@ -2015,10 +2073,24 @@ export default function HPPSimulation() {
 
     try {
       // Prepare the material price changes array
-      const materialPriceChanges = selectedMaterials.map((material) => ({
-        materialId: material.ITEM_ID,
-        newPrice: material.newPrice,
-      }));
+      // Convert prices back to original currency if needed
+      const materialPriceChanges = selectedMaterials.map((material) => {
+        let finalPrice = material.newPrice;
+        
+        // If the user selected a different currency, convert back to original
+        if (material.selectedCurrency !== material.originalCurrency) {
+          finalPrice = convertPrice(
+            material.newPrice,
+            material.selectedCurrency,
+            material.originalCurrency
+          );
+        }
+        
+        return {
+          materialId: material.ITEM_ID,
+          newPrice: finalPrice,
+        };
+      });
 
       // Call the backend API
       const result = await hppAPI.generatePriceChangeSimulation(
@@ -8037,25 +8109,47 @@ export default function HPPSimulation() {
                               Code: {material.ITEM_ID} | Type: {material.ITEM_TYP} | Unit: {material.UNIT}
                             </div>
                             <div className="selected-material-original-price">
-                              Original: {formatPriceWithCurrency(material.originalPrice, material.CURRENCY)} per {material.UNIT}
+                              Original: {formatPriceWithCurrency(material.originalPrice, material.originalCurrency)} per {material.UNIT}
                             </div>
                           </div>
                           <div className="selected-material-price-input">
-                            <label>New Price ({material.CURRENCY}):</label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={material.newPrice || ""}
-                              onChange={(e) => handlePriceChange(material.ITEM_ID, e.target.value)}
-                              placeholder={`Enter new price`}
-                              className="price-input"
-                            />
+                            <div className="currency-selector-row">
+                              <label>Currency:</label>
+                              <select
+                                value={material.selectedCurrency}
+                                onChange={(e) => handleCurrencyChange(material.ITEM_ID, e.target.value)}
+                                className="currency-select"
+                              >
+                                {currencyList.map((curr) => (
+                                  <option key={curr} value={curr}>
+                                    {curr} {curr === material.originalCurrency ? "(Original)" : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="current-price-display">
+                              <label>Current Price ({material.selectedCurrency}):</label>
+                              <span className="current-price-value">
+                                {formatPriceWithCurrency(material.displayCurrentPrice, material.selectedCurrency)}
+                              </span>
+                            </div>
+                            <div className="new-price-row">
+                              <label>New Price ({material.selectedCurrency}):</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={material.newPrice || ""}
+                                onChange={(e) => handlePriceChange(material.ITEM_ID, e.target.value)}
+                                placeholder={`Enter new price`}
+                                className="price-input"
+                              />
+                            </div>
                             {material.priceChangePercent !== 0 && (
                               <div className={`price-change-indicator ${material.priceChange > 0 ? "increase" : "decrease"}`}>
                                 {material.priceChange > 0 ? "+" : ""}
                                 {material.priceChangePercent?.toFixed(2)}%
                                 <span className="price-change-amount">
-                                  ({formatPriceWithCurrency(material.priceChange, material.CURRENCY)})
+                                  ({formatPriceWithCurrency(material.priceChange, material.selectedCurrency)})
                                 </span>
                               </div>
                             )}

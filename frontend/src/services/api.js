@@ -80,6 +80,9 @@ export const productsAPI = {
   // Get default year based on lock status
   getDefaultYear: () => apiRequest('/products/default-year'),
   
+  // Get locked products for a specific period (lightweight endpoint for checking lock status)
+  getLockedProducts: (periode) => apiRequest(`/products/locked-products?periode=${periode}`),
+  
   // Add chosen formula
   addChosenFormula: (data) => apiRequest('/products/chosenformula', {
     method: 'POST',

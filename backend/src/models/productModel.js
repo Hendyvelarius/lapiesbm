@@ -567,6 +567,31 @@ async function getDefaultYear() {
     }
 }
 
+// Get locked products for a specific period
+// Returns a lightweight list of just Product_IDs that are locked
+async function getLockedProducts(periode) {
+    try {
+        const pool = await connect();
+        
+        const query = `
+            SELECT Product_ID
+            FROM M_COGS_PRODUCT_FORMULA_FIX
+            WHERE Periode = @periode AND isLock = 1
+        `;
+        
+        const result = await pool.request()
+            .input('periode', sql.VarChar, periode)
+            .query(query);
+            
+        // Return just an array of Product_IDs for lightweight response
+        return result.recordset.map(row => row.Product_ID);
+        
+    } catch (error) {
+        console.error('Error getting locked products:', error);
+        throw error;
+    }
+}
+
 module.exports = {
     getFormula,
     getChosenFormula,
@@ -585,5 +610,6 @@ module.exports = {
     generateHPP,
     lockYear,
     lockProduct,
-    getDefaultYear
+    getDefaultYear,
+    getLockedProducts
 };

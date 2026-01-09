@@ -2,12 +2,15 @@ import '../styles/Sidebar.css';
 import { FileText, BarChart3, DollarSign, Package, Calculator, Users, Layers, FlaskConical, Settings, CalendarX, ClipboardList, User } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 
-export default function Sidebar({ user }) {
+export default function Sidebar({ user, accessLevel }) {
   const location = useLocation();
   
   // Extract user information with fallbacks
   const userName = user?.nama || user?.inisialNama || 'User';
   const userRole = user?.jabatan || 'Unknown Position';
+  
+  // Check if user has full access
+  const hasFullAccess = accessLevel === 'full';
   
     return (
       <aside className="sidebar">
@@ -29,46 +32,60 @@ export default function Sidebar({ user }) {
                 <BarChart3 className="sidebar-icon" size={20} /> Dashboard
               </Link>
             </li>
-            <li className={location.pathname === '/currency' ? 'active' : ''}>
-              <Link to="/currency" className="sidebar-link">
-                <DollarSign className="sidebar-icon" size={20} /> Exchange Rates
-              </Link>
-            </li>
-            <li className={location.pathname === '/cost-management' ? 'active' : ''}>
-              <Link to="/cost-management" className="sidebar-link">
-                <Calculator className="sidebar-icon" size={20} /> Cost Management
-              </Link>
-            </li>
-            <li className={location.pathname === '/harga-bahan' ? 'active' : ''}>
-              <Link to="/harga-bahan" className="sidebar-link">
-                <Package className="sidebar-icon" size={20} /> Material Prices
-              </Link>
-            </li>
-            <li className={location.pathname === '/product-formula' ? 'active' : ''}>
-              <Link to="/product-formula" className="sidebar-link">
-                <FlaskConical className="sidebar-icon" size={20} /> Product Formula
-              </Link>
-            </li>
-            <li className={location.pathname === '/formula-assignment' ? 'active' : ''}>
-              <Link to="/formula-assignment" className="sidebar-link">
-                <Settings className="sidebar-icon" size={20} /> Formula Assignment
-              </Link>
-            </li>
+            {hasFullAccess && (
+              <li className={location.pathname === '/currency' ? 'active' : ''}>
+                <Link to="/currency" className="sidebar-link">
+                  <DollarSign className="sidebar-icon" size={20} /> Exchange Rates
+                </Link>
+              </li>
+            )}
+            {hasFullAccess && (
+              <li className={location.pathname === '/cost-management' ? 'active' : ''}>
+                <Link to="/cost-management" className="sidebar-link">
+                  <Calculator className="sidebar-icon" size={20} /> Cost Management
+                </Link>
+              </li>
+            )}
+            {hasFullAccess && (
+              <li className={location.pathname === '/harga-bahan' ? 'active' : ''}>
+                <Link to="/harga-bahan" className="sidebar-link">
+                  <Package className="sidebar-icon" size={20} /> Material Prices
+                </Link>
+              </li>
+            )}
+            {hasFullAccess && (
+              <li className={location.pathname === '/product-formula' ? 'active' : ''}>
+                <Link to="/product-formula" className="sidebar-link">
+                  <FlaskConical className="sidebar-icon" size={20} /> Product Formula
+                </Link>
+              </li>
+            )}
+            {hasFullAccess && (
+              <li className={location.pathname === '/formula-assignment' ? 'active' : ''}>
+                <Link to="/formula-assignment" className="sidebar-link">
+                  <Settings className="sidebar-icon" size={20} /> Formula Assignment
+                </Link>
+              </li>
+            )}
             <li className={location.pathname === '/hpp-simulation' ? 'active' : ''}>
               <Link to="/hpp-simulation" className="sidebar-link">
                 <FileText className="sidebar-icon" size={20} /> HPP Simulation
               </Link>
             </li>
-            <li className={location.pathname === '/generate-hpp' ? 'active' : ''}>
-              <Link to="/generate-hpp" className="sidebar-link">
-                <Calculator className="sidebar-icon" size={20} /> Generate HPP
-              </Link>
-            </li>
-            <li className={location.pathname === '/hpp-results' ? 'active' : ''}>
-              <Link to="/hpp-results" className="sidebar-link">
-                <ClipboardList className="sidebar-icon" size={20} /> HPP Results
-              </Link>
-            </li>
+            {hasFullAccess && (
+              <li className={location.pathname === '/generate-hpp' ? 'active' : ''}>
+                <Link to="/generate-hpp" className="sidebar-link">
+                  <Calculator className="sidebar-icon" size={20} /> Generate HPP
+                </Link>
+              </li>
+            )}
+            {hasFullAccess && (
+              <li className={location.pathname === '/hpp-results' ? 'active' : ''}>
+                <Link to="/hpp-results" className="sidebar-link">
+                  <ClipboardList className="sidebar-icon" size={20} /> HPP Results
+                </Link>
+              </li>
+            )}
           </ul>
         </div>
         {/* Sticky Bottom Section */}

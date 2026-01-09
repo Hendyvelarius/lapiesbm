@@ -4297,13 +4297,68 @@ html {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-width: 200px;
+  min-width: 250px;
 }
 
 .selected-material-price-input label {
   font-size: 13px;
   font-weight: 500;
   color: #374151;
+}
+
+.selected-material-price-input .currency-selector-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selected-material-price-input .currency-select {
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  background: white;
+  cursor: pointer;
+  min-width: 120px;
+  transition: border-color 0.2s ease;
+}
+
+.selected-material-price-input .currency-select:hover {
+  border-color: #10b981;
+}
+
+.selected-material-price-input .currency-select:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.selected-material-price-input .current-price-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+}
+
+.selected-material-price-input .current-price-display label {
+  font-size: 12px;
+  color: #059669;
+  margin: 0;
+}
+
+.selected-material-price-input .current-price-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #047857;
+}
+
+.selected-material-price-input .new-price-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .selected-material-price-input .price-input {
@@ -4408,6 +4463,19 @@ html {
 
   .selected-material-price-input {
     min-width: auto;
+  }
+
+  .selected-material-price-input .currency-selector-row {
+    flex-wrap: wrap;
+  }
+
+  .selected-material-price-input .currency-select {
+    min-width: 100%;
+  }
+
+  .selected-material-price-input .current-price-display {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .selected-materials-header {
