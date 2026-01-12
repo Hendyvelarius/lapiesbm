@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { masterAPI, hppAPI, productsAPI } from '../services/api';
 import { getCurrentUser } from '../utils/auth';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import '../styles/HargaBahan.css';
-import { Plus, Search, Filter, Edit, Trash2, Package, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Check, Upload, Download, DollarSign, Eye } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Package, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Check, Upload, Download, DollarSign, Eye, Lock } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import LoadingSpinner from '../components/LoadingSpinner';
 import AffectedProductsModal from '../components/AffectedProductsModal';
@@ -93,6 +93,10 @@ const HargaBahan = () => {
   // Affected Products Modal states
   const [showAffectedModal, setShowAffectedModal] = useState(false);
   const [selectedUpdateDescription, setSelectedUpdateDescription] = useState('');
+  
+  // Lock state - check if any products are locked for the selected period
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockedYears, setLockedYears] = useState([]); // Track which years have locked products
   const [selectedUpdateDate, setSelectedUpdateDate] = useState('');
 
   // Check if user can confirm price updates (PL department with PL job level, or NT department)
@@ -112,6 +116,48 @@ const HargaBahan = () => {
     
     return false;
   };
+
+  // Check if any products are locked for a given period
+  const checkLockedProducts = useCallback(async (periode) => {
+    try {
+      const response = await productsAPI.getLockedProducts(periode);
+      if (response.success && response.count > 0) {
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking locked products:', error);
+      return false;
+    }
+  }, []);
+
+  // Check locked status when selectedPeriode changes
+  useEffect(() => {
+    const checkLockStatus = async () => {
+      if (!periodeLoaded) return;
+      const locked = await checkLockedProducts(selectedPeriode);
+      setIsLocked(locked);
+    };
+    checkLockStatus();
+  }, [selectedPeriode, periodeLoaded, checkLockedProducts]);
+
+  // Pre-fetch all locked years on component mount
+  useEffect(() => {
+    const fetchLockedYears = async () => {
+      const years = generateYearOptions();
+      const locked = [];
+      for (const year of years) {
+        const isYearLocked = await checkLockedProducts(year.toString());
+        if (isYearLocked) {
+          locked.push(year.toString());
+        }
+      }
+      setLockedYears(locked);
+    };
+    if (periodeLoaded) {
+      fetchLockedYears();
+    }
+  }, [periodeLoaded, checkLockedProducts]);
 
   // Fetch default year on component mount
   useEffect(() => {
@@ -2140,6 +2186,12 @@ const HargaBahan = () => {
                   return <option key={year} value={year.toString()}>{year}</option>;
                 })}
               </select>
+              {isLocked && (
+                <span className="lock-indicator" title="Products are locked for this period - Delete and Import disabled">
+                  <Lock size={16} />
+                  Locked
+                </span>
+              )}
             </div>
             
             <div className="category-filter">
@@ -2161,13 +2213,23 @@ const HargaBahan = () => {
           <div className="action-buttons-group">
             {/* Import/Export Group */}
             <div className="button-group">
-              <button className="import-btn" onClick={handleImportBahanKemas}>
-                <Upload size={20} />
+              <button 
+                className={`import-btn ${isLocked ? 'locked' : ''}`}
+                onClick={handleImportBahanKemas}
+                disabled={isLocked}
+                title={isLocked ? "Cannot import - products are locked for this period" : "Import Bahan Kemas"}
+              >
+                {isLocked ? <Lock size={20} /> : <Upload size={20} />}
                 Import Bahan Kemas
               </button>
               
-              <button className="import-btn" onClick={handleImportMaterial}>
-                <Upload size={20} />
+              <button 
+                className={`import-btn ${isLocked ? 'locked' : ''}`}
+                onClick={handleImportMaterial}
+                disabled={isLocked}
+                title={isLocked ? "Cannot import - products are locked for this period" : "Import Bahan Baku"}
+              >
+                {isLocked ? <Lock size={20} /> : <Upload size={20} />}
                 Import Bahan Baku
               </button>
               
@@ -2270,11 +2332,12 @@ const HargaBahan = () => {
                     <Edit size={16} />
                   </button>
                   <button 
-                    className="delete-btn"
+                    className={`delete-btn ${isLocked ? 'locked' : ''}`}
                     onClick={() => handleDeleteMaterial(item)}
-                    title="Delete Material"
+                    title={isLocked ? "Cannot delete - products are locked for this period" : "Delete Material"}
+                    disabled={isLocked}
                   >
-                    <Trash2 size={16} />
+                    {isLocked ? <Lock size={16} /> : <Trash2 size={16} />}
                   </button>
                 </td>
               </tr>
@@ -2695,7 +2758,13 @@ const HargaBahan = () => {
                       }}
                     >
                       {generateYearOptions().map(year => (
-                        <option key={year} value={year.toString()}>{year}</option>
+                        <option 
+                          key={year} 
+                          value={year.toString()}
+                          disabled={lockedYears.includes(year.toString())}
+                        >
+                          {year}{lockedYears.includes(year.toString()) ? ' 🔒' : ''}
+                        </option>
                       ))}
                     </select>
                     {importPeriode !== selectedPeriode && (
@@ -2936,7 +3005,13 @@ const HargaBahan = () => {
                       }}
                     >
                       {generateYearOptions().map(year => (
-                        <option key={year} value={year.toString()}>{year}</option>
+                        <option 
+                          key={year} 
+                          value={year.toString()}
+                          disabled={lockedYears.includes(year.toString())}
+                        >
+                          {year}{lockedYears.includes(year.toString()) ? ' 🔒' : ''}
+                        </option>
                       ))}
                     </select>
                     {importPeriode !== selectedPeriode && (
@@ -3096,7 +3171,13 @@ const HargaBahan = () => {
                       }}
                     >
                       {generateYearOptions().map(year => (
-                        <option key={year} value={year.toString()}>{year}</option>
+                        <option 
+                          key={year} 
+                          value={year.toString()}
+                          disabled={lockedYears.includes(year.toString())}
+                        >
+                          {year}{lockedYears.includes(year.toString()) ? ' 🔒' : ''}
+                        </option>
                       ))}
                     </select>
                     {importPeriode !== selectedPeriode && (

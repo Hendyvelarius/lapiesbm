@@ -108,6 +108,44 @@
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Lock Indicator */
+.lock-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background-color: #fff3cd;
+  color: #856404;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.lock-indicator svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Locked indicator in table rows */
+.action-buttons .locked-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #856404;
+  background-color: #fff3cd;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.action-buttons .locked-indicator svg {
+  width: 14px;
+  height: 14px;
 }
 
 .btn {

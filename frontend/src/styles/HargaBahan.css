@@ -2225,3 +2225,37 @@
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
 }
+/* Lock Indicator Styles */
+.lock-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 10px;
+}
+
+.lock-indicator svg {
+  color: #856404;
+}
+
+/* Locked button styles */
+.import-btn.locked,
+.delete-btn.locked {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #e5e7eb !important;
+  color: #9ca3af !important;
+  border-color: #d1d5db !important;
+}
+
+.import-btn.locked:hover,
+.delete-btn.locked:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}

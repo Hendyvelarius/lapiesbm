@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { masterAPI, productsAPI } from '../services/api';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, Lock } from 'lucide-react';
 import AddExpiredMaterialModal from '../components/AddExpiredMaterialModal';
 import EditExpiredMaterialModal from '../components/EditExpiredMaterialModal';
 import '../styles/ExpiryCost.css';
@@ -63,7 +63,34 @@ const ExpiryCost = () => {
   const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear().toString());
   const [periodeLoaded, setPeriodeLoaded] = useState(false); // Prevent race condition with default year
 
+  // Lock status state - when true, editing/generating/adding is disabled
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockCheckLoading, setLockCheckLoading] = useState(false);
+
   const currentYear = new Date().getFullYear().toString();
+
+  // Check if any products are locked for the selected period
+  const checkLockedProducts = useCallback(async (periode) => {
+    if (!periode) {
+      setIsLocked(false);
+      return;
+    }
+    
+    try {
+      setLockCheckLoading(true);
+      const result = await productsAPI.getLockedProducts(periode);
+      if (result.success && result.count > 0) {
+        setIsLocked(true);
+      } else {
+        setIsLocked(false);
+      }
+    } catch (error) {
+      console.error('Error checking locked products:', error);
+      setIsLocked(false);
+    } finally {
+      setLockCheckLoading(false);
+    }
+  }, []);
 
   // Fetch default year on component mount
   useEffect(() => {
@@ -86,7 +113,8 @@ const ExpiryCost = () => {
   useEffect(() => {
     if (!periodeLoaded) return; // Don't load until default year is loaded
     loadData();
-  }, [selectedPeriode, periodeLoaded]);
+    checkLockedProducts(selectedPeriode);
+  }, [selectedPeriode, periodeLoaded, checkLockedProducts]);
 
   const loadData = async () => {
     try {
@@ -279,7 +307,8 @@ const ExpiryCost = () => {
             <button 
               className="btn btn-secondary"
               onClick={handleAddMaterial}
-              disabled={generating}
+              disabled={generating || isLocked}
+              title={isLocked ? 'Disabled - products are locked for the selected period' : 'Add expired material'}
             >
               Add Expired Material
             </button>
@@ -293,10 +322,17 @@ const ExpiryCost = () => {
             <button 
               className="btn btn-primary"
               onClick={handleGenerateExpiryCost}
-              disabled={generating}
+              disabled={generating || isLocked}
+              title={isLocked ? 'Disabled - products are locked for the selected period' : 'Generate expiry cost allocation'}
             >
               {generating ? 'Generating...' : 'Generate Expiry Cost'}
             </button>
+            {isLocked && (
+              <div className="lock-indicator" title="Period is locked - editing is disabled">
+                <Lock size={18} />
+                <span>Period Locked</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -330,22 +366,31 @@ const ExpiryCost = () => {
                     <td>{material.user_id}</td>
                     <td>{new Date(material.process_date).toLocaleDateString()}</td>
                     <td>
-                      <div className="action-buttons">
-                        <button
-                          className="edit-btn"
-                          onClick={() => handleEditMaterial(material)}
-                          title="Edit Material"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          className="delete-btn"
-                          onClick={() => handleDeleteMaterial(material.pk_id)}
-                          title="Delete Material"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                      {isLocked ? (
+                        <div className="action-buttons">
+                          <span className="locked-indicator" title="This period is locked">
+                            <Lock size={16} />
+                            Locked
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="action-buttons">
+                          <button
+                            className="edit-btn"
+                            onClick={() => handleEditMaterial(material)}
+                            title="Edit Material"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            className="delete-btn"
+                            onClick={() => handleDeleteMaterial(material.pk_id)}
+                            title="Delete Material"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))

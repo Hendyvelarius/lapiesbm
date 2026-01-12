@@ -46,7 +46,7 @@ const BiayaLain = () => {
   // Add modal states
   const [showAddModal, setShowAddModal] = useState(false);
   const [addFormData, setAddFormData] = useState({
-    periode: new Date().getFullYear().toString(),
+    periode: '', // Default to blank - user must select
     directLabor: '',
     factoryOverHead: '',
     depresiasi: '',
@@ -317,14 +317,21 @@ const BiayaLain = () => {
   };
 
   // Add modal functions
-  const handleAdd = () => {
+  const handleAdd = async () => {
+    // Fetch locked periods for the 5-year range before opening modal
+    const currentYear = new Date().getFullYear();
+    const yearsToCheck = [];
+    for (let i = -2; i <= 2; i++) {
+      yearsToCheck.push((currentYear + i).toString());
+    }
+    await fetchAllLockedPeriods(yearsToCheck);
     setShowAddModal(true);
   };
 
   const handleCancelAdd = () => {
     setShowAddModal(false);
     setAddFormData({
-      periode: new Date().getFullYear().toString(),
+      periode: '', // Reset to blank
       directLabor: '',
       factoryOverHead: '',
       depresiasi: '',
@@ -829,9 +836,8 @@ const BiayaLain = () => {
           
           <button 
             className="add-btn" 
-            onClick={() => setShowAddModal(true)}
-            disabled={isLocked}
-            title={isLocked ? 'Add disabled - products are locked for the selected period' : 'Add new entry'}
+            onClick={handleAdd}
+            title="Add new entry"
           >
             <Plus size={20} />
             Add New
@@ -1057,13 +1063,33 @@ const BiayaLain = () => {
               <div className="form-row">
                 <div className="form-group">
                   <label>Periode: *</label>
-                  <input
-                    type="text"
+                  <select
                     value={addFormData.periode}
                     onChange={(e) => handleAddFormChange('periode', e.target.value)}
-                    placeholder="YYYY"
                     required
-                  />
+                  >
+                    <option value="">Select Periode</option>
+                    {(() => {
+                      const currentYear = new Date().getFullYear();
+                      const years = [];
+                      for (let i = -2; i <= 2; i++) {
+                        years.push(currentYear + i);
+                      }
+                      return years.map(year => {
+                        const yearStr = year.toString();
+                        const isYearLocked = lockedPeriods.includes(yearStr);
+                        return (
+                          <option 
+                            key={year} 
+                            value={yearStr}
+                            disabled={isYearLocked}
+                          >
+                            {yearStr}{isYearLocked ? ' (Locked)' : ''}
+                          </option>
+                        );
+                      });
+                    })()}
+                  </select>
                 </div>
                 <div className="form-group">
                   <label>Line Production: *</label>
