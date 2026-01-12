@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, Edit, Trash2, X, Check, Download, Upload } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Search, Filter, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, Edit, Trash2, X, Check, Download, Upload, Lock } from 'lucide-react';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import * as XLSX from 'xlsx';
@@ -28,6 +28,9 @@ const Reagen = ({ user }) => {
   // Period state
   const [selectedPeriode, setSelectedPeriode] = useState('');
   const [periodeLoaded, setPeriodeLoaded] = useState(false);
+  
+  // Lock state - products that are locked in Formula Assignment
+  const [lockedProductIds, setLockedProductIds] = useState([]);
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -58,6 +61,29 @@ const Reagen = ({ user }) => {
   // Sorting states
   const [sortField, setSortField] = useState('productId');
   const [sortDirection, setSortDirection] = useState('asc');
+
+  // Fetch locked products for the selected period
+  const fetchLockedProducts = useCallback(async (periode) => {
+    if (!periode) return;
+    
+    try {
+      const response = await productsAPI.getLockedProducts(periode);
+      if (response.success && response.data) {
+        setLockedProductIds(response.data);
+        console.log(`Loaded ${response.data.length} locked products for periode ${periode}`);
+      } else {
+        setLockedProductIds([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch locked products:', error);
+      setLockedProductIds([]);
+    }
+  }, []);
+
+  // Helper function to check if a product is locked
+  const isProductLocked = useCallback((productId) => {
+    return lockedProductIds.includes(productId);
+  }, [lockedProductIds]);
 
   // Fetch default year on component mount
   useEffect(() => {
@@ -209,7 +235,7 @@ const Reagen = ({ user }) => {
     }
   };
 
-  // Load available products for Add New (Group_PNCategory = 8 and excluding existing reagen entries)
+  // Load available products for Add New (Group_PNCategory = 8 and excluding existing reagen entries and locked products)
   const loadAvailableProducts = async () => {
     try {
       if (productNames.length === 0) return;
@@ -217,14 +243,17 @@ const Reagen = ({ user }) => {
       // Get existing product IDs that already have reagen rates
       const existingProductIds = reagenData.map(item => item.productId);
       
-      // Filter for Group_PNCategory = 8 and exclude products that already have reagen entries
+      // Filter for Group_PNCategory = 8 and exclude products that:
+      // 1. Already have reagen entries
+      // 2. Are locked in Formula Assignment
       const available = productNames.filter(product => 
         product.Group_PNCategory === 8 && 
-        !existingProductIds.includes(product.Product_ID)
+        !existingProductIds.includes(product.Product_ID) &&
+        !isProductLocked(product.Product_ID)
       );
       
       setAvailableProducts(available);
-      console.log(`Available products for reagen (Group_PNCategory=8): ${available.length} items`);
+      console.log(`Available products for reagen (Group_PNCategory=8, excluding locked): ${available.length} items`);
     } catch (err) {
       console.error('Error loading available products:', err);
       setAvailableProducts([]);
@@ -240,6 +269,8 @@ const Reagen = ({ user }) => {
       loadProductNames();
       // Load reagen data immediately as well
       await loadReagenData();
+      // Fetch locked products for the default year
+      fetchLockedProducts(selectedPeriode);
     };
     loadInitialData();
   }, [periodeLoaded]);
@@ -249,9 +280,10 @@ const Reagen = ({ user }) => {
     if (!periodeLoaded) return; // Skip if periode hasn't been loaded yet
     if (productNames.length > 0) {
       loadReagenData();
+      fetchLockedProducts(selectedPeriode); // Fetch locked products when period changes
       setCurrentPage(1); // Reset to first page when changing year
     }
-  }, [selectedPeriode]);
+  }, [selectedPeriode, fetchLockedProducts]);
 
   // Re-map reagen data when product names are loaded
   useEffect(() => {
@@ -267,10 +299,10 @@ const Reagen = ({ user }) => {
     }
   }, [productNames]);
 
-  // Update available products when reagen data or product names change
+  // Update available products when reagen data, product names, or locked products change
   useEffect(() => {
     loadAvailableProducts();
-  }, [reagenData, productNames]);
+  }, [reagenData, productNames, lockedProductIds]);
 
   // Filter and search functionality
   useEffect(() => {
@@ -675,22 +707,53 @@ const Reagen = ({ user }) => {
     }
   };
 
-  // Perform bulk import (delete all, then insert)
+  // Perform bulk import (delete all except locked, then insert)
   const performBulkImport = async (validEntries) => {
     try {
       setLoading(true);
       notifier.info('Importing reagen data...');
 
-      // Step 1: Delete all existing entries for the selected periode
+      // Step 0: Fetch locked products for this period to exclude them
+      let lockedIds = [];
+      try {
+        const lockedResponse = await productsAPI.getLockedProducts(selectedPeriode);
+        if (lockedResponse.success && lockedResponse.data) {
+          lockedIds = lockedResponse.data;
+          if (lockedIds.length > 0) {
+            notifier.info(`Found ${lockedIds.length} locked products - their entries will be preserved.`);
+          }
+        }
+      } catch (lockErr) {
+        console.warn('Could not fetch locked products, proceeding with full import:', lockErr);
+      }
+
+      // Step 1: Filter out locked products from the import data
+      let entriesToImport = validEntries;
+      let skippedCount = 0;
+      if (lockedIds.length > 0) {
+        entriesToImport = validEntries.filter(entry => {
+          if (lockedIds.includes(entry.productId)) {
+            skippedCount++;
+            return false;
+          }
+          return true;
+        });
+        
+        if (skippedCount > 0) {
+          notifier.info(`Skipped ${skippedCount} entries for locked products.`);
+        }
+      }
+
+      // Step 2: Delete existing entries for the selected periode (excluding locked products)
       notifier.info(`Removing existing data for year ${selectedPeriode}...`);
-      const deleteResult = await reagenAPI.bulkDeleteByPeriode(selectedPeriode);
+      const deleteResult = await reagenAPI.bulkDeleteByPeriode(selectedPeriode, lockedIds);
       if (!deleteResult.success) {
         throw new Error(deleteResult.message || 'Failed to delete existing entries');
       }
 
-      // Step 2: Prepare entries for bulk insert with proper user tracking
+      // Step 3: Prepare entries for bulk insert with proper user tracking
       const userId = user?.logNIK || user?.nama || user?.inisialNama || 'SYSTEM';
-      const entriesToInsert = validEntries.map(entry => ({
+      const entriesToInsert = entriesToImport.map(entry => ({
         productId: entry.productId,
         reagenRate: entry.reagenRate,
         periode: selectedPeriode,
@@ -699,7 +762,7 @@ const Reagen = ({ user }) => {
         // Note: processDate is handled by the backend to ensure correct local timezone
       }));
 
-      // Step 3: Bulk insert new entries
+      // Step 4: Bulk insert new entries
       notifier.info('Inserting new data...');
       const insertResult = await reagenAPI.bulkInsert(entriesToInsert, userId);
       
@@ -707,10 +770,14 @@ const Reagen = ({ user }) => {
         throw new Error(insertResult.message || 'Failed to insert new entries');
       }
 
-      // Step 4: Reload data and notify success
+      // Step 5: Reload data and notify success
       await loadReagenData();
       
-      notifier.success(`Import completed successfully! Imported ${validEntries.length} entries for year ${selectedPeriode}.`);
+      let successMessage = `Import completed successfully! Imported ${entriesToImport.length} entries for year ${selectedPeriode}.`;
+      if (skippedCount > 0) {
+        successMessage += ` (${skippedCount} locked product entries skipped)`;
+      }
+      notifier.success(successMessage);
 
     } catch (error) {
       console.error('Error performing bulk import:', error);
@@ -896,6 +963,13 @@ const Reagen = ({ user }) => {
                           >
                             <X size={16} />
                           </button>
+                        </div>
+                      ) : isProductLocked(item.productId) ? (
+                        <div className="reagen-view-actions">
+                          <span className="locked-indicator" title="This product is locked in Formula Assignment">
+                            <Lock size={16} />
+                            Locked
+                          </span>
                         </div>
                       ) : (
                         <div className="reagen-view-actions">

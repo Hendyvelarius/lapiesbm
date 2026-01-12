@@ -498,3 +498,65 @@
   margin: 0;
   border-top: 1px solid #e5e7eb;
 }
+
+/* Lock indicator styles */
+.lock-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  color: #92400e;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+.lock-indicator svg {
+  color: #d97706;
+}
+
+/* Disabled button states */
+.biaya-lain-page .import-btn:disabled,
+.biaya-lain-page .add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #9ca3af;
+}
+
+.biaya-lain-page .import-btn:disabled:hover,
+.biaya-lain-page .add-btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.biaya-lain-page .edit-btn:disabled,
+.biaya-lain-page .delete-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.biaya-lain-page .edit-btn:disabled:hover,
+.biaya-lain-page .delete-btn:disabled:hover {
+  transform: none;
+  background: inherit;
+}
+
+/* Import modal locked period option styles */
+.import-periode-select option:disabled {
+  color: #9ca3af;
+  background-color: #f3f4f6;
+  font-style: italic;
+}
+
+.import-periode-hint {
+  display: block;
+  margin-top: 0.5rem;
+  color: #6b7280;
+}
+
+.import-periode-hint.locked-warning {
+  color: #dc2626;
+}

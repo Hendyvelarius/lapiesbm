@@ -1027,26 +1027,43 @@ async function deletePembebanan(pkId) {
 }
 
 // Bulk operations for pembebanan import - now deletes ALL entries (including default rates)
-async function bulkDeletePembebananByPeriode(periode, userId = "system") {
+// Optionally excludes locked products from deletion to preserve their rates
+async function bulkDeletePembebananByPeriode(periode, userId = "system", lockedProductIds = []) {
   try {
     const db = await connect();
     
-    // Delete all entries for the specified periode
-    const deleteQuery = `
-      DELETE FROM M_COGS_PEMBEBANAN
-      WHERE Group_Periode = @periode
-    `;
+    let deleteQuery;
+    const request = db.request().input('periode', sql.VarChar, periode);
     
-    const result = await db.request()
-      .input('periode', sql.VarChar, periode)
-      .query(deleteQuery);
+    // Delete all entries for the specified periode, excluding locked products
+    if (lockedProductIds && lockedProductIds.length > 0) {
+      // Build parameterized list for locked product IDs
+      const lockedParams = lockedProductIds.map((id, index) => `@locked${index}`);
+      lockedProductIds.forEach((id, index) => {
+        request.input(`locked${index}`, sql.NVarChar, id.toString());
+      });
+      
+      deleteQuery = `
+        DELETE FROM M_COGS_PEMBEBANAN
+        WHERE Group_Periode = @periode
+        AND (Group_ProductID IS NULL OR Group_ProductID NOT IN (${lockedParams.join(', ')}))
+      `;
+    } else {
+      deleteQuery = `
+        DELETE FROM M_COGS_PEMBEBANAN
+        WHERE Group_Periode = @periode
+      `;
+    }
+    
+    const result = await request.query(deleteQuery);
     
     return {
       success: true,
       rowsAffected: result.rowsAffected[0],
       operation: 'bulk_delete_by_periode',
       periode: periode,
-      userId: userId
+      userId: userId,
+      excludedLocked: lockedProductIds.length
     };
   } catch (error) {
     console.error('Error executing bulkDeletePembebanانByPeriode query:', error);
@@ -1558,25 +1575,41 @@ async function deleteEntireFormulaManual(ppiType, ppiSubId, ppiProductId) {
   }
 }
 
-async function bulkDeleteProductGroupByPeriode(periode) {
+async function bulkDeleteProductGroupByPeriode(periode, lockedProductIds = []) {
   try {
     const db = await connect();
     
-    // Delete all groups for the specified periode
-    const deleteQuery = `
-      DELETE FROM M_COGS_PRODUCT_GROUP_MANUAL 
-      WHERE Periode = @periode
-    `;
+    let deleteQuery;
+    const request = db.request().input('periode', sql.NVarChar, periode.toString());
     
-    const result = await db.request()
-      .input('periode', sql.NVarChar, periode.toString())
-      .query(deleteQuery);
+    // Delete all groups for the specified periode, excluding locked products
+    if (lockedProductIds && lockedProductIds.length > 0) {
+      // Build parameterized list for locked product IDs
+      const lockedParams = lockedProductIds.map((id, index) => `@locked${index}`);
+      lockedProductIds.forEach((id, index) => {
+        request.input(`locked${index}`, sql.NVarChar, id.toString());
+      });
+      
+      deleteQuery = `
+        DELETE FROM M_COGS_PRODUCT_GROUP_MANUAL 
+        WHERE Periode = @periode
+        AND Group_ProductID NOT IN (${lockedParams.join(', ')})
+      `;
+    } else {
+      deleteQuery = `
+        DELETE FROM M_COGS_PRODUCT_GROUP_MANUAL 
+        WHERE Periode = @periode
+      `;
+    }
+    
+    const result = await request.query(deleteQuery);
     
     return {
       success: true,
       rowsAffected: result.rowsAffected[0],
       operation: 'bulk_delete_by_periode',
-      periode: periode
+      periode: periode,
+      excludedLocked: lockedProductIds.length
     };
   } catch (error) {
     console.error('Error executing bulkDeleteProductGroupByPeriode query:', error);

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, Edit, Trash2, X, Check, Download, Upload } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Search, Filter, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, Edit, Trash2, X, Check, Download, Upload, Lock } from 'lucide-react';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import * as XLSX from 'xlsx';
@@ -31,6 +31,9 @@ const TollFee = ({ user }) => {
   const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear().toString());
   const [periodeLoaded, setPeriodeLoaded] = useState(false); // Prevent race condition with default year
   const availableKategori = ['Toll In', 'Toll Out', 'Import', 'Lapi'];
+  
+  // Lock state - products that are locked in Formula Assignment
+  const [lockedProductIds, setLockedProductIds] = useState([]);
   
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -255,28 +258,52 @@ const TollFee = ({ user }) => {
         !item.Toll_Fee || item.Toll_Fee === '' || item.Toll_Fee === null
       );
       
-      // Transform to expected format
-      const transformed = unassignedProducts.map(item => ({
-        Product_ID: item.productid,
-        Product_Name: item.Product_Name,
-        LOB: item.LOB || '',
-        Jenis_Sediaan: item.Jenis_Sediaan || '',
-        Group_Dept: item.Group_Dept || ''
-      }));
+      // Transform to expected format, filtering out locked products
+      const transformed = unassignedProducts
+        .filter(item => !lockedProductIds.includes(item.productid)) // Exclude locked products
+        .map(item => ({
+          Product_ID: item.productid,
+          Product_Name: item.Product_Name,
+          LOB: item.LOB || '',
+          Jenis_Sediaan: item.Jenis_Sediaan || '',
+          Group_Dept: item.Group_Dept || ''
+        }));
       
       setAvailableProducts(transformed);
-      console.log(`Loaded ${transformed.length} available products for ${selectedKategori} ${periode}`);
+      console.log(`Loaded ${transformed.length} available products for ${selectedKategori} ${periode} (excluding locked)`);
     } catch (err) {
       console.error('Error loading available products:', err);
       setAvailableProducts([]);
     }
   };
 
+  // Fetch locked products from API
+  const fetchLockedProducts = useCallback(async (periode) => {
+    try {
+      const response = await productsAPI.getLockedProducts(periode);
+      if (response.success && response.data) {
+        setLockedProductIds(response.data);
+        console.log(`Loaded ${response.data.length} locked products for period ${periode}`);
+      } else {
+        setLockedProductIds([]);
+      }
+    } catch (error) {
+      console.error('Error fetching locked products:', error);
+      setLockedProductIds([]);
+    }
+  }, []);
+
+  // Helper to check if a product is locked
+  const isProductLocked = (productId) => {
+    return lockedProductIds.includes(productId);
+  };
+
   // Initial data load - wait for periode to be loaded first
   useEffect(() => {
     if (!periodeLoaded) return; // Don't fetch until default year is loaded
     loadTollFeeData();
-  }, [selectedKategori, selectedPeriode, periodeLoaded]);
+    fetchLockedProducts(selectedPeriode);
+  }, [selectedKategori, selectedPeriode, periodeLoaded, fetchLockedProducts]);
 
   // Re-map toll fee data when product names are loaded - REMOVED (no longer needed with view)
   
@@ -784,22 +811,53 @@ const TollFee = ({ user }) => {
     }
   };
 
-  // Perform bulk import (delete by periode, then insert)
+  // Perform bulk import (delete by periode except locked, then insert)
   const performBulkImport = async (validEntries) => {
     try {
       setLoading(true);
       notifier.info('Importing margin data...');
 
-      // Step 1: Delete all existing entries for the selected periode
+      // Step 0: Fetch locked products for this period to exclude them
+      let lockedIds = [];
+      try {
+        const lockedResponse = await productsAPI.getLockedProducts(selectedPeriode);
+        if (lockedResponse.success && lockedResponse.data) {
+          lockedIds = lockedResponse.data;
+          if (lockedIds.length > 0) {
+            notifier.info(`Found ${lockedIds.length} locked products - their entries will be preserved.`);
+          }
+        }
+      } catch (lockErr) {
+        console.warn('Could not fetch locked products, proceeding with full import:', lockErr);
+      }
+
+      // Step 1: Filter out locked products from the import data
+      let entriesToImport = validEntries;
+      let skippedCount = 0;
+      if (lockedIds.length > 0) {
+        entriesToImport = validEntries.filter(entry => {
+          if (lockedIds.includes(entry.productId)) {
+            skippedCount++;
+            return false;
+          }
+          return true;
+        });
+        
+        if (skippedCount > 0) {
+          notifier.info(`Skipped ${skippedCount} entries for locked products.`);
+        }
+      }
+
+      // Step 2: Delete existing entries for the selected periode (excluding locked products)
       notifier.info(`Removing existing data for year ${selectedPeriode}...`);
-      const deleteResult = await tollFeeAPI.bulkDeleteByPeriode(selectedPeriode);
+      const deleteResult = await tollFeeAPI.bulkDeleteByPeriode(selectedPeriode, lockedIds);
       if (!deleteResult.success) {
         throw new Error(deleteResult.message || 'Failed to delete existing entries');
       }
 
-      // Step 2: Prepare entries for bulk insert with proper user tracking
+      // Step 3: Prepare entries for bulk insert with proper user tracking
       const userId = user?.logNIK || user?.nama || user?.inisialNama || 'SYSTEM';
-      const entriesToInsert = validEntries.map(entry => ({
+      const entriesToInsert = entriesToImport.map(entry => ({
         productId: entry.productId,
         tollFeeRate: entry.tollFeeRate,
         rounded: entry.rounded,
@@ -809,7 +867,7 @@ const TollFee = ({ user }) => {
         // Note: processDate is handled by the backend to ensure correct local timezone
       }));
 
-      // Step 3: Bulk insert new entries
+      // Step 4: Bulk insert new entries
       notifier.info('Inserting new data...');
       const insertResult = await tollFeeAPI.bulkInsert(entriesToInsert, userId);
       
@@ -817,16 +875,16 @@ const TollFee = ({ user }) => {
         throw new Error(insertResult.message || 'Failed to insert new entries');
       }
 
-      // Step 4: Reload data and notify success
+      // Step 5: Reload data and notify success
       await loadTollFeeData();
       
-      notifier.success(`Import completed successfully! Imported ${validEntries.length} entries for year ${selectedPeriode}.`);
+      let successMessage = `Import completed successfully! Imported ${entriesToImport.length} entries for year ${selectedPeriode}.`;
+      if (skippedCount > 0) {
+        successMessage += ` (${skippedCount} locked product entries skipped)`;
+      }
+      notifier.success(successMessage);
 
     } catch (error) {
-      console.error('Error performing bulk import:', error);
-      notifier.alert('Import failed: ' + error.message);
-      
-      // Reload data to refresh the current state    } catch (error) {
       console.error('Error performing bulk import:', error);
       notifier.alert('Import failed: ' + error.message);
       
@@ -1052,6 +1110,13 @@ const TollFee = ({ user }) => {
                           >
                             <X size={16} />
                           </button>
+                        </div>
+                      ) : isProductLocked(item.productId) ? (
+                        <div className="toll-fee-view-actions">
+                          <span className="locked-indicator" title="This product is locked in Formula Assignment">
+                            <Lock size={16} />
+                            Locked
+                          </span>
                         </div>
                       ) : (
                         <div className="toll-fee-view-actions">

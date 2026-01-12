@@ -440,26 +440,42 @@ class TollFeeModel {
     }
   }
 
-  // Bulk delete toll fee entries by Periode
-  static async bulkDeleteTollFeeByPeriode(periode) {
+  // Bulk delete toll fee entries by Periode (excluding locked products)
+  static async bulkDeleteTollFeeByPeriode(periode, lockedProductIds = []) {
     try {
       const pool = await connect();
       
-      // Delete all entries for the specified periode
-      const query = `
-        DELETE FROM M_COGS_PEMBEBANAN_TollFee
-        WHERE Periode = @periode
-      `;
+      let deleteQuery;
+      const request = pool.request().input('periode', sql.VarChar, periode);
       
-      const result = await pool.request()
-        .input('periode', sql.VarChar, periode)
-        .query(query);
+      // Delete all entries for the specified periode, excluding locked products
+      if (lockedProductIds && lockedProductIds.length > 0) {
+        // Build parameterized list for locked product IDs
+        const lockedParams = lockedProductIds.map((id, index) => `@locked${index}`);
+        lockedProductIds.forEach((id, index) => {
+          request.input(`locked${index}`, sql.NVarChar, id.toString());
+        });
+        
+        deleteQuery = `
+          DELETE FROM M_COGS_PEMBEBANAN_TollFee
+          WHERE Periode = @periode
+          AND ProductID NOT IN (${lockedParams.join(', ')})
+        `;
+      } else {
+        deleteQuery = `
+          DELETE FROM M_COGS_PEMBEBANAN_TollFee
+          WHERE Periode = @periode
+        `;
+      }
+      
+      const result = await request.query(deleteQuery);
       
       return {
         deleted: true,
         operation: 'bulk_delete_by_periode',
         deletedCount: result.rowsAffected[0],
-        periode
+        periode,
+        excludedLocked: lockedProductIds.length
       };
     } catch (error) {
       console.error('Error executing bulkDeleteTollFeeByPeriode query:', error);

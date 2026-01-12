@@ -1234,3 +1234,26 @@
   border: 1px solid #c4b5fd;
 }
 
+/* Locked indicator styles */
+.locked-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.6rem;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  color: #92400e;
+  font-size: 0.75rem;
+  font-weight: 600;
+  gap: 0.25rem;
+}
+
+.locked-indicator svg {
+  color: #d97706;
+}
+
+/* Ensure locked rows have a subtle visual indicator */
+.pembebanan-container tr:has(.locked-indicator) {
+  background-color: rgba(254, 243, 199, 0.3);
+}

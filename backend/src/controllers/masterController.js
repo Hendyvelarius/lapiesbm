@@ -870,7 +870,7 @@ class MasterController {
 
     static async bulkImportProductGroupAll(req, res) {
         try {
-            const { productData, periode, userId = "SYSTEM" } = req.body;
+            const { productData, periode, userId = "SYSTEM", lockedProductIds = [] } = req.body;
             
             // Validate required fields
             if (!productData || !Array.isArray(productData) || productData.length === 0) {
@@ -903,20 +903,27 @@ class MasterController {
             // Call model functions for bulk delete and insert
             const { bulkDeleteProductGroupByPeriode, bulkInsertProductGroup } = require('../models/sqlModel');
             
-            // Delete existing data for this periode
-            const deleteResult = await bulkDeleteProductGroupByPeriode(periode);
+            // Delete existing data for this periode (excluding locked products)
+            const deleteResult = await bulkDeleteProductGroupByPeriode(periode, lockedProductIds);
             
             // Insert new data with periode
             const insertResult = await bulkInsertProductGroup(productData, periode, userId);
             
+            const skippedCount = lockedProductIds.length;
+            let message = `Bulk import completed successfully for year ${periode}. Deleted ${deleteResult.rowsAffected} old records, inserted ${insertResult.rowsAffected} new records.`;
+            if (skippedCount > 0) {
+                message += ` ${skippedCount} locked products were preserved.`;
+            }
+            
             res.status(200).json({
                 success: true,
-                message: `Bulk import completed successfully for year ${periode}. Deleted ${deleteResult.rowsAffected} old records, inserted ${insertResult.rowsAffected} new records.`,
+                message: message,
                 rowsAffected: insertResult.rowsAffected,
                 data: {
                     deleted: deleteResult.rowsAffected,
                     inserted: insertResult.rowsAffected,
                     processed: productData.length,
+                    skippedLocked: skippedCount,
                     periode: periode
                 }
             });
@@ -1113,7 +1120,7 @@ class MasterController {
 
     static async bulkImportPembebanan(req, res) {
         try {
-            const { pembebanانData, userId = "system", periode = null } = req.body;
+            const { pembebanانData, userId = "system", periode = null, lockedProductIds = [] } = req.body;
             
             // Validate required fields
             if (!pembebanانData || !Array.isArray(pembebanانData) || pembebanانData.length === 0) {
@@ -1167,7 +1174,8 @@ class MasterController {
             }
             
             // Perform bulk delete by periode first, then bulk insert
-            const deleteResult = await bulkDeletePembebananByPeriode(importPeriode, userId);
+            // Pass lockedProductIds to exclude locked products from deletion
+            const deleteResult = await bulkDeletePembebananByPeriode(importPeriode, userId, lockedProductIds || []);
             
             // Transform data for bulk insert - handle both default rates and custom rates
             const insertData = pembebanانData.map(row => ({

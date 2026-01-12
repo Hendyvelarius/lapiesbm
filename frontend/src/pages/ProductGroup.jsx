@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { masterAPI, productsAPI } from '../services/api';
 import '../styles/ProductGroup.css';
-import { Search, Filter, Edit, Trash2, Users, ChevronLeft, ChevronRight, X, Check, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, Download, Upload } from 'lucide-react';
+import { Search, Filter, Edit, Trash2, Users, ChevronLeft, ChevronRight, X, Check, ChevronUp, ChevronDown, ToggleLeft, ToggleRight, Download, Upload, Lock } from 'lucide-react';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -55,12 +55,41 @@ const ProductGroup = () => {
   const [importFile, setImportFile] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
 
+  // Lock status state - tracks which products are locked for the selected period
+  const [lockedProductIds, setLockedProductIds] = useState([]);
+  const [lockCheckLoading, setLockCheckLoading] = useState(false);
+
   // Get current user from auth
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   // Dropdown options
   const [categoryOptions, setCategoryOptions] = useState([]);
   const [deptOptions, setDeptOptions] = useState([]);
+
+  // Fetch locked products for the selected period
+  const fetchLockedProducts = useCallback(async (periode) => {
+    if (!periode) return;
+    
+    try {
+      setLockCheckLoading(true);
+      const result = await productsAPI.getLockedProducts(periode.toString());
+      if (result.success && result.data) {
+        setLockedProductIds(result.data);
+      } else {
+        setLockedProductIds([]);
+      }
+    } catch (error) {
+      console.error('Error fetching locked products:', error);
+      setLockedProductIds([]);
+    } finally {
+      setLockCheckLoading(false);
+    }
+  }, []);
+
+  // Check if a product is locked
+  const isProductLocked = useCallback((productId) => {
+    return lockedProductIds.includes(productId);
+  }, [lockedProductIds]);
 
   // Fetch default year on component mount
   useEffect(() => {
@@ -85,7 +114,8 @@ const ProductGroup = () => {
   useEffect(() => {
     if (!periodeLoaded) return; // Don't fetch until default year is loaded
     fetchAllData();
-  }, [selectedPeriode, periodeLoaded]); // Refetch when periode changes
+    fetchLockedProducts(selectedPeriode); // Fetch locked products when period changes
+  }, [selectedPeriode, periodeLoaded, fetchLockedProducts]); // Refetch when periode changes
 
   useEffect(() => {
     filterData();
@@ -700,6 +730,18 @@ const ProductGroup = () => {
     try {
       setImportLoading(true);
 
+      // First, fetch locked products for the selected import year
+      let lockedIds = [];
+      try {
+        const lockResult = await productsAPI.getLockedProducts(selectedYear.toString());
+        if (lockResult.success && lockResult.data) {
+          lockedIds = lockResult.data;
+        }
+      } catch (error) {
+        console.error('Error checking locked products:', error);
+        // Continue with import even if lock check fails
+      }
+
       // Import xlsx library dynamically
       const XLSX = await import('xlsx');
       
@@ -759,14 +801,27 @@ const ProductGroup = () => {
         return;
       }
 
+      // Filter out locked products from import data
+      const skippedLockedProducts = allData.filter(item => lockedIds.includes(item.productId));
+      const dataToImport = allData.filter(item => !lockedIds.includes(item.productId));
+
+      if (dataToImport.length === 0 && skippedLockedProducts.length > 0) {
+        notifier.warning(`All ${skippedLockedProducts.length} products in the file are locked and cannot be imported.`);
+        return;
+      }
+
       // Get user ID
       const userId = user?.logNIK || 'SYSTEM';
 
-      // Call API to bulk import
-      const response = await masterAPI.bulkImportProductGroup(allData, selectedYear, userId);
+      // Call API to bulk import with locked product IDs to exclude from deletion
+      const response = await masterAPI.bulkImportProductGroup(dataToImport, selectedYear, userId, lockedIds);
 
       if (response.success) {
-        notifier.success(`Successfully imported ${response.rowsAffected} products for year ${selectedYear}`);
+        let message = `Successfully imported ${response.rowsAffected} products for year ${selectedYear}`;
+        if (skippedLockedProducts.length > 0) {
+          message += `. ${skippedLockedProducts.length} locked products were skipped.`;
+        }
+        notifier.success(message);
         setShowImportAllModal(false);
         setImportFile(null);
         setSelectedYear('');
@@ -1142,21 +1197,29 @@ const ProductGroup = () => {
                       {/* Actions column - only show in Generik mode */}
                       {viewMode === 'Generik' && (
                         <td className={`actions display-mode ${isInManual(item.productId) ? 'multiple-buttons' : 'single-button'}`}>
-                          <button 
-                            className="edit-btn"
-                            onClick={() => handleEditClick(item)}
-                            title="Edit Group"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          {isInManual(item.productId) && (
-                            <button 
-                              className="delete-btn"
-                              onClick={() => handleDeleteClick(item)}
-                              title="Delete Group"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                          {isProductLocked(item.productId) ? (
+                            <div className="locked-indicator" title="This product is locked in Formula Assignment">
+                              <Lock size={16} />
+                            </div>
+                          ) : (
+                            <>
+                              <button 
+                                className="edit-btn"
+                                onClick={() => handleEditClick(item)}
+                                title="Edit Group"
+                              >
+                                <Edit size={16} />
+                              </button>
+                              {isInManual(item.productId) && (
+                                <button 
+                                  className="delete-btn"
+                                  onClick={() => handleDeleteClick(item)}
+                                  title="Delete Group"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </>
                           )}
                         </td>
                       )}

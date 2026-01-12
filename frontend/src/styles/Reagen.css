@@ -422,6 +422,25 @@
   cursor: not-allowed !important;
 }
 
+/* Locked Product Indicator */
+.locked-indicator {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  color: #856404 !important;
+  background-color: #fff3cd !important;
+  padding: 4px 10px !important;
+  border-radius: 12px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  white-space: nowrap !important;
+}
+
+.locked-indicator svg {
+  width: 14px !important;
+  height: 14px !important;
+}
+
 /* Reagen No Data Message */
 .reagen-no-data {
   text-align: center !important;

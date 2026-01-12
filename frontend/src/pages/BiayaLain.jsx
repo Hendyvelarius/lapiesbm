@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { masterAPI } from '../services/api';
+import React, { useState, useEffect, useCallback } from 'react';
+import { masterAPI, productsAPI } from '../services/api';
 import '../styles/BiayaLain.css';
-import { Search, Filter, Users, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, Edit, Trash2, X, Check, Download, Upload } from 'lucide-react';
+import { Search, Filter, Users, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, Edit, Trash2, X, Check, Download, Upload, Lock } from 'lucide-react';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import * as XLSX from 'xlsx';
@@ -60,6 +60,58 @@ const BiayaLain = () => {
   const [importPreviewData, setImportPreviewData] = useState([]);
   const [showImportPreview, setShowImportPreview] = useState(false);
   const [importFilePeriodesDetected, setImportFilePeriodesDetected] = useState([]);
+
+  // Lock status state - when true, editing/importing/deleting is disabled
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockCheckLoading, setLockCheckLoading] = useState(false);
+  const [lockedPeriods, setLockedPeriods] = useState([]); // Track all locked periods for import modal
+
+  // Check if any products are locked for the selected period
+  const checkLockedProducts = useCallback(async (periode) => {
+    if (!periode || periode === 'All Periods') {
+      // For 'All Periods', don't set locked - we handle import separately
+      setIsLocked(false);
+      return;
+    }
+    
+    try {
+      setLockCheckLoading(true);
+      const result = await productsAPI.getLockedProducts(periode);
+      if (result.success && result.count > 0) {
+        setIsLocked(true);
+      } else {
+        setIsLocked(false);
+      }
+    } catch (error) {
+      console.error('Error checking locked products:', error);
+      setIsLocked(false);
+    } finally {
+      setLockCheckLoading(false);
+    }
+  }, []);
+
+  // Fetch locked status for all available periods (for import modal filtering)
+  const fetchAllLockedPeriods = useCallback(async (periods) => {
+    if (!periods || periods.length === 0) return;
+    
+    const locked = [];
+    for (const periode of periods) {
+      try {
+        const result = await productsAPI.getLockedProducts(periode);
+        if (result.success && result.count > 0) {
+          locked.push(periode);
+        }
+      } catch (error) {
+        console.error(`Error checking lock status for ${periode}:`, error);
+      }
+    }
+    setLockedPeriods(locked);
+  }, []);
+
+  // Check lock status when selected period changes
+  useEffect(() => {
+    checkLockedProducts(selectedPeriode);
+  }, [selectedPeriode, checkLockedProducts]);
 
   // Fetch all data
   const fetchAllData = async () => {
@@ -184,6 +236,13 @@ const BiayaLain = () => {
   const uniquePeriodes = [...new Set(processedData.map(item => item.periode))].sort().reverse();
   const uniqueLineProductions = [...new Set(processedData.map(item => item.lineProduction))].sort();
   const uniqueBentukSediaanList = [...new Set(processedData.map(item => item.bentukSediaan))].sort();
+
+  // Fetch locked periods when unique periods are available
+  useEffect(() => {
+    if (uniquePeriodes.length > 0) {
+      fetchAllLockedPeriods(uniquePeriodes);
+    }
+  }, [uniquePeriodes.join(','), fetchAllLockedPeriods]); // Use join to avoid reference issues
 
   // Available options for dropdowns
   const availablePeriodes = uniquePeriodes.length > 0 ? uniquePeriodes : [new Date().getFullYear().toString()];
@@ -432,7 +491,20 @@ const BiayaLain = () => {
 
   // Import function - opens modal for periode selection
   const handleImportGeneralCosts = () => {
-    setImportPeriode('all');
+    // Check if import is disabled due to "All Periods" selection
+    if (selectedPeriode === 'All Periods') {
+      notifier.info('Import must be done on a year-by-year basis. Please select a specific period first.');
+      return;
+    }
+    
+    // Check if import is disabled due to lock
+    if (isLocked) {
+      notifier.warning('Import disabled - products are locked for the selected period.');
+      return;
+    }
+    
+    // Set the import periode to the currently selected periode (not 'all')
+    setImportPeriode(selectedPeriode);
     setImportPreviewData([]);
     setImportFilePeriodesDetected([]);
     setShowImportWarning(true);
@@ -504,32 +576,16 @@ const BiayaLain = () => {
         const fileperiodes = [...new Set(validatedData.map(item => item.periode))];
         setImportFilePeriodesDetected(fileperiodes);
 
-        // Handle validation based on selected import periode
-        if (importPeriode === 'all') {
-          // If importing all periods, file must have multiple periodes
-          if (fileperiodes.length === 1) {
-            notifier.alert(`The uploaded file only contains data for a single year (${fileperiodes[0]}). Please select that specific year in the import options instead of "All Periods".`);
-            setLoading(false);
-            return;
-          }
-          // Show preview with all data
-          setImportPreviewData(validatedData);
-        } else {
-          // Filter data for the selected periode only
-          const filteredForPeriode = validatedData.filter(item => item.periode === importPeriode);
-          
-          if (filteredForPeriode.length === 0) {
-            notifier.alert(`No data found for periode ${importPeriode} in the uploaded file. The file contains data for: ${fileperiodes.join(', ')}`);
-            setLoading(false);
-            return;
-          }
-          
-          setImportPreviewData(filteredForPeriode);
+        // Filter data for the selected periode only (since we only support year-by-year imports now)
+        const filteredForPeriode = validatedData.filter(item => item.periode === importPeriode);
+        
+        if (filteredForPeriode.length === 0) {
+          notifier.alert(`No data found for periode ${importPeriode} in the uploaded file. The file contains data for: ${fileperiodes.join(', ')}`);
+          setLoading(false);
+          return;
         }
-
-        // Close warning modal and show preview
-        setShowImportWarning(false);
-        setShowImportPreview(true);
+        
+        setImportPreviewData(filteredForPeriode);
 
       } catch (error) {
         console.error('Error processing import file:', error);
@@ -549,7 +605,7 @@ const BiayaLain = () => {
     try {
       setLoading(true);
       
-      const result = await masterAPI.bulkImportGeneralCostsPerSediaan(importPreviewData, importPeriode === 'all' ? 'all' : importPeriode);
+      const result = await masterAPI.bulkImportGeneralCostsPerSediaan(importPreviewData, importPeriode);
       await fetchAllData();
 
       // Close modals and reset state
@@ -557,8 +613,7 @@ const BiayaLain = () => {
       setImportPreviewData([]);
       setImportFilePeriodesDetected([]);
 
-      const periodeMessage = importPeriode === 'all' ? 'all periods' : `periode ${importPeriode}`;
-      notifier.success(`Import completed successfully for ${periodeMessage}! Deleted: ${result.data.deleted} old records, Inserted: ${result.data.inserted} new records`, {
+      notifier.success(`Import completed successfully for periode ${importPeriode}! Deleted: ${result.data.deleted} old records, Inserted: ${result.data.inserted} new records`, {
         durations: { success: 6000 }
       });
 
@@ -758,15 +813,36 @@ const BiayaLain = () => {
             Export
           </button>
           
-          <button className="import-btn" onClick={handleImportGeneralCosts}>
+          <button 
+            className="import-btn" 
+            onClick={handleImportGeneralCosts}
+            disabled={isLocked || selectedPeriode === 'All Periods'}
+            title={selectedPeriode === 'All Periods' 
+              ? 'Import must be done year by year - please select a specific period' 
+              : isLocked 
+                ? 'Import disabled - products are locked for the selected period' 
+                : 'Import data'}
+          >
             <Upload size={20} />
             Import
           </button>
           
-          <button className="add-btn" onClick={() => setShowAddModal(true)}>
+          <button 
+            className="add-btn" 
+            onClick={() => setShowAddModal(true)}
+            disabled={isLocked}
+            title={isLocked ? 'Add disabled - products are locked for the selected period' : 'Add new entry'}
+          >
             <Plus size={20} />
             Add New
           </button>
+
+          {isLocked && (
+            <div className="lock-indicator" title="Period is locked - editing is disabled">
+              <Lock size={18} />
+              <span>Period Locked</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -883,14 +959,16 @@ const BiayaLain = () => {
                         <button 
                           className="edit-btn"
                           onClick={() => handleEdit(item)}
-                          title="Edit General Cost"
+                          title={isLocked ? 'Edit disabled - period is locked' : 'Edit General Cost'}
+                          disabled={isLocked}
                         >
                           <Edit size={16} />
                         </button>
                         <button 
                           className="delete-btn"
                           onClick={() => handleDelete(item)}
-                          title="Delete General Cost"
+                          title={isLocked ? 'Delete disabled - period is locked' : 'Delete General Cost'}
+                          disabled={isLocked}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -1192,14 +1270,22 @@ const BiayaLain = () => {
                   onChange={(e) => setImportPeriode(e.target.value)}
                   className="import-periode-select"
                 >
-                  <option value="all">All Periods (Multi-year file)</option>
-                  {getAvailableImportPeriodes().map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
+                  {getAvailableImportPeriodes().map(year => {
+                    const isPeriodLocked = lockedPeriods.includes(year);
+                    return (
+                      <option 
+                        key={year} 
+                        value={year}
+                        disabled={isPeriodLocked}
+                      >
+                        {year}{isPeriodLocked ? ' (Locked)' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
                 <small className="import-periode-hint">
-                  {importPeriode === 'all' 
-                    ? 'Select this when importing a file with multiple years. File must contain more than one year.'
+                  {lockedPeriods.includes(importPeriode)
+                    ? `Period ${importPeriode} is locked - please select a different period.`
                     : `Only data for ${importPeriode} will be imported. Existing ${importPeriode} data will be replaced.`
                   }
                 </small>
@@ -1218,10 +1304,7 @@ const BiayaLain = () => {
               </ul>
               
               <div className="import-warning-note">
-                <strong>Note:</strong> {importPeriode === 'all' 
-                  ? 'This will replace ALL existing general cost entries with the data from your file.'
-                  : `This will replace existing entries for periode ${importPeriode} only.`
-                }
+                <strong>Note:</strong> This will replace existing entries for periode {importPeriode} only.
               </div>
             </div>
             
@@ -1235,6 +1318,8 @@ const BiayaLain = () => {
               <button 
                 className="modal-btn primary" 
                 onClick={handleImportConfirm}
+                disabled={lockedPeriods.includes(importPeriode)}
+                title={lockedPeriods.includes(importPeriode) ? 'Cannot import to a locked period' : 'Select file to import'}
               >
                 Select File
               </button>

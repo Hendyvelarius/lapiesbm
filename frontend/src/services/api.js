@@ -464,9 +464,10 @@ export const masterAPI = {
   
   // Bulk import Generik groups
   // Bulk import all product groups with year (periode)
-  bulkImportProductGroup: (productData, periode, userId) => apiRequest('/master/group/bulk-import-all', {
+  // lockedProductIds: array of product IDs that should not be deleted during import (locked in Formula Assignment)
+  bulkImportProductGroup: (productData, periode, userId, lockedProductIds = []) => apiRequest('/master/group/bulk-import-all', {
     method: 'POST',
-    body: JSON.stringify({ productData, periode, userId }),
+    body: JSON.stringify({ productData, periode, userId, lockedProductIds }),
   }),
   
   // Get product names
@@ -492,10 +493,10 @@ export const masterAPI = {
     method: 'DELETE',
   }),
   
-  // Bulk import pembebanan
-  bulkImportPembebanan: (pembebanانData, userId = 'system', periode = null) => apiRequest('/master/pembebanan/bulk-import', {
+  // Bulk import pembebanan (lockedProductIds are excluded from deletion to preserve locked products)
+  bulkImportPembebanan: (pembebanانData, userId = 'system', periode = null, lockedProductIds = []) => apiRequest('/master/pembebanan/bulk-import', {
     method: 'POST',
-    body: JSON.stringify({ pembebanانData, userId, periode }),
+    body: JSON.stringify({ pembebanانData, userId, periode, lockedProductIds }),
   }),
   
   // Get material data (optionally filtered by periode)
@@ -587,9 +588,10 @@ export const reagenAPI = {
     body: JSON.stringify({ ids }),
   }),
 
-  // Bulk delete reagen entries by Periode
-  bulkDeleteByPeriode: (periode) => apiRequest(`/reagen/bulk/delete/periode/${encodeURIComponent(periode)}`, {
+  // Bulk delete reagen entries by Periode (lockedProductIds are excluded to preserve locked products)
+  bulkDeleteByPeriode: (periode, lockedProductIds = []) => apiRequest(`/reagen/bulk/delete/periode/${encodeURIComponent(periode)}`, {
     method: 'DELETE',
+    body: JSON.stringify({ lockedProductIds }),
   }),
 
   // Bulk insert reagen entries (for import)
@@ -672,9 +674,10 @@ export const tollFeeAPI = {
     body: JSON.stringify({ ids }),
   }),
 
-  // Bulk delete toll fee entries by Periode
-  bulkDeleteByPeriode: (periode) => apiRequest(`/toll-fee/bulk/delete/periode/${encodeURIComponent(periode)}`, {
+  // Bulk delete toll fee entries by Periode (lockedProductIds are excluded to preserve locked products)
+  bulkDeleteByPeriode: (periode, lockedProductIds = []) => apiRequest(`/toll-fee/bulk/delete/periode/${encodeURIComponent(periode)}`, {
     method: 'DELETE',
+    body: JSON.stringify({ lockedProductIds }),
   }),
 
   // Bulk insert toll fee entries (for import)

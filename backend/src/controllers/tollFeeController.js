@@ -431,10 +431,11 @@ class TollFeeController {
     }
   }
 
-  // Bulk delete toll fee entries by Periode
+  // Bulk delete toll fee entries by Periode (with optional locked product exclusion)
   static async bulkDeleteTollFeeByPeriode(req, res) {
     try {
       const { periode } = req.params;
+      const { lockedProductIds } = req.body || {};
       
       if (!periode || periode.trim() === '') {
         return res.status(400).json({
@@ -443,12 +444,17 @@ class TollFeeController {
         });
       }
       
-      const result = await TollFeeModel.bulkDeleteTollFeeByPeriode(periode.trim());
+      const result = await TollFeeModel.bulkDeleteTollFeeByPeriode(periode.trim(), lockedProductIds || []);
+      
+      let message = `Successfully deleted ${result.deletedCount} toll fee entries for year ${periode}`;
+      if (result.excludedLocked > 0) {
+        message += ` (${result.excludedLocked} locked products preserved)`;
+      }
       
       res.status(200).json({
         success: true,
         data: result,
-        message: `Successfully deleted ${result.deletedCount} toll fee entries for year ${periode}`
+        message
       });
     } catch (error) {
       console.error('Error in bulkDeleteTollFeeByPeriode controller:', error);

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { masterAPI, productsAPI } from '../services/api';
 import '../styles/Pembebanan.css';
-import { Search, Filter, Users, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, Edit, Trash2, X, Check, Download, Upload } from 'lucide-react';
+import { Search, Filter, Users, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, Edit, Trash2, X, Check, Download, Upload, Lock } from 'lucide-react';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import * as XLSX from 'xlsx';
@@ -68,10 +68,44 @@ const Pembebanan = () => {
   const [showImportWarning, setShowImportWarning] = useState(false);
   const [importPeriode, setImportPeriode] = useState(new Date().getFullYear().toString());
   
+  // Lock status state - tracks locked products for the selected period
+  const [lockedProductIds, setLockedProductIds] = useState([]);
+  const [hasAnyLockedProducts, setHasAnyLockedProducts] = useState(false);
+  const [lockCheckLoading, setLockCheckLoading] = useState(false);
+  
   // Dropdown states for Add modal
   const [availableGroups, setAvailableGroups] = useState([]);
   const [availableProducts, setAvailableProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
+
+  // Fetch locked products for the selected period
+  const fetchLockedProducts = useCallback(async (periode) => {
+    if (!periode) return;
+    
+    try {
+      setLockCheckLoading(true);
+      const result = await productsAPI.getLockedProducts(periode.toString());
+      if (result.success && result.data) {
+        setLockedProductIds(result.data);
+        setHasAnyLockedProducts(result.data.length > 0);
+      } else {
+        setLockedProductIds([]);
+        setHasAnyLockedProducts(false);
+      }
+    } catch (error) {
+      console.error('Error fetching locked products:', error);
+      setLockedProductIds([]);
+      setHasAnyLockedProducts(false);
+    } finally {
+      setLockCheckLoading(false);
+    }
+  }, []);
+
+  // Check if a product is locked
+  const isProductLocked = useCallback((productId) => {
+    if (!productId) return false;
+    return lockedProductIds.includes(productId);
+  }, [lockedProductIds]);
 
   // Fetch default year on component mount
   useEffect(() => {
@@ -117,14 +151,16 @@ const Pembebanan = () => {
   useEffect(() => {
     if (!periodeLoaded) return; // Don't fetch until default year is loaded
     fetchAllData();
-  }, [periodeLoaded]);
+    fetchLockedProducts(selectedPeriode);
+  }, [periodeLoaded, fetchLockedProducts]);
   
-  // Reload when periode changes
+  // Reload when periode changes and fetch locked products
   useEffect(() => {
     if (selectedPeriode) {
       setCurrentPage(1); // Reset to first page when changing year
+      fetchLockedProducts(selectedPeriode);
     }
-  }, [selectedPeriode]);
+  }, [selectedPeriode, fetchLockedProducts]);
 
   // Combine pembebanan and group data
   const getCombinedData = async () => {
@@ -354,14 +390,15 @@ const Pembebanan = () => {
           .map(item => String(item.productId))
       );
       
-      const availableProducts = allProducts.filter(product => 
-        !existingProductIds.has(product.id)
+      // Also filter out locked products - users cannot add rates for locked products
+      const availableProductsFiltered = allProducts.filter(product => 
+        !existingProductIds.has(product.id) && !lockedProductIds.includes(product.id)
       );
       
-      setAvailableProducts(availableProducts);
-      setFilteredProducts(availableProducts);
+      setAvailableProducts(availableProductsFiltered);
+      setFilteredProducts(availableProductsFiltered);
     }
-  }, [groupData, processedData]); // Added processedData as dependency to update when pembebanan data changes
+  }, [groupData, processedData, lockedProductIds]); // Added lockedProductIds as dependency
 
   // Inline editing functions
   const handleEdit = (item) => {
@@ -772,6 +809,20 @@ const Pembebanan = () => {
       try {
         setLoading(true);
 
+        // Fetch locked products for the import period to exclude them from deletion
+        let lockedIds = [];
+        try {
+          const lockedResponse = await productsAPI.getLockedProducts(importPeriode);
+          if (lockedResponse.success && lockedResponse.data) {
+            lockedIds = lockedResponse.data;
+            if (lockedIds.length > 0) {
+              notifier.info(`Found ${lockedIds.length} locked products - their rates will be preserved during import.`);
+            }
+          }
+        } catch (lockErr) {
+          console.warn('Could not fetch locked products, proceeding with full import:', lockErr);
+        }
+
         // Read and parse the file
         let importedData = [];
         
@@ -801,15 +852,41 @@ const Pembebanan = () => {
           return;
         }
 
-        // Call bulk import API with periode
+        // Filter out locked products from import data (they should not be overwritten)
+        let filteredData = validatedData;
+        let skippedCount = 0;
+        if (lockedIds.length > 0) {
+          filteredData = validatedData.filter(item => {
+            // Default rates (no groupProductID) are always imported
+            if (item.isDefaultRate || !item.groupProductID) {
+              return true;
+            }
+            // Skip locked products
+            if (lockedIds.includes(item.groupProductID)) {
+              skippedCount++;
+              return false;
+            }
+            return true;
+          });
+          
+          if (skippedCount > 0) {
+            notifier.info(`Skipped ${skippedCount} entries for locked products.`);
+          }
+        }
+
+        // Call bulk import API with periode and locked product IDs
         const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const result = await masterAPI.bulkImportPembebanan(validatedData, user?.logNIK || 'system', importPeriode);
+        const result = await masterAPI.bulkImportPembebanan(filteredData, user?.logNIK || 'system', importPeriode, lockedIds);
 
         // Show success message and refresh data
         await fetchAllData();
         setSelectedPeriode(importPeriode); // Switch to imported year's view
 
-        notifier.success(`Import completed successfully for year ${importPeriode}! Deleted: ${result.data.deleted} old records, Inserted: ${result.data.inserted} new records`, {
+        let successMessage = `Import completed successfully for year ${importPeriode}! Deleted: ${result.data.deleted} old records, Inserted: ${result.data.inserted} new records`;
+        if (skippedCount > 0) {
+          successMessage += ` (${skippedCount} locked product entries skipped)`;
+        }
+        notifier.success(successMessage, {
           durations: { success: 6000 }
         });
 
@@ -1276,21 +1353,30 @@ const Pembebanan = () => {
                       <td className="manhour">{item.rateGenerik ? parseFloat(item.rateGenerik).toFixed(2) : '-'}</td>
                       <td className="manhour">{item.rateAnalisa ? parseFloat(item.rateAnalisa).toFixed(2) : '-'}</td>
                       <td className={`actions display-mode ${item.isDefaultRate ? 'single-button' : 'multiple-buttons'}`}>
-                        <button 
-                          className="edit-btn"
-                          onClick={() => handleEdit(item)}
-                          title="Edit Rate"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        {!item.isDefaultRate && (
-                          <button 
-                            className="delete-btn"
-                            onClick={() => handleDelete(item)}
-                            title="Delete Rate"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                        {/* Lock check: Default rates locked when ANY products are locked, individual products locked based on their specific lock status */}
+                        {(item.isDefaultRate && hasAnyLockedProducts) || (!item.isDefaultRate && isProductLocked(item.productId)) ? (
+                          <div className="locked-indicator" title={item.isDefaultRate ? "Default rates are locked - some products have locked formulas" : "This product is locked in Formula Assignment"}>
+                            <Lock size={16} />
+                          </div>
+                        ) : (
+                          <>
+                            <button 
+                              className="edit-btn"
+                              onClick={() => handleEdit(item)}
+                              title="Edit Rate"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            {!item.isDefaultRate && (
+                              <button 
+                                className="delete-btn"
+                                onClick={() => handleDelete(item)}
+                                title="Delete Rate"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </>
                         )}
                       </td>
                     </>
@@ -1424,9 +1510,15 @@ const Pembebanan = () => {
                 {addFormData.groupPNCategoryName && filteredProducts.length === 0 && (
                   <div className="no-products-info">
                     <small style={{color: '#666', fontStyle: 'italic'}}>
-                      All products in "{addFormData.groupPNCategoryName}" already have cost allocation entries.
+                      All products in "{addFormData.groupPNCategoryName}" either already have cost allocation entries or are locked.
                       Select a different group or edit existing entries.
                     </small>
+                  </div>
+                )}
+                {hasAnyLockedProducts && (
+                  <div className="lock-info-note" style={{marginTop: '0.5rem', padding: '0.5rem', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '4px', fontSize: '0.8rem', color: '#92400e'}}>
+                    <Lock size={14} style={{display: 'inline', marginRight: '4px', verticalAlign: 'middle'}} />
+                    Some products are locked and cannot be selected for new allocations.
                   </div>
                 )}
               </div>
