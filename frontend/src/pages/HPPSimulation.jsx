@@ -3353,14 +3353,12 @@ export default function HPPSimulation() {
     return editableOverheadData.Beban_Sisa_Bahan_Exp || 0;
   };
 
-  // GENERIC Version 2 overhead calculations
+  // Versi 2 overhead calculations (applies to all LOBs: ETHICAL, OTC, GENERIC)
   const calculateProductionLaborCost = () => {
-    const currentLOB = getCurrentLOB();
     const currentVersion =
       editableVersion || (simulationResults[0] && simulationResults[0].Versi);
     if (
       !simulationResults[0] ||
-      currentLOB !== "GENERIC" ||
       currentVersion !== "2"
     )
       return 0;
@@ -3371,12 +3369,10 @@ export default function HPPSimulation() {
   };
 
   const calculatePackagingLaborCost = () => {
-    const currentLOB = getCurrentLOB();
     const currentVersion =
       editableVersion || (simulationResults[0] && simulationResults[0].Versi);
     if (
       !simulationResults[0] ||
-      currentLOB !== "GENERIC" ||
       currentVersion !== "2"
     )
       return 0;
@@ -3387,12 +3383,10 @@ export default function HPPSimulation() {
   };
 
   const calculateProductionFOH = () => {
-    const currentLOB = getCurrentLOB();
     const currentVersion =
       editableVersion || (simulationResults[0] && simulationResults[0].Versi);
     if (
       !simulationResults[0] ||
-      currentLOB !== "GENERIC" ||
       currentVersion !== "2"
     )
       return 0;
@@ -3403,12 +3397,10 @@ export default function HPPSimulation() {
   };
 
   const calculatePackagingFOH = () => {
-    const currentLOB = getCurrentLOB();
     const currentVersion =
       editableVersion || (simulationResults[0] && simulationResults[0].Versi);
     if (
       !simulationResults[0] ||
-      currentLOB !== "GENERIC" ||
       currentVersion !== "2"
     )
       return 0;
@@ -3419,12 +3411,10 @@ export default function HPPSimulation() {
   };
 
   const calculateProductionDepreciation = () => {
-    const currentLOB = getCurrentLOB();
     const currentVersion =
       editableVersion || (simulationResults[0] && simulationResults[0].Versi);
     if (
       !simulationResults[0] ||
-      currentLOB !== "GENERIC" ||
       currentVersion !== "2"
     )
       return 0;
@@ -3435,12 +3425,10 @@ export default function HPPSimulation() {
   };
 
   const calculatePackagingDepreciation = () => {
-    const currentLOB = getCurrentLOB();
     const currentVersion =
       editableVersion || (simulationResults[0] && simulationResults[0].Versi);
     if (
       !simulationResults[0] ||
-      currentLOB !== "GENERIC" ||
       currentVersion !== "2"
     )
       return 0;
@@ -3456,8 +3444,20 @@ export default function HPPSimulation() {
     const currentLOB = getCurrentLOB();
     const currentVersion = editableVersion || simulationResults[0].Versi;
 
-    if (currentLOB === "ETHICAL" || currentLOB === "OTC") {
-      // ETHICAL/OTC overhead calculation
+    // Versi 2 calculation applies to all LOBs (ETHICAL, OTC, GENERIC)
+    if (currentVersion === "2") {
+      // Versi 2 overhead calculation (same formula for all LOBs)
+      return (
+        calculateProductionLaborCost() +
+        calculatePackagingLaborCost() +
+        calculateProductionFOH() +
+        calculatePackagingFOH() +
+        calculateProductionDepreciation() +
+        calculatePackagingDepreciation() +
+        calculateExpiryCost()
+      );
+    } else if (currentLOB === "ETHICAL" || currentLOB === "OTC") {
+      // ETHICAL/OTC Versi 1 overhead calculation
       return (
         calculateProcessingCost() +
         calculatePackagingCost() +
@@ -3475,23 +3475,22 @@ export default function HPPSimulation() {
         calculateReagentFee() +
         calculateGenericExpiryCost()
       );
-    } else if (currentLOB === "GENERIC" && currentVersion === "2") {
-      // GENERIC V2 overhead calculation
-      return (
-        calculateProductionLaborCost() +
-        calculatePackagingLaborCost() +
-        calculateProductionFOH() +
-        calculatePackagingFOH() +
-        calculateExpiryCost()
-      );
     }
 
     return 0;
   };
 
   const calculateMarginValue = () => {
+    const currentVersion = editableVersion || (simulationResults[0] && simulationResults[0].Versi);
+    
+    // No margin for Versi 2 products (all LOBs)
+    if (currentVersion === "2") {
+      return 0;
+    }
+    
+    // No margin for GENERIC Versi 1 products
     if (getCurrentLOB() !== "ETHICAL" && getCurrentLOB() !== "OTC") {
-      return 0; // No margin for GENERIC products
+      return 0;
     }
 
     const marginInput = editableOverheadData.Margin || 0;
@@ -5430,14 +5429,13 @@ export default function HPPSimulation() {
                       </select>
                     </div>
                     <div className="summary-item">
-                      <span className="summary-label">Type:</span>
+                      <span className="summary-label">Versi:</span>
                       <select
                         value={
                           editableVersion || simulationResults[0].Versi || "1"
                         }
                         onChange={(e) => setEditableVersion(e.target.value)}
                         className="summary-select-input"
-                        disabled={getCurrentLOB() !== "GENERIC"}
                       >
                         <option value="1">1</option>
                         <option value="2">2</option>
@@ -5838,9 +5836,10 @@ export default function HPPSimulation() {
                     </>
                   )}
 
-                {/* Overhead Cost Breakdown for ETHICAL/OTC Products */}
+                {/* Overhead Cost Breakdown for ETHICAL/OTC Products (Versi 1 only) */}
                 {(getCurrentLOB() === "ETHICAL" ||
-                  getCurrentLOB() === "OTC") && (
+                  getCurrentLOB() === "OTC") &&
+                  (editableVersion || simulationResults[0].Versi) !== "2" && (
                   <div className="overhead-cost">
                     <h4>Overhead Cost Breakdown ({getCurrentLOB()}):</h4>
                     <div className="overhead-cost-grid">
@@ -6267,11 +6266,10 @@ export default function HPPSimulation() {
                     </div>
                   )}
 
-                {/* Overhead Cost Breakdown for GENERIC Version 2 Products */}
-                {getCurrentLOB() === "GENERIC" &&
-                  (editableVersion || simulationResults[0].Versi) === "2" && (
+                {/* Overhead Cost Breakdown for Versi 2 Products (all LOBs) */}
+                {(editableVersion || simulationResults[0].Versi) === "2" && (
                     <div className="overhead-cost">
-                      <h4>Overhead Cost Breakdown (GENERIC V2):</h4>
+                      <h4>Overhead Cost Breakdown (Versi 2):</h4>
                       <div className="overhead-cost-grid">
                         <div className="overhead-cost-item">
                           <span className="overhead-label">
@@ -6436,6 +6434,85 @@ export default function HPPSimulation() {
                           </span>
                         </div>
                         <div className="overhead-cost-item">
+                          <span className="overhead-label">
+                            Production Depreciation:
+                          </span>
+                          <div className="overhead-formula-editable">
+                            <span className="formula-part">(</span>
+                            <input
+                              type="number"
+                              value={editableOverheadData.MH_Proses_Std || 0}
+                              onChange={(e) =>
+                                setEditableOverheadData({
+                                  ...editableOverheadData,
+                                  MH_Proses_Std:
+                                    parseFloat(e.target.value) || 0,
+                                })
+                              }
+                              className="overhead-edit-input"
+                              step="0.1"
+                              min="0"
+                            />
+                            <span className="formula-part">MH × Rp</span>
+                            <input
+                              type="number"
+                              value={editableOverheadData.Depresiasi || 0}
+                              onChange={(e) =>
+                                setEditableOverheadData({
+                                  ...editableOverheadData,
+                                  Depresiasi: parseFloat(e.target.value) || 0,
+                                })
+                              }
+                              className="overhead-edit-input"
+                              step="0.01"
+                              min="0"
+                            />
+                            <span className="formula-part">)</span>
+                          </div>
+                          <span className="overhead-value">
+                            Rp {formatNumber(calculateProductionDepreciation(), 2)}
+                          </span>
+                        </div>
+                        <div className="overhead-cost-item">
+                          <span className="overhead-label">
+                            Packaging Depreciation:
+                          </span>
+                          <div className="overhead-formula-editable">
+                            <span className="formula-part">(</span>
+                            <input
+                              type="number"
+                              value={editableOverheadData.MH_Kemas_Std || 0}
+                              onChange={(e) =>
+                                setEditableOverheadData({
+                                  ...editableOverheadData,
+                                  MH_Kemas_Std: parseFloat(e.target.value) || 0,
+                                })
+                              }
+                              className="overhead-edit-input"
+                              step="0.1"
+                              min="0"
+                            />
+                            <span className="formula-part">MH × Rp</span>
+                            <input
+                              type="number"
+                              value={editableOverheadData.Depresiasi || 0}
+                              onChange={(e) =>
+                                setEditableOverheadData({
+                                  ...editableOverheadData,
+                                  Depresiasi: parseFloat(e.target.value) || 0,
+                                })
+                              }
+                              className="overhead-edit-input"
+                              step="0.01"
+                              min="0"
+                            />
+                            <span className="formula-part">)</span>
+                          </div>
+                          <span className="overhead-value">
+                            Rp {formatNumber(calculatePackagingDepreciation(), 2)}
+                          </span>
+                        </div>
+                        <div className="overhead-cost-item">
                           <span className="overhead-label">Expiry Cost:</span>
                           <div className="overhead-formula-editable">
                             <span className="formula-part">Rp</span>
@@ -6475,8 +6552,9 @@ export default function HPPSimulation() {
                     </div>
                   )}
 
-                {/* Margin Section for ETHICAL/OTC Products */}
-                {(getCurrentLOB() === "ETHICAL" || getCurrentLOB() === "OTC") && (
+                {/* Margin Section for ETHICAL/OTC Products (Versi 1 only) */}
+                {(getCurrentLOB() === "ETHICAL" || getCurrentLOB() === "OTC") &&
+                  (editableVersion || simulationResults[0].Versi) !== "2" && (
                   <div className="overhead-cost" style={{ marginTop: "20px" }}>
                     <h4>Margin:</h4>
                     <div className="overhead-cost-grid">
@@ -6862,13 +6940,16 @@ export default function HPPSimulation() {
                     </div>
                     <div className="info-right">
                       <div className="info-line">
-                        <span className="label">LOB</span>
+                        <span className="label">LOB / Versi</span>
                         <span className="separator">:</span>
                         <span className="value">
-                          {getCurrentLOB() === "ETHICAL" ? "Ethical / OTC" : 
-                           getCurrentLOB() === "GENERIC" && editableVersion === "1" ? "Generic Type 1" :
-                           getCurrentLOB() === "GENERIC" && editableVersion === "2" ? "Generic Type 2" :
-                           getCurrentLOB()}
+                          {(editableVersion || (simulationResults && simulationResults[0] && simulationResults[0].Versi)) === "2" 
+                            ? `${getCurrentLOB()} Versi 2`
+                            : getCurrentLOB() === "GENERIC" 
+                              ? "Generic Versi 1" 
+                              : getCurrentLOB() === "ETHICAL" 
+                                ? "Ethical" 
+                                : getCurrentLOB()}
                         </span>
                       </div>
                       <div className="info-line">
@@ -7054,7 +7135,8 @@ export default function HPPSimulation() {
                     <h4>Overhead</h4>
                   </div>
 
-                  {getCurrentLOB() === "ETHICAL" && (
+                  {getCurrentLOB() === "ETHICAL" && 
+                    (editableVersion || simulationResults[0]?.Versi) !== "2" && (
                     <>
                     <table className="excel-table">
                       <thead>
@@ -7216,7 +7298,8 @@ export default function HPPSimulation() {
                     </>
                   )}
 
-                  {getCurrentLOB() === "OTC" && (
+                  {getCurrentLOB() === "OTC" && 
+                    (editableVersion || simulationResults[0]?.Versi) !== "2" && (
                     <>
                     <table className="excel-table">
                       <thead>
@@ -7634,8 +7717,8 @@ export default function HPPSimulation() {
                       </table>
                     )}
 
-                  {getCurrentLOB() === "GENERIC" &&
-                    (editableVersion || simulationResults[0]?.Versi) ===
+                  {/* Versi 2 Overhead Section (applies to all LOBs) */}
+                  {(editableVersion || simulationResults[0]?.Versi) ===
                       "2" && (
                       <table className="excel-table">
                         <thead>
@@ -7757,6 +7840,58 @@ export default function HPPSimulation() {
                             </td>
                           </tr>
                           <tr>
+                            <td>Production Depreciation</td>
+                            <td>Production Depreciation Cost</td>
+                            <td>
+                              (
+                              {formatNumber(
+                                editableOverheadData.MH_Proses_Std || 0
+                              )}{" "}
+                              MH × Rp{" "}
+                              {formatNumber(
+                                editableOverheadData.Depresiasi || 0,
+                                2
+                              )}
+                              )
+                            </td>
+                            <td className="number">
+                              Rp {formatNumber(calculateProductionDepreciation(), 2)}
+                            </td>
+                            <td className="number">
+                              Rp{" "}
+                              {formatNumber(
+                                calculateProductionDepreciation() / getActualBatchSize(),
+                                2
+                              )}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td>Packaging Depreciation</td>
+                            <td>Packaging Depreciation Cost</td>
+                            <td>
+                              (
+                              {formatNumber(
+                                editableOverheadData.MH_Kemas_Std || 0
+                              )}{" "}
+                              MH × Rp{" "}
+                              {formatNumber(
+                                editableOverheadData.Depresiasi || 0,
+                                2
+                              )}
+                              )
+                            </td>
+                            <td className="number">
+                              Rp {formatNumber(calculatePackagingDepreciation(), 2)}
+                            </td>
+                            <td className="number">
+                              Rp{" "}
+                              {formatNumber(
+                                calculatePackagingDepreciation() / getActualBatchSize(),
+                                2
+                              )}
+                            </td>
+                          </tr>
+                          <tr>
                             <td>Expiry Cost</td>
                             <td>Material Expiry Cost</td>
                             <td>
@@ -7797,41 +7932,6 @@ export default function HPPSimulation() {
                               </strong>
                             </td>
                           </tr>
-                          {(getCurrentLOB() === "ETHICAL" || getCurrentLOB() === "OTC") && (
-                            <tr>
-                              <td>Margin</td>
-                              <td>
-                                {marginType === "percent" 
-                                  ? "Margin (%)"
-                                  : "Margin (Direct Value)"}
-                              </td>
-                              <td>
-                                {marginType === "percent"
-                                  ? `${formatNumber(editableOverheadData.Margin || 0, 2)}%`
-                                  : `Rp ${formatNumber(editableOverheadData.Margin || 0, 2)}`}
-                              </td>
-                              <td className="number">
-                                -
-                              </td>
-                              <td className="number">
-                                -
-                              </td>
-                            </tr>
-                          )}
-                          {/* Show Rounded row if there's a rounded value */}
-                          {(getCurrentLOB() === "ETHICAL" || getCurrentLOB() === "OTC") && getRoundedValue() > 0 && (
-                            <tr>
-                              <td>Rounded</td>
-                              <td>Rounded Adjustment</td>
-                              <td>-</td>
-                              <td className="number">
-                                -
-                              </td>
-                              <td className="number">
-                                Rp {formatNumber(getRoundedValue(), 2)}
-                              </td>
-                            </tr>
-                          )}
                         </tbody>
                       </table>
                     )}

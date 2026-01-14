@@ -95,9 +95,9 @@ const formatLOB = (product) => {
   if (productType === 'Ethical') {
     return 'Ethical / OTC';
   } else if (productType === 'Generic1') {
-    return 'Generic Type 1';
+    return 'Generic Versi 1';
   } else if (productType === 'Generic2') {
-    return 'Generic Type 2';
+    return 'HPP Versi 2';
   }
   
   // Fallback to original LOB field parsing if detection fails
@@ -106,7 +106,7 @@ const formatLOB = (product) => {
   }
   
   if (lob === 'GENERIK' || lob === 'GENERIC') {
-    return 'Generic Type 1'; // Default generic to Type 1
+    return 'Generic Versi 1'; // Default generic to Versi 1
   }
   
   // Fallback to original value
@@ -393,7 +393,7 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear, isBeforeAfte
         ], { origin: `A${currentRow}` });
         currentRow += 7;
 
-        // Note: Depreciation section removed for Generic Type 2 as it's no longer used
+        // Note: Depreciation section removed for HPP Versi 2 as it's no longer used
       }
 
       // Final total
@@ -451,8 +451,8 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear, isBeforeAfte
         scrollY: 0
       };
 
-      // For Generic Type 2, use slightly different scale to prevent width issues
-      if (productType === 'Generic Type 2') {
+      // For HPP Versi 2, use slightly different scale to prevent width issues
+      if (productType === 'HPP Versi 2') {
         captureOptions.scale = 1.8; // Slightly lower scale to prevent overflow
       }
       
@@ -469,7 +469,7 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear, isBeforeAfte
       const canvasHeight = canvas.height;
       
       // Calculate dimensions to fit the content with absolute minimal margins
-      const scaleRatio = productType === 'Generic Type 2' ? 1.8 : 2;
+      const scaleRatio = productType === 'HPP Versi 2' ? 1.8 : 2;
       const widthRatio = (pdfWidth - 2) / (canvasWidth / scaleRatio); // Absolute minimal 1mm margins on sides
       const heightRatio = (pdfHeight - 4) / (canvasHeight / scaleRatio); // Absolute minimal margin for height
       const ratio = Math.min(widthRatio, heightRatio);
@@ -477,8 +477,8 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear, isBeforeAfte
       const imgWidth = (canvasWidth / scaleRatio) * ratio;
       const imgHeight = (canvasHeight / scaleRatio) * ratio;
       
-      // Adjust page threshold for Generic Type 2 to be more conservative
-      const pageThreshold = productType === 'Generic Type 2' ? pdfHeight - 6 : pdfHeight - 3;
+      // Adjust page threshold for HPP Versi 2 to be more conservative
+      const pageThreshold = productType === 'HPP Versi 2' ? pdfHeight - 6 : pdfHeight - 3;
       
       // Check if content needs multiple pages
       if (imgHeight > pageThreshold) {

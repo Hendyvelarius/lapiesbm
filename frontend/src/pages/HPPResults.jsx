@@ -198,7 +198,7 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
 const Generik1Table = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onProductClick }) => (
   <div className="hpp-table-container">
     <div className="hpp-table-header">
-      <h3><FileText className="hpp-table-icon" />Generic Products (Type 1)</h3>
+      <h3><FileText className="hpp-table-icon" />Generic Products (Versi 1)</h3>
       <div className="hpp-table-controls">
         <div className="hpp-search-container">
           <Search size={16} className="hpp-search-icon" />
@@ -283,7 +283,7 @@ const Generik1Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
 const Generik2Table = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onProductClick }) => (
   <div className="hpp-table-container">
     <div className="hpp-table-header">
-      <h3><FileText className="hpp-table-icon" />Generic Products (Type 2)</h3>
+      <h3><FileText className="hpp-table-icon" />HPP Products (Versi 2)</h3>
       <div className="hpp-table-controls">
         <div className="hpp-search-container">
           <Search size={16} className="hpp-search-icon" />
@@ -311,7 +311,7 @@ const Generik2Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
             <th>MH Proses Std</th>
             <th>MH Kemas Std</th>
             <th>Direct Labor</th>
-            <th>Factory Over Head 50</th>
+            <th>Factory Over Head</th>
             <th>Depresiasi</th>
             <th>Expiry Cost</th>
             <th>Group Rendemen</th>
@@ -525,13 +525,13 @@ const HPPResults = () => {
     },
     {
       id: 'generik1',
-      label: 'Generic Type 1',
+      label: 'Generic Versi 1',
       icon: FileText,
       count: hppData.generik1.length
     },
     {
       id: 'generik2',
-      label: 'Generic Type 2',
+      label: 'HPP Versi 2',
       icon: FileText,
       count: hppData.generik2.length
     }
@@ -666,13 +666,13 @@ const HPPResults = () => {
       if (hppData.generik1 && hppData.generik1.length > 0) {
         const transformedGenerik1 = transformDataForExport(hppData.generik1, generik1ColumnMapping);
         const generik1WS = XLSX.utils.json_to_sheet(transformedGenerik1);
-        XLSX.utils.book_append_sheet(workbook, generik1WS, 'Generic Type 1');
+        XLSX.utils.book_append_sheet(workbook, generik1WS, 'Generic Versi 1');
       }
       
       if (hppData.generik2 && hppData.generik2.length > 0) {
         const transformedGenerik2 = transformDataForExport(hppData.generik2, generik2ColumnMapping);
         const generik2WS = XLSX.utils.json_to_sheet(transformedGenerik2);
-        XLSX.utils.book_append_sheet(workbook, generik2WS, 'Generic Type 2');
+        XLSX.utils.book_append_sheet(workbook, generik2WS, 'HPP Versi 2');
       }
 
       // Fetch and add Material Raw Data sheet
