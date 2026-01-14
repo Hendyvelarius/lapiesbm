@@ -9,6 +9,7 @@ const expiryCostRoutes = require('./expiryCostRoutes');
 const reagenRoutes = require('./reagenRoutes');
 const tollFeeRoutes = require('./tollFeeRoutes');
 const dashboardRoutes = require('./dashboardRoutes');
+const dailyCurrencyRoutes = require('./dailyCurrencyRoutes');
 
 // Use routes
 router.use('/products', productRoutes);
@@ -18,6 +19,7 @@ router.use('/expiry-cost', expiryCostRoutes);
 router.use('/reagen', reagenRoutes);
 router.use('/toll-fee', tollFeeRoutes);
 router.use('/dashboard', dashboardRoutes);
+router.use('/daily-currency', dailyCurrencyRoutes);
 
 // Health check endpoint
 router.get('/health', (req, res) => {

@@ -11,6 +11,9 @@ const { generalLimiter } = require('./middleware/rateLimiter');
 // Import routes
 const apiRoutes = require('./routes');
 
+// Import services
+const currencyScheduler = require('./services/currencySchedulerService');
+
 // Create Express app
 const app = express();
 
@@ -96,6 +99,10 @@ async function startServer() {
   try {
     console.log('✅ Database connection using SQL Server with mssql package.');
 
+    // Start currency scheduler (runs daily at 11 PM)
+    currencyScheduler.startScheduler();
+    console.log('📅 Currency scheduler started (daily at 23:00 WIB)');
+
     // Start server
     app.listen(PORT, () => {
       console.log(`🚀 Server is running on port ${PORT}`);
@@ -123,11 +130,13 @@ process.on('uncaughtException', (err) => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down gracefully');
+  currencyScheduler.stopScheduler();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully');
+  currencyScheduler.stopScheduler();
   process.exit(0);
 });
 

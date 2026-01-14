@@ -714,6 +714,57 @@ export const healthAPI = {
   check: () => apiRequest('/health', { method: 'GET' }),
 };
 
+// Daily Currency API (HPP Actual)
+export const dailyCurrencyAPI = {
+  // Get all daily currency records
+  // Query params: startDate, endDate, limit, offset
+  getAll: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/daily-currency${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Get currency data for a specific date
+  getByDate: (date) => apiRequest(`/daily-currency/${date}`),
+
+  // Get currency statistics (count, date range, supported currencies)
+  getStats: () => apiRequest('/daily-currency/stats'),
+
+  // Scrape currency data for a specific month
+  scrapeForMonth: (year, month) => apiRequest(`/daily-currency/scrape/${year}/${month}`, {
+    method: 'POST',
+  }),
+
+  // Scrape currency data for a date range
+  scrapeForRange: (startYear, startMonth, endYear, endMonth) => apiRequest('/daily-currency/scrape-range', {
+    method: 'POST',
+    body: JSON.stringify({ startYear, startMonth, endYear, endMonth }),
+  }),
+
+  // Delete currency data for a date range
+  deleteByDateRange: (startDate, endDate) => apiRequest('/daily-currency', {
+    method: 'DELETE',
+    body: JSON.stringify({ startDate, endDate }),
+  }),
+
+  // Get scheduler status
+  getSchedulerStatus: () => apiRequest('/daily-currency/scheduler/status'),
+
+  // Manually trigger the daily currency fetch
+  triggerScheduler: () => apiRequest('/daily-currency/scheduler/trigger', {
+    method: 'POST',
+  }),
+
+  // Start the scheduler
+  startScheduler: () => apiRequest('/daily-currency/scheduler/start', {
+    method: 'POST',
+  }),
+
+  // Stop the scheduler
+  stopScheduler: () => apiRequest('/daily-currency/scheduler/stop', {
+    method: 'POST',
+  }),
+};
+
 export default {
   products: productsAPI,
   hpp: hppAPI,
@@ -723,4 +774,5 @@ export default {
   tollFee: tollFeeAPI,
   dashboard: dashboardAPI,
   health: healthAPI,
+  dailyCurrency: dailyCurrencyAPI,
 };
