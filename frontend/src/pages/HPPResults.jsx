@@ -675,9 +675,9 @@ const HPPResults = () => {
         XLSX.utils.book_append_sheet(workbook, generik2WS, 'HPP Versi 2');
       }
 
-      // Fetch and add Material Raw Data sheet
+      // Fetch and add Material Raw Data sheet (filtered by selected year)
       try {
-        const materialUsageResponse = await masterAPI.getMaterialUsage();
+        const materialUsageResponse = await masterAPI.getMaterialUsageByYear(selectedYear);
         if (materialUsageResponse && materialUsageResponse.length > 0) {
           const materialUsageWS = XLSX.utils.json_to_sheet(materialUsageResponse, { 
             header: materialUsageColumns 
