@@ -546,7 +546,62 @@ With proper handling of:
 
 ---
 
+## Known Limitations & Data Quality Notes
+
+### 1. Multi-Batch Production
+Some batches produce more than the standard batch size. For example:
+- Batch DS625: `Output_Actual = 5,375` vs `Batch_Size_Std = 1,500` (3.58×)
+- This results in ~3.5× material usage, which is **correct behavior**
+- `Qty_Required` shows single-batch formula; actual usage reflects multiple batches
+
+**Future Enhancement:** Add `Qty_Required_Scaled` = `Qty_Required × (Output_Actual / Batch_Size_Std)`
+
+### 2. Unit Mismatches in Formula
+Some items show extreme over-usage (e.g., 100,000%) due to unit differences:
+- Formula may be in "ribu pcs" while actual usage is in "pcs"
+- Requires data cleanup in source formula tables
+
+### 3. Rounding Differences
+Small quantities like `L 060` show 400% usage:
+- Formula: 0.25 units
+- Actual: 1 unit (minimum practical usage)
+- This is expected manufacturing behavior
+
+---
+
 ## Version History
+
+### v5 (January 2026) - Formula Aggregation Fix
+**Critical Fix:** Formula table has duplicate rows per item (different `PPI_SeqID` for each manufacturing step), causing quantity multiplication.
+
+**Problem:** Product I1 + AC 019B had 5 formula rows × 18,000g each, but only taking first row (18,000g) as Qty_Required while actual usage was 90,000g total.
+
+**Solution:** Changed formula subquery from simple SELECT to aggregation:
+```sql
+-- Before (v4): Returns 5 rows, causes JOIN multiplication
+SELECT Product_ID, PPI_ItemID, PPI_QTY FROM formula WHERE ...
+
+-- After (v5): Returns 1 row with total
+SELECT Product_ID, PPI_ItemID, SUM(PPI_QTY) AS PPI_QTY 
+FROM formula WHERE ... GROUP BY Product_ID, PPI_ItemID
+```
+
+**Results After v5:**
+- Normal usage (90-110%): 68% → **76%** (+968 material lines)
+- Over-usage (>150%): 532 → **101** lines (81% reduction)
+- Total BB Cost: 18.2B → **11.9B IDR** (more accurate, less inflated)
+
+### v4 (January 2026) - BatchDate Matching Fix  
+**Critical Fix:** Batch numbers can be reused across different years, causing materials from old batches to be included.
+
+**Problem:** Batch 77016 existed in both 2016 and 2026. Without date filtering, MRs from 2016 were being summed with 2026 MRs.
+
+**Solution:** Added BatchDate matching in WHERE clause:
+```sql
+WHERE h.MR_ProductID = @CurrentProductID 
+  AND h.MR_BatchNo = @CurrentBatchNo
+  AND h.MR_BatchDate = @CurrentDNCBatchDate  -- v4 FIX
+```
 
 ### v3 (January 2026) - Enhanced Data Population
 **Major Enhancement:** Populate all previously empty fields in Header and Detail tables.

@@ -545,8 +545,61 @@ Dengan penanganan yang tepat untuk:
 - ✅ Perhitungan Rendemen (yield)
 
 ---
+## Keterbatasan yang Diketahui & Catatan Kualitas Data
 
+### 1. Produksi Multi-Batch
+Beberapa batch memproduksi lebih dari ukuran batch standar. Contoh:
+- Batch DS625: `Output_Actual = 5.375` vs `Batch_Size_Std = 1.500` (3,58×)
+- Ini menghasilkan pemakaian bahan ~3,5×, yang merupakan **perilaku benar**
+- `Qty_Required` menunjukkan formula satu batch; pemakaian aktual mencerminkan beberapa batch
+
+**Peningkatan Masa Depan:** Tambahkan `Qty_Required_Scaled` = `Qty_Required × (Output_Actual / Batch_Size_Std)`
+
+### 2. Ketidaksesuaian Satuan dalam Formula
+Beberapa item menunjukkan pemakaian berlebih ekstrem (misalnya 100.000%) karena perbedaan satuan:
+- Formula mungkin dalam "ribu pcs" sementara pemakaian aktual dalam "pcs"
+- Memerlukan pembersihan data di tabel formula sumber
+
+### 3. Perbedaan Pembulatan
+Kuantitas kecil seperti `L 060` menunjukkan pemakaian 400%:
+- Formula: 0,25 unit
+- Aktual: 1 unit (pemakaian praktis minimum)
+- Ini adalah perilaku manufaktur yang diharapkan
+
+---
 ## Riwayat Versi
+
+### v5 (Januari 2026) - Perbaikan Agregasi Formula
+**Perbaikan Kritis:** Tabel formula memiliki baris duplikat per item (berbeda `PPI_SeqID` untuk setiap tahap manufaktur), menyebabkan perkalian kuantitas.
+
+**Masalah:** Produk I1 + AC 019B memiliki 5 baris formula × 18.000g masing-masing, tetapi hanya mengambil baris pertama (18.000g) sebagai Qty_Required sementara pemakaian aktual adalah 90.000g total.
+
+**Solusi:** Mengubah subquery formula dari SELECT biasa menjadi agregasi:
+```sql
+-- Sebelum (v4): Mengembalikan 5 baris, menyebabkan perkalian JOIN
+SELECT Product_ID, PPI_ItemID, PPI_QTY FROM formula WHERE ...
+
+-- Sesudah (v5): Mengembalikan 1 baris dengan total
+SELECT Product_ID, PPI_ItemID, SUM(PPI_QTY) AS PPI_QTY 
+FROM formula WHERE ... GROUP BY Product_ID, PPI_ItemID
+```
+
+**Hasil Setelah v5:**
+- Pemakaian normal (90-110%): 68% → **76%** (+968 baris material)
+- Pemakaian berlebih (>150%): 532 → **101** baris (pengurangan 81%)
+- Total Biaya BB: 18,2M → **11,9M IDR** (lebih akurat, tidak tergelembung)
+
+### v4 (Januari 2026) - Perbaikan Pencocokan BatchDate
+**Perbaikan Kritis:** Nomor batch dapat digunakan ulang di tahun berbeda, menyebabkan bahan dari batch lama ikut terhitung.
+
+**Masalah:** Batch 77016 ada di tahun 2016 dan 2026. Tanpa filter tanggal, MR dari 2016 ikut dijumlahkan dengan MR 2026.
+
+**Solusi:** Menambahkan pencocokan BatchDate di klausa WHERE:
+```sql
+WHERE h.MR_ProductID = @CurrentProductID 
+  AND h.MR_BatchNo = @CurrentBatchNo
+  AND h.MR_BatchDate = @CurrentDNCBatchDate  -- PERBAIKAN v4
+```
 
 ### v3 (Januari 2026) - Pengisian Data Lengkap
 **Peningkatan Utama:** Mengisi semua field yang sebelumnya kosong di tabel Header dan Detail.
