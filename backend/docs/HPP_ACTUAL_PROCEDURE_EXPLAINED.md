@@ -346,41 +346,64 @@ Total Cost = 15 kg × Rp 1,820,124/kg = Rp 27,301,860
 ### `t_COGS_HPP_Actual_Header` - Batch Summary
 One row per product batch with totals:
 
-| Column | Meaning |
-|--------|---------|
-| `DNc_No` | Product batch ID |
-| `DNc_ProductID` | Product code |
-| `BatchNo` | Batch number |
-| `Periode` | Period (YYYYMM) |
-| `Output_Actual` | Units produced |
-| `Total_Cost_BB` | Total raw material cost (Bahan Baku) |
-| `Total_Cost_BK` | Total packaging cost (Bahan Kemas) |
-| `Count_Materials_PO` | Materials traced to PO |
-| `Count_Materials_MR` | Materials traced via MR chain |
-| `Count_Materials_BPHP` | Materials from granule batches |
-| `Count_Materials_STD` | Materials using standard price |
-| `Count_Materials_UNLINKED` | Materials with no price (data issue!) |
+| Column | Meaning | Source |
+|--------|---------|--------|
+| `DNc_No` | Product batch ID | t_dnc_product |
+| `DNc_ProductID` | Product code | t_dnc_product |
+| `Product_Name` | Product name | m_Product |
+| `BatchNo` | Batch number | t_dnc_product |
+| `Periode` | Period (YYYYMM) | Derived from batch date |
+| `LOB` | Line of Business | vw_COGS_Product_Group |
+| `Group_PNCategory` | Category code | M_COGS_PRODUCT_GROUP_MANUAL |
+| `Group_PNCategory_Name` | Category name | M_COGS_PRODUCT_GROUP_MANUAL |
+| `Group_PNCategory_Dept` | Department | M_COGS_PRODUCT_GROUP_MANUAL |
+| `Output_Actual` | Units produced | t_dnc_product.DNC_Diluluskan |
+| `Batch_Size_Std` | Standard batch size | M_COGS_PRODUCT_FORMULA_FIX.Std_Output |
+| `Rendemen_Std` | Standard yield % | M_COGS_PRODUCT_GROUP_MANUAL.Group_Rendemen |
+| `Rendemen_Actual` | Actual yield % | Calculated: (Output_Actual × 100) / Batch_Size_Std |
+| `MH_Proses_Std` | Std process man-hours | M_COGS_PRODUCT_GROUP_MANUAL |
+| `MH_Kemas_Std` | Std packaging man-hours | M_COGS_PRODUCT_GROUP_MANUAL |
+| `MH_Timbang_BB` | Std weighing man-hours (BB) | M_COGS_PRODUCT_GROUP_MANUAL |
+| `MH_Timbang_BK` | Std weighing man-hours (BK) | M_COGS_PRODUCT_GROUP_MANUAL |
+| `MH_Analisa_Std` | Std analysis man-hours | M_COGS_PRODUCT_GROUP_MANUAL |
+| `MH_Mesin_Std` | Std machine hours | M_COGS_PRODUCT_GROUP_MANUAL |
+| `Total_Cost_BB` | Total raw material cost (Bahan Baku) | Calculated |
+| `Total_Cost_BK` | Total packaging cost (Bahan Kemas) | Calculated |
+| `Count_Materials_PO` | Materials traced to PO | Calculated |
+| `Count_Materials_MR` | Materials traced via MR chain | Calculated |
+| `Count_Materials_BPHP` | Materials from granule batches | Calculated |
+| `Count_Materials_STD` | Materials using standard price | Calculated |
+| `Count_Materials_UNLINKED` | Materials with no price (data issue!) | Calculated |
 
 ### `t_COGS_HPP_Actual_Detail` - Material Detail
 One row per unique material batch used:
 
-| Column | Meaning |
-|--------|---------|
-| `Item_ID` | Material code |
-| `Item_Type` | BB or BK |
-| `Qty_Used` | Quantity in usage unit (g, mL, pcs) |
-| `Usage_Unit` | Unit used in production |
-| `PO_Unit` | Unit in purchase order |
-| `Item_BJ` | Specific gravity (for g↔L) |
-| `Unit_Conversion_Factor` | Factor to convert usage to PO unit |
-| `Qty_In_PO_Unit` | Quantity in PO unit |
-| `Unit_Price` | Price per PO unit (original currency) |
-| `Currency_Original` | Original currency (USD, EUR, IDR, etc.) |
-| `Exchange_Rate` | Currency rate used |
-| `Unit_Price_IDR` | Price in IDR |
-| `Price_Source` | PO, MR, BPHP, STD, or UNLINKED |
-| `MR_DNcNo` | Which material batch was used |
-| `PO_No` | Which PO (if traceable) |
+| Column | Meaning | Source |
+|--------|---------|--------|
+| `Item_ID` | Material code | MR Detail |
+| `Item_Name` | Material name | m_Item_manufacturing |
+| `Item_Type` | BB or BK | MR Detail |
+| `Item_Unit` | Item master unit | m_Item_manufacturing |
+| `Qty_Used` | Quantity in usage unit (g, mL, pcs) | MR Detail (aggregated) |
+| `Qty_Required` | Standard quantity from formula | t_COGS_HPP_Product_Detail_Formula.PPI_QTY |
+| `Usage_Unit` | Unit used in production | t_DNc_Manufacturing |
+| `PO_Unit` | Unit in purchase order | PO Detail |
+| `Item_BJ` | Specific gravity (for g↔L) | m_Item_manufacturing |
+| `Unit_Conversion_Factor` | Factor to convert usage to PO unit | M_COGS_Unit_Conversion or calculated |
+| `Qty_In_PO_Unit` | Quantity in PO unit | Calculated |
+| `Unit_Price` | Price per PO unit (original currency) | PO Detail |
+| `Currency_Original` | Original currency (USD, EUR, IDR, etc.) | PO Detail |
+| `Exchange_Rate` | Currency rate used | m_COGS_Daily_Currency |
+| `Unit_Price_IDR` | Price in IDR | Calculated |
+| `Price_Source` | PO, MR, BPHP, STD, or UNLINKED | Derived from trace |
+| `MR_No` | Material request number | MR Header |
+| `MR_SeqID` | Material request line | MR Detail |
+| `MR_DNcNo` | Which material batch was used | MR Detail |
+| `DNc_Material` | Material batch number | t_DNc_Manufacturing |
+| `DNc_Original` | Original batch (if reprocessed) | t_DNc_Manufacturing.DNc_BeforeNo |
+| `TTBA_No` | Goods receipt number | t_DNc_Manufacturing |
+| `TTBA_SeqID` | Goods receipt line | t_DNc_Manufacturing |
+| `PO_No` | Which PO (if traceable) | Trace result |
 
 ---
 
@@ -517,3 +540,44 @@ With proper handling of:
 - ✅ Recursive tracing for reprocessed materials
 - ✅ Fallback to standard prices when needed
 - ✅ Clear flagging of unlinked materials (data quality indicators)
+- ✅ Complete traceability data (MR, TTBA, DNc references)
+- ✅ Standard formula comparison (Qty_Required vs Qty_Used)
+- ✅ Rendemen (yield) calculation
+
+---
+
+## Version History
+
+### v3 (January 2026) - Enhanced Data Population
+**Major Enhancement:** Populate all previously empty fields in Header and Detail tables.
+
+**Header Table Additions:**
+- `Product_Name` - From m_Product master
+- `LOB` - Line of Business from vw_COGS_Product_Group
+- `Group_PNCategory`, `Group_PNCategory_Name`, `Group_PNCategory_Dept` - Category info from M_COGS_PRODUCT_GROUP_MANUAL
+- `Batch_Size_Std` - Standard batch size from M_COGS_PRODUCT_FORMULA_FIX
+- `Rendemen_Std`, `Rendemen_Actual` - Yield percentages (actual calculated from output vs std batch size)
+- `MH_Proses_Std`, `MH_Kemas_Std`, `MH_Timbang_BB`, `MH_Timbang_BK`, `MH_Analisa_Std`, `MH_Mesin_Std` - Man-hours standards
+
+**Detail Table Additions:**
+- `Item_Name`, `Item_Unit` - From m_Item_manufacturing master
+- `Qty_Required` - Standard quantity from formula (t_COGS_HPP_Product_Detail_Formula)
+- `MR_No`, `MR_SeqID` - Full MR reference
+- `DNc_Material`, `DNc_Original` - Material batch traceability
+- `TTBA_No`, `TTBA_SeqID` - Goods receipt traceability
+
+**Fill Rates Achieved (Period 202601):**
+- Header: Product_Name 100%, LOB 99%, Batch_Size_Std 100%, Rendemen_Actual 100%
+- Detail: Item_Name 99.95%, Item_Unit 100%, Qty_Required 77%, MR_No 100%, TTBA_No 98%
+
+### v2 (January 2026) - Unit Conversion & Duplicate Fix
+- Fixed g→L conversion using Item_BJ (specific gravity)
+- Fixed duplicate material aggregation logic
+- Added proper aggregation by Item_ID + MR_DNcNo
+
+### v1 (January 2026) - Initial Release
+- Basic PO price tracing
+- MR chain recursive tracing
+- BPHP batch cost handling
+- Standard price fallback
+- Currency conversion

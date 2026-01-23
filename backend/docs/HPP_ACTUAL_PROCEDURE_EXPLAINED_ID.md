@@ -346,41 +346,64 @@ Total Biaya = 15 kg × Rp 1.820.124/kg = Rp 27.301.860
 ### `t_COGS_HPP_Actual_Header` - Ringkasan per Batch
 Satu baris per batch produk dengan total:
 
-| Kolom | Keterangan |
-|-------|------------|
-| `DNc_No` | Nomor batch produk |
-| `DNc_ProductID` | Kode produk |
-| `BatchNo` | Nomor batch |
-| `Periode` | Periode (YYYYMM) |
-| `Output_Actual` | Unit yang diproduksi |
-| `Total_Cost_BB` | Total biaya bahan baku |
-| `Total_Cost_BK` | Total biaya bahan kemas |
-| `Count_Materials_PO` | Bahan yang telusur ke PO |
-| `Count_Materials_MR` | Bahan yang telusur via rantai MR |
-| `Count_Materials_BPHP` | Bahan dari batch granul |
-| `Count_Materials_STD` | Bahan pakai harga standar |
-| `Count_Materials_UNLINKED` | Bahan tanpa harga (masalah data!) |
+| Kolom | Keterangan | Sumber Data |
+|-------|------------|-------------|
+| `DNc_No` | Nomor batch produk | t_dnc_product |
+| `DNc_ProductID` | Kode produk | t_dnc_product |
+| `Product_Name` | Nama produk | m_Product |
+| `BatchNo` | Nomor batch | t_dnc_product |
+| `Periode` | Periode (YYYYMM) | Dihitung dari tanggal batch |
+| `LOB` | Line of Business | vw_COGS_Product_Group |
+| `Group_PNCategory` | Kode kategori | M_COGS_PRODUCT_GROUP_MANUAL |
+| `Group_PNCategory_Name` | Nama kategori | M_COGS_PRODUCT_GROUP_MANUAL |
+| `Group_PNCategory_Dept` | Departemen | M_COGS_PRODUCT_GROUP_MANUAL |
+| `Output_Actual` | Unit yang diproduksi | t_dnc_product.DNC_Diluluskan |
+| `Batch_Size_Std` | Ukuran batch standar | M_COGS_PRODUCT_FORMULA_FIX.Std_Output |
+| `Rendemen_Std` | Rendemen standar % | M_COGS_PRODUCT_GROUP_MANUAL.Group_Rendemen |
+| `Rendemen_Actual` | Rendemen aktual % | Dihitung: (Output_Actual × 100) / Batch_Size_Std |
+| `MH_Proses_Std` | Man-hours proses standar | M_COGS_PRODUCT_GROUP_MANUAL |
+| `MH_Kemas_Std` | Man-hours kemas standar | M_COGS_PRODUCT_GROUP_MANUAL |
+| `MH_Timbang_BB` | Man-hours timbang BB standar | M_COGS_PRODUCT_GROUP_MANUAL |
+| `MH_Timbang_BK` | Man-hours timbang BK standar | M_COGS_PRODUCT_GROUP_MANUAL |
+| `MH_Analisa_Std` | Man-hours analisa standar | M_COGS_PRODUCT_GROUP_MANUAL |
+| `MH_Mesin_Std` | Jam mesin standar | M_COGS_PRODUCT_GROUP_MANUAL |
+| `Total_Cost_BB` | Total biaya bahan baku | Dihitung |
+| `Total_Cost_BK` | Total biaya bahan kemas | Dihitung |
+| `Count_Materials_PO` | Bahan yang telusur ke PO | Dihitung |
+| `Count_Materials_MR` | Bahan yang telusur via rantai MR | Dihitung |
+| `Count_Materials_BPHP` | Bahan dari batch granul | Dihitung |
+| `Count_Materials_STD` | Bahan pakai harga standar | Dihitung |
+| `Count_Materials_UNLINKED` | Bahan tanpa harga (masalah data!) | Dihitung |
 
 ### `t_COGS_HPP_Actual_Detail` - Detail per Bahan
 Satu baris per batch bahan unik yang digunakan:
 
-| Kolom | Keterangan |
-|-------|------------|
-| `Item_ID` | Kode bahan |
-| `Item_Type` | BB atau BK |
-| `Qty_Used` | Jumlah dalam satuan pemakaian (g, mL, pcs) |
-| `Usage_Unit` | Satuan yang dipakai di produksi |
-| `PO_Unit` | Satuan di purchase order |
-| `Item_BJ` | Berat jenis (untuk g↔L) |
-| `Unit_Conversion_Factor` | Faktor konversi satuan pemakaian ke PO |
-| `Qty_In_PO_Unit` | Jumlah dalam satuan PO |
-| `Unit_Price` | Harga per satuan PO (mata uang asli) |
-| `Currency_Original` | Mata uang asli (USD, EUR, IDR, dll) |
-| `Exchange_Rate` | Kurs yang digunakan |
-| `Unit_Price_IDR` | Harga dalam IDR |
-| `Price_Source` | PO, MR, BPHP, STD, atau UNLINKED |
-| `MR_DNcNo` | Batch bahan mana yang dipakai |
-| `PO_No` | PO mana (jika bisa ditelusur) |
+| Kolom | Keterangan | Sumber Data |
+|-------|------------|-------------|
+| `Item_ID` | Kode bahan | MR Detail |
+| `Item_Name` | Nama bahan | m_Item_manufacturing |
+| `Item_Type` | BB atau BK | MR Detail |
+| `Item_Unit` | Satuan master bahan | m_Item_manufacturing |
+| `Qty_Used` | Jumlah dalam satuan pemakaian (g, mL, pcs) | MR Detail (diagregasi) |
+| `Qty_Required` | Jumlah standar dari formula | t_COGS_HPP_Product_Detail_Formula.PPI_QTY |
+| `Usage_Unit` | Satuan yang dipakai di produksi | t_DNc_Manufacturing |
+| `PO_Unit` | Satuan di purchase order | Detail PO |
+| `Item_BJ` | Berat jenis (untuk g↔L) | m_Item_manufacturing |
+| `Unit_Conversion_Factor` | Faktor konversi satuan pemakaian ke PO | M_COGS_Unit_Conversion atau dihitung |
+| `Qty_In_PO_Unit` | Jumlah dalam satuan PO | Dihitung |
+| `Unit_Price` | Harga per satuan PO (mata uang asli) | Detail PO |
+| `Currency_Original` | Mata uang asli (USD, EUR, IDR, dll) | Detail PO |
+| `Exchange_Rate` | Kurs yang digunakan | m_COGS_Daily_Currency |
+| `Unit_Price_IDR` | Harga dalam IDR | Dihitung |
+| `Price_Source` | PO, MR, BPHP, STD, atau UNLINKED | Hasil penelusuran |
+| `MR_No` | Nomor bon keluar bahan | MR Header |
+| `MR_SeqID` | Nomor baris bon keluar | MR Detail |
+| `MR_DNcNo` | Batch bahan mana yang dipakai | MR Detail |
+| `DNc_Material` | Nomor batch bahan | t_DNc_Manufacturing |
+| `DNc_Original` | Batch asal (jika reproses) | t_DNc_Manufacturing.DNc_BeforeNo |
+| `TTBA_No` | Nomor penerimaan barang | t_DNc_Manufacturing |
+| `TTBA_SeqID` | Nomor baris penerimaan | t_DNc_Manufacturing |
+| `PO_No` | PO mana (jika bisa ditelusur) | Hasil penelusuran |
 
 ---
 
@@ -517,6 +540,47 @@ Dengan penanganan yang tepat untuk:
 - ✅ Penelusuran rekursif untuk bahan reproses
 - ✅ Fallback ke harga standar bila diperlukan
 - ✅ Penandaan jelas untuk bahan yang tidak terhubung (indikator kualitas data)
+- ✅ Data penelusuran lengkap (referensi MR, TTBA, DNc)
+- ✅ Perbandingan formula standar (Qty_Required vs Qty_Used)
+- ✅ Perhitungan Rendemen (yield)
+
+---
+
+## Riwayat Versi
+
+### v3 (Januari 2026) - Pengisian Data Lengkap
+**Peningkatan Utama:** Mengisi semua field yang sebelumnya kosong di tabel Header dan Detail.
+
+**Penambahan di Tabel Header:**
+- `Product_Name` - Dari master m_Product
+- `LOB` - Line of Business dari vw_COGS_Product_Group
+- `Group_PNCategory`, `Group_PNCategory_Name`, `Group_PNCategory_Dept` - Info kategori dari M_COGS_PRODUCT_GROUP_MANUAL
+- `Batch_Size_Std` - Ukuran batch standar dari M_COGS_PRODUCT_FORMULA_FIX
+- `Rendemen_Std`, `Rendemen_Actual` - Persentase rendemen (aktual dihitung dari output vs batch size standar)
+- `MH_Proses_Std`, `MH_Kemas_Std`, `MH_Timbang_BB`, `MH_Timbang_BK`, `MH_Analisa_Std`, `MH_Mesin_Std` - Standar man-hours
+
+**Penambahan di Tabel Detail:**
+- `Item_Name`, `Item_Unit` - Dari master m_Item_manufacturing
+- `Qty_Required` - Jumlah standar dari formula (t_COGS_HPP_Product_Detail_Formula)
+- `MR_No`, `MR_SeqID` - Referensi MR lengkap
+- `DNc_Material`, `DNc_Original` - Penelusuran batch bahan
+- `TTBA_No`, `TTBA_SeqID` - Penelusuran penerimaan barang
+
+**Tingkat Pengisian yang Tercapai (Periode 202601):**
+- Header: Product_Name 100%, LOB 99%, Batch_Size_Std 100%, Rendemen_Actual 100%
+- Detail: Item_Name 99,95%, Item_Unit 100%, Qty_Required 77%, MR_No 100%, TTBA_No 98%
+
+### v2 (Januari 2026) - Konversi Satuan & Perbaikan Duplikat
+- Perbaikan konversi g→L menggunakan Item_BJ (berat jenis)
+- Perbaikan logika agregasi bahan duplikat
+- Penambahan agregasi yang tepat berdasarkan Item_ID + MR_DNcNo
+
+### v1 (Januari 2026) - Rilis Awal
+- Penelusuran harga PO dasar
+- Penelusuran rekursif rantai MR
+- Penanganan biaya batch BPHP
+- Fallback ke harga standar
+- Konversi mata uang
 
 ---
 
