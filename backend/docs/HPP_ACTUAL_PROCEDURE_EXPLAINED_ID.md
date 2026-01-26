@@ -54,6 +54,88 @@ Prosedur `sp_COGS_Calculate_HPP_Actual` menghitung **biaya produksi sesungguhnya
 
 ---
 
+## Cara Menjalankan Prosedur
+
+### Parameter
+
+| Parameter | Tipe | Default | Keterangan |
+|-----------|------|---------|------------|
+| `@Periode` | VARCHAR(6) | NULL | Periode dalam format YYYYMM (contoh: '202601' untuk Januari 2026) |
+| `@DNcNo` | VARCHAR(100) | NULL | DNc_No batch spesifik yang akan dihitung |
+| `@RecalculateExisting` | BIT | 0 | Jika 1, hitung ulang meskipun data sudah ada |
+| `@Debug` | BIT | 0 | Jika 1, tampilkan pesan debug saat eksekusi |
+
+### Contoh Penggunaan
+
+#### 1. Hitung Semua Batch untuk Satu Periode (Hanya yang Baru)
+Menghitung HPP untuk semua batch di Januari 2026 yang belum pernah dihitung:
+```sql
+EXEC sp_COGS_Calculate_HPP_Actual @Periode = '202601'
+```
+
+#### 2. Hitung Semua Batch untuk Satu Periode (Paksa Hitung Ulang)
+Menghitung ulang HPP untuk SEMUA batch di Januari 2026, meskipun sudah ada:
+```sql
+EXEC sp_COGS_Calculate_HPP_Actual @Periode = '202601', @RecalculateExisting = 1
+```
+
+#### 3. Hitung Satu Batch Tertentu
+Menghitung HPP untuk batch spesifik menggunakan DNc_No:
+```sql
+EXEC sp_COGS_Calculate_HPP_Actual @DNcNo = '00138/I/26/QA/DPJ'
+```
+
+#### 4. Hitung Ulang Satu Batch Tertentu
+Paksa hitung ulang batch spesifik:
+```sql
+EXEC sp_COGS_Calculate_HPP_Actual @DNcNo = '00138/I/26/QA/DPJ', @RecalculateExisting = 1
+```
+
+#### 5. Mode Debug
+Jalankan dengan output debug untuk melihat detail proses:
+```sql
+EXEC sp_COGS_Calculate_HPP_Actual @Periode = '202601', @Debug = 1
+```
+
+### Mencari DNc_No untuk Suatu Batch
+Untuk mencari DNc_No dari batch produk tertentu:
+```sql
+SELECT DNc_No, DNc_ProductID, DNc_BatchNo, DNc_BatchDate
+FROM t_dnc_product
+WHERE DNc_ProductID = '77'      -- Kode produk
+  AND DNc_BatchNo = '77016'     -- Nomor batch
+```
+
+### Melihat Hasil
+Setelah eksekusi, lihat hasilnya:
+```sql
+-- Ringkasan per periode
+SELECT 
+    Periode,
+    COUNT(*) as Total_Batch,
+    SUM(Total_Cost_BB) as Total_Biaya_BB,
+    SUM(Total_Cost_BK) as Total_Biaya_BK
+FROM t_COGS_HPP_Actual_Header
+WHERE Periode = '202601'
+GROUP BY Periode
+
+-- Detail untuk batch tertentu
+SELECT 
+    d.Item_ID, d.Item_Name, d.Item_Type,
+    d.Qty_Required, d.Qty_Used,
+    d.Unit_Price, d.Currency_Original,
+    d.Price_Source
+FROM t_COGS_HPP_Actual_Detail d
+JOIN t_COGS_HPP_Actual_Header h ON d.HPP_Actual_ID = h.HPP_Actual_ID
+WHERE h.BatchNo = '77016'
+```
+
+### Waktu Eksekusi Tipikal
+- Satu batch: ~0,1 detik
+- Satu periode penuh (~200 batch): ~15-20 detik
+
+---
+
 ## Penjelasan Tabel-Tabel
 
 ### 1. `t_dnc_product` - Tabel Batch Produk Jadi
@@ -568,6 +650,71 @@ Kuantitas kecil seperti `L 060` menunjukkan pemakaian 400%:
 
 ---
 ## Riwayat Versi
+
+### v7 (Januari 2026) - Integrasi Biaya Granulat
+
+**Masalah:** Material granulat (Item_ID LIKE 'ä%') menampilkan Unit_Price = 0 di HPP Actual Detail karena granulat adalah produk antara yang tidak memiliki PO langsung.
+
+**Solusi:** Menelusuri batch produksi granulat untuk menemukan bahan baku yang digunakan dan menghitung biaya per gram.
+
+**Rantai Penelusuran Granulat:**
+1. `MR_DNcNo` (contoh: '2100/25/ä7/09') dari penggunaan material
+2. → `t_dnc_manufacturing.DNc_No` (format sama, cocok dengan MR_DNcNo)
+3. → `t_dnc_manufacturing.DNC_BatchNo` (contoh: 'ä7095' - batch aktual)
+4. → `t_Bon_Keluar_Bahan_Awal_Header.MR_BatchNo` (MR yang memproduksi granulat)
+5. → Bahan baku dan harga PO
+
+**Perhitungan Biaya:**
+```sql
+Biaya_Per_Gram = SUM(Qty_BB / 1000 × PO_UnitPrice × Kurs) ÷ Output_Qty
+Total_Cost = Qty_Actual × Biaya_Per_Gram
+```
+
+**Kolom Baru di Header:**
+- `Total_Cost_Granulate` - Total biaya granulat untuk batch
+- `Granulate_Count` - Jumlah item granulat di batch
+
+**Kolom Baru di Detail:**
+- `Is_Granulate` - Flag (1 = granulat)
+- `Granulate_Batch` - Batch produksi granulat (contoh: 'ä7095')
+- `Granulate_MR_No` - Nomor MR produksi granulat
+- `Granulate_Raw_Material_Cost` - Total biaya bahan baku
+- `Granulate_Output_Qty` - Output produksi granulat (gram)
+- `Granulate_Cost_Per_Gram` - Biaya per gram yang dihitung
+
+**Hasil Periode 202601:**
+- 215 batch diproses, 13 granulat dihitung
+- Total biaya granulat: IDR 221.745,22
+- Biaya per gram: 5,59 - 6,31 IDR/g
+- Price_Source = 'GRANULATE_CALC' untuk biaya granulat yang dihitung
+
+**Hasil Periode 202508:**
+- 307 batch diproses (304 sukses, 3 error)
+- 15 granulat dihitung
+- Total biaya granulat: IDR 438.260,77
+
+### v6 (Januari 2026) - Perbaikan Prioritas Sumber Item_Type
+**Perbaikan Kualitas Data:** Menggunakan `m_Item_manufacturing` sebagai sumber UTAMA untuk `Item_Type` alih-alih `M_COGS_STD_HRG_BAHAN`.
+
+**Masalah:** `M_COGS_STD_HRG_BAHAN` tidak memiliki item dengan suffix `.000`, `.001` (contoh: `A 176.000`), menyebabkan banyak item terklasifikasi sebagai "OTHER".
+
+**Solusi:** Mengubah prioritas lookup Item_Type:
+```sql
+-- Urutan prioritas untuk Item_Type:
+-- 1: m_Item_manufacturing (99,8% coverage, memiliki varian suffix)
+-- 2: M_COGS_STD_HRG_BAHAN (fallback)
+-- 3: Pattern matching (BB %, BK %, PM %)
+MAX(COALESCE(
+    itm.Item_Type,    -- m_Item_manufacturing
+    mst.ITEM_TYPE,    -- M_COGS_STD_HRG_BAHAN  
+    CASE ... END      -- Fallback pattern
+))
+```
+
+**Hasil Setelah v6:**
+- Item BB: **2.421**
+- Item BK: **2.026** 
+- Item OTHER: **0** (sebelumnya 315)
 
 ### v5 (Januari 2026) - Perbaikan Agregasi Formula
 **Perbaikan Kritis:** Tabel formula memiliki baris duplikat per item (berbeda `PPI_SeqID` untuk setiap tahap manufaktur), menyebabkan perkalian kuantitas.

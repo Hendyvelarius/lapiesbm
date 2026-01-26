@@ -54,6 +54,88 @@ The `sp_COGS_Calculate_HPP_Actual` procedure calculates the **true manufacturing
 
 ---
 
+## How to Execute the Procedure
+
+### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `@Periode` | VARCHAR(6) | NULL | Period in YYYYMM format (e.g., '202601' for January 2026) |
+| `@DNcNo` | VARCHAR(100) | NULL | Specific batch DNc_No to calculate |
+| `@RecalculateExisting` | BIT | 0 | If 1, recalculate even if data already exists |
+| `@Debug` | BIT | 0 | If 1, print debug messages during execution |
+
+### Usage Examples
+
+#### 1. Calculate All Batches for a Period (New Only)
+Calculates HPP for all batches in January 2026 that haven't been calculated yet:
+```sql
+EXEC sp_COGS_Calculate_HPP_Actual @Periode = '202601'
+```
+
+#### 2. Calculate All Batches for a Period (Force Recalculate)
+Recalculates HPP for ALL batches in January 2026, even if already calculated:
+```sql
+EXEC sp_COGS_Calculate_HPP_Actual @Periode = '202601', @RecalculateExisting = 1
+```
+
+#### 3. Calculate a Single Batch
+Calculates HPP for a specific batch using its DNc_No:
+```sql
+EXEC sp_COGS_Calculate_HPP_Actual @DNcNo = '00138/I/26/QA/DPJ'
+```
+
+#### 4. Recalculate a Single Batch
+Force recalculate a specific batch:
+```sql
+EXEC sp_COGS_Calculate_HPP_Actual @DNcNo = '00138/I/26/QA/DPJ', @RecalculateExisting = 1
+```
+
+#### 5. Debug Mode
+Run with debug output to see processing details:
+```sql
+EXEC sp_COGS_Calculate_HPP_Actual @Periode = '202601', @Debug = 1
+```
+
+### Finding the DNc_No for a Batch
+To find the DNc_No for a specific product batch:
+```sql
+SELECT DNc_No, DNc_ProductID, DNc_BatchNo, DNc_BatchDate
+FROM t_dnc_product
+WHERE DNc_ProductID = '77'      -- Product code
+  AND DNc_BatchNo = '77016'     -- Batch number
+```
+
+### Checking Results
+After execution, view the results:
+```sql
+-- Summary by period
+SELECT 
+    Periode,
+    COUNT(*) as Total_Batches,
+    SUM(Total_Cost_BB) as Total_BB_Cost,
+    SUM(Total_Cost_BK) as Total_BK_Cost
+FROM t_COGS_HPP_Actual_Header
+WHERE Periode = '202601'
+GROUP BY Periode
+
+-- Detail for a specific batch
+SELECT 
+    d.Item_ID, d.Item_Name, d.Item_Type,
+    d.Qty_Required, d.Qty_Used,
+    d.Unit_Price, d.Currency_Original,
+    d.Price_Source
+FROM t_COGS_HPP_Actual_Detail d
+JOIN t_COGS_HPP_Actual_Header h ON d.HPP_Actual_ID = h.HPP_Actual_ID
+WHERE h.BatchNo = '77016'
+```
+
+### Typical Execution Time
+- Single batch: ~0.1 seconds
+- Full period (~200 batches): ~15-20 seconds
+
+---
+
 ## The Tables Explained
 
 ### 1. `t_dnc_product` - Product Batch Table
@@ -571,6 +653,29 @@ Small quantities like `L 060` show 400% usage:
 
 ## Version History
 
+### v6 (January 2026) - Item_Type Source Priority Fix
+**Data Quality Fix:** Use `m_Item_manufacturing` as PRIMARY source for `Item_Type` instead of `M_COGS_STD_HRG_BAHAN`.
+
+**Problem:** `M_COGS_STD_HRG_BAHAN` doesn't have items with `.000`, `.001` suffixes (e.g., `A 176.000`), causing many items to be classified as "OTHER".
+
+**Solution:** Changed Item_Type lookup priority:
+```sql
+-- Priority order for Item_Type:
+-- 1st: m_Item_manufacturing (99.8% coverage, has suffix variants)
+-- 2nd: M_COGS_STD_HRG_BAHAN (fallback)
+-- 3rd: Pattern matching (BB %, BK %, PM %)
+MAX(COALESCE(
+    itm.Item_Type,    -- m_Item_manufacturing
+    mst.ITEM_TYPE,    -- M_COGS_STD_HRG_BAHAN  
+    CASE ... END      -- Pattern fallback
+))
+```
+
+**Results After v6:**
+- BB items: **2,421**
+- BK items: **2,026** 
+- OTHER items: **0** (previously 315)
+
 ### v5 (January 2026) - Formula Aggregation Fix
 **Critical Fix:** Formula table has duplicate rows per item (different `PPI_SeqID` for each manufacturing step), causing quantity multiplication.
 
@@ -636,3 +741,34 @@ WHERE h.MR_ProductID = @CurrentProductID
 - BPHP batch cost handling
 - Standard price fallback
 - Currency conversion
+
+### v7 (January 2026) - Granulate Material Costing
+**Major Enhancement:** Calculate actual cost for granulate materials (Item_ID LIKE 'ä%')
+
+**Problem:** Granulate materials (ä 0, ä 7, ä 8, etc.) had Unit_Price = 0 because they don't have direct PO linkage. They are intermediate products made from raw materials.
+
+**Solution:** Trace granulate cost by:
+1. Find the granulate batch in `t_dnc_manufacturing` using `MR_DNcNo`
+2. Get the actual batch number (`DNC_BatchNo`, e.g., 'ä7095')
+3. Find the MR that produced that granulate batch in `t_Bon_Keluar_Bahan_Awal_Header`
+4. Sum the raw material costs from that MR (using PO prices with currency conversion)
+5. Divide by output quantity to get cost per gram
+6. Set `Price_Source = 'GRANULATE_CALC'`
+
+**New Detail Columns:**
+- `Is_Granulate` - Flag (1 if item is granulate)
+- `Granulate_Batch` - Actual batch number (e.g., 'ä7095')
+- `Granulate_MR_No` - MR that produced the granulate
+- `Granulate_Raw_Material_Cost` - Total raw material cost (IDR)
+- `Granulate_Output_Qty` - Output quantity in grams
+- `Granulate_Cost_Per_Gram` - Calculated cost per gram (IDR/g)
+
+**New Header Columns:**
+- `Total_Cost_Granulate` - Total granulate cost for the batch
+- `Granulate_Count` - Number of granulate items in the batch
+
+**Results (Period 202601):**
+- 13 granulate items processed
+- Total granulate cost: IDR 221,745.22
+- Cost per gram range: 5.60 - 6.31 IDR/g
+
