@@ -12,6 +12,7 @@ import FormulaAssignment from './pages/FormulaAssignment';
 import ProductFormula from './pages/ProductFormula';
 import GenerateHPP from './pages/GenerateHPP';
 import HPPResults from './pages/HPPResults';
+import HPPActualList from './pages/HPPActualList';
 import { 
   authenticateFromURL, 
   storeAuthData, 
@@ -162,6 +163,8 @@ function AppContent() {
         return 'Generate HPP';
       case '/hpp-results':
         return 'HPP Calculation Results';
+      case '/hpp-actual':
+        return 'HPP Actual Results';
       default:
         return `Hello, ${userName}`;
     }
@@ -348,6 +351,11 @@ function AppContent() {
             authState.accessLevel === 'full' 
               ? <HPPResults user={authState.user} /> 
               : <RestrictedPage pageName="HPP Results" />
+          } />
+          <Route path="/hpp-actual" element={
+            authState.accessLevel === 'full' 
+              ? <HPPActualList user={authState.user} /> 
+              : <RestrictedPage pageName="HPP Actual Results" />
           } />
         </Routes>
       </main>

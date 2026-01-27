@@ -304,6 +304,20 @@ export const hppAPI = {
     method: 'PUT',
     body: JSON.stringify({ simulationVersions }),
   }),
+
+  // ==================== HPP ACTUAL APIs ====================
+  
+  // Get HPP Actual list with calculated total HPP per batch
+  getActualList: (periode = null) => {
+    const queryString = periode ? `?periode=${periode}` : '';
+    return apiRequest(`/hpp/actual/list${queryString}`);
+  },
+  
+  // Get available periods for HPP Actual
+  getActualPeriods: () => apiRequest('/hpp/actual/periods'),
+  
+  // Get HPP Actual detail (header + materials) by HPP_Actual_ID
+  getActualDetail: (hppActualId) => apiRequest(`/hpp/actual/${hppActualId}`),
 };
 
 // Combined service for creating complete HPP records

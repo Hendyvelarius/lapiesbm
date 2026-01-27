@@ -1056,6 +1056,242 @@ async function updateSimulationVersionBulk(simulationVersions) {
   }
 }
 
+// =====================================================================
+// HPP ACTUAL FUNCTIONS
+// =====================================================================
+
+/**
+ * Get HPP Actual list for a given period
+ * Returns calculated HPP values for each batch
+ */
+async function getHPPActualList(periode = null) {
+  try {
+    const db = await connect();
+    
+    // Build query to get all batches with calculated HPP
+    let query = `
+      SELECT 
+        h.HPP_Actual_ID,
+        h.DNc_No,
+        h.DNc_ProductID as Product_ID,
+        h.Product_Name,
+        h.BatchNo,
+        h.BatchDate,
+        h.TempelLabel_Date,
+        h.Periode,
+        h.LOB,
+        h.Group_PNCategory,
+        h.Group_PNCategory_Name,
+        h.Group_PNCategory_Dept,
+        h.Batch_Size_Std,
+        h.Output_Actual,
+        h.Rendemen_Std,
+        h.Rendemen_Actual,
+        h.Total_Cost_BB,
+        h.Total_Cost_BK,
+        h.Total_Cost_Granulate,
+        h.Granulate_Count,
+        h.MH_Proses_Std,
+        h.MH_Proses_Actual,
+        h.Rate_MH_Proses,
+        h.MH_Kemas_Std,
+        h.MH_Kemas_Actual,
+        h.Rate_MH_Kemas,
+        h.MH_Timbang_BB,
+        h.MH_Timbang_BK,
+        h.Rate_MH_Timbang,
+        h.Direct_Labor,
+        h.Factory_Overhead,
+        h.Depresiasi,
+        h.MH_Analisa_Std,
+        h.Biaya_Analisa,
+        h.Biaya_Reagen,
+        h.MH_Mesin_Std,
+        h.Rate_PLN,
+        h.Cost_Utility,
+        h.Toll_Fee,
+        h.Beban_Sisa_Bahan_Exp,
+        h.Biaya_Lain,
+        h.Calculation_Status,
+        h.Calculation_Date,
+        h.Count_Materials_PO,
+        h.Count_Materials_MR,
+        h.Count_Materials_STD,
+        h.Count_Materials_UNLINKED,
+        -- Calculate component costs
+        ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Direct_Labor, 0) as Biaya_Proses,
+        ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Direct_Labor, 0) as Biaya_Kemas,
+        ISNULL(h.MH_Timbang_BB, 0) * ISNULL(h.Rate_MH_Timbang, 0) as Biaya_Timbang_BB,
+        ISNULL(h.MH_Timbang_BK, 0) * ISNULL(h.Rate_MH_Timbang, 0) as Biaya_Timbang_BK,
+        -- Calculate Total HPP per Batch
+        (
+          ISNULL(h.Total_Cost_BB, 0) +
+          ISNULL(h.Total_Cost_BK, 0) +
+          (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Direct_Labor, 0)) +
+          (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Direct_Labor, 0)) +
+          (ISNULL(h.MH_Timbang_BB, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
+          (ISNULL(h.MH_Timbang_BK, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
+          (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Factory_Overhead, 0)) +
+          (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Factory_Overhead, 0)) +
+          (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Depresiasi, 0)) +
+          (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Depresiasi, 0)) +
+          ISNULL(h.Biaya_Analisa, 0) +
+          ISNULL(h.Biaya_Reagen, 0) +
+          ISNULL(h.Cost_Utility, 0) +
+          ISNULL(h.Toll_Fee, 0) +
+          ISNULL(h.Beban_Sisa_Bahan_Exp, 0) +
+          ISNULL(h.Biaya_Lain, 0)
+        ) as Total_HPP_Batch,
+        -- Calculate HPP per unit (Total HPP / Output)
+        CASE 
+          WHEN ISNULL(h.Output_Actual, 0) > 0 THEN
+            (
+              ISNULL(h.Total_Cost_BB, 0) +
+              ISNULL(h.Total_Cost_BK, 0) +
+              (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Direct_Labor, 0)) +
+              (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Direct_Labor, 0)) +
+              (ISNULL(h.MH_Timbang_BB, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
+              (ISNULL(h.MH_Timbang_BK, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
+              (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Factory_Overhead, 0)) +
+              (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Factory_Overhead, 0)) +
+              (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Depresiasi, 0)) +
+              (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Depresiasi, 0)) +
+              ISNULL(h.Biaya_Analisa, 0) +
+              ISNULL(h.Biaya_Reagen, 0) +
+              ISNULL(h.Cost_Utility, 0) +
+              ISNULL(h.Toll_Fee, 0) +
+              ISNULL(h.Beban_Sisa_Bahan_Exp, 0) +
+              ISNULL(h.Biaya_Lain, 0)
+            ) / h.Output_Actual
+          ELSE 0
+        END as HPP_Per_Unit
+      FROM t_COGS_HPP_Actual_Header h
+      WHERE h.LOB != 'GRANULATE'
+        AND h.Calculation_Status = 'COMPLETED'
+    `;
+    
+    let request = db.request();
+    
+    if (periode) {
+      query += ` AND h.Periode = @periode`;
+      request = request.input('periode', sql.VarChar(6), periode);
+    }
+    
+    query += ` ORDER BY h.Periode DESC, h.DNc_ProductID, h.BatchNo`;
+    
+    const result = await request.query(query);
+    return result.recordset || [];
+    
+  } catch (error) {
+    console.error("Error in getHPPActualList:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get available periods for HPP Actual
+ */
+async function getHPPActualPeriods() {
+  try {
+    const db = await connect();
+    
+    const query = `
+      SELECT DISTINCT Periode, 
+             COUNT(*) as BatchCount,
+             SUM(CASE WHEN LOB = 'GRANULATE' THEN 1 ELSE 0 END) as GranulateCount
+      FROM t_COGS_HPP_Actual_Header
+      WHERE Calculation_Status = 'COMPLETED'
+      GROUP BY Periode
+      ORDER BY Periode DESC
+    `;
+    
+    const result = await db.request().query(query);
+    return result.recordset || [];
+    
+  } catch (error) {
+    console.error("Error in getHPPActualPeriods:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get HPP Actual detail (materials) for a specific batch
+ */
+async function getHPPActualDetail(hppActualId) {
+  try {
+    const db = await connect();
+    
+    const query = `
+      SELECT 
+        d.HPP_Detail_ID,
+        d.HPP_Actual_ID,
+        d.DNc_No,
+        d.Item_ID,
+        d.Item_Name,
+        d.Item_Type,
+        d.Item_Unit,
+        d.Qty_Required,
+        d.Qty_Used,
+        d.Usage_Unit,
+        d.PO_Unit,
+        d.Unit_Conversion_Factor,
+        d.Qty_In_PO_Unit,
+        d.Unit_Price,
+        d.Currency_Original,
+        d.Exchange_Rate,
+        d.Unit_Price_IDR,
+        d.Price_Source,
+        d.Price_Source_Level,
+        d.MR_No,
+        d.TTBA_No,
+        d.PO_No,
+        d.Is_Granulate,
+        d.Granulate_Batch,
+        d.Granulate_Cost_Per_Gram,
+        -- Calculate total cost
+        ISNULL(d.Qty_In_PO_Unit, d.Qty_Used) * ISNULL(d.Unit_Price_IDR, 0) as Total_Cost
+      FROM t_COGS_HPP_Actual_Detail d
+      WHERE d.HPP_Actual_ID = @hppActualId
+      ORDER BY d.Item_Type, d.Item_ID
+    `;
+    
+    const result = await db.request()
+      .input('hppActualId', sql.Int, hppActualId)
+      .query(query);
+    
+    return result.recordset || [];
+    
+  } catch (error) {
+    console.error("Error in getHPPActualDetail:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get HPP Actual header for a specific batch
+ */
+async function getHPPActualHeader(hppActualId) {
+  try {
+    const db = await connect();
+    
+    const query = `
+      SELECT *
+      FROM t_COGS_HPP_Actual_Header
+      WHERE HPP_Actual_ID = @hppActualId
+    `;
+    
+    const result = await db.request()
+      .input('hppActualId', sql.Int, hppActualId)
+      .query(query);
+    
+    return result.recordset[0] || null;
+    
+  } catch (error) {
+    console.error("Error in getHPPActualHeader:", error);
+    throw error;
+  }
+}
+
 module.exports = {
   getHPP,
   generateHPPCalculation,
@@ -1086,4 +1322,9 @@ module.exports = {
   commitPriceUpdate,
   getSimulationsForPriceChangeGroup,
   updateSimulationVersionBulk,
+  // HPP Actual exports
+  getHPPActualList,
+  getHPPActualPeriods,
+  getHPPActualDetail,
+  getHPPActualHeader,
 };

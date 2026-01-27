@@ -1,4 +1,4 @@
-const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, getMarkedForDeleteList, deleteSimulation, markSimulationForDelete, restoreSimulation, bulkMarkForDelete, permanentlyDeleteMarked, getSimulationOwner, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk, bulkMarkPriceChangeGroupForDelete, bulkDeletePriceChangeGroup } = require('../models/hppModel');
+const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, getMarkedForDeleteList, deleteSimulation, markSimulationForDelete, restoreSimulation, bulkMarkForDelete, permanentlyDeleteMarked, getSimulationOwner, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk, bulkMarkPriceChangeGroupForDelete, bulkDeletePriceChangeGroup, getHPPActualList, getHPPActualPeriods, getHPPActualDetail, getHPPActualHeader } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
@@ -1065,6 +1065,91 @@ class HPPController {
       res.status(500).json({
         success: false,
         message: 'Error getting simulation owner',
+        error: error.message
+      });
+    }
+  }
+
+  // =====================================================================
+  // HPP ACTUAL METHODS
+  // =====================================================================
+
+  // Get HPP Actual list
+  static async getHPPActualListData(req, res) {
+    try {
+      const { periode } = req.query;
+      const data = await getHPPActualList(periode);
+      
+      res.status(200).json({
+        success: true,
+        data: data,
+        count: data.length
+      });
+    } catch (error) {
+      console.error('Get HPP Actual List Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving HPP Actual list',
+        error: error.message
+      });
+    }
+  }
+
+  // Get available periods for HPP Actual
+  static async getHPPActualPeriodsData(req, res) {
+    try {
+      const periods = await getHPPActualPeriods();
+      
+      res.status(200).json({
+        success: true,
+        data: periods
+      });
+    } catch (error) {
+      console.error('Get HPP Actual Periods Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving HPP Actual periods',
+        error: error.message
+      });
+    }
+  }
+
+  // Get HPP Actual detail (materials) for a batch
+  static async getHPPActualDetailData(req, res) {
+    try {
+      const { hppActualId } = req.params;
+      
+      if (!hppActualId) {
+        return res.status(400).json({
+          success: false,
+          message: 'HPP Actual ID is required'
+        });
+      }
+      
+      const [header, details] = await Promise.all([
+        getHPPActualHeader(hppActualId),
+        getHPPActualDetail(hppActualId)
+      ]);
+      
+      if (!header) {
+        return res.status(404).json({
+          success: false,
+          message: `HPP Actual with ID ${hppActualId} not found`
+        });
+      }
+      
+      res.status(200).json({
+        success: true,
+        data: {
+          header,
+          details
+        }
+      });
+    } catch (error) {
+      console.error('Get HPP Actual Detail Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving HPP Actual detail',
         error: error.message
       });
     }

@@ -86,6 +86,13 @@ export default function Sidebar({ user, accessLevel }) {
                 </Link>
               </li>
             )}
+            {hasFullAccess && (
+              <li className={location.pathname === '/hpp-actual' ? 'active' : ''}>
+                <Link to="/hpp-actual" className="sidebar-link">
+                  <Layers className="sidebar-icon" size={20} /> HPP Actual
+                </Link>
+              </li>
+            )}
           </ul>
         </div>
         {/* Sticky Bottom Section */}

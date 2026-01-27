@@ -27,14 +27,14 @@ async function deploy() {
             if (batch.trim()) await sql.query(batch);
         }
         
-        // Deploy v10 procedure
-        console.log('Reading v10 script...');
-        const script = fs.readFileSync('./migrations/010_sp_COGS_Calculate_HPP_Actual_v10.sql', 'utf8');
+        // Deploy v11 procedure
+        console.log('Reading v11 script...');
+        const script = fs.readFileSync('./migrations/010_sp_COGS_Calculate_HPP_Actual_v11.sql', 'utf8');
         
         // Split by GO and execute each batch
         const batches = script.split(/\nGO\s*\n/i).filter(b => b.trim());
         
-        console.log(`Deploying sp_COGS_Calculate_HPP_Actual v10 (${batches.length} batches)...`);
+        console.log(`Deploying sp_COGS_Calculate_HPP_Actual v11 (${batches.length} batches)...`);
         
         for (let i = 0; i < batches.length; i++) {
             const batch = batches[i].trim();
@@ -44,7 +44,7 @@ async function deploy() {
             }
         }
         
-        console.log('v10 deployed successfully');
+        console.log('v11 deployed successfully');
         await sql.close();
     } catch (err) {
         console.error('Deploy failed:', err.message);

@@ -101,4 +101,18 @@ router.post('/simulations-for-group', HPPController.getSimulationsForPriceChange
 // Body: { simulationVersions: [{ simulasiId: 1, versi: "1" }, { simulasiId: 2, versi: "0" }] }
 router.put('/simulation/version-bulk', HPPController.updateSimulationVersionBulk);
 
+// =====================================================================
+// HPP ACTUAL ROUTES
+// =====================================================================
+
+// GET /api/hpp/actual/list - Get HPP Actual list for a period
+// Query: ?periode=202601
+router.get('/actual/list', HPPController.getHPPActualListData);
+
+// GET /api/hpp/actual/periods - Get available periods for HPP Actual
+router.get('/actual/periods', HPPController.getHPPActualPeriodsData);
+
+// GET /api/hpp/actual/:hppActualId - Get HPP Actual detail (header + materials)
+router.get('/actual/:hppActualId', HPPController.getHPPActualDetailData);
+
 module.exports = router;
