@@ -772,3 +772,116 @@ WHERE h.MR_ProductID = @CurrentProductID
 - Total granulate cost: IDR 221,745.22
 - Cost per gram range: 5.60 - 6.31 IDR/g
 
+### v8 (January 2026) - Granulate Output Date Filtering
+**Critical Fix:** Filter granulate output quantities by year.
+
+**Problem:** Batch numbers like 'ä0155' can be reused across years. Without date filtering, the procedure was summing ALL `t_dnc_manufacturing` records across years, causing inflated output quantities and incorrect cost per gram calculations.
+
+**Example:**
+- Batch ä0155 had records from 2015 (39,240g) AND 2025 (155,640g)
+- v7 incorrectly calculated: 194,880g (summed both years)
+- v8 correctly filters to get: 155,640g (2025 only)
+
+**Solution:** Added year-based filtering for granulate output:
+```sql
+-- Added variables
+DECLARE @GranulateMRDate DATETIME
+DECLARE @GranulateMRYear INT
+
+-- Filter by year when summing DNc_ReleaseQTY
+WHERE YEAR(DNc_Date) = @GranulateMRYear
+```
+
+### v9 (January 2026) - Granulates as First-Class Products
+**Architectural Change:** Process granulates as separate manufactured products, not just inline calculations.
+
+**Problem:** v7-v8 calculated granulate costs inline and stored them only as columns on the product detail (`Granulate_Batch`, `Granulate_Raw_Cost`, etc.). This made validation difficult and didn't support future manhour calculations.
+
+**New Two-Pass Approach:**
+1. **PASS 1:** Identify and process all granulate batches for the period
+   - Each granulate batch gets its own Header record (`DNc_No = granulate batch`)
+   - Each raw material used gets its own Detail record
+   - Output comes from `t_dnc_manufacturing`
+   - Cost per gram calculated and stored in header
+
+2. **PASS 2:** Process regular products
+   - When a material is a granulate, lookup its HPP Actual record
+   - Use the calculated cost per gram from the granulate's header
+   - `Price_Source = 'GRANULATE_HPP'` with link to granulate's `HPP_Actual_ID`
+
+**Benefits:**
+- Full validation: Can see all raw materials that made the granulate
+- Future-ready: Can add manhour/overhead to granulates
+- Cleaner architecture: Granulates are manufactured items, treat them as such
+
+### v10 (January 2026) - Exchange Rate Based on PO Date
+**Critical Fix:** Use purchase order date for exchange rate, not batch production date.
+
+**Problem:** Exchange rates were fetched based on the product's `TempelLabel` date (production/batch date). This is incorrect because the material cost in foreign currency was locked in at **purchase time**, not production time.
+
+**Correct Approach:**
+1. Fetch exchange rate based on `PO_Date` from `t_PO_Manufacturing_Header`
+2. Each material row gets its exchange rate from its own PO date
+3. Fall back to `TTBA Process_Date` if PO_Date not available
+4. Fall back to batch date only as last resort
+
+**Impact:**
+- More accurate costing for imported materials
+- Costs reflect actual purchase time exchange rates
+- Added `PO_Date` column to detail table for audit/validation
+
+### v11 (January 2026) - Granulate Product Name Lookup Fix
+**Fix:** Correctly map granulate product names from item master.
+
+**Problem:** Granulate Product_Name showed as NULL because of Item_ID format mismatch:
+- `t_Bon_Keluar_Bahan_Awal_Header.MR_ProductID` uses format `'ä0'` (no space, length 2)
+- `m_Item_manufacturing.Item_ID` uses format `'ä 0'` (with space, length 3)
+
+**Solution:** Use `REPLACE()` to normalize the Item_ID for matching:
+```sql
+-- Before (failed to match):
+WHERE Item_ID = @GranProductID  -- 'ä 0' != 'ä0'
+
+-- After (correctly matches):
+WHERE REPLACE(Item_ID, ' ', '') = @GranProductID  -- 'ä0' = 'ä0'
+```
+
+**Results:**
+| DNc_ProductID | Product_Name | Batch Count |
+|---------------|--------------|-------------|
+| ä0 | Granulat Dasar | 9 |
+| ä7 | Granulat Lapicef-125 DS | 8 |
+| ä8 | Granulat Lapicef-250 DS | 8 |
+### v12 (January 2026) - MR Chain Recursive Tracing Fix
+**Critical Fix:** Actually follow the MR chain when tracing material prices.
+
+**Problem:** The recursive MR tracing loop only tried to find a PO from the initial `MR_Source_No`, but never updated it to follow to the next MR in the chain. Materials that went through multiple MR hops (returns/reprocessing) were incorrectly falling back to STD prices.
+
+**Example Chain:**
+```
+Material Batch → TTBA → MR → TTBA → MR → TTBA → MR → TTBA → PO (5 levels)
+```
+Previous versions only checked level 0, found no PO, and stopped.
+
+**New Two-Step Iteration:**
+```sql
+WHILE @Iteration <= 20 AND (@RowsUpdated > 0 OR @RowsChained > 0)
+BEGIN
+    -- Step 1: Try to find PO from current MR_Source_No
+    UPDATE ... WHERE PO found
+    
+    -- Step 2: For materials still without PO, follow the MR chain
+    UPDATE m SET MR_Source_No = t2.TTBA_SourceDocNo  -- Point to NEXT MR
+    WHERE source is another MR and no PO found yet
+END
+```
+
+**Impact:**
+| Metric | Before (v11) | After (v12) |
+|--------|-------------|-------------|
+| STD materials | 98 | 47 (-52%) |
+| MR materials | 52 | 103 (+98%) |
+| Max trace depth | 1 | 8 |
+| Avg trace depth | 1.0 | 2.7 |
+
+51 materials previously using standard prices now traced to actual PO prices.

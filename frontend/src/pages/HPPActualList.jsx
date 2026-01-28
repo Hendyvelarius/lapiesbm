@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Download, FileText, Loader2, ChevronLeft, ChevronRight, Search, RefreshCw, Calendar, Eye, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Download, FileText, Loader2, ChevronLeft, ChevronRight, Search, RefreshCw, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { hppAPI } from '../services/api';
 import '../styles/HPPActualList.css';
 
@@ -15,7 +17,7 @@ const formatCurrency = (value) => {
   }).format(value);
 };
 
-const formatNumber = (value, decimals = 0) => {
+const formatNumber = (value, decimals = 2) => {
   if (value === null || value === undefined) return '-';
   return new Intl.NumberFormat('id-ID', {
     minimumFractionDigits: decimals,
@@ -23,7 +25,6 @@ const formatNumber = (value, decimals = 0) => {
   }).format(value);
 };
 
-// Format period for display (202601 -> Jan 2026)
 const formatPeriod = (periode) => {
   if (!periode || periode.length !== 6) return periode;
   const year = periode.substring(0, 4);
@@ -32,42 +33,46 @@ const formatPeriod = (periode) => {
   return `${monthNames[month - 1]} ${year}`;
 };
 
-// Format date for display
 const formatDate = (dateStr) => {
   if (!dateStr) return '-';
   const date = new Date(dateStr);
-  return date.toLocaleDateString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
+  return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-// Pagination component
+const formatPrintDate = () => {
+  const now = new Date();
+  const day = String(now.getDate()).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = now.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+const formatHPPRatio = (ratio) => {
+  if (!ratio || isNaN(ratio)) return '0,00%';
+  const percentage = parseFloat(ratio).toFixed(2);
+  return `${percentage.replace('.', ',')}%`;
+};
+
+// Pagination Component
 const Pagination = ({ currentPage, totalPages, onPageChange, totalItems }) => {
   const getVisiblePages = () => {
     const delta = 2;
     const range = [];
     const rangeWithDots = [];
-
     for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
       range.push(i);
     }
-
     if (currentPage - delta > 2) {
       rangeWithDots.push(1, '...');
     } else {
       rangeWithDots.push(1);
     }
-
     rangeWithDots.push(...range);
-
     if (currentPage + delta < totalPages - 1) {
       rangeWithDots.push('...', totalPages);
     } else if (totalPages > 1) {
       rangeWithDots.push(totalPages);
     }
-
     return rangeWithDots;
   };
 
@@ -76,17 +81,12 @@ const Pagination = ({ currentPage, totalPages, onPageChange, totalItems }) => {
   return (
     <div className="hpp-actual-pagination">
       <div className="hpp-actual-pagination-info">
-        Showing page {currentPage} of {totalPages} ({formatNumber(totalItems)} total batches)
+        Showing page {currentPage} of {totalPages} ({totalItems} total batches)
       </div>
       <div className="hpp-actual-pagination-controls">
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="hpp-actual-pagination-btn"
-        >
+        <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="hpp-actual-pagination-btn">
           <ChevronLeft size={16} />
         </button>
-        
         {getVisiblePages().map((page, index) => (
           <button
             key={index}
@@ -97,12 +97,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange, totalItems }) => {
             {page}
           </button>
         ))}
-        
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className="hpp-actual-pagination-btn"
-        >
+        <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="hpp-actual-pagination-btn">
           <ChevronRight size={16} />
         </button>
       </div>
@@ -110,219 +105,494 @@ const Pagination = ({ currentPage, totalPages, onPageChange, totalItems }) => {
   );
 };
 
-// Detail Modal Component
-const DetailModal = ({ isOpen, onClose, batch, materials, isLoading }) => {
-  if (!isOpen) return null;
+// Ethical/OTC Table Component
+const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onBatchClick }) => (
+  <div className="hpp-actual-table-container">
+    <div className="hpp-actual-table-header">
+      <h3><FileText className="hpp-actual-table-icon" />Ethical / OTC Products</h3>
+      <div className="hpp-actual-table-controls">
+        <div className="hpp-actual-search-container">
+          <Search size={16} className="hpp-actual-search-icon" />
+          <input
+            type="text"
+            placeholder="Search batches..."
+            value={searchTerm}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="hpp-actual-search-input"
+          />
+        </div>
+        <span className="hpp-actual-record-count">{filteredCount} of {totalCount} batches</span>
+      </div>
+    </div>
+    <div className="hpp-actual-table-wrapper">
+      <table className="hpp-actual-table">
+        <thead>
+          <tr>
+            <th>Product ID</th>
+            <th>Product Name</th>
+            <th>Batch No</th>
+            <th>Batch Date</th>
+            <th>Output</th>
+            <th>Total BB</th>
+            <th>Total BK</th>
+            <th>MH Proses</th>
+            <th>MH Kemas</th>
+            <th>Biaya Proses</th>
+            <th>Biaya Kemas</th>
+            <th>Expiry Cost</th>
+            <th>Total HPP</th>
+            <th>HPP/Unit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((item, index) => (
+            <tr key={`${item.HPP_Actual_ID}-${index}`}>
+              <td>{item.Product_ID}</td>
+              <td className="product-name clickable" onClick={() => onBatchClick(item)}>{item.Product_Name}</td>
+              <td className="batch-no">{item.BatchNo}</td>
+              <td>{formatDate(item.BatchDate)}</td>
+              <td className="number">{formatNumber(item.Output_Actual, 0)}</td>
+              <td className="number">{formatCurrency(item.Total_Cost_BB)}</td>
+              <td className="number">{formatCurrency(item.Total_Cost_BK)}</td>
+              <td className="number">{item.MH_Proses_Actual ? <span className="actual">{formatNumber(item.MH_Proses_Actual)}</span> : <span className="std">{formatNumber(item.MH_Proses_Std)}</span>}</td>
+              <td className="number">{item.MH_Kemas_Actual ? <span className="actual">{formatNumber(item.MH_Kemas_Actual)}</span> : <span className="std">{formatNumber(item.MH_Kemas_Std)}</span>}</td>
+              <td className="number">{formatCurrency(item.Biaya_Proses)}</td>
+              <td className="number">{formatCurrency(item.Biaya_Kemas)}</td>
+              <td className="number">{formatCurrency(item.Beban_Sisa_Bahan_Exp)}</td>
+              <td className="number hpp-value">{formatCurrency(item.Total_HPP_Batch)}</td>
+              <td className="number hpp-unit">{formatCurrency(item.HPP_Per_Unit)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <Pagination currentPage={pagination.currentPage} totalPages={totalPages} onPageChange={onPageChange} totalItems={filteredCount} />
+  </div>
+);
+
+// Generic Table Component
+const GenericTable = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onBatchClick }) => (
+  <div className="hpp-actual-table-container">
+    <div className="hpp-actual-table-header">
+      <h3><FileText className="hpp-actual-table-icon" />Generic Products</h3>
+      <div className="hpp-actual-table-controls">
+        <div className="hpp-actual-search-container">
+          <Search size={16} className="hpp-actual-search-icon" />
+          <input
+            type="text"
+            placeholder="Search batches..."
+            value={searchTerm}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="hpp-actual-search-input"
+          />
+        </div>
+        <span className="hpp-actual-record-count">{filteredCount} of {totalCount} batches</span>
+      </div>
+    </div>
+    <div className="hpp-actual-table-wrapper">
+      <table className="hpp-actual-table">
+        <thead>
+          <tr>
+            <th>Product ID</th>
+            <th>Product Name</th>
+            <th>Batch No</th>
+            <th>Batch Date</th>
+            <th>Output</th>
+            <th>Total BB</th>
+            <th>Total BK</th>
+            <th>MH Proses</th>
+            <th>MH Kemas</th>
+            <th>Direct Labor</th>
+            <th>Factory OH</th>
+            <th>Depresiasi</th>
+            <th>Expiry Cost</th>
+            <th>Total HPP</th>
+            <th>HPP/Unit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((item, index) => (
+            <tr key={`${item.HPP_Actual_ID}-${index}`}>
+              <td>{item.Product_ID}</td>
+              <td className="product-name clickable" onClick={() => onBatchClick(item)}>{item.Product_Name}</td>
+              <td className="batch-no">{item.BatchNo}</td>
+              <td>{formatDate(item.BatchDate)}</td>
+              <td className="number">{formatNumber(item.Output_Actual, 0)}</td>
+              <td className="number">{formatCurrency(item.Total_Cost_BB)}</td>
+              <td className="number">{formatCurrency(item.Total_Cost_BK)}</td>
+              <td className="number">{item.MH_Proses_Actual ? <span className="actual">{formatNumber(item.MH_Proses_Actual)}</span> : <span className="std">{formatNumber(item.MH_Proses_Std)}</span>}</td>
+              <td className="number">{item.MH_Kemas_Actual ? <span className="actual">{formatNumber(item.MH_Kemas_Actual)}</span> : <span className="std">{formatNumber(item.MH_Kemas_Std)}</span>}</td>
+              <td className="number">{formatCurrency(item.Direct_Labor)}</td>
+              <td className="number">{formatCurrency(item.Factory_Overhead)}</td>
+              <td className="number">{formatCurrency(item.Depresiasi)}</td>
+              <td className="number">{formatCurrency(item.Beban_Sisa_Bahan_Exp)}</td>
+              <td className="number hpp-value">{formatCurrency(item.Total_HPP_Batch)}</td>
+              <td className="number hpp-unit">{formatCurrency(item.HPP_Per_Unit)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <Pagination currentPage={pagination.currentPage} totalPages={totalPages} onPageChange={onPageChange} totalItems={filteredCount} />
+  </div>
+);
+
+// Batch Detail Modal Component
+const BatchDetailModal = ({ batch, materials, isOpen, onClose, isLoading }) => {
+  const modalContentRef = useRef(null);
+  const [exporting, setExporting] = useState(false);
+
+  if (!isOpen || !batch) return null;
+
+  // Determine if Ethical or Generic based on LOB
+  const isEthical = batch.LOB === 'ETHICAL' || batch.LOB === 'ETH' || batch.LOB === 'OTC';
+  
+  // Calculate batch size actual
+  const batchSizeActual = batch.Output_Actual || 1;
+  
+  // Separate materials by Item_Type (from backend)
+  const bahanBaku = materials.filter(m => m.Item_Type === 'BB');
+  const bahanKemas = materials.filter(m => m.Item_Type === 'BK');
+  
+  // Calculate totals
+  const totalBB = batch.Total_Cost_BB || 0;
+  const totalBK = batch.Total_Cost_BK || 0;
+  const totalBBPerUnit = batchSizeActual > 0 ? totalBB / batchSizeActual : 0;
+  const totalBKPerUnit = batchSizeActual > 0 ? totalBK / batchSizeActual : 0;
+  
+  // Calculate manhours (use actual if available, else standard)
+  const mhProses = batch.MH_Proses_Actual ?? batch.MH_Proses_Std ?? 0;
+  const mhKemas = batch.MH_Kemas_Actual ?? batch.MH_Kemas_Std ?? 0;
+  const totalMH = mhProses + mhKemas;
+
+  // Calculate overhead costs based on product type
+  let overheadItems = [];
+  let totalOverhead = 0;
+
+  if (isEthical) {
+    // Ethical: Only Pengolahan + Pengemasan + Expiry
+    const biayaProses = mhProses * (batch.Direct_Labor || 0);
+    const biayaKemas = mhKemas * (batch.Direct_Labor || 0);
+    const expiryCost = batch.Beban_Sisa_Bahan_Exp || 0;
+    
+    overheadItems = [
+      { name: 'PENGOLAHAN', desc: `OPERATOR PROSES LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhProses, unit: 'HRS', rate: batch.Direct_Labor || 0, cost: biayaProses, perUnit: biayaProses / batchSizeActual },
+      { name: 'PENGEMASAN', desc: `OPERATOR PROSES LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhKemas, unit: 'HRS', rate: batch.Direct_Labor || 0, cost: biayaKemas, perUnit: biayaKemas / batchSizeActual },
+      { name: 'EXPIRY COST', desc: '-', qty: '-', unit: '-', rate: expiryCost, cost: expiryCost, perUnit: expiryCost / batchSizeActual },
+    ];
+    totalOverhead = biayaProses + biayaKemas + expiryCost;
+  } else {
+    // Generic: Direct Labor + Factory Overhead + Depresiasi + Expiry
+    const directLaborProses = mhProses * (batch.Direct_Labor || 0);
+    const directLaborKemas = mhKemas * (batch.Direct_Labor || 0);
+    const factoryOHProses = mhProses * (batch.Factory_Overhead || 0);
+    const factoryOHKemas = mhKemas * (batch.Factory_Overhead || 0);
+    const depresiasiProses = mhProses * (batch.Depresiasi || 0);
+    const depresiasiKemas = mhKemas * (batch.Depresiasi || 0);
+    const expiryCost = batch.Beban_Sisa_Bahan_Exp || 0;
+    
+    overheadItems = [
+      { section: 'Direct Labor' },
+      { name: '1 PENGOLAHAN', desc: `OPERATOR LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhProses, unit: 'HRS', rate: batch.Direct_Labor || 0, cost: directLaborProses, perUnit: directLaborProses / batchSizeActual },
+      { name: '2 PENGEMASAN', desc: `OPERATOR LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhKemas, unit: 'HRS', rate: batch.Direct_Labor || 0, cost: directLaborKemas, perUnit: directLaborKemas / batchSizeActual },
+      { subtotal: 'Direct Labor', cost: directLaborProses + directLaborKemas, perUnit: (directLaborProses + directLaborKemas) / batchSizeActual },
+      { section: 'Factory Overhead' },
+      { name: '1 PENGOLAHAN', desc: `OVERHEAD LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhProses, unit: 'HRS', rate: batch.Factory_Overhead || 0, cost: factoryOHProses, perUnit: factoryOHProses / batchSizeActual },
+      { name: '2 PENGEMASAN', desc: `OVERHEAD LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhKemas, unit: 'HRS', rate: batch.Factory_Overhead || 0, cost: factoryOHKemas, perUnit: factoryOHKemas / batchSizeActual },
+      { subtotal: 'Factory Overhead', cost: factoryOHProses + factoryOHKemas, perUnit: (factoryOHProses + factoryOHKemas) / batchSizeActual },
+      { section: 'Depresiasi' },
+      { name: '1 PENGOLAHAN', desc: 'DEPRESIASI MESIN PROSES', qty: mhProses, unit: 'HRS', rate: batch.Depresiasi || 0, cost: depresiasiProses, perUnit: depresiasiProses / batchSizeActual },
+      { name: '2 PENGEMASAN', desc: 'DEPRESIASI MESIN KEMAS', qty: mhKemas, unit: 'HRS', rate: batch.Depresiasi || 0, cost: depresiasiKemas, perUnit: depresiasiKemas / batchSizeActual },
+      { subtotal: 'Depresiasi', cost: depresiasiProses + depresiasiKemas, perUnit: (depresiasiProses + depresiasiKemas) / batchSizeActual },
+      { section: 'Other Costs' },
+      { name: 'EXPIRY COST', desc: '-', qty: '-', unit: '-', rate: expiryCost, cost: expiryCost, perUnit: expiryCost / batchSizeActual },
+    ];
+    totalOverhead = directLaborProses + directLaborKemas + factoryOHProses + factoryOHKemas + depresiasiProses + depresiasiKemas + expiryCost;
+  }
+
+  const totalHPP = batch.Total_HPP_Batch || (totalBB + totalBK + totalOverhead);
+  const hppPerUnit = batch.HPP_Per_Unit || (batchSizeActual > 0 ? totalHPP / batchSizeActual : 0);
+
+  const handleExportToPDF = async () => {
+    if (!modalContentRef.current) return;
+    try {
+      setExporting(true);
+      
+      // Get the content element
+      const element = modalContentRef.current;
+      
+      // Clone the element to capture full content without scroll constraints
+      const clone = element.cloneNode(true);
+      clone.style.position = 'absolute';
+      clone.style.left = '-9999px';
+      clone.style.top = '0';
+      clone.style.width = element.scrollWidth + 'px';
+      clone.style.height = 'auto';
+      clone.style.maxHeight = 'none';
+      clone.style.overflow = 'visible';
+      document.body.appendChild(clone);
+      
+      const canvas = await html2canvas(clone, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+      
+      // Remove the clone
+      document.body.removeChild(clone);
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const imgWidth = pdfWidth - (margin * 2);
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      // Calculate page dimensions
+      const pageContentHeight = pdfHeight - (margin * 2);
+      const totalPages = Math.ceil(imgHeight / pageContentHeight);
+      
+      // For each page, create a cropped portion of the canvas
+      for (let page = 0; page < totalPages; page++) {
+        if (page > 0) pdf.addPage();
+        
+        // Calculate source coordinates for this page slice
+        const sourceY = (page * pageContentHeight * canvas.width) / imgWidth;
+        const sourceHeight = Math.min(
+          (pageContentHeight * canvas.width) / imgWidth,
+          canvas.height - sourceY
+        );
+        
+        // Create a temporary canvas for this page slice
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = sourceHeight;
+        const ctx = pageCanvas.getContext('2d');
+        
+        // Draw the slice from the source canvas
+        ctx.drawImage(
+          canvas,
+          0, sourceY,           // source x, y
+          canvas.width, sourceHeight,  // source width, height
+          0, 0,                 // dest x, y
+          canvas.width, sourceHeight   // dest width, height
+        );
+        
+        const pageImgData = pageCanvas.toDataURL('image/png');
+        const sliceHeight = (sourceHeight * imgWidth) / canvas.width;
+        
+        pdf.addImage(pageImgData, 'PNG', margin, margin, imgWidth, sliceHeight);
+      }
+      
+      pdf.save(`HPP_Actual_${batch.Product_ID}_${batch.BatchNo}_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="hpp-actual-modal-overlay" onClick={onClose}>
-      <div className="hpp-actual-modal-content" onClick={e => e.stopPropagation()}>
+      <div className="hpp-actual-modal" onClick={e => e.stopPropagation()}>
         <div className="hpp-actual-modal-header">
-          <h2>Batch Detail: {batch?.BatchNo}</h2>
-          <button className="hpp-actual-modal-close" onClick={onClose}>&times;</button>
+          <h2>HPP Actual Report - {batch.Product_Name}</h2>
+          <div className="hpp-actual-modal-actions">
+            <button onClick={handleExportToPDF} disabled={isLoading || exporting} className="hpp-actual-export-btn pdf">
+              {exporting ? <Loader2 className="spin" size={16} /> : <Download size={16} />}
+              PDF
+            </button>
+            <button onClick={onClose} className="hpp-actual-close-btn"><X size={20} /></button>
+          </div>
         </div>
-        
-        <div className="hpp-actual-modal-body">
+
+        <div className="hpp-actual-modal-content" ref={modalContentRef}>
           {isLoading ? (
             <div className="hpp-actual-modal-loading">
-              <Loader2 className="spinner" size={32} />
-              <p>Loading details...</p>
+              <Loader2 className="spin" size={32} />
+              <p>Loading batch details...</p>
             </div>
           ) : (
-            <>
-              {/* Batch Summary */}
-              <div className="hpp-actual-detail-summary">
-                <div className="hpp-actual-detail-grid">
-                  <div className="hpp-actual-detail-item">
-                    <span className="label">Product ID</span>
-                    <span className="value">{batch?.Product_ID}</span>
-                  </div>
-                  <div className="hpp-actual-detail-item">
-                    <span className="label">Product Name</span>
-                    <span className="value">{batch?.Product_Name}</span>
-                  </div>
-                  <div className="hpp-actual-detail-item">
-                    <span className="label">Batch No</span>
-                    <span className="value">{batch?.BatchNo}</span>
-                  </div>
-                  <div className="hpp-actual-detail-item">
-                    <span className="label">Batch Date</span>
-                    <span className="value">{formatDate(batch?.BatchDate)}</span>
-                  </div>
-                  <div className="hpp-actual-detail-item">
-                    <span className="label">Period</span>
-                    <span className="value">{formatPeriod(batch?.Periode)}</span>
-                  </div>
-                  <div className="hpp-actual-detail-item">
-                    <span className="label">Output Actual</span>
-                    <span className="value">{formatNumber(batch?.Output_Actual)}</span>
-                  </div>
-                  <div className="hpp-actual-detail-item highlight">
-                    <span className="label">Total HPP Batch</span>
-                    <span className="value">{formatCurrency(batch?.Total_HPP_Batch)}</span>
-                  </div>
-                  <div className="hpp-actual-detail-item highlight">
-                    <span className="label">HPP Per Unit</span>
-                    <span className="value">{formatCurrency(batch?.HPP_Per_Unit)}</span>
+            <div className="hpp-actual-report">
+              {/* Document Header */}
+              <div className="document-header">
+                <div className="header-row">
+                  <div className="header-left"><h3>Perhitungan HPP Actual</h3></div>
+                  <div className="header-right">
+                    <div className="header-info"><span className="label">Site :</span><span className="value">{batch.Group_PNCategory_Dept || 'N/A'}</span></div>
                   </div>
                 </div>
               </div>
 
-              {/* Cost Breakdown */}
-              <div className="hpp-actual-cost-breakdown">
-                <h3>Cost Breakdown</h3>
-                <table className="hpp-actual-cost-table">
+              {/* Product Info Section */}
+              <div className="product-info-section">
+                <div className="info-grid">
+                  <div className="info-left">
+                    <div className="info-line"><span className="label">Produk</span><span className="separator">:</span><span className="value">{batch.Product_ID} - {batch.Product_Name}</span></div>
+                    <div className="info-line"><span className="label">Batch No</span><span className="separator">:</span><span className="value">{batch.BatchNo}</span></div>
+                    <div className="info-line"><span className="label">Batch Date</span><span className="separator">:</span><span className="value">{formatDate(batch.BatchDate)}</span></div>
+                    <div className="info-line"><span className="label">Output Actual</span><span className="separator">:</span><span className="value">{formatNumber(batch.Output_Actual, 0)} UNIT</span></div>
+                  </div>
+                  <div className="info-right">
+                    <div className="info-line"><span className="label">LOB</span><span className="separator">:</span><span className="value">{isEthical ? 'Ethical / OTC' : 'Generic'}</span></div>
+                    <div className="info-line"><span className="label">Periode</span><span className="separator">:</span><span className="value">{formatPeriod(batch.Periode)}</span></div>
+                    <div className="info-line"><span className="label">Tanggal Print</span><span className="separator">:</span><span className="value">{formatPrintDate()}</span></div>
+                    <div className="info-line"><span className="label">Category</span><span className="separator">:</span><span className="value">{batch.Group_PNCategory_Name || '-'}</span></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bahan Baku Section */}
+              <div className="material-section">
+                <div className="section-title"><h4>Bahan Baku (Raw Materials)</h4></div>
+                <table className="excel-table">
                   <thead>
                     <tr>
-                      <th>Component</th>
-                      <th>Value</th>
+                      <th className="narrow">#</th>
+                      <th>Kode Material</th>
+                      <th>Nama Material</th>
+                      <th>Qty Used</th>
+                      <th>Satuan</th>
+                      <th>Cost/unit</th>
+                      <th>Extended Cost</th>
+                      <th>Source</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td>Total Cost BB (Raw Materials)</td>
-                      <td className="cost-value">{formatCurrency(batch?.Total_Cost_BB)}</td>
-                    </tr>
-                    <tr>
-                      <td>Total Cost BK (Packaging)</td>
-                      <td className="cost-value">{formatCurrency(batch?.Total_Cost_BK)}</td>
-                    </tr>
-                    <tr>
-                      <td>Biaya Proses (Direct Labor - Proses)</td>
-                      <td className="cost-value">{formatCurrency(batch?.Biaya_Proses)}</td>
-                    </tr>
-                    <tr>
-                      <td>Biaya Kemas (Direct Labor - Kemas)</td>
-                      <td className="cost-value">{formatCurrency(batch?.Biaya_Kemas)}</td>
-                    </tr>
-                    <tr>
-                      <td>Biaya Timbang BB</td>
-                      <td className="cost-value">{formatCurrency(batch?.Biaya_Timbang_BB)}</td>
-                    </tr>
-                    <tr>
-                      <td>Biaya Timbang BK</td>
-                      <td className="cost-value">{formatCurrency(batch?.Biaya_Timbang_BK)}</td>
-                    </tr>
-                    <tr>
-                      <td>Factory Overhead (Proses + Kemas)</td>
-                      <td className="cost-value">{formatCurrency(
-                        ((batch?.MH_Proses_Actual || batch?.MH_Proses_Std || 0) + (batch?.MH_Kemas_Actual || batch?.MH_Kemas_Std || 0)) * (batch?.Factory_Overhead || 0)
-                      )}</td>
-                    </tr>
-                    <tr>
-                      <td>Depresiasi</td>
-                      <td className="cost-value">{formatCurrency(
-                        ((batch?.MH_Proses_Actual || batch?.MH_Proses_Std || 0) + (batch?.MH_Kemas_Actual || batch?.MH_Kemas_Std || 0)) * (batch?.Depresiasi || 0)
-                      )}</td>
-                    </tr>
-                    <tr>
-                      <td>Biaya Analisa</td>
-                      <td className="cost-value">{formatCurrency(batch?.Biaya_Analisa)}</td>
-                    </tr>
-                    <tr>
-                      <td>Biaya Reagen</td>
-                      <td className="cost-value">{formatCurrency(batch?.Biaya_Reagen)}</td>
-                    </tr>
-                    <tr>
-                      <td>Cost Utility (PLN)</td>
-                      <td className="cost-value">{formatCurrency(batch?.Cost_Utility)}</td>
-                    </tr>
-                    <tr>
-                      <td>Toll Fee</td>
-                      <td className="cost-value">{formatCurrency(batch?.Toll_Fee)}</td>
-                    </tr>
-                    <tr>
-                      <td>Beban Sisa Bahan Expired</td>
-                      <td className="cost-value">{formatCurrency(batch?.Beban_Sisa_Bahan_Exp)}</td>
-                    </tr>
-                    <tr>
-                      <td>Biaya Lain-lain</td>
-                      <td className="cost-value">{formatCurrency(batch?.Biaya_Lain)}</td>
-                    </tr>
+                    {bahanBaku.map((item, index) => (
+                      <tr key={`bb-${index}`}>
+                        <td>{index + 1}</td>
+                        <td>{item.Item_ID}</td>
+                        <td>{item.Item_Name}</td>
+                        <td className="number">{formatNumber(item.Qty_Used, 4)}</td>
+                        <td>{item.Item_Unit || item.Usage_Unit}</td>
+                        <td className="number">{formatNumber(item.Unit_Price_IDR)}</td>
+                        <td className="number">{formatNumber(item.Total_Cost)}</td>
+                        <td><span className={`source-badge ${item.Price_Source?.toLowerCase()}`}>{item.Price_Source || 'N/A'}</span></td>
+                      </tr>
+                    ))}
                     <tr className="total-row">
-                      <td><strong>Total HPP Batch</strong></td>
-                      <td className="cost-value total">{formatCurrency(batch?.Total_HPP_Batch)}</td>
+                      <td colSpan="6"><strong>Total BB :</strong></td>
+                      <td className="number total"><strong>{formatNumber(totalBB)}</strong></td>
+                      <td></td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
-              {/* Manhour Details */}
-              <div className="hpp-actual-manhour-section">
-                <h3>Manhour Details</h3>
-                <div className="hpp-actual-manhour-grid">
-                  <div className="hpp-actual-mh-item">
-                    <span className="label">MH Proses (Std)</span>
-                    <span className="value">{formatNumber(batch?.MH_Proses_Std, 2)}</span>
-                  </div>
-                  <div className="hpp-actual-mh-item">
-                    <span className="label">MH Proses (Actual)</span>
-                    <span className="value highlight">{formatNumber(batch?.MH_Proses_Actual, 2)}</span>
-                  </div>
-                  <div className="hpp-actual-mh-item">
-                    <span className="label">MH Kemas (Std)</span>
-                    <span className="value">{formatNumber(batch?.MH_Kemas_Std, 2)}</span>
-                  </div>
-                  <div className="hpp-actual-mh-item">
-                    <span className="label">MH Kemas (Actual)</span>
-                    <span className="value highlight">{formatNumber(batch?.MH_Kemas_Actual, 2)}</span>
-                  </div>
-                  <div className="hpp-actual-mh-item">
-                    <span className="label">Direct Labor Rate</span>
-                    <span className="value">{formatCurrency(batch?.Direct_Labor)}/MH</span>
-                  </div>
-                  <div className="hpp-actual-mh-item">
-                    <span className="label">Factory Overhead Rate</span>
-                    <span className="value">{formatCurrency(batch?.Factory_Overhead)}/MH</span>
-                  </div>
+              {/* Bahan Kemas Section */}
+              <div className="material-section">
+                <div className="section-title"><h4>Bahan Kemas (Packaging)</h4></div>
+                <table className="excel-table">
+                  <thead>
+                    <tr>
+                      <th className="narrow">#</th>
+                      <th>Kode Material</th>
+                      <th>Nama Material</th>
+                      <th>Qty Used</th>
+                      <th>Satuan</th>
+                      <th>Cost/unit</th>
+                      <th>Extended Cost</th>
+                      <th>Source</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bahanKemas.map((item, index) => (
+                      <tr key={`bk-${index}`}>
+                        <td>{index + 1}</td>
+                        <td>{item.Item_ID}</td>
+                        <td>{item.Item_Name}</td>
+                        <td className="number">{formatNumber(item.Qty_Used, 4)}</td>
+                        <td>{item.Item_Unit || item.Usage_Unit}</td>
+                        <td className="number">{formatNumber(item.Unit_Price_IDR)}</td>
+                        <td className="number">{formatNumber(item.Total_Cost)}</td>
+                        <td><span className={`source-badge ${item.Price_Source?.toLowerCase()}`}>{item.Price_Source || 'N/A'}</span></td>
+                      </tr>
+                    ))}
+                    <tr className="total-row">
+                      <td colSpan="6"><strong>Total BK :</strong></td>
+                      <td className="number total"><strong>{formatNumber(totalBK)}</strong></td>
+                      <td></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Overhead Section */}
+              <div className="labor-section">
+                <div className="material-section">
+                  <div className="section-title"><h4>{isEthical ? 'Overhead' : 'Conversion Costs'}</h4></div>
+                  <table className="excel-table">
+                    <thead>
+                      <tr>
+                        <th>Resource</th>
+                        <th>Description</th>
+                        <th>Qty</th>
+                        <th>Unit</th>
+                        <th>Rate</th>
+                        <th>Extended Cost</th>
+                        <th>Per Unit</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {overheadItems.map((item, index) => {
+                        if (item.section) {
+                          return (
+                            <tr key={`section-${index}`} className="subsection-header">
+                              <td colSpan="7"><em>{item.section}</em></td>
+                            </tr>
+                          );
+                        }
+                        if (item.subtotal) {
+                          return (
+                            <tr key={`subtotal-${index}`} className="subtotal-row">
+                              <td colSpan="5"><strong>Subtotal {item.subtotal}</strong></td>
+                              <td className="number"><strong>{formatNumber(item.cost)}</strong></td>
+                              <td className="number"><strong>{formatNumber(item.perUnit)}</strong></td>
+                            </tr>
+                          );
+                        }
+                        return (
+                          <tr key={`item-${index}`}>
+                            <td>{item.name}</td>
+                            <td>{item.desc}</td>
+                            <td className="number">{item.qty === '-' ? '-' : formatNumber(item.qty)}</td>
+                            <td>{item.unit}</td>
+                            <td className="number">{formatNumber(item.rate)}</td>
+                            <td className="number">{formatNumber(item.cost)}</td>
+                            <td className="number">{formatNumber(item.perUnit)}</td>
+                          </tr>
+                        );
+                      })}
+                      <tr className="total-row">
+                        <td colSpan="2"><strong>Total Man Hours</strong></td>
+                        <td className="number"><strong>{formatNumber(totalMH)}</strong></td>
+                        <td><strong>Total Overhead</strong></td>
+                        <td></td>
+                        <td className="number total"><strong>{formatNumber(totalOverhead)}</strong></td>
+                        <td className="number total"><strong>{formatNumber(totalOverhead / batchSizeActual)}</strong></td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
-              {/* Materials Table */}
-              {materials && materials.length > 0 && (
-                <div className="hpp-actual-materials-section">
-                  <h3>Materials ({materials.length} items)</h3>
-                  <div className="hpp-actual-materials-table-wrapper">
-                    <table className="hpp-actual-materials-table">
-                      <thead>
-                        <tr>
-                          <th>Material Code</th>
-                          <th>Material Name</th>
-                          <th>Type</th>
-                          <th>Qty Used</th>
-                          <th>Unit</th>
-                          <th>Unit Price</th>
-                          <th>Total Cost</th>
-                          <th>Source</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {materials.map((mat, idx) => (
-                          <tr key={idx} className={mat.Material_Type === 'BB' ? 'material-bb' : 'material-bk'}>
-                            <td>{mat.Material_Code}</td>
-                            <td>{mat.Material_Name}</td>
-                            <td>
-                              <span className={`material-type-badge ${mat.Material_Type?.toLowerCase()}`}>
-                                {mat.Material_Type}
-                              </span>
-                            </td>
-                            <td className="number">{formatNumber(mat.Qty_Usage, 4)}</td>
-                            <td>{mat.Unit}</td>
-                            <td className="number">{formatCurrency(mat.Unit_Price)}</td>
-                            <td className="number">{formatCurrency(mat.Total_Cost)}</td>
-                            <td>
-                              <span className={`source-badge ${mat.Price_Source?.toLowerCase().replace(' ', '-')}`}>
-                                {mat.Price_Source || 'N/A'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </>
+              {/* Final Total */}
+              <div className="final-total-section">
+                <table className="excel-table">
+                  <tbody>
+                    <tr className="final-total">
+                      <td><strong>Total HPP Actual</strong></td>
+                      <td colSpan="3"></td>
+                      <td><strong>Total HPP</strong></td>
+                      <td className="number final"><strong>{formatCurrency(totalHPP)}</strong></td>
+                      <td className="number final"><strong>{formatCurrency(hppPerUnit)}</strong></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -336,21 +606,29 @@ const HPPActualList = ({ user }) => {
   const [periods, setPeriods] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState('');
   const [batches, setBatches] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [activeTab, setActiveTab] = useState('ethical');
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
-  
-  // Detail modal state
-  const [detailModal, setDetailModal] = useState({
-    isOpen: false,
-    batch: null,
-    materials: [],
-    isLoading: false
+
+  // Modal state
+  const [selectedBatch, setSelectedBatch] = useState(null);
+  const [batchMaterials, setBatchMaterials] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
+
+  // Pagination state for each tab
+  const [pagination, setPagination] = useState({
+    ethical: { currentPage: 1, itemsPerPage: 50 },
+    generic: { currentPage: 1, itemsPerPage: 50 }
   });
 
-  const ITEMS_PER_PAGE = 50;
+  // Search state for each tab
+  const [searchTerms, setSearchTerms] = useState({
+    ethical: '',
+    generic: ''
+  });
 
-  // Load available periods on mount
+  // Load periods on mount
   useEffect(() => {
     loadPeriods();
   }, []);
@@ -366,19 +644,15 @@ const HPPActualList = ({ user }) => {
     try {
       setLoading(true);
       const response = await hppAPI.getActualPeriods();
-      
       if (response.success && response.data) {
         setPeriods(response.data);
-        // Auto-select first period if available
         if (response.data.length > 0) {
           setSelectedPeriod(response.data[0].Periode);
         }
-      } else {
-        setError('Failed to load periods');
       }
     } catch (err) {
       console.error('Error loading periods:', err);
-      setError('Failed to load periods: ' + err.message);
+      setError('Failed to load periods');
     } finally {
       setLoading(false);
     }
@@ -389,7 +663,6 @@ const HPPActualList = ({ user }) => {
       setLoading(true);
       setError(null);
       const response = await hppAPI.getActualList(periode);
-      
       if (response.success) {
         setBatches(response.data || []);
       } else {
@@ -405,339 +678,260 @@ const HPPActualList = ({ user }) => {
     }
   };
 
-  const handleViewDetail = async (batch) => {
-    setDetailModal({
-      isOpen: true,
-      batch: batch,
-      materials: [],
-      isLoading: true
-    });
+  const handleBatchClick = async (batch) => {
+    setSelectedBatch(batch);
+    setShowModal(true);
+    setModalLoading(true);
+    setBatchMaterials([]);
 
     try {
       const response = await hppAPI.getActualDetail(batch.HPP_Actual_ID);
-      
       if (response.success) {
-        setDetailModal(prev => ({
-          ...prev,
-          materials: response.data.materials || [],
-          isLoading: false
-        }));
-      } else {
-        setDetailModal(prev => ({
-          ...prev,
-          isLoading: false
-        }));
+        setBatchMaterials(response.data.details || []);
       }
     } catch (err) {
-      console.error('Error loading detail:', err);
-      setDetailModal(prev => ({
-        ...prev,
-        isLoading: false
-      }));
+      console.error('Error loading batch detail:', err);
+    } finally {
+      setModalLoading(false);
     }
   };
 
-  const handleCloseDetail = () => {
-    setDetailModal({
-      isOpen: false,
-      batch: null,
-      materials: [],
-      isLoading: false
-    });
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setSelectedBatch(null);
+    setBatchMaterials([]);
   };
 
   const handleRefresh = () => {
-    if (selectedPeriod) {
-      loadBatches(selectedPeriod);
+    if (selectedPeriod) loadBatches(selectedPeriod);
+  };
+
+  // Split batches by LOB
+  const splitBatches = useMemo(() => {
+    const ethical = batches.filter(b => b.LOB === 'ETHICAL' || b.LOB === 'ETH' || b.LOB === 'OTC');
+    const generic = batches.filter(b => b.LOB !== 'ETHICAL' && b.LOB !== 'ETH' && b.LOB !== 'OTC');
+    return { ethical, generic };
+  }, [batches]);
+
+  // Filter data based on search terms
+  const getFilteredData = (data, searchTerm) => {
+    if (!searchTerm.trim()) return data;
+    const term = searchTerm.toLowerCase();
+    return data.filter(item =>
+      item.Product_ID?.toLowerCase().includes(term) ||
+      item.Product_Name?.toLowerCase().includes(term) ||
+      item.BatchNo?.toLowerCase().includes(term)
+    );
+  };
+
+  // Get paginated data
+  const getPaginatedData = (data, page, itemsPerPage) => {
+    const startIndex = (page - 1) * itemsPerPage;
+    return data.slice(startIndex, startIndex + itemsPerPage);
+  };
+
+  // Handle pagination change
+  const handlePageChange = (tableType, newPage) => {
+    setPagination(prev => ({
+      ...prev,
+      [tableType]: { ...prev[tableType], currentPage: newPage }
+    }));
+  };
+
+  // Handle search change
+  const handleSearchChange = (tableType, searchTerm) => {
+    setSearchTerms(prev => ({ ...prev, [tableType]: searchTerm }));
+    setPagination(prev => ({
+      ...prev,
+      [tableType]: { ...prev[tableType], currentPage: 1 }
+    }));
+  };
+
+  // Process data
+  const processedData = useMemo(() => {
+    const ethicalFiltered = getFilteredData(splitBatches.ethical, searchTerms.ethical);
+    const genericFiltered = getFilteredData(splitBatches.generic, searchTerms.generic);
+
+    return {
+      ethical: {
+        filtered: ethicalFiltered,
+        paginated: getPaginatedData(ethicalFiltered, pagination.ethical.currentPage, pagination.ethical.itemsPerPage),
+        totalPages: Math.ceil(ethicalFiltered.length / pagination.ethical.itemsPerPage)
+      },
+      generic: {
+        filtered: genericFiltered,
+        paginated: getPaginatedData(genericFiltered, pagination.generic.currentPage, pagination.generic.itemsPerPage),
+        totalPages: Math.ceil(genericFiltered.length / pagination.generic.itemsPerPage)
+      }
+    };
+  }, [splitBatches, searchTerms, pagination]);
+
+  // Tab configuration
+  const tabs = [
+    { id: 'ethical', label: 'Ethical / OTC', count: splitBatches.ethical.length },
+    { id: 'generic', label: 'Generic', count: splitBatches.generic.length }
+  ];
+
+  // Export to Excel
+  const handleExportToExcel = async () => {
+    try {
+      setExporting(true);
+      const workbook = XLSX.utils.book_new();
+
+      const columnMapping = {
+        'Product_ID': 'Product ID',
+        'Product_Name': 'Product Name',
+        'BatchNo': 'Batch No',
+        'BatchDate': 'Batch Date',
+        'Periode': 'Period',
+        'LOB': 'LOB',
+        'Group_PNCategory_Name': 'Category',
+        'Output_Actual': 'Output Actual',
+        'Total_Cost_BB': 'Total BB',
+        'Total_Cost_BK': 'Total BK',
+        'MH_Proses_Std': 'MH Proses (Std)',
+        'MH_Proses_Actual': 'MH Proses (Actual)',
+        'MH_Kemas_Std': 'MH Kemas (Std)',
+        'MH_Kemas_Actual': 'MH Kemas (Actual)',
+        'Direct_Labor': 'Direct Labor Rate',
+        'Factory_Overhead': 'Factory Overhead Rate',
+        'Depresiasi': 'Depresiasi Rate',
+        'Beban_Sisa_Bahan_Exp': 'Expiry Cost',
+        'Total_HPP_Batch': 'Total HPP Batch',
+        'HPP_Per_Unit': 'HPP Per Unit',
+        'Count_Materials_PO': 'Materials (PO)',
+        'Count_Materials_MR': 'Materials (MR)',
+        'Count_Materials_STD': 'Materials (STD)',
+        'Count_Materials_UNLINKED': 'Materials (Unlinked)'
+      };
+
+      const transformData = (data) => data.map(item => {
+        const transformed = {};
+        Object.entries(columnMapping).forEach(([key, header]) => {
+          transformed[header] = item[key];
+        });
+        return transformed;
+      });
+
+      if (splitBatches.ethical.length > 0) {
+        const ws = XLSX.utils.json_to_sheet(transformData(splitBatches.ethical));
+        XLSX.utils.book_append_sheet(workbook, ws, 'Ethical OTC');
+      }
+
+      if (splitBatches.generic.length > 0) {
+        const ws = XLSX.utils.json_to_sheet(transformData(splitBatches.generic));
+        XLSX.utils.book_append_sheet(workbook, ws, 'Generic');
+      }
+
+      const filename = `HPP_Actual_${selectedPeriod}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(workbook, filename);
+    } catch (err) {
+      console.error('Error exporting to Excel:', err);
+    } finally {
+      setExporting(false);
     }
   };
 
-  // Filter and paginate batches
-  const filteredBatches = useMemo(() => {
-    if (!searchTerm) return batches;
-    
-    const term = searchTerm.toLowerCase();
-    return batches.filter(batch => 
-      batch.Product_ID?.toLowerCase().includes(term) ||
-      batch.Product_Name?.toLowerCase().includes(term) ||
-      batch.BatchNo?.toLowerCase().includes(term) ||
-      batch.Group_PNCategory_Name?.toLowerCase().includes(term)
-    );
-  }, [batches, searchTerm]);
+  const renderActiveTable = () => {
+    const currentData = processedData[activeTab];
+    const currentSearchTerm = searchTerms[activeTab];
+    const currentPagination = pagination[activeTab];
+    const rawData = activeTab === 'ethical' ? splitBatches.ethical : splitBatches.generic;
 
-  const totalPages = Math.ceil(filteredBatches.length / ITEMS_PER_PAGE);
-  
-  const paginatedBatches = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredBatches.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredBatches, currentPage]);
+    const tableProps = {
+      data: currentData.paginated,
+      filteredCount: currentData.filtered.length,
+      totalCount: rawData.length,
+      searchTerm: currentSearchTerm,
+      onSearchChange: (term) => handleSearchChange(activeTab, term),
+      pagination: currentPagination,
+      onPageChange: (page) => handlePageChange(activeTab, page),
+      totalPages: currentData.totalPages,
+      onBatchClick: handleBatchClick
+    };
 
-  // Reset to page 1 when search changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-
-  // Export to Excel
-  const handleExport = () => {
-    if (filteredBatches.length === 0) return;
-
-    const exportData = filteredBatches.map(batch => ({
-      'Product ID': batch.Product_ID,
-      'Product Name': batch.Product_Name,
-      'Batch No': batch.BatchNo,
-      'Batch Date': batch.BatchDate ? new Date(batch.BatchDate).toLocaleDateString('id-ID') : '',
-      'Period': batch.Periode,
-      'LOB': batch.LOB,
-      'Category': batch.Group_PNCategory_Name,
-      'Batch Size Std': batch.Batch_Size_Std,
-      'Output Actual': batch.Output_Actual,
-      'Rendemen Std (%)': batch.Rendemen_Std,
-      'Rendemen Actual (%)': batch.Rendemen_Actual,
-      'Total Cost BB': batch.Total_Cost_BB,
-      'Total Cost BK': batch.Total_Cost_BK,
-      'MH Proses (Std)': batch.MH_Proses_Std,
-      'MH Proses (Actual)': batch.MH_Proses_Actual,
-      'MH Kemas (Std)': batch.MH_Kemas_Std,
-      'MH Kemas (Actual)': batch.MH_Kemas_Actual,
-      'Direct Labor Rate': batch.Direct_Labor,
-      'Factory Overhead Rate': batch.Factory_Overhead,
-      'Depresiasi Rate': batch.Depresiasi,
-      'Biaya Analisa': batch.Biaya_Analisa,
-      'Biaya Reagen': batch.Biaya_Reagen,
-      'Cost Utility': batch.Cost_Utility,
-      'Toll Fee': batch.Toll_Fee,
-      'Beban Sisa Bahan Exp': batch.Beban_Sisa_Bahan_Exp,
-      'Biaya Lain': batch.Biaya_Lain,
-      'Total HPP Batch': batch.Total_HPP_Batch,
-      'HPP Per Unit': batch.HPP_Per_Unit,
-      'Materials PO': batch.Count_Materials_PO,
-      'Materials MR': batch.Count_Materials_MR,
-      'Materials STD': batch.Count_Materials_STD,
-      'Materials Unlinked': batch.Count_Materials_UNLINKED
-    }));
-
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    XLSX.utils.book_append_sheet(wb, ws, 'HPP Actual');
-    XLSX.writeFile(wb, `HPP_Actual_${selectedPeriod}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    return activeTab === 'ethical' ? <EthicalTable {...tableProps} /> : <GenericTable {...tableProps} />;
   };
 
-  // Calculate summary stats
-  const summaryStats = useMemo(() => {
-    if (filteredBatches.length === 0) return null;
-    
-    const totalHPP = filteredBatches.reduce((sum, b) => sum + (b.Total_HPP_Batch || 0), 0);
-    const avgHPPPerUnit = filteredBatches.reduce((sum, b) => sum + (b.HPP_Per_Unit || 0), 0) / filteredBatches.length;
-    const totalOutput = filteredBatches.reduce((sum, b) => sum + (b.Output_Actual || 0), 0);
-    
-    return {
-      totalBatches: filteredBatches.length,
-      totalHPP,
-      avgHPPPerUnit,
-      totalOutput
-    };
-  }, [filteredBatches]);
-
-  return (
-    <div className="hpp-actual-container">
-      {/* Header */}
-      <div className="hpp-actual-header">
-        <div className="hpp-actual-title-section">
-          <h1><FileText className="hpp-actual-icon" /> HPP Actual Results</h1>
-          <p className="hpp-actual-subtitle">View calculated HPP per batch with actual costs and manhours</p>
-        </div>
-        
-        <div className="hpp-actual-actions">
-          <button 
-            className="hpp-actual-btn refresh"
-            onClick={handleRefresh}
-            disabled={loading || !selectedPeriod}
-          >
-            <RefreshCw size={16} className={loading ? 'spinning' : ''} />
-            Refresh
-          </button>
-          <button 
-            className="hpp-actual-btn export"
-            onClick={handleExport}
-            disabled={filteredBatches.length === 0}
-          >
-            <Download size={16} />
-            Export Excel
-          </button>
+  if (loading && !batches.length) {
+    return (
+      <div className="hpp-actual-page">
+        <div className="hpp-actual-loading">
+          <Loader2 className="hpp-actual-loading-spinner" />
+          <p>Loading HPP Actual data...</p>
         </div>
       </div>
+    );
+  }
 
-      {/* Filters */}
-      <div className="hpp-actual-filters">
-        <div className="hpp-actual-filter-group">
-          <label><Calendar size={16} /> Period</label>
-          <select 
-            value={selectedPeriod} 
+  return (
+    <div className="hpp-actual-page">
+      {/* Header Row with Period, Search Actions */}
+      <div className="hpp-actual-header">
+        <div className="hpp-actual-period-selector">
+          <label htmlFor="period-select">Period:</label>
+          <select
+            id="period-select"
+            value={selectedPeriod}
             onChange={(e) => setSelectedPeriod(e.target.value)}
             disabled={loading}
           >
             <option value="">Select Period</option>
             {periods.map(p => (
               <option key={p.Periode} value={p.Periode}>
-                {formatPeriod(p.Periode)} ({formatNumber(p.BatchCount)} batches)
+                {formatPeriod(p.Periode)} ({p.BatchCount} batches)
               </option>
             ))}
           </select>
         </div>
-        
-        <div className="hpp-actual-filter-group search">
-          <label><Search size={16} /> Search</label>
-          <input
-            type="text"
-            placeholder="Search by Product ID, Name, or Batch No..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="hpp-actual-header-actions">
+          <button className="hpp-actual-refresh-btn" onClick={handleRefresh} disabled={loading}>
+            <RefreshCw size={16} className={loading ? 'spin' : ''} />
+            Refresh
+          </button>
+          <button className="hpp-actual-export-btn" onClick={handleExportToExcel} disabled={exporting || loading || batches.length === 0}>
+            {exporting ? <Loader2 className="spin" size={16} /> : <Download size={16} />}
+            Export to Excel
+          </button>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      {summaryStats && (
-        <div className="hpp-actual-summary-cards">
-          <div className="hpp-actual-summary-card">
-            <span className="label">Total Batches</span>
-            <span className="value">{formatNumber(summaryStats.totalBatches)}</span>
-          </div>
-          <div className="hpp-actual-summary-card">
-            <span className="label">Total Output</span>
-            <span className="value">{formatNumber(summaryStats.totalOutput)}</span>
-          </div>
-          <div className="hpp-actual-summary-card">
-            <span className="label">Total HPP</span>
-            <span className="value">{formatCurrency(summaryStats.totalHPP)}</span>
-          </div>
-          <div className="hpp-actual-summary-card">
-            <span className="label">Avg HPP/Unit</span>
-            <span className="value">{formatCurrency(summaryStats.avgHPPPerUnit)}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Error Message */}
+      {/* Error Display */}
       {error && (
         <div className="hpp-actual-error">
-          <AlertCircle size={20} />
-          <span>{error}</span>
+          <p>{error}</p>
+          <button onClick={handleRefresh}>Retry</button>
         </div>
       )}
 
-      {/* Loading State */}
-      {loading && (
-        <div className="hpp-actual-loading">
-          <Loader2 className="spinner" size={32} />
-          <p>Loading data...</p>
+      {/* Tab System */}
+      <div className="hpp-actual-tabs-container">
+        <div className="hpp-actual-tabs-header">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`hpp-actual-tab ${activeTab === tab.id ? 'active' : ''}`}
+            >
+              <FileText size={18} />
+              <span className="hpp-actual-tab-label">{tab.label}</span>
+              <span className="hpp-actual-tab-count">{tab.count}</span>
+            </button>
+          ))}
         </div>
-      )}
 
-      {/* Main Table */}
-      {!loading && !error && batches.length > 0 && (
-        <div className="hpp-actual-table-container">
-          <div className="hpp-actual-table-info">
-            Showing {formatNumber(paginatedBatches.length)} of {formatNumber(filteredBatches.length)} batches
-          </div>
-          
-          <div className="hpp-actual-table-wrapper">
-            <table className="hpp-actual-table">
-              <thead>
-                <tr>
-                  <th>Product ID</th>
-                  <th>Product Name</th>
-                  <th>Batch No</th>
-                  <th>Batch Date</th>
-                  <th>Category</th>
-                  <th>Output</th>
-                  <th>Total BB</th>
-                  <th>Total BK</th>
-                  <th>MH Proses</th>
-                  <th>MH Kemas</th>
-                  <th>Total HPP Batch</th>
-                  <th>HPP/Unit</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedBatches.map((batch, idx) => (
-                  <tr key={batch.HPP_Actual_ID || idx}>
-                    <td>{batch.Product_ID}</td>
-                    <td className="product-name">{batch.Product_Name}</td>
-                    <td className="batch-no">{batch.BatchNo}</td>
-                    <td>{formatDate(batch.BatchDate)}</td>
-                    <td>
-                      <span className="category-badge">{batch.Group_PNCategory_Name}</span>
-                    </td>
-                    <td className="number">{formatNumber(batch.Output_Actual)}</td>
-                    <td className="number">{formatCurrency(batch.Total_Cost_BB)}</td>
-                    <td className="number">{formatCurrency(batch.Total_Cost_BK)}</td>
-                    <td className="number">
-                      {batch.MH_Proses_Actual !== null ? (
-                        <span className="actual-value">{formatNumber(batch.MH_Proses_Actual, 2)}</span>
-                      ) : (
-                        <span className="std-value">{formatNumber(batch.MH_Proses_Std, 2)}</span>
-                      )}
-                    </td>
-                    <td className="number">
-                      {batch.MH_Kemas_Actual !== null ? (
-                        <span className="actual-value">{formatNumber(batch.MH_Kemas_Actual, 2)}</span>
-                      ) : (
-                        <span className="std-value">{formatNumber(batch.MH_Kemas_Std, 2)}</span>
-                      )}
-                    </td>
-                    <td className="number hpp-value">{formatCurrency(batch.Total_HPP_Batch)}</td>
-                    <td className="number hpp-unit">{formatCurrency(batch.HPP_Per_Unit)}</td>
-                    <td>
-                      <button 
-                        className="hpp-actual-view-btn"
-                        onClick={() => handleViewDetail(batch)}
-                        title="View Detail"
-                      >
-                        <Eye size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            totalItems={filteredBatches.length}
-          />
+        <div className="hpp-actual-tab-content">
+          {renderActiveTable()}
         </div>
-      )}
+      </div>
 
-      {/* Empty State */}
-      {!loading && !error && selectedPeriod && batches.length === 0 && (
-        <div className="hpp-actual-empty">
-          <FileText size={48} />
-          <h3>No Data Found</h3>
-          <p>No HPP Actual data available for period {formatPeriod(selectedPeriod)}</p>
-        </div>
-      )}
-
-      {/* No Period Selected */}
-      {!loading && !selectedPeriod && periods.length === 0 && (
-        <div className="hpp-actual-empty">
-          <Calendar size={48} />
-          <h3>No Periods Available</h3>
-          <p>No HPP Actual calculation has been performed yet.</p>
-        </div>
-      )}
-
-      {/* Detail Modal */}
-      <DetailModal
-        isOpen={detailModal.isOpen}
-        onClose={handleCloseDetail}
-        batch={detailModal.batch}
-        materials={detailModal.materials}
-        isLoading={detailModal.isLoading}
+      {/* Batch Detail Modal */}
+      <BatchDetailModal
+        batch={selectedBatch}
+        materials={batchMaterials}
+        isOpen={showModal}
+        onClose={handleCloseModal}
+        isLoading={modalLoading}
       />
     </div>
   );

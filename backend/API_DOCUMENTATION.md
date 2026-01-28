@@ -174,6 +174,106 @@ Currently, the API does not require authentication, but middleware is prepared f
 #### Delete HPP
 - **DELETE** `/api/hpp/:id` (Only draft status)
 
+### HPP Actual (Real Cost Calculation) API
+
+These endpoints provide access to HPP Actual data - the actual manufacturing costs calculated from real material usage and purchase prices.
+
+#### Get HPP Actual List
+- **GET** `/api/hpp/actual/list`
+- **Query Parameters:**
+  - `periode` (string, required): Period in YYYYMM format (e.g., '202601')
+- **Description:** Get list of all batches with actual costs for a specific period
+- **Response Example:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "HPP_Actual_ID": 123,
+      "DNc_No": "00138/I/26/QA/DPJ",
+      "DNc_ProductID": "77",
+      "Product_Name": "LAPICEF-250 DRY SYRUP",
+      "BatchNo": "77016",
+      "Periode": "202601",
+      "LOB": "ETHICAL",
+      "Group_PNCategory": "DSA",
+      "Group_PNCategory_Name": "Dry Syrup Antibiotik",
+      "Output_Actual": 24626,
+      "Batch_Size_Std": 25000,
+      "Rendemen_Actual": 98.50,
+      "Total_Cost_BB": 27301860.00,
+      "Total_Cost_BK": 15420000.00,
+      "Count_Materials_PO": 25,
+      "Count_Materials_STD": 2,
+      "Count_Materials_UNLINKED": 0,
+      "Calculated_At": "2026-01-20T10:30:00.000Z"
+    }
+  ]
+}
+```
+
+#### Get HPP Actual Periods
+- **GET** `/api/hpp/actual/periods`
+- **Description:** Get list of all available periods that have HPP Actual data
+- **Response Example:**
+```json
+{
+  "success": true,
+  "data": [
+    { "periode": "202601", "batch_count": 156, "last_calculated": "2026-01-20T15:00:00.000Z" },
+    { "periode": "202506", "batch_count": 89, "last_calculated": "2025-06-30T10:00:00.000Z" }
+  ]
+}
+```
+
+#### Get HPP Actual Detail
+- **GET** `/api/hpp/actual/:hppActualId`
+- **Description:** Get detailed breakdown of a specific batch's actual costs including all materials used
+- **Response Example:**
+```json
+{
+  "success": true,
+  "data": {
+    "header": {
+      "HPP_Actual_ID": 123,
+      "DNc_No": "00138/I/26/QA/DPJ",
+      "Product_Name": "LAPICEF-250 DRY SYRUP",
+      "BatchNo": "77016",
+      "Output_Actual": 24626,
+      "Total_Cost_BB": 27301860.00,
+      "Total_Cost_BK": 15420000.00,
+      "MH_Proses_Std": 8,
+      "MH_Kemas_Std": 12
+    },
+    "details": [
+      {
+        "Item_ID": "AC 023A",
+        "Item_Name": "CEFADROXIL COMPACTED",
+        "Item_Type": "BB",
+        "Qty_Used": 15000,
+        "Qty_Required": 15000,
+        "Usage_Unit": "g",
+        "PO_Unit": "kg",
+        "Unit_Price": 108.00,
+        "Currency_Original": "USD",
+        "Exchange_Rate": 16853,
+        "Unit_Price_IDR": 1820124,
+        "Price_Source": "PO",
+        "PO_No": "00021/VI/15/PG/PO/BK/LAPI",
+        "PO_Date": "2015-06-15"
+      }
+    ]
+  }
+}
+```
+
+**Price Source Types:**
+- `PO` - Direct purchase order price
+- `MR` - Traced via material request chain (reprocessed material)
+- `GRANULATE_HPP` - Granulate cost from HPP Actual calculation
+- `STD` - Standard/budgeted price (fallback)
+- `UNLINKED` - No price found (data quality issue)
+
 ## Response Format
 
 ### Success Response
