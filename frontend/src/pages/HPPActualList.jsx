@@ -271,13 +271,14 @@ const BatchDetailModal = ({ batch, materials, isOpen, onClose, isLoading }) => {
 
   if (isEthical) {
     // Ethical: Only Pengolahan + Pengemasan + Expiry
-    const biayaProses = mhProses * (batch.Direct_Labor || 0);
-    const biayaKemas = mhKemas * (batch.Direct_Labor || 0);
+    // Use Rate_MH_Proses (Biaya_Proses) and Rate_MH_Kemas (Biaya_Kemas) as rates
+    const biayaProses = mhProses * (batch.Rate_MH_Proses || 0);
+    const biayaKemas = mhKemas * (batch.Rate_MH_Kemas || 0);
     const expiryCost = batch.Beban_Sisa_Bahan_Exp || 0;
     
     overheadItems = [
-      { name: 'PENGOLAHAN', desc: `OPERATOR PROSES LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhProses, unit: 'HRS', rate: batch.Direct_Labor || 0, cost: biayaProses, perUnit: biayaProses / batchSizeActual },
-      { name: 'PENGEMASAN', desc: `OPERATOR PROSES LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhKemas, unit: 'HRS', rate: batch.Direct_Labor || 0, cost: biayaKemas, perUnit: biayaKemas / batchSizeActual },
+      { name: 'PENGOLAHAN', desc: `OPERATOR PROSES LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhProses, unit: 'HRS', rate: batch.Rate_MH_Proses || 0, cost: biayaProses, perUnit: biayaProses / batchSizeActual },
+      { name: 'PENGEMASAN', desc: `OPERATOR PROSES LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhKemas, unit: 'HRS', rate: batch.Rate_MH_Kemas || 0, cost: biayaKemas, perUnit: biayaKemas / batchSizeActual },
       { name: 'EXPIRY COST', desc: '-', qty: '-', unit: '-', rate: expiryCost, cost: expiryCost, perUnit: expiryCost / batchSizeActual },
     ];
     totalOverhead = biayaProses + biayaKemas + expiryCost;

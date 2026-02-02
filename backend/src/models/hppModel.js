@@ -1119,16 +1119,17 @@ async function getHPPActualList(periode = null) {
         h.Count_Materials_STD,
         h.Count_Materials_UNLINKED,
         -- Calculate component costs
-        ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Direct_Labor, 0) as Biaya_Proses,
-        ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Direct_Labor, 0) as Biaya_Kemas,
+        -- For Ethical: Use Rate_MH_Proses/Rate_MH_Kemas (which is Biaya_Proses/Biaya_Kemas from standard HPP)
+        ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Rate_MH_Proses, 0) as Biaya_Proses,
+        ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Rate_MH_Kemas, 0) as Biaya_Kemas,
         ISNULL(h.MH_Timbang_BB, 0) * ISNULL(h.Rate_MH_Timbang, 0) as Biaya_Timbang_BB,
         ISNULL(h.MH_Timbang_BK, 0) * ISNULL(h.Rate_MH_Timbang, 0) as Biaya_Timbang_BK,
         -- Calculate Total HPP per Batch
         (
           ISNULL(h.Total_Cost_BB, 0) +
           ISNULL(h.Total_Cost_BK, 0) +
-          (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Direct_Labor, 0)) +
-          (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Direct_Labor, 0)) +
+          (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Rate_MH_Proses, 0)) +
+          (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Rate_MH_Kemas, 0)) +
           (ISNULL(h.MH_Timbang_BB, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
           (ISNULL(h.MH_Timbang_BK, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
           (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Factory_Overhead, 0)) +
@@ -1148,8 +1149,8 @@ async function getHPPActualList(periode = null) {
             (
               ISNULL(h.Total_Cost_BB, 0) +
               ISNULL(h.Total_Cost_BK, 0) +
-              (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Direct_Labor, 0)) +
-              (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Direct_Labor, 0)) +
+              (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Rate_MH_Proses, 0)) +
+              (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Rate_MH_Kemas, 0)) +
               (ISNULL(h.MH_Timbang_BB, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
               (ISNULL(h.MH_Timbang_BK, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
               (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Factory_Overhead, 0)) +

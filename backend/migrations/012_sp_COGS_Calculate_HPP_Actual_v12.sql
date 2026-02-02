@@ -15,7 +15,10 @@
 --   - FIX: Restored overhead/rates population from standard HPP (was missing in v11 copy)
 --     - Direct_Labor, Factory_Overhead, Depresiasi from t_COGS_HPP_Product_Header
 --     - Actual manhours from tmp_spLapProduksi_GWN_ReleaseQA
---     - Rate_MH_Proses, Rate_MH_Kemas, Cost_Utility, etc.
+--   - FIX: Rate_MH_Proses and Rate_MH_Kemas now use correct columns
+--     - Rate_MH_Proses = std.Biaya_Proses (e.g., 800000/hr) NOT Direct_Labor
+--     - Rate_MH_Kemas = std.Biaya_Kemas (e.g., 250000/hr) NOT Direct_Labor
+--     - Direct_Labor (34000) is separate rate for Generic products
 -- Changes in v11:
 --   - FIX: Granulate Product_Name lookup
 --     The MR_ProductID in t_Bon_Keluar_Bahan_Awal_Header uses format 'ä0'
@@ -1131,9 +1134,11 @@ BEGIN
                 -- v11: Actual manhours from tmp_spLapProduksi_GWN_ReleaseQA
                 MH_Proses_Actual = ISNULL(mh.MH_NyataProses, h.MH_Proses_Actual),
                 MH_Kemas_Actual = ISNULL(mh.MH_NyataKemas, h.MH_Kemas_Actual),
-                -- v11: Rates from standard HPP (t_COGS_HPP_Product_Header)
-                Rate_MH_Proses = ISNULL(std.Direct_Labor, h.Rate_MH_Proses),
-                Rate_MH_Kemas = ISNULL(std.Direct_Labor, h.Rate_MH_Kemas),
+                -- v12 FIX: Use Biaya_Proses/Biaya_Kemas as rates (not Direct_Labor!)
+                -- Biaya_Proses/Biaya_Kemas in standard HPP are rates per hour (e.g., 800000, 250000)
+                -- Direct_Labor is a different rate (e.g., 34000) used for Generic products
+                Rate_MH_Proses = ISNULL(std.Biaya_Proses, h.Rate_MH_Proses),
+                Rate_MH_Kemas = ISNULL(std.Biaya_Kemas, h.Rate_MH_Kemas),
                 Rate_MH_Timbang = ISNULL(std.Direct_Labor, h.Rate_MH_Timbang),
                 Direct_Labor = ISNULL(std.Direct_Labor, h.Direct_Labor),
                 Factory_Overhead = ISNULL(std.Factory_Over_Head, h.Factory_Overhead),
