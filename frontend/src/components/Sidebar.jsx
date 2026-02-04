@@ -82,7 +82,7 @@ export default function Sidebar({ user, accessLevel }) {
             {hasFullAccess && (
               <li className={location.pathname === '/hpp-results' ? 'active' : ''}>
                 <Link to="/hpp-results" className="sidebar-link">
-                  <ClipboardList className="sidebar-icon" size={20} /> HPP Results
+                  <ClipboardList className="sidebar-icon" size={20} /> HPP Standard
                 </Link>
               </li>
             )}

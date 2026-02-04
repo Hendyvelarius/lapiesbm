@@ -1,18 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { 
-  Package, 
   PieChart, 
   TrendingUp, 
   AlertTriangle, 
-  ChevronDown, 
   X,
-  RefreshCw,
   BarChart3,
   DollarSign,
   Loader2,
-  Calendar,
-  Grid3X3
+  Grid3X3,
+  Activity,
+  ChevronDown,
+  Calendar
 } from 'lucide-react';
 import { dashboardAPI } from '../services/api';
 import '../styles/Dashboard.css';
@@ -220,6 +219,275 @@ const DonutChart = ({ value, total, color = '#3b82f6', size = 120, label }) => {
   );
 };
 
+// Actual vs Standard Ratio Chart - circular gauge showing ratio
+const ActualVsStandardChart = ({ ratio, size = 160 }) => {
+  // ratio is percentage: 100% means actual = standard
+  // Below 100% is good (actual lower than standard)
+  // Above 100% is bad (actual higher than standard)
+  const normalizedRatio = Math.min(Math.max(ratio, 0), 200); // Cap at 0-200%
+  
+  // Calculate color based on ratio
+  const getColor = (r) => {
+    if (r <= 95) return '#10b981'; // Green - significantly better
+    if (r <= 100) return '#22c55e'; // Light green - better or equal
+    if (r <= 105) return '#f59e0b'; // Amber - slightly worse
+    if (r <= 110) return '#f97316'; // Orange - worse
+    return '#ef4444'; // Red - significantly worse
+  };
+  
+  const color = getColor(ratio);
+  const circumference = 2 * Math.PI * 45;
+  // Map ratio to arc: 0% -> empty, 100% -> half, 200% -> full
+  const arcPercent = Math.min(normalizedRatio / 200 * 100, 100);
+  const strokeDashoffset = circumference - (arcPercent / 100) * circumference;
+  
+  // Determine status text
+  const getStatusText = (r) => {
+    if (r <= 95) return 'On Target';
+    if (r <= 100) return 'Borderline';
+    if (r <= 105) return 'Over Budget';
+    if (r <= 110) return 'High Risk';
+    return 'High Variance';
+  };
+
+  return (
+    <div className="actual-vs-std-chart">
+      <svg viewBox="0 0 120 120" width={size} height={size}>
+        {/* Background circle */}
+        <circle
+          cx="60"
+          cy="60"
+          r="45"
+          fill="none"
+          stroke="#e5e7eb"
+          strokeWidth="10"
+        />
+        {/* Progress arc */}
+        <circle
+          cx="60"
+          cy="60"
+          r="45"
+          fill="none"
+          stroke={color}
+          strokeWidth="10"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          transform="rotate(-90 60 60)"
+          className="ratio-progress"
+        />
+        {/* Center text */}
+        <text x="60" y="55" textAnchor="middle" className="ratio-value" fill={color}>
+          {ratio.toFixed(1)}%
+        </text>
+        <text x="60" y="75" textAnchor="middle" className="ratio-status" fill={color}>
+          {getStatusText(ratio)}
+        </text>
+      </svg>
+    </div>
+  );
+};
+
+// Batch Comparison Bar Component
+const BatchComparisonBar = ({ lowerPercent, higherPercent, lowerCount, higherCount, onLowerClick, onHigherClick }) => {
+  const hasData = lowerCount + higherCount > 0;
+  
+  return (
+    <div className="batch-comparison-bar-container">
+      <div className="batch-comparison-legend">
+        <span className="legend-item lower">
+          <span className="legend-dot"></span>
+          Lower than Std ({lowerCount})
+        </span>
+        <span className="legend-item higher">
+          <span className="legend-dot"></span>
+          Higher than Std ({higherCount})
+        </span>
+      </div>
+      <div className="batch-comparison-bar">
+        {hasData ? (
+          <>
+            <div 
+              className="bar-segment lower"
+              style={{ width: `${lowerPercent}%` }}
+              onClick={onLowerClick}
+              title={`${lowerCount} batches with lower cost (${lowerPercent.toFixed(1)}%)`}
+            >
+              {lowerPercent >= 15 && <span>{lowerPercent.toFixed(0)}%</span>}
+            </div>
+            <div 
+              className="bar-segment higher"
+              style={{ width: `${higherPercent}%` }}
+              onClick={onHigherClick}
+              title={`${higherCount} batches with higher cost (${higherPercent.toFixed(1)}%)`}
+            >
+              {higherPercent >= 15 && <span>{higherPercent.toFixed(0)}%</span>}
+            </div>
+          </>
+        ) : (
+          <div className="bar-empty">No comparison data available</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Batch List Modal for Actual vs Standard comparison
+const BatchListModal = ({ isOpen, onClose, batches, title, filter = 'all' }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('variance');
+  const [sortOrder, setSortOrder] = useState('desc');
+
+  const filteredBatches = useMemo(() => {
+    let filtered = batches.filter(b => {
+      const matchesSearch = 
+        b.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        b.productId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        b.batchNo?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      if (filter === 'lower') return matchesSearch && b.costStatus === 'lower';
+      if (filter === 'higher') return matchesSearch && b.costStatus === 'higher';
+      return matchesSearch;
+    });
+
+    filtered.sort((a, b) => {
+      let aVal, bVal;
+      switch (sortBy) {
+        case 'product':
+          aVal = a.productName || '';
+          bVal = b.productName || '';
+          return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        case 'batch':
+          aVal = a.batchNo || '';
+          bVal = b.batchNo || '';
+          return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        case 'actual':
+          aVal = a.hppActualPerUnit || 0;
+          bVal = b.hppActualPerUnit || 0;
+          break;
+        case 'standard':
+          aVal = a.hppStandardPerUnit || 0;
+          bVal = b.hppStandardPerUnit || 0;
+          break;
+        case 'variance':
+        default:
+          aVal = Math.abs(a.variancePercent) || 0;
+          bVal = Math.abs(b.variancePercent) || 0;
+          break;
+      }
+      return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+
+    return filtered;
+  }, [batches, searchTerm, sortBy, sortOrder, filter]);
+
+  const handleSort = (column) => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortOrder('desc');
+    }
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content batch-list-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>{title}</h3>
+          <button className="modal-close" onClick={onClose}><X size={20} /></button>
+        </div>
+        <div className="modal-search">
+          <input
+            type="text"
+            placeholder="Search by product or batch..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className="modal-table-container">
+          <table className="modal-table batch-table">
+            <thead>
+              <tr>
+                <th onClick={() => handleSort('product')} className="sortable">
+                  Product {sortBy === 'product' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSort('batch')} className="sortable">
+                  Batch {sortBy === 'batch' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th>Date</th>
+                <th>Output</th>
+                <th onClick={() => handleSort('actual')} className="sortable">
+                  HPP Actual {sortBy === 'actual' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSort('standard')} className="sortable">
+                  HPP Standard {sortBy === 'standard' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => handleSort('variance')} className="sortable">
+                  Variance {sortBy === 'variance' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredBatches.map((batch, idx) => {
+                // Calculate output ratio for color coding
+                const outputRatio = batch.batchSizeStd > 0 ? (batch.outputActual / batch.batchSizeStd) * 100 : 100;
+                const outputColorClass = outputRatio >= 90 ? 'output-good' : outputRatio >= 75 ? 'output-warning' : 'output-danger';
+                
+                return (
+                <tr key={batch.hppActualId || idx}>
+                  <td>
+                    <div className="product-cell-inline">
+                      <span className="product-id">{batch.productId}</span>
+                      <span className="product-name" title={batch.productName}>{batch.productName}</span>
+                    </div>
+                  </td>
+                  <td>{batch.batchNo}</td>
+                  <td>{formatDate(batch.batchDate)}</td>
+                  <td className="number">
+                    <span className={outputColorClass}>
+                      {formatNumber(batch.outputActual)}
+                    </span>
+                    {batch.batchSizeStd > 0 && (
+                      <span className="output-std"> / {formatNumber(batch.batchSizeStd)}</span>
+                    )}
+                  </td>
+                  <td className="number">{formatCurrency(batch.hppActualPerUnit)}</td>
+                  <td className="number">{formatCurrency(batch.hppStandardPerUnit)}</td>
+                  <td className={`number variance ${batch.variancePercent > 0 ? 'positive' : batch.variancePercent < 0 ? 'negative' : ''}`}>
+                    {batch.variancePercent > 0 ? '+' : ''}{batch.variancePercent?.toFixed(2)}%
+                  </td>
+                  <td>
+                    <span className={`status-badge ${batch.costStatus}`}>
+                      {batch.costStatus === 'lower' ? '↓ Lower' : 
+                       batch.costStatus === 'higher' ? '↑ Higher' : '= Same'}
+                    </span>
+                  </td>
+                </tr>
+              )})}
+            </tbody>
+          </table>
+          {filteredBatches.length === 0 && (
+            <div className="no-results">No batches found</div>
+          )}
+        </div>
+        <div className="modal-footer">
+          <span className="batch-count">{filteredBatches.length} batches</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Product List Modal - supports multiple display modes
 const ProductListModal = ({ isOpen, onClose, products, title, displayMode = 'cogs' }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -391,13 +659,11 @@ const ProductListModal = ({ isOpen, onClose, products, title, displayMode = 'cog
   );
 };
 
-export default function Dashboard() {
+export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dashboardData, setDashboardData] = useState(null);
-  const [selectedYear, setSelectedYear] = useState(null);
-  const [availableYears, setAvailableYears] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [categoryMode, setCategoryMode] = useState('lob'); // 'lob' or 'toll'
   const [showProductModal, setShowProductModal] = useState(false);
@@ -411,9 +677,17 @@ export default function Dashboard() {
   const [showHeatMapModal, setShowHeatMapModal] = useState(false);
   const [heatMapFilter, setHeatMapFilter] = useState({ lob: null, category: null });
   const [refreshing, setRefreshing] = useState(false);
-  const [showYearDropdown, setShowYearDropdown] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  
+  // Actual vs Standard comparison states
+  const [actualVsStandardData, setActualVsStandardData] = useState(null);
+  const [actualVsStandardMode, setActualVsStandardMode] = useState('YTD'); // 'YTD' or 'MTD'
+  const [actualVsStandardMonth, setActualVsStandardMonth] = useState(new Date().getMonth() + 1); // 1-12
+  const [showBatchListModal, setShowBatchListModal] = useState(false);
+  const [batchListFilter, setBatchListFilter] = useState('all'); // 'all', 'lower', 'higher'
+  const [showMonthDropdown, setShowMonthDropdown] = useState(false);
 
-  // Fetch available years and dashboard data
+  // Fetch available years and dashboard data on mount
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -422,8 +696,11 @@ export default function Dashboard() {
         // Get available years first
         const yearsResponse = await dashboardAPI.getYears();
         if (yearsResponse.success) {
-          setAvailableYears(yearsResponse.data.years);
-          setSelectedYear(yearsResponse.data.latestYear);
+          setDashboardPeriod(prev => ({
+            ...prev,
+            availableYears: yearsResponse.data.years,
+            selectedYear: yearsResponse.data.latestYear
+          }));
         }
         
         // Get dashboard stats
@@ -436,41 +713,86 @@ export default function Dashboard() {
         setError('Failed to load dashboard data. Please try again.');
       } finally {
         setLoading(false);
+        setInitialLoadComplete(true);
       }
     };
 
     fetchInitialData();
-  }, []);
+  }, [setDashboardPeriod]);
 
-  // Fetch dashboard data when year changes
-  const handleYearChange = async (year) => {
-    try {
-      setRefreshing(true);
-      setSelectedYear(year);
-      const response = await dashboardAPI.getStats(year);
-      if (response.success) {
-        setDashboardData(response.data);
+  // Fetch dashboard data when year changes from navbar (after initial load)
+  useEffect(() => {
+    const fetchYearData = async () => {
+      // Skip if initial load not complete or no year selected
+      if (!initialLoadComplete || !dashboardPeriod?.selectedYear) return;
+      
+      try {
+        setRefreshing(true);
+        setDashboardPeriod(prev => ({ ...prev, refreshing: true }));
+        const response = await dashboardAPI.getStats(dashboardPeriod.selectedYear);
+        if (response.success) {
+          setDashboardData(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch dashboard data for year:', err);
+      } finally {
+        setRefreshing(false);
+        setDashboardPeriod(prev => ({ ...prev, refreshing: false }));
       }
-    } catch (err) {
-      console.error('Failed to fetch dashboard data for year:', err);
-    } finally {
-      setRefreshing(false);
-    }
-  };
+    };
 
-  // Refresh data
-  const handleRefresh = async () => {
-    try {
-      setRefreshing(true);
-      const response = await dashboardAPI.getStats(selectedYear);
-      if (response.success) {
-        setDashboardData(response.data);
+    fetchYearData();
+  }, [dashboardPeriod?.selectedYear, initialLoadComplete, setDashboardPeriod]);
+
+  // Handle refresh trigger from navbar
+  useEffect(() => {
+    const handleRefreshTrigger = async () => {
+      if (!dashboardPeriod?.triggerRefresh) return;
+      
+      try {
+        setRefreshing(true);
+        setDashboardPeriod(prev => ({ ...prev, refreshing: true, triggerRefresh: false }));
+        const response = await dashboardAPI.getStats(dashboardPeriod.selectedYear);
+        if (response.success) {
+          setDashboardData(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to refresh dashboard data:', err);
+      } finally {
+        setRefreshing(false);
+        setDashboardPeriod(prev => ({ ...prev, refreshing: false }));
       }
-    } catch (err) {
-      console.error('Failed to refresh dashboard data:', err);
-    } finally {
-      setRefreshing(false);
-    }
+    };
+
+    handleRefreshTrigger();
+  }, [dashboardPeriod?.triggerRefresh, dashboardPeriod?.selectedYear, setDashboardPeriod]);
+
+  // Fetch Actual vs Standard data
+  useEffect(() => {
+    const fetchActualVsStandard = async () => {
+      if (!dashboardPeriod?.selectedYear) return;
+      
+      try {
+        const response = await dashboardAPI.getActualVsStandard(
+          dashboardPeriod.selectedYear,
+          actualVsStandardMode,
+          actualVsStandardMonth
+        );
+        if (response.success) {
+          setActualVsStandardData(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch actual vs standard data:', err);
+      }
+    };
+
+    fetchActualVsStandard();
+  }, [dashboardPeriod?.selectedYear, actualVsStandardMode, actualVsStandardMonth]);
+
+  // Get month name for display
+  const getMonthName = (monthNum) => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[(monthNum - 1) % 12];
   };
 
   // Get cost distribution based on selected category
@@ -649,95 +971,101 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-container">
-      {/* Header */}
-      <div className="dashboard-header">
-        <div className="header-left">
-          <h1>Dashboard HPP</h1>
-        </div>
-        <div className="header-right">
-          <div className="periode-selector-wrapper">
-            <div className="periode-selector" onClick={() => setShowYearDropdown(!showYearDropdown)}>
-              <Calendar size={18} />
-              <span className="periode-text">Periode {dashboardData?.periode}</span>
-              <ChevronDown size={16} className={`dropdown-arrow ${showYearDropdown ? 'open' : ''}`} />
-              {showYearDropdown && (
-                <div className="year-dropdown" onClick={(e) => e.stopPropagation()}>
-                  {availableYears.map(year => (
-                    <div 
-                      key={year} 
-                      className={`year-option ${selectedYear === year ? 'active' : ''}`}
-                      onClick={() => {
-                        handleYearChange(year);
-                        setShowYearDropdown(false);
-                      }}
-                    >
-                      {year}
+      {/* Main Grid - Header removed, period selector moved to navbar */}
+      <div className="dashboard-grid">
+        {/* HPP Actual vs Standard Card */}
+        <div className="dashboard-card actual-vs-standard-card">
+          <div className="card-header">
+            <Activity size={24} />
+            <h3>HPP Actual vs Standard</h3>
+            <div className="mode-toggle">
+              <button 
+                className={`mode-btn ${actualVsStandardMode === 'YTD' ? 'active' : ''}`}
+                onClick={() => setActualVsStandardMode('YTD')}
+              >
+                YTD
+              </button>
+              <button 
+                className={`mode-btn ${actualVsStandardMode === 'MTD' ? 'active' : ''}`}
+                onClick={() => setActualVsStandardMode('MTD')}
+              >
+                MTD
+              </button>
+              {actualVsStandardMode === 'MTD' && (
+                <div className="month-selector">
+                  <button 
+                    className="month-dropdown-btn"
+                    onClick={() => setShowMonthDropdown(!showMonthDropdown)}
+                  >
+                    <Calendar size={14} />
+                    {getMonthName(actualVsStandardMonth)}
+                    <ChevronDown size={14} />
+                  </button>
+                  {showMonthDropdown && (
+                    <div className="month-dropdown">
+                      {(actualVsStandardData?.availableMonths || [1,2,3,4,5,6,7,8,9,10,11,12]).map(m => (
+                        <button 
+                          key={m}
+                          className={`month-option ${m === actualVsStandardMonth ? 'active' : ''}`}
+                          onClick={() => {
+                            setActualVsStandardMonth(m);
+                            setShowMonthDropdown(false);
+                          }}
+                        >
+                          {getMonthName(m)}
+                        </button>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
-            <button 
-              className="refresh-btn-integrated" 
-              onClick={(e) => { e.stopPropagation(); handleRefresh(); }}
-              disabled={refreshing}
-              title="Refresh data"
-            >
-              <RefreshCw size={16} className={refreshing ? 'spinning' : ''} />
-            </button>
           </div>
-        </div>
-      </div>
-
-      {/* Main Grid */}
-      <div className="dashboard-grid">
-        {/* Product Count Card */}
-        <div className="dashboard-card product-count-card">
-          <div className="card-header">
-            <Package size={24} />
-            <h3>Jumlah Produk</h3>
-          </div>
-          <div className="card-body">
-            <div className="main-stat clickable" onClick={() => handleJumlahProdukClick('ALL')}>
-              <span className="stat-number">{formatNumber(dashboardData?.productCounts?.total)}</span>
-              <span className="stat-label">Total Produk</span>
-            </div>
-            {/* LOB Categories Row */}
-            <div className="stat-breakdown-section">
-              <span className="breakdown-section-label">By LOB</span>
-              <div className="stat-breakdown">
-                <div className="breakdown-item ethical clickable" onClick={() => handleJumlahProdukClick('ETHICAL', 'lob')}>
-                  <span className="breakdown-label">Ethical</span>
-                  <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.ethical)}</span>
+          <div className="card-body actual-vs-std-body">
+            {actualVsStandardData?.summary ? (
+              <>
+                <div className="ratio-chart-section">
+                  <ActualVsStandardChart 
+                    ratio={actualVsStandardData.summary.avgActualVsStandardRatio || 100}
+                    size={150}
+                  />
+                  <div className="ratio-details">
+                    <div className="ratio-detail-item">
+                      <span className="label">Total Batches</span>
+                      <span className="value">{formatNumber(actualVsStandardData.summary.totalBatches)}</span>
+                    </div>
+                    <div className="ratio-detail-item">
+                      <span className="label">Avg Variance</span>
+                      <span className={`value ${actualVsStandardData.summary.avgActualVsStandardRatio > 100 ? 'negative' : 'positive'}`}>
+                        {actualVsStandardData.summary.avgActualVsStandardRatio > 100 ? '+' : ''}
+                        {(actualVsStandardData.summary.avgActualVsStandardRatio - 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="breakdown-item otc clickable" onClick={() => handleJumlahProdukClick('OTC', 'lob')}>
-                  <span className="breakdown-label">OTC</span>
-                  <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.otc)}</span>
+                <div className="batch-distribution-section">
+                  <span className="distribution-label">Batch Cost Distribution</span>
+                  <BatchComparisonBar
+                    lowerPercent={actualVsStandardData.summary.lowerCostPercent || 0}
+                    higherPercent={actualVsStandardData.summary.higherCostPercent || 0}
+                    lowerCount={actualVsStandardData.summary.lowerCostCount || 0}
+                    higherCount={actualVsStandardData.summary.higherCostCount || 0}
+                    onLowerClick={() => {
+                      setBatchListFilter('lower');
+                      setShowBatchListModal(true);
+                    }}
+                    onHigherClick={() => {
+                      setBatchListFilter('higher');
+                      setShowBatchListModal(true);
+                    }}
+                  />
                 </div>
-                <div className="breakdown-item generik clickable" onClick={() => handleJumlahProdukClick('GENERIK', 'lob')}>
-                  <span className="breakdown-label">Generik</span>
-                  <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.generik)}</span>
-                </div>
+              </>
+            ) : (
+              <div className="no-data-message">
+                <span>No actual HPP data available for this period</span>
               </div>
-            </div>
-            {/* Category Row (Toll Out/Import/Inhouse - excluding Toll In) */}
-            <div className="stat-breakdown-section">
-              <span className="breakdown-section-label">By Category</span>
-              <div className="stat-breakdown toll-breakdown">
-                <div className="breakdown-item toll-out clickable" onClick={() => handleJumlahProdukClick('TOLL_OUT', 'toll')}>
-                  <span className="breakdown-label">Toll Out</span>
-                  <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.tollOut)}</span>
-                </div>
-                <div className="breakdown-item import clickable" onClick={() => handleJumlahProdukClick('IMPORT', 'toll')}>
-                  <span className="breakdown-label">Import</span>
-                  <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.import)}</span>
-                </div>
-                <div className="breakdown-item inhouse clickable" onClick={() => handleJumlahProdukClick('INHOUSE', 'toll')}>
-                  <span className="breakdown-label">Inhouse</span>
-                  <span className="breakdown-value">{formatNumber(dashboardData?.productCounts?.inhouse)}</span>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -1156,6 +1484,15 @@ export default function Dashboard() {
           jumlahProdukFilter
         }`}
         displayMode="cogs"
+      />
+
+      {/* Batch List Modal - Actual vs Standard */}
+      <BatchListModal
+        isOpen={showBatchListModal}
+        onClose={() => setShowBatchListModal(false)}
+        batches={actualVsStandardData?.batches || []}
+        title={`HPP Actual vs Standard - ${actualVsStandardMode} ${dashboardPeriod?.selectedYear}${actualVsStandardMode === 'MTD' ? ' ' + getMonthName(actualVsStandardMonth) : ''} - ${batchListFilter === 'lower' ? 'Lower Cost Batches' : batchListFilter === 'higher' ? 'Higher Cost Batches' : 'All Batches'}`}
+        filter={batchListFilter}
       />
     </div>
   );

@@ -1139,7 +1139,9 @@ BEGIN
                 -- Direct_Labor is a different rate (e.g., 34000) used for Generic products
                 Rate_MH_Proses = ISNULL(std.Biaya_Proses, h.Rate_MH_Proses),
                 Rate_MH_Kemas = ISNULL(std.Biaya_Kemas, h.Rate_MH_Kemas),
-                Rate_MH_Timbang = ISNULL(std.Direct_Labor, h.Rate_MH_Timbang),
+                -- v12.1 FIX: Rate_MH_Timbang should use Biaya_Proses (same as HPP Results Generic1)
+                -- HPP Results uses Biaya_Proses for Timbang BB/BK calculations
+                Rate_MH_Timbang = ISNULL(std.Biaya_Proses, h.Rate_MH_Timbang),
                 Direct_Labor = ISNULL(std.Direct_Labor, h.Direct_Labor),
                 Factory_Overhead = ISNULL(std.Factory_Over_Head, h.Factory_Overhead),
                 Depresiasi = ISNULL(std.Depresiasi, h.Depresiasi),

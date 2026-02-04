@@ -470,9 +470,209 @@ async function getAvailableYears() {
   }
 }
 
+/**
+ * Get HPP Actual vs Standard comparison data
+ * Compares actual batch HPP per unit against standard HPP for the same product
+ * @param {string} year - Year (e.g., '2026')
+ * @param {string} mode - 'YTD' or 'MTD'
+ * @param {number} month - Month (1-12), only used when mode='MTD'
+ * @returns {Object} Comparison statistics and batch details
+ */
+async function getHPPActualVsStandard(year = null, mode = 'YTD', month = null) {
+  try {
+    const db = await connect();
+    const targetYear = year || new Date().getFullYear().toString();
+    
+    // Build period filter based on mode
+    let periodFilter = '';
+    if (mode === 'MTD' && month) {
+      const periodStr = `${targetYear}${String(month).padStart(2, '0')}`;
+      periodFilter = `AND h.Periode = '${periodStr}'`;
+    } else {
+      // YTD - all periods in the year
+      periodFilter = `AND h.Periode LIKE '${targetYear}%'`;
+    }
+    
+    // First, get standard HPP data from sp_COGS_HPP_List
+    const standardRequest = db.request().input('year', sql.VarChar(4), targetYear);
+    const standardResult = await standardRequest.query(`exec sp_COGS_HPP_List @year`);
+    
+    // Combine ethical and generik1 results (stored proc returns 3 recordsets)
+    const ethical = standardResult.recordsets[0] || [];
+    const generik1 = standardResult.recordsets[1] || [];
+    
+    // Build a map of Product_ID -> Standard HPP per unit
+    // Track products with margin/rounded to exclude them from comparison
+    const standardHPPMap = {};
+    const excludedProductIds = new Set(); // Products with margin or rounded
+    
+    [...ethical, ...generik1].forEach(p => {
+      const hpp = parseFloat(p.HPP) || 0;
+      const margin = parseFloat(p.margin) || 0;
+      const rounded = parseFloat(p.rounded) || 0;
+      
+      // Exclude products that have margin or rounded set
+      if (margin !== 0 || rounded !== 0) {
+        excludedProductIds.add(p.Product_ID);
+      }
+      
+      standardHPPMap[p.Product_ID] = {
+        hppPerUnit: hpp,
+        batchSize: parseFloat(p.Batch_Size) || 0
+      };
+    });
+    
+    // Query to get actual batches with calculated Total HPP
+    const actualQuery = `
+      SELECT 
+        h.HPP_Actual_ID,
+        h.DNc_No,
+        h.DNc_ProductID as Product_ID,
+        h.Product_Name,
+        h.BatchNo,
+        h.BatchDate,
+        h.Periode,
+        h.LOB,
+        h.Group_PNCategory_Name,
+        h.Output_Actual,
+        h.Batch_Size_Std,
+        p.Product_SalesHNA as HNA,
+        -- Calculate Total HPP per Batch (same calculation as HPP Actual List)
+        (
+          ISNULL(h.Total_Cost_BB, 0) +
+          ISNULL(h.Total_Cost_BK, 0) +
+          (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Rate_MH_Proses, 0)) +
+          (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Rate_MH_Kemas, 0)) +
+          (ISNULL(h.MH_Timbang_BB, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
+          (ISNULL(h.MH_Timbang_BK, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
+          (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Factory_Overhead, 0)) +
+          (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Factory_Overhead, 0)) +
+          (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Depresiasi, 0)) +
+          (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Depresiasi, 0)) +
+          ISNULL(h.Biaya_Analisa, 0) +
+          ISNULL(h.Biaya_Reagen, 0) +
+          ISNULL(h.Cost_Utility, 0) +
+          ISNULL(h.Toll_Fee, 0) +
+          ISNULL(h.Beban_Sisa_Bahan_Exp, 0) +
+          ISNULL(h.Biaya_Lain, 0)
+        ) as Total_HPP_Actual
+      FROM t_COGS_HPP_Actual_Header h
+      LEFT JOIN m_Product p ON h.DNc_ProductID = p.Product_ID
+      WHERE h.Calculation_Status = 'COMPLETED'
+        AND h.LOB != 'GRANULATE'
+        ${periodFilter}
+        AND ISNULL(h.Output_Actual, 0) > 0
+      ORDER BY h.BatchDate DESC, h.DNc_ProductID
+    `;
+    
+    const actualResult = await db.request().query(actualQuery);
+    const actualBatches = actualResult.recordset || [];
+    
+    // Filter out products with margin/rounded, then calculate HPP per unit
+    const batches = actualBatches
+      .filter(b => !excludedProductIds.has(b.Product_ID)) // Exclude margin/rounded products
+      .map(b => {
+      const hppActualPerUnit = b.Output_Actual > 0 ? b.Total_HPP_Actual / b.Output_Actual : 0;
+      const standardData = standardHPPMap[b.Product_ID] || { hppPerUnit: 0, batchSize: 0 };
+      const hppStandardPerUnit = standardData.hppPerUnit;
+      
+      // Calculate variance percentage: (Actual - Standard) / Standard * 100
+      const variancePercent = hppStandardPerUnit > 0 
+        ? ((hppActualPerUnit - hppStandardPerUnit) / hppStandardPerUnit * 100)
+        : 0;
+      
+      return {
+        hppActualId: b.HPP_Actual_ID,
+        productId: b.Product_ID,
+        productName: b.Product_Name,
+        batchNo: b.BatchNo,
+        batchDate: b.BatchDate,
+        periode: b.Periode,
+        lob: b.LOB,
+        category: b.Group_PNCategory_Name,
+        outputActual: b.Output_Actual,
+        batchSizeStd: standardData.batchSize || b.Batch_Size_Std || 0,
+        hppActualTotal: b.Total_HPP_Actual,
+        hppActualPerUnit: hppActualPerUnit,
+        hppStandardPerUnit: hppStandardPerUnit,
+        hppStandardTotal: hppStandardPerUnit * b.Output_Actual,
+        variancePercent: variancePercent,
+        hna: b.HNA,
+        // Classification
+        costStatus: hppActualPerUnit < hppStandardPerUnit ? 'lower' :
+                   hppActualPerUnit > hppStandardPerUnit ? 'higher' : 'same'
+      };
+    });
+    
+    // Filter batches that have valid standard HPP for comparison
+    const validBatches = batches.filter(b => 
+      b.hppStandardPerUnit > 0 && 
+      b.hppActualPerUnit > 0
+    );
+    
+    // Count batches: lower cost vs higher cost vs same
+    const lowerCostBatches = validBatches.filter(b => b.costStatus === 'lower');
+    const higherCostBatches = validBatches.filter(b => b.costStatus === 'higher');
+    const sameCostBatches = validBatches.filter(b => b.costStatus === 'same');
+    
+    // Calculate average ratio (Actual / Standard)
+    // A ratio of 100% means actual equals standard
+    // Below 100% means actual is lower (better)
+    // Above 100% means actual is higher (worse)
+    let avgRatio = 100;
+    if (validBatches.length > 0) {
+      const totalRatio = validBatches.reduce((sum, b) => {
+        return sum + (b.hppActualPerUnit / b.hppStandardPerUnit * 100);
+      }, 0);
+      avgRatio = totalRatio / validBatches.length;
+    }
+    
+    // Calculate total variance in currency
+    const totalVariance = validBatches.reduce((sum, b) => {
+      return sum + (b.hppActualTotal - b.hppStandardTotal);
+    }, 0);
+    
+    // Get available months for MTD selection
+    const monthsQuery = `
+      SELECT DISTINCT 
+        SUBSTRING(Periode, 5, 2) as Month,
+        Periode
+      FROM t_COGS_HPP_Actual_Header
+      WHERE Periode LIKE '${targetYear}%'
+        AND Calculation_Status = 'COMPLETED'
+      ORDER BY Periode
+    `;
+    const monthsResult = await db.request().query(monthsQuery);
+    const availableMonths = monthsResult.recordset.map(r => parseInt(r.Month));
+    
+    return {
+      year: targetYear,
+      mode,
+      month: mode === 'MTD' ? month : null,
+      availableMonths,
+      summary: {
+        totalBatches: validBatches.length,
+        lowerCostCount: lowerCostBatches.length,
+        higherCostCount: higherCostBatches.length,
+        sameCostCount: sameCostBatches.length,
+        avgActualVsStandardRatio: avgRatio,
+        totalVariance: totalVariance,
+        // Percentages for the bar
+        lowerCostPercent: validBatches.length > 0 ? (lowerCostBatches.length / validBatches.length * 100) : 0,
+        higherCostPercent: validBatches.length > 0 ? (higherCostBatches.length / validBatches.length * 100) : 0
+      },
+      batches
+    };
+  } catch (error) {
+    console.error("Error getting HPP Actual vs Standard:", error);
+    throw error;
+  }
+}
+
 module.exports = {
   getLatestPeriode,
   getDashboardHPPData,
   getDashboardStats,
-  getAvailableYears
+  getAvailableYears,
+  getHPPActualVsStandard
 };

@@ -318,6 +318,12 @@ export const hppAPI = {
   
   // Get HPP Actual detail (header + materials) by HPP_Actual_ID
   getActualDetail: (hppActualId) => apiRequest(`/hpp/actual/${hppActualId}`),
+  
+  // Calculate HPP Actual using stored procedure
+  calculateActual: (periode, recalculateExisting = false) => apiRequest('/hpp/actual/calculate', {
+    method: 'POST',
+    body: JSON.stringify({ periode, recalculateExisting }),
+  }),
 };
 
 // Combined service for creating complete HPP records
@@ -721,6 +727,18 @@ export const dashboardAPI = {
 
   // Get available years for dashboard dropdown
   getYears: () => apiRequest('/dashboard/years'),
+  
+  // Get HPP Actual vs Standard comparison
+  // Query: ?year=2026&mode=YTD&month=1 (month only used when mode=MTD)
+  getActualVsStandard: (year = null, mode = 'YTD', month = null) => {
+    let url = '/dashboard/actual-vs-standard';
+    const params = new URLSearchParams();
+    if (year) params.append('year', year);
+    if (mode) params.append('mode', mode);
+    if (month) params.append('month', month);
+    const queryString = params.toString();
+    return apiRequest(`${url}${queryString ? `?${queryString}` : ''}`);
+  },
 };
 
 // Health check

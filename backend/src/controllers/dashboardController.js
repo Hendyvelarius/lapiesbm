@@ -1,4 +1,4 @@
-const { getDashboardStats, getAvailableYears, getLatestPeriode } = require('../models/dashboardModel');
+const { getDashboardStats, getAvailableYears, getLatestPeriode, getHPPActualVsStandard } = require('../models/dashboardModel');
 
 class DashboardController {
   /**
@@ -45,6 +45,31 @@ class DashboardController {
       res.status(500).json({
         success: false,
         message: 'Error retrieving available years',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Get HPP Actual vs Standard comparison
+   * GET /api/dashboard/actual-vs-standard?year=2026&mode=YTD&month=1
+   */
+  static async getActualVsStandard(req, res) {
+    try {
+      const { year, mode = 'YTD', month } = req.query;
+      const monthNum = month ? parseInt(month) : null;
+      
+      const data = await getHPPActualVsStandard(year, mode, monthNum);
+      
+      res.status(200).json({
+        success: true,
+        data
+      });
+    } catch (error) {
+      console.error('Error fetching HPP Actual vs Standard:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving HPP Actual vs Standard comparison',
         error: error.message
       });
     }

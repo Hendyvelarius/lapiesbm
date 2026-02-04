@@ -73,9 +73,19 @@ async function getAllDailyCurrency(startDateOrOptions = null, endDate = null) {
     
     query += ' ORDER BY [date] DESC';
     
-    // Add pagination if specified
+    // Add pagination if specified (SQL Server 2008 R2 compatible using subquery with ROW_NUMBER)
     if (limit) {
-      query += ` OFFSET ${offset || 0} ROWS FETCH NEXT ${limit} ROWS ONLY`;
+      const offsetVal = offset || 0;
+      query = `
+        SELECT * FROM (
+          SELECT ROW_NUMBER() OVER (ORDER BY [date] DESC) AS RowNum,
+                 [date], USD, EUR, CHF, SGD, JPY, MYR, GBP, RMB, AUD, created_at, updated_at
+          FROM m_COGS_Daily_Currency
+          ${conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : ''}
+        ) AS RowConstrainedResult
+        WHERE RowNum > ${offsetVal} AND RowNum <= ${offsetVal + limit}
+        ORDER BY [date] DESC
+      `;
     }
     
     const result = await request.query(query);

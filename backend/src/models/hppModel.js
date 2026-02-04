@@ -1069,6 +1069,7 @@ async function getHPPActualList(periode = null) {
     const db = await connect();
     
     // Build query to get all batches with calculated HPP
+    // Join with m_Product to get HNA (Product_SalesHNA)
     let query = `
       SELECT 
         h.HPP_Actual_ID,
@@ -1118,6 +1119,8 @@ async function getHPPActualList(periode = null) {
         h.Count_Materials_MR,
         h.Count_Materials_STD,
         h.Count_Materials_UNLINKED,
+        -- HNA from m_Product
+        p.Product_SalesHNA as HNA,
         -- Calculate component costs
         -- For Ethical: Use Rate_MH_Proses/Rate_MH_Kemas (which is Biaya_Proses/Biaya_Kemas from standard HPP)
         ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Rate_MH_Proses, 0) as Biaya_Proses,
@@ -1165,8 +1168,34 @@ async function getHPPActualList(periode = null) {
               ISNULL(h.Biaya_Lain, 0)
             ) / h.Output_Actual
           ELSE 0
-        END as HPP_Per_Unit
+        END as HPP_Per_Unit,
+        -- Calculate HPP/HNA Ratio
+        CASE 
+          WHEN ISNULL(p.Product_SalesHNA, 0) > 0 AND ISNULL(h.Output_Actual, 0) > 0 THEN
+            (
+              (
+                ISNULL(h.Total_Cost_BB, 0) +
+                ISNULL(h.Total_Cost_BK, 0) +
+                (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Rate_MH_Proses, 0)) +
+                (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Rate_MH_Kemas, 0)) +
+                (ISNULL(h.MH_Timbang_BB, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
+                (ISNULL(h.MH_Timbang_BK, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
+                (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Factory_Overhead, 0)) +
+                (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Factory_Overhead, 0)) +
+                (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Depresiasi, 0)) +
+                (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Depresiasi, 0)) +
+                ISNULL(h.Biaya_Analisa, 0) +
+                ISNULL(h.Biaya_Reagen, 0) +
+                ISNULL(h.Cost_Utility, 0) +
+                ISNULL(h.Toll_Fee, 0) +
+                ISNULL(h.Beban_Sisa_Bahan_Exp, 0) +
+                ISNULL(h.Biaya_Lain, 0)
+              ) / h.Output_Actual / p.Product_SalesHNA * 100
+            )
+          ELSE 0
+        END as HPP_Ratio
       FROM t_COGS_HPP_Actual_Header h
+      LEFT JOIN m_Product p ON p.Product_ID = h.DNc_ProductID
       WHERE h.LOB != 'GRANULATE'
         AND h.Calculation_Status = 'COMPLETED'
     `;
@@ -1293,6 +1322,42 @@ async function getHPPActualHeader(hppActualId) {
   }
 }
 
+/**
+ * Calculate HPP Actual by calling the stored procedure
+ * @param {string} periode - Period in YYYYMM format
+ * @param {boolean} recalculateExisting - Whether to recalculate existing records
+ * @returns {object} - Result from stored procedure
+ */
+async function calculateHPPActual(periode, recalculateExisting = false) {
+  try {
+    const db = await connect();
+    
+    console.log(`Starting HPP Actual calculation for period ${periode}, recalculate: ${recalculateExisting}`);
+    
+    const result = await db.request()
+      .input('Periode', sql.VarChar(6), periode)
+      .input('RecalculateExisting', sql.Bit, recalculateExisting ? 1 : 0)
+      .execute('sp_COGS_Calculate_HPP_Actual');
+    
+    const summary = result.recordset && result.recordset[0] ? result.recordset[0] : {};
+    
+    console.log(`HPP Actual calculation completed:`, summary);
+    
+    return {
+      success: true,
+      granulatesProcessed: summary.GranulatesProcessed || 0,
+      totalProductBatches: summary.TotalProductBatches || 0,
+      productsProcessed: summary.ProductsProcessed || 0,
+      errors: summary.Errors || 0,
+      durationSeconds: summary.DurationSeconds || 0
+    };
+    
+  } catch (error) {
+    console.error("Error in calculateHPPActual:", error);
+    throw error;
+  }
+}
+
 module.exports = {
   getHPP,
   generateHPPCalculation,
@@ -1328,4 +1393,5 @@ module.exports = {
   getHPPActualPeriods,
   getHPPActualDetail,
   getHPPActualHeader,
+  calculateHPPActual,
 };

@@ -115,4 +115,8 @@ router.get('/actual/periods', HPPController.getHPPActualPeriodsData);
 // GET /api/hpp/actual/:hppActualId - Get HPP Actual detail (header + materials)
 router.get('/actual/:hppActualId', HPPController.getHPPActualDetailData);
 
+// POST /api/hpp/actual/calculate - Calculate HPP Actual using stored procedure
+// Body: { periode: "202601", recalculateExisting: false }
+router.post('/actual/calculate', HPPController.calculateHPPActualData);
+
 module.exports = router;

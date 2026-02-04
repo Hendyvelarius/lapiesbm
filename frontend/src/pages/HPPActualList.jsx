@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Download, FileText, Loader2, ChevronLeft, ChevronRight, Search, RefreshCw, X } from 'lucide-react';
+import { Download, FileText, Loader2, ChevronLeft, ChevronRight, Search, RefreshCw, X, Calculator, AlertCircle, CheckCircle2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -142,6 +142,8 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
             <th>Expiry Cost</th>
             <th>Total HPP</th>
             <th>HPP/Unit</th>
+            <th>HNA</th>
+            <th>HPP/HNA</th>
           </tr>
         </thead>
         <tbody>
@@ -161,6 +163,8 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
               <td className="number">{formatCurrency(item.Beban_Sisa_Bahan_Exp)}</td>
               <td className="number hpp-value">{formatCurrency(item.Total_HPP_Batch)}</td>
               <td className="number hpp-unit">{formatCurrency(item.HPP_Per_Unit)}</td>
+              <td className="number hna-value">{formatCurrency(item.HNA)}</td>
+              <td className="number hpp-ratio">{formatHPPRatio(item.HPP_Ratio)}</td>
             </tr>
           ))}
         </tbody>
@@ -208,6 +212,8 @@ const GenericTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
             <th>Expiry Cost</th>
             <th>Total HPP</th>
             <th>HPP/Unit</th>
+            <th>HNA</th>
+            <th>HPP/HNA</th>
           </tr>
         </thead>
         <tbody>
@@ -228,6 +234,8 @@ const GenericTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
               <td className="number">{formatCurrency(item.Beban_Sisa_Bahan_Exp)}</td>
               <td className="number hpp-value">{formatCurrency(item.Total_HPP_Batch)}</td>
               <td className="number hpp-unit">{formatCurrency(item.HPP_Per_Unit)}</td>
+              <td className="number hna-value">{formatCurrency(item.HNA)}</td>
+              <td className="number hpp-ratio">{formatHPPRatio(item.HPP_Ratio)}</td>
             </tr>
           ))}
         </tbody>
@@ -244,8 +252,19 @@ const BatchDetailModal = ({ batch, materials, isOpen, onClose, isLoading }) => {
 
   if (!isOpen || !batch) return null;
 
-  // Determine if Ethical or Generic based on LOB
+  // Determine product type based on LOB and available data
   const isEthical = batch.LOB === 'ETHICAL' || batch.LOB === 'ETH' || batch.LOB === 'OTC';
+  
+  // Detect Generic1 vs Generic2 based on available fields
+  // Generic1 has MH_Timbang_BB, MH_Analisa_Std, Biaya_Reagen, etc.
+  // Generic2 has Direct_Labor, Factory_Overhead, Depresiasi
+  const isGeneric1 = !isEthical && (
+    (batch.MH_Timbang_BB && batch.MH_Timbang_BB > 0) ||
+    (batch.MH_Analisa_Std && batch.MH_Analisa_Std > 0) ||
+    (batch.Biaya_Reagen && batch.Biaya_Reagen > 0) ||
+    (batch.MH_Mesin_Std && batch.MH_Mesin_Std > 0)
+  );
+  const isGeneric2 = !isEthical && !isGeneric1;
   
   // Calculate batch size actual
   const batchSizeActual = batch.Output_Actual || 1;
@@ -263,11 +282,16 @@ const BatchDetailModal = ({ batch, materials, isOpen, onClose, isLoading }) => {
   // Calculate manhours (use actual if available, else standard)
   const mhProses = batch.MH_Proses_Actual ?? batch.MH_Proses_Std ?? 0;
   const mhKemas = batch.MH_Kemas_Actual ?? batch.MH_Kemas_Std ?? 0;
+  const mhTimbangBB = batch.MH_Timbang_BB || 0;
+  const mhTimbangBK = batch.MH_Timbang_BK || 0;
+  const mhAnalisa = batch.MH_Analisa_Std || 0;
+  const mhMesin = batch.MH_Mesin_Std || 0;
   const totalMH = mhProses + mhKemas;
 
   // Calculate overhead costs based on product type
   let overheadItems = [];
   let totalOverhead = 0;
+  let sectionTitle = 'Overhead';
 
   if (isEthical) {
     // Ethical: Only Pengolahan + Pengemasan + Expiry
@@ -277,13 +301,39 @@ const BatchDetailModal = ({ batch, materials, isOpen, onClose, isLoading }) => {
     const expiryCost = batch.Beban_Sisa_Bahan_Exp || 0;
     
     overheadItems = [
-      { name: 'PENGOLAHAN', desc: `OPERATOR PROSES LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhProses, unit: 'HRS', rate: batch.Rate_MH_Proses || 0, cost: biayaProses, perUnit: biayaProses / batchSizeActual },
-      { name: 'PENGEMASAN', desc: `OPERATOR PROSES LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhKemas, unit: 'HRS', rate: batch.Rate_MH_Kemas || 0, cost: biayaKemas, perUnit: biayaKemas / batchSizeActual },
-      { name: 'EXPIRY COST', desc: '-', qty: '-', unit: '-', rate: expiryCost, cost: expiryCost, perUnit: expiryCost / batchSizeActual },
+      { name: '1 PENGOLAHAN', desc: `OPERATOR PROSES LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhProses, unit: 'HRS', rate: batch.Rate_MH_Proses || 0, cost: biayaProses, perUnit: biayaProses / batchSizeActual },
+      { name: '2 PENGEMASAN', desc: `OPERATOR PROSES LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhKemas, unit: 'HRS', rate: batch.Rate_MH_Kemas || 0, cost: biayaKemas, perUnit: biayaKemas / batchSizeActual },
+      { name: '3 EXPIRY COST', desc: '-', qty: '-', unit: '-', rate: expiryCost, cost: expiryCost, perUnit: expiryCost / batchSizeActual },
     ];
     totalOverhead = biayaProses + biayaKemas + expiryCost;
+  } else if (isGeneric1) {
+    // Generic1: Similar to HPP Results - Timbang, Proses, Kemas, Analisa, Mesin, Reagen, Expiry
+    sectionTitle = 'Overhead';
+    
+    const biayaTimbangBB = mhTimbangBB * (batch.Rate_MH_Timbang || batch.Rate_MH_Proses || 0);
+    const biayaTimbangBK = mhTimbangBK * (batch.Rate_MH_Timbang || batch.Rate_MH_Proses || 0);
+    const biayaProses = mhProses * (batch.Rate_MH_Proses || 0);
+    const biayaKemas = mhKemas * (batch.Rate_MH_Kemas || 0);
+    const biayaAnalisa = mhAnalisa * (batch.Biaya_Analisa || 0);
+    const biayaMesin = mhMesin * (batch.Rate_PLN || 0);
+    const biayaReagen = batch.Biaya_Reagen || 0;
+    const expiryCost = batch.Beban_Sisa_Bahan_Exp || 0;
+    
+    overheadItems = [
+      { name: '1 TIMBANG BAHAN', desc: 'OPERATOR PROSES LINE PN1/PN2', qty: mhTimbangBB, unit: 'HRS', rate: batch.Rate_MH_Timbang || batch.Rate_MH_Proses || 0, cost: biayaTimbangBB, perUnit: biayaTimbangBB / batchSizeActual },
+      { name: '2 TIMBANG KEMAS', desc: 'OPERATOR PROSES LINE PN1/PN2', qty: mhTimbangBK, unit: 'HRS', rate: batch.Rate_MH_Timbang || batch.Rate_MH_Proses || 0, cost: biayaTimbangBK, perUnit: biayaTimbangBK / batchSizeActual },
+      { name: '3 BIAYA PROSES', desc: 'OPERATOR PROSES LINE PN1/PN2', qty: mhProses, unit: 'HRS', rate: batch.Rate_MH_Proses || 0, cost: biayaProses, perUnit: biayaProses / batchSizeActual },
+      { name: '4 BIAYA KEMAS', desc: 'OPERATOR PROSES LINE PN1/PN2', qty: mhKemas, unit: 'HRS', rate: batch.Rate_MH_Kemas || 0, cost: biayaKemas, perUnit: biayaKemas / batchSizeActual },
+      { name: '5 BIAYA ANALISA', desc: 'OPERATOR PROSES LINE PN1/PN2', qty: mhAnalisa, unit: 'HRS', rate: batch.Biaya_Analisa || 0, cost: biayaAnalisa, perUnit: biayaAnalisa / batchSizeActual },
+      { name: '6 BIAYA MESIN', desc: 'MESIN OPERATION', qty: mhMesin, unit: 'HRS', rate: batch.Rate_PLN || 0, cost: biayaMesin, perUnit: biayaMesin / batchSizeActual },
+      { name: '7 BIAYA REAGEN', desc: 'ANALISA REAGENT', qty: '-', unit: '-', rate: biayaReagen, cost: biayaReagen, perUnit: biayaReagen / batchSizeActual },
+      { name: '8 BEBAN EXPIRY', desc: '-', qty: '-', unit: '-', rate: expiryCost, cost: expiryCost, perUnit: expiryCost / batchSizeActual },
+    ];
+    totalOverhead = biayaTimbangBB + biayaTimbangBK + biayaProses + biayaKemas + biayaAnalisa + biayaMesin + biayaReagen + expiryCost;
   } else {
-    // Generic: Direct Labor + Factory Overhead + Depresiasi + Expiry
+    // Generic2: Direct Labor + Factory Overhead + Depresiasi + Expiry
+    sectionTitle = 'Conversion Costs';
+    
     const directLaborProses = mhProses * (batch.Direct_Labor || 0);
     const directLaborKemas = mhKemas * (batch.Direct_Labor || 0);
     const factoryOHProses = mhProses * (batch.Factory_Overhead || 0);
@@ -294,12 +344,12 @@ const BatchDetailModal = ({ batch, materials, isOpen, onClose, isLoading }) => {
     
     overheadItems = [
       { section: 'Direct Labor' },
-      { name: '1 PENGOLAHAN', desc: `OPERATOR LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhProses, unit: 'HRS', rate: batch.Direct_Labor || 0, cost: directLaborProses, perUnit: directLaborProses / batchSizeActual },
-      { name: '2 PENGEMASAN', desc: `OPERATOR LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhKemas, unit: 'HRS', rate: batch.Direct_Labor || 0, cost: directLaborKemas, perUnit: directLaborKemas / batchSizeActual },
+      { name: '1 PENGOLAHAN', desc: `OPERATOR LINE ${batch.Group_PNCategory_Dept || 'PN1/PN2'}`, qty: mhProses, unit: 'HRS', rate: batch.Direct_Labor || 0, cost: directLaborProses, perUnit: directLaborProses / batchSizeActual },
+      { name: '2 PENGEMASAN', desc: `OPERATOR LINE ${batch.Group_PNCategory_Dept || 'PN1/PN2'}`, qty: mhKemas, unit: 'HRS', rate: batch.Direct_Labor || 0, cost: directLaborKemas, perUnit: directLaborKemas / batchSizeActual },
       { subtotal: 'Direct Labor', cost: directLaborProses + directLaborKemas, perUnit: (directLaborProses + directLaborKemas) / batchSizeActual },
-      { section: 'Factory Overhead' },
-      { name: '1 PENGOLAHAN', desc: `OVERHEAD LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhProses, unit: 'HRS', rate: batch.Factory_Overhead || 0, cost: factoryOHProses, perUnit: factoryOHProses / batchSizeActual },
-      { name: '2 PENGEMASAN', desc: `OVERHEAD LINE ${batch.Group_PNCategory_Dept || 'N/A'}`, qty: mhKemas, unit: 'HRS', rate: batch.Factory_Overhead || 0, cost: factoryOHKemas, perUnit: factoryOHKemas / batchSizeActual },
+      { section: 'Factory Over Head' },
+      { name: '1 PENGOLAHAN', desc: `OPERATOR LINE ${batch.Group_PNCategory_Dept || 'PN1/PN2'}`, qty: mhProses, unit: 'HRS', rate: batch.Factory_Overhead || 0, cost: factoryOHProses, perUnit: factoryOHProses / batchSizeActual },
+      { name: '2 PENGEMASAN', desc: `OPERATOR LINE ${batch.Group_PNCategory_Dept || 'PN1/PN2'}`, qty: mhKemas, unit: 'HRS', rate: batch.Factory_Overhead || 0, cost: factoryOHKemas, perUnit: factoryOHKemas / batchSizeActual },
       { subtotal: 'Factory Overhead', cost: factoryOHProses + factoryOHKemas, perUnit: (factoryOHProses + factoryOHKemas) / batchSizeActual },
       { section: 'Depresiasi' },
       { name: '1 PENGOLAHAN', desc: 'DEPRESIASI MESIN PROSES', qty: mhProses, unit: 'HRS', rate: batch.Depresiasi || 0, cost: depresiasiProses, perUnit: depresiasiProses / batchSizeActual },
@@ -523,7 +573,7 @@ const BatchDetailModal = ({ batch, materials, isOpen, onClose, isLoading }) => {
               {/* Overhead Section */}
               <div className="labor-section">
                 <div className="material-section">
-                  <div className="section-title"><h4>{isEthical ? 'Overhead' : 'Conversion Costs'}</h4></div>
+                  <div className="section-title"><h4>{sectionTitle}</h4></div>
                   <table className="excel-table">
                     <thead>
                       <tr>
@@ -590,6 +640,13 @@ const BatchDetailModal = ({ batch, materials, isOpen, onClose, isLoading }) => {
                       <td className="number final"><strong>{formatCurrency(totalHPP)}</strong></td>
                       <td className="number final"><strong>{formatCurrency(hppPerUnit)}</strong></td>
                     </tr>
+                    <tr className="final-total">
+                      <td><strong>HNA</strong></td>
+                      <td colSpan="3"></td>
+                      <td><strong>HPP/HNA</strong></td>
+                      <td className="number final"><strong>{formatCurrency(batch.HNA)}</strong></td>
+                      <td className="number final"><strong>{formatHPPRatio(batch.HPP_Ratio)}</strong></td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -616,6 +673,15 @@ const HPPActualList = ({ user }) => {
   const [batchMaterials, setBatchMaterials] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
+
+  // Calculate HPP Modal state
+  const [showCalculateModal, setShowCalculateModal] = useState(false);
+  const [calculateMonth, setCalculateMonth] = useState(new Date().getMonth() + 1);
+  const [calculateYear, setCalculateYear] = useState(new Date().getFullYear());
+  const [overwriteExisting, setOverwriteExisting] = useState(false);
+  const [calculating, setCalculating] = useState(false);
+  const [calculateResult, setCalculateResult] = useState(null);
+  const [calculateError, setCalculateError] = useState(null);
 
   // Pagination state for each tab
   const [pagination, setPagination] = useState({
@@ -833,6 +899,77 @@ const HPPActualList = ({ user }) => {
     }
   };
 
+  // Calculate HPP Modal handlers
+  const handleOpenCalculateModal = () => {
+    // Pre-fill with current month/year
+    const now = new Date();
+    setCalculateMonth(now.getMonth() + 1);
+    setCalculateYear(now.getFullYear());
+    setOverwriteExisting(false);
+    setCalculateResult(null);
+    setCalculateError(null);
+    setShowCalculateModal(true);
+  };
+
+  const handleCloseCalculateModal = () => {
+    setShowCalculateModal(false);
+    setCalculateResult(null);
+    setCalculateError(null);
+  };
+
+  const handleCalculateHPP = async () => {
+    try {
+      setCalculating(true);
+      setCalculateResult(null);
+      setCalculateError(null);
+      
+      // Build period string YYYYMM
+      const periode = `${calculateYear}${String(calculateMonth).padStart(2, '0')}`;
+      
+      console.log(`Calculating HPP Actual for period ${periode}, overwrite: ${overwriteExisting}`);
+      
+      const response = await hppAPI.calculateActual(periode, overwriteExisting);
+      
+      if (response.success) {
+        setCalculateResult(response.data);
+        // Refresh periods list and data if current period matches
+        loadPeriods();
+        if (selectedPeriod === periode) {
+          loadBatches(periode);
+        }
+      } else {
+        setCalculateError(response.message || 'Calculation failed');
+      }
+    } catch (err) {
+      console.error('Error calculating HPP:', err);
+      setCalculateError(err.message || 'Failed to calculate HPP');
+    } finally {
+      setCalculating(false);
+    }
+  };
+
+  const monthNames = [
+    { value: 1, label: 'January' },
+    { value: 2, label: 'February' },
+    { value: 3, label: 'March' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'May' },
+    { value: 6, label: 'June' },
+    { value: 7, label: 'July' },
+    { value: 8, label: 'August' },
+    { value: 9, label: 'September' },
+    { value: 10, label: 'October' },
+    { value: 11, label: 'November' },
+    { value: 12, label: 'December' }
+  ];
+
+  // Generate year options (current year and a few years back)
+  const currentYear = new Date().getFullYear();
+  const yearOptions = [];
+  for (let y = currentYear; y >= currentYear - 5; y--) {
+    yearOptions.push(y);
+  }
+
   const renderActiveTable = () => {
     const currentData = processedData[activeTab];
     const currentSearchTerm = searchTerms[activeTab];
@@ -894,6 +1031,10 @@ const HPPActualList = ({ user }) => {
             {exporting ? <Loader2 className="spin" size={16} /> : <Download size={16} />}
             Export to Excel
           </button>
+          <button className="hpp-actual-calculate-btn" onClick={handleOpenCalculateModal} disabled={calculating}>
+            {calculating ? <Loader2 className="spin" size={16} /> : <Calculator size={16} />}
+            Calculate HPP
+          </button>
         </div>
       </div>
 
@@ -934,6 +1075,175 @@ const HPPActualList = ({ user }) => {
         onClose={handleCloseModal}
         isLoading={modalLoading}
       />
+
+      {/* Calculate HPP Modal */}
+      {showCalculateModal && (
+        <div className="hpp-actual-modal-overlay" onClick={handleCloseCalculateModal}>
+          <div className="hpp-actual-calculate-modal" onClick={e => e.stopPropagation()}>
+            <div className="hpp-actual-modal-header">
+              <h2><Calculator size={20} /> Calculate HPP Actual</h2>
+              <button onClick={handleCloseCalculateModal} className="hpp-actual-close-btn"><X size={20} /></button>
+            </div>
+            
+            <div className="hpp-actual-calculate-content">
+              {/* Processing Time Warning */}
+              <div className="calculate-time-warning">
+                <div className="warning-icon">
+                  <Loader2 size={24} />
+                </div>
+                <div className="warning-content">
+                  <h4>Processing Time Notice</h4>
+                  <p>
+                    This calculation may take <strong>2-5 minutes</strong> depending on the number of 
+                    batches in the selected period. Please be patient and do not close this window 
+                    while the calculation is in progress.
+                  </p>
+                </div>
+              </div>
+
+              {/* Period Selection */}
+              <div className="calculate-form-section">
+                <h3>Select Period</h3>
+                <p className="section-description">
+                  Choose the month and year for which you want to calculate HPP Actual. 
+                  The system will process all production batches within the selected period.
+                </p>
+                <div className="calculate-period-row">
+                  <div className="calculate-field">
+                    <label htmlFor="calc-month">Month</label>
+                    <select
+                      id="calc-month"
+                      value={calculateMonth}
+                      onChange={(e) => setCalculateMonth(parseInt(e.target.value))}
+                      disabled={calculating}
+                    >
+                      {monthNames.map(m => (
+                        <option key={m.value} value={m.value}>{m.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="calculate-field">
+                    <label htmlFor="calc-year">Year</label>
+                    <select
+                      id="calc-year"
+                      value={calculateYear}
+                      onChange={(e) => setCalculateYear(parseInt(e.target.value))}
+                      disabled={calculating}
+                    >
+                      {yearOptions.map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Overwrite Option */}
+              <div className="calculate-form-section">
+                <h3>Calculation Options</h3>
+                <div className="calculate-checkbox-row">
+                  <input
+                    type="checkbox"
+                    id="overwrite-existing"
+                    checked={overwriteExisting}
+                    onChange={(e) => setOverwriteExisting(e.target.checked)}
+                    disabled={calculating}
+                  />
+                  <label htmlFor="overwrite-existing">
+                    <strong>Overwrite existing calculations</strong>
+                  </label>
+                </div>
+                <div className="option-explanation">
+                  <p className="explanation-text">
+                    <strong>When unchecked (default):</strong> The system will only calculate HPP for new batches 
+                    that haven't been processed yet. Existing HPP calculations will remain unchanged.
+                  </p>
+                  <p className="explanation-text">
+                    <strong>When checked:</strong> All batches in the selected period will be recalculated, 
+                    including those that already have HPP values. Use this option if material prices or 
+                    overhead rates have been updated and you need to refresh all calculations.
+                  </p>
+                </div>
+              </div>
+
+              {/* Error Display */}
+              {calculateError && (
+                <div className="calculate-error">
+                  <AlertCircle size={18} />
+                  <span>{calculateError}</span>
+                </div>
+              )}
+
+              {/* Success Result */}
+              {calculateResult && (
+                <div className="calculate-success">
+                  <div className="success-header">
+                    <CheckCircle2 size={20} />
+                    <span>Calculation Completed Successfully!</span>
+                  </div>
+                  <div className="success-details">
+                    <div className="detail-row">
+                      <span className="label">Granulates Processed:</span>
+                      <span className="value">{calculateResult.granulatesProcessed}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">Total Batches Found:</span>
+                      <span className="value">{calculateResult.totalProductBatches}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">Batches Calculated:</span>
+                      <span className="value">{calculateResult.productsProcessed}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">Batches Skipped:</span>
+                      <span className="value">{calculateResult.totalProductBatches - calculateResult.productsProcessed}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">Duration:</span>
+                      <span className="value">{calculateResult.durationSeconds} seconds</span>
+                    </div>
+                    {calculateResult.errors > 0 && (
+                      <div className="detail-row warning">
+                        <span className="label">Errors:</span>
+                        <span className="value">{calculateResult.errors}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="hpp-actual-calculate-footer">
+              <button 
+                className="calculate-cancel-btn" 
+                onClick={handleCloseCalculateModal}
+                disabled={calculating}
+              >
+                {calculateResult ? 'Close' : 'Cancel'}
+              </button>
+              {!calculateResult && (
+                <button 
+                  className="calculate-submit-btn" 
+                  onClick={handleCalculateHPP}
+                  disabled={calculating}
+                >
+                  {calculating ? (
+                    <>
+                      <Loader2 className="spin" size={16} />
+                      Calculating...
+                    </>
+                  ) : (
+                    <>
+                      <Calculator size={16} />
+                      Calculate HPP
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

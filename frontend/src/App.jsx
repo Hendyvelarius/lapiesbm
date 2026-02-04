@@ -52,6 +52,14 @@ function AppContent() {
   const location = useLocation();
   const [currentTime, setCurrentTime] = useState(new Date());
   
+  // Dashboard period state (lifted up for navbar access)
+  const [dashboardPeriod, setDashboardPeriod] = useState({
+    selectedYear: null,
+    availableYears: [],
+    showDropdown: false,
+    refreshing: false
+  });
+  
   // Authentication state
   const [authState, setAuthState] = useState({
     isLoading: true,
@@ -162,7 +170,7 @@ function AppContent() {
       case '/generate-hpp':
         return 'Generate HPP';
       case '/hpp-results':
-        return 'HPP Calculation Results';
+        return 'HPP Standard Results';
       case '/hpp-actual':
         return 'HPP Actual Results';
       default:
@@ -310,11 +318,21 @@ function AppContent() {
         pageTitle={getPageTitle()} 
         currentTime={formatTime(currentTime)} 
         currentDate={formatDate(currentTime)} 
-        user={authState.user} // Pass user data to navbar
+        user={authState.user}
+        // Dashboard period props
+        dashboardPeriod={dashboardPeriod}
+        setDashboardPeriod={setDashboardPeriod}
+        isDashboard={location.pathname === '/' || location.pathname === ''}
       />
       <main className="main-content">
         <Routes>
-          <Route path="/" element={<Dashboard user={authState.user} />} />
+          <Route path="/" element={
+            <Dashboard 
+              user={authState.user} 
+              dashboardPeriod={dashboardPeriod}
+              setDashboardPeriod={setDashboardPeriod}
+            />
+          } />
           <Route path="/hpp-simulation" element={<HPPSimulation user={authState.user} />} />
           {/* Routes below are only accessible to users with full access */}
           <Route path="/currency" element={

@@ -1,4 +1,4 @@
-const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, getMarkedForDeleteList, deleteSimulation, markSimulationForDelete, restoreSimulation, bulkMarkForDelete, permanentlyDeleteMarked, getSimulationOwner, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk, bulkMarkPriceChangeGroupForDelete, bulkDeletePriceChangeGroup, getHPPActualList, getHPPActualPeriods, getHPPActualDetail, getHPPActualHeader } = require('../models/hppModel');
+const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, getMarkedForDeleteList, deleteSimulation, markSimulationForDelete, restoreSimulation, bulkMarkForDelete, permanentlyDeleteMarked, getSimulationOwner, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk, bulkMarkPriceChangeGroupForDelete, bulkDeletePriceChangeGroup, getHPPActualList, getHPPActualPeriods, getHPPActualDetail, getHPPActualHeader, calculateHPPActual } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
@@ -1150,6 +1150,50 @@ class HPPController {
       res.status(500).json({
         success: false,
         message: 'Error retrieving HPP Actual detail',
+        error: error.message
+      });
+    }
+  }
+
+  // Calculate HPP Actual using stored procedure
+  static async calculateHPPActualData(req, res) {
+    try {
+      const { periode, recalculateExisting } = req.body;
+      
+      // Validate period format (YYYYMM)
+      if (!periode || !/^\d{6}$/.test(periode)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Period must be in YYYYMM format (e.g., 202601)'
+        });
+      }
+      
+      // Validate period is not in the future
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth() + 1;
+      const currentPeriod = `${currentYear}${String(currentMonth).padStart(2, '0')}`;
+      
+      if (periode > currentPeriod) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot calculate HPP for future periods'
+        });
+      }
+      
+      console.log(`Calculating HPP Actual for period ${periode}, recalculate: ${recalculateExisting}`);
+      
+      const result = await calculateHPPActual(periode, recalculateExisting === true);
+      
+      res.status(200).json({
+        success: true,
+        message: `HPP Actual calculation completed for period ${periode}`,
+        data: result
+      });
+    } catch (error) {
+      console.error('Calculate HPP Actual Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error calculating HPP Actual',
         error: error.message
       });
     }
