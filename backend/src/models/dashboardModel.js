@@ -510,19 +510,66 @@ async function getHPPActualVsStandard(year = null, mode = 'YTD', month = null) {
       const hpp = parseFloat(p.HPP) || 0;
       const margin = parseFloat(p.margin) || 0;
       const rounded = parseFloat(p.rounded) || 0;
+      const batchSize = parseFloat(p.Batch_Size) || 0;
+      const totalBB = parseFloat(p.totalBB) || 0;
+      const totalBK = parseFloat(p.totalBK) || 0;
+      const lob = p.LOB || '';
       
       // Exclude products that have margin or rounded set
       if (margin !== 0 || rounded !== 0) {
         excludedProductIds.add(p.Product_ID);
       }
       
+      // Calculate Standard Overhead based on LOB type
+      // For Ethical/OTC: (MH_Proses_Std × Biaya_Proses) + (MH_Kemas_Std × Biaya_Kemas) + Beban_Sisa_Bahan_Exp
+      // For Generic: Additional items like MH_Timbang, MH_Analisa, MH_Mesin × Rate_PLN, Biaya_Reagen, Biaya_Analisa
+      
+      const mhProsesStd = parseFloat(p.MH_Proses_Std) || 0;
+      const mhKemasStd = parseFloat(p.MH_Kemas_Std) || 0;
+      const biayaProses = parseFloat(p.Biaya_Proses) || 0;
+      const biayaKemas = parseFloat(p.Biaya_Kemas) || 0;
+      const bebanSisaBahanExp = parseFloat(p.Beban_Sisa_Bahan_Exp) || 0;
+      
+      let overheadStd = 0;
+      
+      if (lob === 'GENERIK') {
+        // Generic products have more overhead components
+        const mhAnalisaStd = parseFloat(p.MH_Analisa_Std) || 0;
+        const mhTimbangBB = parseFloat(p.MH_Timbang_BB) || 0;
+        const mhTimbangBK = parseFloat(p.MH_Timbang_BK) || 0;
+        const mhMesinStd = parseFloat(p.MH_Mesin_Std) || 0;
+        const biayaReagen = parseFloat(p.Biaya_Reagen) || 0;
+        const biayaAnalisa = parseFloat(p.Biaya_Analisa) || 0;
+        const ratePLN = parseFloat(p.Rate_PLN) || 0;
+        
+        overheadStd = 
+          (mhProsesStd * biayaProses) +
+          (mhKemasStd * biayaKemas) +
+          (mhTimbangBB * biayaProses) +  // MH_Timbang uses Biaya_Proses rate
+          (mhTimbangBK * biayaProses) +
+          (mhAnalisaStd * biayaAnalisa) +
+          (mhMesinStd * ratePLN) +
+          biayaReagen +
+          bebanSisaBahanExp;
+      } else {
+        // Ethical/OTC products - simpler overhead
+        overheadStd = 
+          (mhProsesStd * biayaProses) +
+          (mhKemasStd * biayaKemas) +
+          bebanSisaBahanExp;
+      }
+      
       standardHPPMap[p.Product_ID] = {
         hppPerUnit: hpp,
-        batchSize: parseFloat(p.Batch_Size) || 0
+        batchSize: batchSize,
+        totalBB: totalBB,           // Total for standard batch
+        totalBK: totalBK,           // Total for standard batch  
+        overhead: overheadStd,      // Total for standard batch
+        lob: lob
       };
     });
     
-    // Query to get actual batches with calculated Total HPP
+    // Query to get actual batches with raw values for overhead calculation
     const actualQuery = `
       SELECT 
         h.HPP_Actual_ID,
@@ -536,26 +583,29 @@ async function getHPPActualVsStandard(year = null, mode = 'YTD', month = null) {
         h.Group_PNCategory_Name,
         h.Output_Actual,
         h.Batch_Size_Std,
+        h.Total_Cost_BB,
+        h.Total_Cost_BK,
         p.Product_SalesHNA as HNA,
-        -- Calculate Total HPP per Batch (same calculation as HPP Actual List)
-        (
-          ISNULL(h.Total_Cost_BB, 0) +
-          ISNULL(h.Total_Cost_BK, 0) +
-          (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Rate_MH_Proses, 0)) +
-          (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Rate_MH_Kemas, 0)) +
-          (ISNULL(h.MH_Timbang_BB, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
-          (ISNULL(h.MH_Timbang_BK, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
-          (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Factory_Overhead, 0)) +
-          (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Factory_Overhead, 0)) +
-          (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Depresiasi, 0)) +
-          (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Depresiasi, 0)) +
-          ISNULL(h.Biaya_Analisa, 0) +
-          ISNULL(h.Biaya_Reagen, 0) +
-          ISNULL(h.Cost_Utility, 0) +
-          ISNULL(h.Toll_Fee, 0) +
-          ISNULL(h.Beban_Sisa_Bahan_Exp, 0) +
-          ISNULL(h.Biaya_Lain, 0)
-        ) as Total_HPP_Actual
+        -- Raw values for overhead calculation (calculated in JS based on LOB)
+        ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) as MH_Proses,
+        ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) as MH_Kemas,
+        ISNULL(h.MH_Timbang_BB, 0) as MH_Timbang_BB,
+        ISNULL(h.MH_Timbang_BK, 0) as MH_Timbang_BK,
+        ISNULL(h.MH_Analisa_Std, 0) as MH_Analisa,
+        ISNULL(h.MH_Mesin_Std, 0) as MH_Mesin,
+        ISNULL(h.Rate_MH_Proses, 0) as Rate_MH_Proses,
+        ISNULL(h.Rate_MH_Kemas, 0) as Rate_MH_Kemas,
+        ISNULL(h.Rate_MH_Timbang, 0) as Rate_MH_Timbang,
+        ISNULL(h.Biaya_Analisa, 0) as Biaya_Analisa,
+        ISNULL(h.Rate_PLN, 0) as Rate_PLN,
+        ISNULL(h.Biaya_Reagen, 0) as Biaya_Reagen,
+        ISNULL(h.Direct_Labor, 0) as Direct_Labor,
+        ISNULL(h.Factory_Overhead, 0) as Factory_Overhead,
+        ISNULL(h.Depresiasi, 0) as Depresiasi,
+        ISNULL(h.Beban_Sisa_Bahan_Exp, 0) as Beban_Sisa_Bahan_Exp,
+        ISNULL(h.Cost_Utility, 0) as Cost_Utility,
+        ISNULL(h.Toll_Fee, 0) as Toll_Fee,
+        ISNULL(h.Biaya_Lain, 0) as Biaya_Lain
       FROM t_COGS_HPP_Actual_Header h
       LEFT JOIN m_Product p ON h.DNc_ProductID = p.Product_ID
       WHERE h.Calculation_Status = 'COMPLETED'
@@ -568,11 +618,53 @@ async function getHPPActualVsStandard(year = null, mode = 'YTD', month = null) {
     const actualResult = await db.request().query(actualQuery);
     const actualBatches = actualResult.recordset || [];
     
+    // Helper function to determine if product is Ethical/OTC or Generic
+    const isEthicalOrOTC = (lob) => lob === 'ETHICAL' || lob === 'OTC';
+    const isGeneric = (lob) => lob === 'GENERIK' || lob === 'GENERIC';
+    
+    // Helper function to calculate overhead based on LOB type (matching HPP Actual page)
+    const calculateActualOverhead = (b) => {
+      const lob = b.LOB || '';
+      
+      if (isEthicalOrOTC(lob)) {
+        // Ethical/OTC: Only Pengolahan + Pengemasan + Expiry
+        const biayaProses = b.MH_Proses * b.Rate_MH_Proses;
+        const biayaKemas = b.MH_Kemas * b.Rate_MH_Kemas;
+        return biayaProses + biayaKemas + b.Beban_Sisa_Bahan_Exp;
+      } else if (isGeneric(lob)) {
+        // Generic1: Timbang + Proses + Kemas + Analisa + Mesin + Reagen + Expiry
+        const biayaTimbangBB = b.MH_Timbang_BB * (b.Rate_MH_Timbang || b.Rate_MH_Proses);
+        const biayaTimbangBK = b.MH_Timbang_BK * (b.Rate_MH_Timbang || b.Rate_MH_Proses);
+        const biayaProses = b.MH_Proses * b.Rate_MH_Proses;
+        const biayaKemas = b.MH_Kemas * b.Rate_MH_Kemas;
+        const biayaAnalisa = b.MH_Analisa * b.Biaya_Analisa;
+        const biayaMesin = b.MH_Mesin * b.Rate_PLN;
+        return biayaTimbangBB + biayaTimbangBK + biayaProses + biayaKemas + biayaAnalisa + biayaMesin + b.Biaya_Reagen + b.Beban_Sisa_Bahan_Exp;
+      } else {
+        // Generic2 or other: Direct Labor + Factory Overhead + Depresiasi + Expiry
+        const totalMH = b.MH_Proses + b.MH_Kemas;
+        const directLabor = totalMH * b.Direct_Labor;
+        const factoryOH = totalMH * b.Factory_Overhead;
+        const depresiasi = totalMH * b.Depresiasi;
+        return directLabor + factoryOH + depresiasi + b.Beban_Sisa_Bahan_Exp;
+      }
+    };
+    
+    // Calculate Total HPP Actual = Total BB + Total BK + Overhead
+    const calculateTotalHPPActual = (b) => {
+      const totalBB = b.Total_Cost_BB || 0;
+      const totalBK = b.Total_Cost_BK || 0;
+      const overhead = calculateActualOverhead(b);
+      return totalBB + totalBK + overhead;
+    };
+    
     // Filter out products with margin/rounded, then calculate HPP per unit
     const batches = actualBatches
       .filter(b => !excludedProductIds.has(b.Product_ID)) // Exclude margin/rounded products
       .map(b => {
-      const hppActualPerUnit = b.Output_Actual > 0 ? b.Total_HPP_Actual / b.Output_Actual : 0;
+      const overheadActual = calculateActualOverhead(b);
+      const totalHPPActual = (b.Total_Cost_BB || 0) + (b.Total_Cost_BK || 0) + overheadActual;
+      const hppActualPerUnit = b.Output_Actual > 0 ? totalHPPActual / b.Output_Actual : 0;
       const standardData = standardHPPMap[b.Product_ID] || { hppPerUnit: 0, batchSize: 0 };
       const hppStandardPerUnit = standardData.hppPerUnit;
       
@@ -592,12 +684,21 @@ async function getHPPActualVsStandard(year = null, mode = 'YTD', month = null) {
         category: b.Group_PNCategory_Name,
         outputActual: b.Output_Actual,
         batchSizeStd: standardData.batchSize || b.Batch_Size_Std || 0,
-        hppActualTotal: b.Total_HPP_Actual,
+        hppActualTotal: totalHPPActual,
         hppActualPerUnit: hppActualPerUnit,
         hppStandardPerUnit: hppStandardPerUnit,
         hppStandardTotal: hppStandardPerUnit * b.Output_Actual,
         variancePercent: variancePercent,
         hna: b.HNA,
+        // Breakdown: Total BB (TOTALS, not per unit)
+        totalBBActual: b.Total_Cost_BB || 0,
+        totalBBStd: standardData.totalBB || 0,
+        // Breakdown: Total BK (TOTALS, not per unit)
+        totalBKActual: b.Total_Cost_BK || 0,
+        totalBKStd: standardData.totalBK || 0,
+        // Breakdown: Overhead (TOTALS, not per unit)
+        overheadActual: overheadActual,
+        overheadStd: standardData.overhead || 0,
         // Classification
         costStatus: hppActualPerUnit < hppStandardPerUnit ? 'lower' :
                    hppActualPerUnit > hppStandardPerUnit ? 'higher' : 'same'

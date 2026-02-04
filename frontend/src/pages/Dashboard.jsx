@@ -338,6 +338,28 @@ const BatchListModal = ({ isOpen, onClose, batches, title, filter = 'all' }) => 
   const [sortBy, setSortBy] = useState('variance');
   const [sortOrder, setSortOrder] = useState('desc');
 
+  // Helper to calculate ratio and get color class
+  // For BB/BK/Overhead, we compare actual vs standard considering output difference
+  // Actual is for actual output, Standard is for standard batch size
+  // To compare fairly, we normalize to per-unit and compare
+  const getRatioColorClass = (actual, standard, outputActual, batchSizeStd) => {
+    if (!standard || standard === 0 || !batchSizeStd || batchSizeStd === 0) return '';
+    // Calculate per-unit values for fair comparison
+    const actualPerUnit = outputActual > 0 ? actual / outputActual : 0;
+    const standardPerUnit = standard / batchSizeStd;
+    if (standardPerUnit === 0) return '';
+    const ratio = (actualPerUnit / standardPerUnit) * 100;
+    if (ratio <= 100) return 'ratio-good';      // Actual <= Standard (green)
+    if (ratio <= 110) return 'ratio-warning';   // Actual 0-10% over (yellow)
+    return 'ratio-danger';                       // Actual >10% over (red)
+  };
+
+  // Format large numbers with thousand separators
+  const formatLargeNumber = (num) => {
+    if (num === null || num === undefined) return '-';
+    return Math.round(num).toLocaleString('id-ID');
+  };
+
   const filteredBatches = useMemo(() => {
     let filtered = batches.filter(b => {
       const matchesSearch = 
@@ -400,12 +422,12 @@ const BatchListModal = ({ isOpen, onClose, batches, title, filter = 'all' }) => 
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content batch-list-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content batch-list-modal batch-list-modal-wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{title}</h3>
           <button className="modal-close" onClick={onClose}><X size={20} /></button>
         </div>
-        <div className="modal-search">
+        <div className="modal-search-compact">
           <input
             type="text"
             placeholder="Search by product or batch..."
@@ -424,16 +446,19 @@ const BatchListModal = ({ isOpen, onClose, batches, title, filter = 'all' }) => 
                   Batch {sortBy === 'batch' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th>Date</th>
-                <th>Output</th>
                 <th onClick={() => handleSort('actual')} className="sortable">
                   HPP Actual {sortBy === 'actual' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th onClick={() => handleSort('standard')} className="sortable">
-                  HPP Standard {sortBy === 'standard' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  HPP Std {sortBy === 'standard' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th onClick={() => handleSort('variance')} className="sortable">
                   Variance {sortBy === 'variance' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
+                <th>Output</th>
+                <th>Total BB</th>
+                <th>Total BK</th>
+                <th>Overhead</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -441,7 +466,7 @@ const BatchListModal = ({ isOpen, onClose, batches, title, filter = 'all' }) => 
               {filteredBatches.map((batch, idx) => {
                 // Calculate output ratio for color coding
                 const outputRatio = batch.batchSizeStd > 0 ? (batch.outputActual / batch.batchSizeStd) * 100 : 100;
-                const outputColorClass = outputRatio >= 90 ? 'output-good' : outputRatio >= 75 ? 'output-warning' : 'output-danger';
+                const outputColorClass = outputRatio >= 90 ? 'ratio-good' : outputRatio >= 75 ? 'ratio-warning' : 'ratio-danger';
                 
                 return (
                 <tr key={batch.hppActualId || idx}>
@@ -453,18 +478,34 @@ const BatchListModal = ({ isOpen, onClose, batches, title, filter = 'all' }) => 
                   </td>
                   <td>{batch.batchNo}</td>
                   <td>{formatDate(batch.batchDate)}</td>
-                  <td className="number">
-                    <span className={outputColorClass}>
-                      {formatNumber(batch.outputActual)}
-                    </span>
-                    {batch.batchSizeStd > 0 && (
-                      <span className="output-std"> / {formatNumber(batch.batchSizeStd)}</span>
-                    )}
-                  </td>
                   <td className="number">{formatCurrency(batch.hppActualPerUnit)}</td>
                   <td className="number">{formatCurrency(batch.hppStandardPerUnit)}</td>
                   <td className={`number variance ${batch.variancePercent > 0 ? 'positive' : batch.variancePercent < 0 ? 'negative' : ''}`}>
                     {batch.variancePercent > 0 ? '+' : ''}{batch.variancePercent?.toFixed(2)}%
+                  </td>
+                  <td className="number comparison-cell">
+                    <span className={outputColorClass}>
+                      {formatNumber(batch.outputActual)}
+                    </span>
+                    <span className="std-value"> / {formatNumber(batch.batchSizeStd)}</span>
+                  </td>
+                  <td className="number comparison-cell">
+                    <span className={getRatioColorClass(batch.totalBBActual, batch.totalBBStd, batch.outputActual, batch.batchSizeStd)}>
+                      {formatLargeNumber(batch.totalBBActual)}
+                    </span>
+                    <span className="std-value"> / {formatLargeNumber(batch.totalBBStd)}</span>
+                  </td>
+                  <td className="number comparison-cell">
+                    <span className={getRatioColorClass(batch.totalBKActual, batch.totalBKStd, batch.outputActual, batch.batchSizeStd)}>
+                      {formatLargeNumber(batch.totalBKActual)}
+                    </span>
+                    <span className="std-value"> / {formatLargeNumber(batch.totalBKStd)}</span>
+                  </td>
+                  <td className="number comparison-cell">
+                    <span className={getRatioColorClass(batch.overheadActual, batch.overheadStd, batch.outputActual, batch.batchSizeStd)}>
+                      {formatLargeNumber(batch.overheadActual)}
+                    </span>
+                    <span className="std-value"> / {formatLargeNumber(batch.overheadStd)}</span>
                   </td>
                   <td>
                     <span className={`status-badge ${batch.costStatus}`}>
