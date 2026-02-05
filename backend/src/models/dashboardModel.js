@@ -770,10 +770,704 @@ async function getHPPActualVsStandard(year = null, mode = 'YTD', month = null) {
   }
 }
 
+/**
+ * Get HPP Actual vs Standard batch data for a specific periode
+ * Used when clicking on a trend chart data point
+ * @param {string} periode - Periode (e.g., '202601')
+ * @param {string} lob - LOB filter: 'ALL', 'ETHICAL', 'OTC', 'GENERIK'
+ * @returns {Object} Batch details with comparison data
+ */
+async function getActualVsStandardByPeriode(periode, lob = 'ALL') {
+  try {
+    const db = await connect();
+    
+    // Always use the latest year for standard data to ensure consistency
+    // (same approach as the trend function)
+    const latestYear = await getLatestPeriode();
+    
+    // Build LOB filter
+    const lobFilter = lob && lob !== 'ALL' ? `AND h.LOB = '${lob}'` : '';
+    
+    // First, get standard HPP data from sp_COGS_HPP_List using latest year
+    const standardRequest = db.request().input('year', sql.VarChar(4), latestYear);
+    const standardResult = await standardRequest.query(`exec sp_COGS_HPP_List @year`);
+    
+    // Combine ethical and generik1 results
+    const ethical = standardResult.recordsets[0] || [];
+    const generik1 = standardResult.recordsets[1] || [];
+    
+    // Build standard HPP map (exclude products with margin/rounded)
+    const standardHPPMap = {};
+    const excludedProductIds = new Set();
+    
+    [...ethical, ...generik1].forEach(p => {
+      const margin = parseFloat(p.margin) || 0;
+      const rounded = parseFloat(p.rounded) || 0;
+      
+      if (margin !== 0 || rounded !== 0) {
+        excludedProductIds.add(p.Product_ID);
+        return;
+      }
+      
+      const hpp = parseFloat(p.HPP) || 0;
+      const batchSize = parseFloat(p.Batch_Size) || 0;
+      // Try both field name conventions (totalBB/totalBK or Jml_BB/Jml_BK)
+      const totalBB = parseFloat(p.totalBB) || parseFloat(p.Jml_BB) || 0;
+      const totalBK = parseFloat(p.totalBK) || parseFloat(p.Jml_BK) || 0;
+      const productLob = (p.LOB || '').toUpperCase();
+      const isGeneric = productLob === 'GENERIK' || productLob === 'GENERIC';
+      
+      // Calculate standard overhead (matching the existing function's approach)
+      const mhProsesStd = parseFloat(p.MH_Proses_Std) || 0;
+      const mhKemasStd = parseFloat(p.MH_Kemas_Std) || 0;
+      const biayaProses = parseFloat(p.Biaya_Proses) || parseFloat(p.biaya_proses) || parseFloat(p.Rate_MH_Proses) || 0;
+      const biayaKemas = parseFloat(p.Biaya_Kemas) || parseFloat(p.biaya_kemas) || parseFloat(p.Rate_MH_Kemas) || 0;
+      const bebanSisaBahanExp = parseFloat(p.Beban_Sisa_Bahan_Exp) || 0;
+      
+      let overheadStd = 0;
+      if (isGeneric) {
+        const mhTimbangBBStd = parseFloat(p.MH_Timbang_BB) || 0;
+        const mhTimbangBKStd = parseFloat(p.MH_Timbang_BK) || 0;
+        const mhAnalisaStd = parseFloat(p.MH_Analisa_Std) || 0;
+        const biayaAnalisa = parseFloat(p.Biaya_Analisa) || 0;
+        const mhMesinStd = parseFloat(p.MH_Mesin_Std) || 0;
+        const ratePLN = parseFloat(p.Rate_PLN) || 0;
+        const biayaReagen = parseFloat(p.Biaya_Reagen) || 0;
+        
+        overheadStd = 
+          (mhTimbangBBStd * biayaProses) +
+          (mhTimbangBKStd * biayaProses) +
+          (mhProsesStd * biayaProses) +
+          (mhKemasStd * biayaKemas) +
+          (mhAnalisaStd * biayaAnalisa) +
+          (mhMesinStd * ratePLN) +
+          biayaReagen +
+          bebanSisaBahanExp;
+      } else {
+        overheadStd = 
+          (mhProsesStd * biayaProses) +
+          (mhKemasStd * biayaKemas) +
+          bebanSisaBahanExp;
+      }
+      
+      standardHPPMap[p.Product_ID] = {
+        hppPerUnit: hpp,
+        batchSize: batchSize,
+        totalBB: totalBB,
+        totalBK: totalBK,
+        overhead: overheadStd,
+        lob: productLob
+      };
+    });
+    
+    // Query actual batches for the specific periode
+    const actualQuery = `
+      SELECT 
+        h.HPP_Actual_ID,
+        h.DNc_No,
+        h.DNc_ProductID as Product_ID,
+        h.Product_Name,
+        h.BatchNo,
+        h.BatchDate,
+        h.Periode,
+        h.LOB,
+        h.Group_PNCategory_Name,
+        h.Output_Actual,
+        h.Batch_Size_Std,
+        h.Total_Cost_BB,
+        h.Total_Cost_BK,
+        p.Product_SalesHNA as HNA,
+        ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) as MH_Proses,
+        ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) as MH_Kemas,
+        ISNULL(h.MH_Timbang_BB, 0) as MH_Timbang_BB,
+        ISNULL(h.MH_Timbang_BK, 0) as MH_Timbang_BK,
+        ISNULL(h.MH_Analisa_Std, 0) as MH_Analisa,
+        ISNULL(h.MH_Mesin_Std, 0) as MH_Mesin,
+        ISNULL(h.Rate_MH_Proses, 0) as Rate_MH_Proses,
+        ISNULL(h.Rate_MH_Kemas, 0) as Rate_MH_Kemas,
+        ISNULL(h.Rate_MH_Timbang, 0) as Rate_MH_Timbang,
+        ISNULL(h.Biaya_Analisa, 0) as Biaya_Analisa,
+        ISNULL(h.Rate_PLN, 0) as Rate_PLN,
+        ISNULL(h.Biaya_Reagen, 0) as Biaya_Reagen,
+        ISNULL(h.Direct_Labor, 0) as Direct_Labor,
+        ISNULL(h.Factory_Overhead, 0) as Factory_Overhead,
+        ISNULL(h.Depresiasi, 0) as Depresiasi,
+        ISNULL(h.Beban_Sisa_Bahan_Exp, 0) as Beban_Sisa_Bahan_Exp
+      FROM t_COGS_HPP_Actual_Header h
+      LEFT JOIN m_Product p ON h.DNc_ProductID = p.Product_ID
+      WHERE h.Calculation_Status = 'COMPLETED'
+        AND h.LOB != 'GRANULATE'
+        AND h.Periode = '${periode}'
+        AND ISNULL(h.Output_Actual, 0) > 0
+        ${lobFilter}
+      ORDER BY h.BatchDate DESC, h.DNc_ProductID
+    `;
+    
+    const actualResult = await db.request().query(actualQuery);
+    const actualBatches = actualResult.recordset || [];
+    
+    // Helper functions
+    const isEthicalOrOTC = (l) => l === 'ETHICAL' || l === 'OTC';
+    const isGeneric = (l) => l === 'GENERIK' || l === 'GENERIC';
+    
+    const calculateActualOverhead = (b) => {
+      const l = b.LOB || '';
+      if (isEthicalOrOTC(l)) {
+        return (b.MH_Proses * b.Rate_MH_Proses) + (b.MH_Kemas * b.Rate_MH_Kemas) + b.Beban_Sisa_Bahan_Exp;
+      } else if (isGeneric(l)) {
+        const biayaTimbangBB = b.MH_Timbang_BB * (b.Rate_MH_Timbang || b.Rate_MH_Proses);
+        const biayaTimbangBK = b.MH_Timbang_BK * (b.Rate_MH_Timbang || b.Rate_MH_Proses);
+        return biayaTimbangBB + biayaTimbangBK + (b.MH_Proses * b.Rate_MH_Proses) + 
+               (b.MH_Kemas * b.Rate_MH_Kemas) + (b.MH_Analisa * b.Biaya_Analisa) + 
+               (b.MH_Mesin * b.Rate_PLN) + b.Biaya_Reagen + b.Beban_Sisa_Bahan_Exp;
+      } else {
+        const totalMH = b.MH_Proses + b.MH_Kemas;
+        return (totalMH * b.Direct_Labor) + (totalMH * b.Factory_Overhead) + 
+               (totalMH * b.Depresiasi) + b.Beban_Sisa_Bahan_Exp;
+      }
+    };
+    
+    // Process batches
+    const batches = actualBatches
+      .filter(b => !excludedProductIds.has(b.Product_ID))
+      .map(b => {
+        const overheadActual = calculateActualOverhead(b);
+        const totalHPPActual = (b.Total_Cost_BB || 0) + (b.Total_Cost_BK || 0) + overheadActual;
+        const hppActualPerUnit = b.Output_Actual > 0 ? totalHPPActual / b.Output_Actual : 0;
+        
+        // Get standard data with complete default values
+        const standardData = standardHPPMap[b.Product_ID] || { 
+          hppPerUnit: 0, 
+          batchSize: 0,
+          totalBB: 0,
+          totalBK: 0,
+          overhead: 0,
+          lob: ''
+        };
+        const hppStandardPerUnit = standardData.hppPerUnit;
+        
+        const variancePercent = hppStandardPerUnit > 0 
+          ? ((hppActualPerUnit - hppStandardPerUnit) / hppStandardPerUnit * 100)
+          : 0;
+        
+        return {
+          hppActualId: b.HPP_Actual_ID,
+          productId: b.Product_ID,
+          productName: b.Product_Name,
+          batchNo: b.BatchNo,
+          batchDate: b.BatchDate,
+          periode: b.Periode,
+          lob: b.LOB,
+          category: b.Group_PNCategory_Name,
+          outputActual: b.Output_Actual,
+          batchSizeStd: standardData.batchSize || b.Batch_Size_Std || 0,
+          hppActualTotal: totalHPPActual,
+          hppActualPerUnit: hppActualPerUnit,
+          hppStandardPerUnit: hppStandardPerUnit,
+          hppStandardTotal: hppStandardPerUnit * b.Output_Actual,
+          variancePercent: variancePercent,
+          hna: b.HNA,
+          totalBBActual: b.Total_Cost_BB || 0,
+          totalBBStd: standardData.totalBB || 0,
+          totalBKActual: b.Total_Cost_BK || 0,
+          totalBKStd: standardData.totalBK || 0,
+          overheadActual: overheadActual,
+          overheadStd: standardData.overhead || 0,
+          costStatus: hppActualPerUnit < hppStandardPerUnit ? 'lower' :
+                     hppActualPerUnit > hppStandardPerUnit ? 'higher' : 'same'
+        };
+      });
+    
+    const validBatches = batches.filter(b => b.hppStandardPerUnit > 0 && b.hppActualPerUnit > 0);
+    const lowerCostBatches = validBatches.filter(b => b.costStatus === 'lower');
+    const higherCostBatches = validBatches.filter(b => b.costStatus === 'higher');
+    
+    let avgRatio = 100;
+    if (validBatches.length > 0) {
+      const totalRatio = validBatches.reduce((sum, b) => sum + (b.hppActualPerUnit / b.hppStandardPerUnit * 100), 0);
+      avgRatio = totalRatio / validBatches.length;
+    }
+    
+    return {
+      periode,
+      lob,
+      summary: {
+        totalBatches: validBatches.length,
+        lowerCostCount: lowerCostBatches.length,
+        higherCostCount: higherCostBatches.length,
+        avgActualVsStandardRatio: avgRatio,
+        lowerCostPercent: validBatches.length > 0 ? (lowerCostBatches.length / validBatches.length * 100) : 0,
+        higherCostPercent: validBatches.length > 0 ? (higherCostBatches.length / validBatches.length * 100) : 0
+      },
+      batches: validBatches
+    };
+  } catch (error) {
+    console.error("Error getting HPP Actual vs Standard by periode:", error);
+    throw error;
+  }
+}
+
 module.exports = {
   getLatestPeriode,
   getDashboardHPPData,
   getDashboardStats,
   getAvailableYears,
-  getHPPActualVsStandard
+  getHPPActualVsStandard,
+  getActualVsStandardTrend,
+  getActualVsStandardByPeriode,
+  getActualDashboardStats
 };
+
+/**
+ * Get dashboard stats from HPP Actual batches (Cost Management & Pricing Risk)
+ * This aggregates actual batch data instead of standard product data
+ * @param {string} year - Year (e.g., '2026')
+ * @returns {Object} Dashboard stats based on actual batches
+ */
+async function getActualDashboardStats(year = null) {
+  try {
+    const db = await connect();
+    const targetYear = year || new Date().getFullYear().toString();
+    
+    // First, get standard HPP data to get Category (toll type) for each product
+    // Category comes from sp_COGS_HPP_List, not from m_Product directly
+    const standardRequest = db.request().input('year', sql.VarChar(4), targetYear);
+    const standardResult = await standardRequest.query(`exec sp_COGS_HPP_List @year`);
+    
+    // Build a map of Product_ID -> Category (toll type)
+    // Also track products with margin/rounded to exclude them (same as getHPPActualVsStandard)
+    const ethical = standardResult.recordsets[0] || [];
+    const generik1 = standardResult.recordsets[1] || [];
+    
+    const categoryMap = {};
+    const excludedProductIds = new Set(); // Products with margin or rounded
+    
+    [...ethical, ...generik1].forEach(p => {
+      categoryMap[p.Product_ID] = p.Category; // 'Toll In', 'Toll Out', 'Import', 'Lapi'
+      
+      // Exclude products that have margin or rounded set (same logic as getHPPActualVsStandard)
+      const margin = parseFloat(p.margin) || 0;
+      const rounded = parseFloat(p.rounded) || 0;
+      if (margin !== 0 || rounded !== 0) {
+        excludedProductIds.add(p.Product_ID);
+      }
+    });
+    
+    // Query all completed batches for the year (excluding granulates)
+    const query = `
+      SELECT 
+        h.HPP_Actual_ID,
+        h.DNc_ProductID,
+        h.Product_Name,
+        h.BatchNo,
+        h.Periode,
+        h.LOB,
+        h.Output_Actual,
+        h.Total_Cost_BB,
+        h.Total_Cost_BK,
+        p.Product_SalesHNA as HNA,
+        -- Overhead components for distribution breakdown
+        ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) as MH_Proses,
+        ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) as MH_Kemas,
+        ISNULL(h.Rate_MH_Proses, 0) as Rate_MH_Proses,
+        ISNULL(h.Rate_MH_Kemas, 0) as Rate_MH_Kemas,
+        ISNULL(h.MH_Timbang_BB, 0) as MH_Timbang_BB,
+        ISNULL(h.MH_Timbang_BK, 0) as MH_Timbang_BK,
+        ISNULL(h.Rate_MH_Timbang, 0) as Rate_MH_Timbang,
+        ISNULL(h.MH_Analisa_Std, 0) as MH_Analisa,
+        ISNULL(h.Biaya_Analisa, 0) as Biaya_Analisa,
+        ISNULL(h.MH_Mesin_Std, 0) as MH_Mesin,
+        ISNULL(h.Rate_PLN, 0) as Rate_PLN,
+        ISNULL(h.Biaya_Reagen, 0) as Biaya_Reagen,
+        ISNULL(h.Beban_Sisa_Bahan_Exp, 0) as Beban_Sisa_Bahan_Exp,
+        ISNULL(h.Direct_Labor, 0) as Direct_Labor,
+        ISNULL(h.Factory_Overhead, 0) as Factory_Overhead,
+        ISNULL(h.Depresiasi, 0) as Depresiasi,
+        ISNULL(h.Toll_Fee, 0) as Toll_Fee,
+        ISNULL(h.Cost_Utility, 0) as Cost_Utility,
+        ISNULL(h.Biaya_Lain, 0) as Biaya_Lain
+      FROM t_COGS_HPP_Actual_Header h
+      LEFT JOIN m_Product p ON h.DNc_ProductID = p.Product_ID
+      WHERE h.Calculation_Status = 'COMPLETED'
+        AND h.LOB != 'GRANULATE'
+        AND h.Periode LIKE '${targetYear}%'
+        AND ISNULL(h.Output_Actual, 0) > 0
+    `;
+    
+    const result = await db.request().query(query);
+    const batches = result.recordset || [];
+    
+    if (batches.length === 0) {
+      return {
+        year: targetYear,
+        batchCount: 0,
+        costManagement: {
+          totalHPP: 0,
+          totalHNA: 0,
+          overallCOGS: '0.00',
+          batchesWithData: 0
+        },
+        pricingRiskIndicator: {
+          ethical: '0.00',
+          otc: '0.00',
+          generik: '0.00',
+          tollOut: '0.00',
+          import: '0.00',
+          inhouse: '0.00'
+        },
+        costDistribution: {
+          all: { bb: 0, bk: 0, others: 0 },
+          ethical: { bb: 0, bk: 0, others: 0 },
+          otc: { bb: 0, bk: 0, others: 0 },
+          generik: { bb: 0, bk: 0, others: 0 },
+          tollOut: { bb: 0, bk: 0, others: 0 },
+          import: { bb: 0, bk: 0, others: 0 },
+          inhouse: { bb: 0, bk: 0, others: 0 }
+        }
+      };
+    }
+    
+    // Helper to calculate actual overhead per batch
+    const calculateOverhead = (b) => {
+      const lob = (b.LOB || '').toUpperCase();
+      const biayaProses = (b.MH_Proses || 0) * (b.Rate_MH_Proses || 0);
+      const biayaKemas = (b.MH_Kemas || 0) * (b.Rate_MH_Kemas || 0);
+      
+      if (lob === 'GENERIK' || lob === 'GENERIC') {
+        const biayaTimbangBB = (b.MH_Timbang_BB || 0) * (b.Rate_MH_Timbang || b.Rate_MH_Proses || 0);
+        const biayaTimbangBK = (b.MH_Timbang_BK || 0) * (b.Rate_MH_Timbang || b.Rate_MH_Proses || 0);
+        const biayaAnalisa = (b.MH_Analisa || 0) * (b.Biaya_Analisa || 0);
+        const biayaMesin = (b.MH_Mesin || 0) * (b.Rate_PLN || 0);
+        return biayaTimbangBB + biayaTimbangBK + biayaProses + biayaKemas + 
+               biayaAnalisa + biayaMesin + (b.Biaya_Reagen || 0) + (b.Beban_Sisa_Bahan_Exp || 0);
+      } else {
+        // Ethical/OTC
+        return biayaProses + biayaKemas + (b.Beban_Sisa_Bahan_Exp || 0);
+      }
+    };
+    
+    // Categorize batches by LOB and toll category
+    // Filter out products with margin/rounded (same as getHPPActualVsStandard)
+    const categorizedBatches = batches
+      .filter(b => !excludedProductIds.has(b.DNc_ProductID))
+      .map(b => {
+      const lob = (b.LOB || '').toUpperCase();
+      let actualLOB = lob;
+      if (lob === 'OTC') actualLOB = 'OTC';
+      else if (lob === 'ETHICAL') actualLOB = 'ETHICAL';
+      else if (lob === 'GENERIK' || lob === 'GENERIC') actualLOB = 'GENERIK';
+      
+      // Toll category from categoryMap (derived from sp_COGS_HPP_List)
+      // Values: 'Toll In', 'Toll Out', 'Import', 'Lapi'
+      const tollCategory = categoryMap[b.DNc_ProductID] || null;
+      
+      const totalBB = parseFloat(b.Total_Cost_BB) || 0;
+      const totalBK = parseFloat(b.Total_Cost_BK) || 0;
+      const overhead = calculateOverhead(b);
+      const totalHPP = totalBB + totalBK + overhead;
+      const hna = parseFloat(b.HNA) || 0;
+      const outputActual = parseFloat(b.Output_Actual) || 0;
+      
+      // COGS = (HPP per unit / HNA) * 100
+      const hppPerUnit = outputActual > 0 ? totalHPP / outputActual : 0;
+      const cogs = hna > 0 ? (hppPerUnit / hna) * 100 : 0;
+      
+      return {
+        ...b,
+        actualLOB,
+        tollCategory,
+        totalBB,
+        totalBK,
+        overhead,
+        totalHPP,
+        hna,
+        outputActual,
+        hppPerUnit,
+        cogs
+      };
+    });
+    
+    // Filter out Toll In products
+    const validBatches = categorizedBatches.filter(b => b.tollCategory !== 'Toll In');
+    
+    // Filter batches with valid HNA for COGS calculations
+    const batchesWithHNA = validBatches.filter(b => b.hna > 0);
+    
+    // Overall totals for Cost Management
+    const totalHPP = validBatches.reduce((sum, b) => sum + b.totalHPP, 0);
+    const totalHNA = validBatches.reduce((sum, b) => sum + (b.hna * b.outputActual), 0);
+    const overallCOGS = totalHNA > 0 ? (totalHPP / totalHNA) * 100 : 0;
+    
+    // Calculate average COGS by LOB (weighted by batch count with valid HNA)
+    const calculateAvgCOGS = (filterFn) => {
+      const filtered = batchesWithHNA.filter(filterFn);
+      if (filtered.length === 0) return 0;
+      const avgCogs = filtered.reduce((sum, b) => sum + b.cogs, 0) / filtered.length;
+      return avgCogs;
+    };
+    
+    // LOB averages
+    const avgCOGSEthical = calculateAvgCOGS(b => b.actualLOB === 'ETHICAL');
+    const avgCOGSOTC = calculateAvgCOGS(b => b.actualLOB === 'OTC');
+    const avgCOGSGenerik = calculateAvgCOGS(b => b.actualLOB === 'GENERIK');
+    
+    // Toll category averages
+    const avgCOGSTollOut = calculateAvgCOGS(b => b.tollCategory === 'Toll Out');
+    const avgCOGSImport = calculateAvgCOGS(b => b.tollCategory === 'Import');
+    const avgCOGSInhouse = calculateAvgCOGS(b => b.tollCategory === 'Lapi');
+    
+    // Cost distribution by category
+    const calculateDistribution = (filterFn) => {
+      const filtered = validBatches.filter(filterFn);
+      const totalBB = filtered.reduce((sum, b) => sum + b.totalBB, 0);
+      const totalBK = filtered.reduce((sum, b) => sum + b.totalBK, 0);
+      const totalOthers = filtered.reduce((sum, b) => sum + b.overhead, 0);
+      return { bb: totalBB, bk: totalBK, others: totalOthers };
+    };
+    
+    const costDistributionAll = calculateDistribution(() => true);
+    const costDistributionEthical = calculateDistribution(b => b.actualLOB === 'ETHICAL');
+    const costDistributionOTC = calculateDistribution(b => b.actualLOB === 'OTC');
+    const costDistributionGenerik = calculateDistribution(b => b.actualLOB === 'GENERIK');
+    const costDistributionTollOut = calculateDistribution(b => b.tollCategory === 'Toll Out');
+    const costDistributionImport = calculateDistribution(b => b.tollCategory === 'Import');
+    const costDistributionInhouse = calculateDistribution(b => b.tollCategory === 'Lapi');
+    
+    return {
+      year: targetYear,
+      batchCount: validBatches.length,
+      costManagement: {
+        totalHPP,
+        totalHNA,
+        overallCOGS: overallCOGS.toFixed(2),
+        batchesWithData: batchesWithHNA.length
+      },
+      pricingRiskIndicator: {
+        ethical: avgCOGSEthical.toFixed(2),
+        otc: avgCOGSOTC.toFixed(2),
+        generik: avgCOGSGenerik.toFixed(2),
+        tollOut: avgCOGSTollOut.toFixed(2),
+        import: avgCOGSImport.toFixed(2),
+        inhouse: avgCOGSInhouse.toFixed(2)
+      },
+      costDistribution: {
+        all: costDistributionAll,
+        ethical: costDistributionEthical,
+        otc: costDistributionOTC,
+        generik: costDistributionGenerik,
+        tollOut: costDistributionTollOut,
+        import: costDistributionImport,
+        inhouse: costDistributionInhouse
+      },
+      // Batch details for modal display
+      batches: validBatches.map(b => ({
+        HPP_Actual_ID: b.HPP_Actual_ID,
+        Product_ID: b.DNc_ProductID,
+        Product_Name: b.Product_Name,
+        BatchNo: b.BatchNo,
+        Periode: b.Periode,
+        category: b.actualLOB,
+        tollCategory: b.tollCategory,
+        HNA: b.hna,
+        HPP: b.hppPerUnit,
+        COGS: b.cogs,
+        Output_Actual: b.outputActual,
+        totalBB: b.totalBB,
+        totalBK: b.totalBK,
+        totalOthers: b.overhead,
+        totalHPP: b.totalHPP
+      }))
+    };
+  } catch (error) {
+    console.error("Error getting actual dashboard stats:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get 12-month trend data for HPP Actual vs Standard comparison
+ * Returns monthly average ratio grouped by month, with optional LOB filter
+ * @param {string} lob - LOB filter: 'ALL', 'ETHICAL', 'OTC', 'GENERIK'
+ * @returns {Object} Trend data with monthly averages
+ */
+async function getActualVsStandardTrend(lob = 'ALL') {
+  try {
+    const db = await connect();
+    
+    // Get data for the last 12 months
+    const today = new Date();
+    const months = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      months.push({
+        year: d.getFullYear().toString(),
+        month: d.getMonth() + 1,
+        periode: `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`,
+        label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+      });
+    }
+    
+    // Build LOB filter for the query
+    const lobFilter = lob && lob !== 'ALL' ? `AND h.LOB = '${lob}'` : '';
+    
+    // Query to get actual batches with HPP data
+    const query = `
+      SELECT 
+        h.Periode,
+        h.DNc_ProductID as Product_ID,
+        h.LOB,
+        h.Output_Actual,
+        h.Total_Cost_BB,
+        h.Total_Cost_BK,
+        -- Raw values for overhead calculation
+        ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) as MH_Proses,
+        ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) as MH_Kemas,
+        ISNULL(h.MH_Timbang_BB, 0) as MH_Timbang_BB,
+        ISNULL(h.MH_Timbang_BK, 0) as MH_Timbang_BK,
+        ISNULL(h.MH_Analisa_Std, 0) as MH_Analisa,
+        ISNULL(h.MH_Mesin_Std, 0) as MH_Mesin,
+        ISNULL(h.Rate_MH_Proses, 0) as Rate_MH_Proses,
+        ISNULL(h.Rate_MH_Kemas, 0) as Rate_MH_Kemas,
+        ISNULL(h.Rate_MH_Timbang, 0) as Rate_MH_Timbang,
+        ISNULL(h.Biaya_Analisa, 0) as Biaya_Analisa,
+        ISNULL(h.Rate_PLN, 0) as Rate_PLN,
+        ISNULL(h.Biaya_Reagen, 0) as Biaya_Reagen,
+        ISNULL(h.Direct_Labor, 0) as Direct_Labor,
+        ISNULL(h.Factory_Overhead, 0) as Factory_Overhead,
+        ISNULL(h.Depresiasi, 0) as Depresiasi,
+        ISNULL(h.Beban_Sisa_Bahan_Exp, 0) as Beban_Sisa_Bahan_Exp
+      FROM t_COGS_HPP_Actual_Header h
+      WHERE h.Calculation_Status = 'COMPLETED'
+        AND h.LOB != 'GRANULATE'
+        AND h.Periode IN (${months.map(m => `'${m.periode}'`).join(',')})
+        AND ISNULL(h.Output_Actual, 0) > 0
+        ${lobFilter}
+    `;
+    
+    const actualResult = await db.request().query(query);
+    const actualBatches = actualResult.recordset || [];
+    
+    // Get standard HPP for all products from the most recent year
+    const latestYear = months[months.length - 1].year;
+    const standardRequest = db.request().input('year', sql.VarChar(4), latestYear);
+    const standardResult = await standardRequest.query(`exec sp_COGS_HPP_List @year`);
+    
+    const ethical = standardResult.recordsets[0] || [];
+    const generik1 = standardResult.recordsets[1] || [];
+    
+    // Build standard HPP map (exclude products with margin/rounded)
+    const standardHPPMap = {};
+    const excludedProductIds = new Set();
+    
+    [...ethical, ...generik1].forEach(p => {
+      const hpp = parseFloat(p.HPP) || 0;
+      const margin = parseFloat(p.margin) || 0;
+      const rounded = parseFloat(p.rounded) || 0;
+      
+      if (margin !== 0 || rounded !== 0) {
+        excludedProductIds.add(p.Product_ID);
+        return;
+      }
+      
+      standardHPPMap[p.Product_ID] = {
+        hppPerUnit: hpp
+      };
+    });
+    
+    // Helper functions for overhead calculation
+    const isEthicalOrOTC = (l) => l === 'ETHICAL' || l === 'OTC';
+    const isGeneric = (l) => l === 'GENERIK' || l === 'GENERIC';
+    
+    const calculateActualOverhead = (b) => {
+      const l = b.LOB || '';
+      
+      if (isEthicalOrOTC(l)) {
+        const biayaProses = b.MH_Proses * b.Rate_MH_Proses;
+        const biayaKemas = b.MH_Kemas * b.Rate_MH_Kemas;
+        return biayaProses + biayaKemas + b.Beban_Sisa_Bahan_Exp;
+      } else if (isGeneric(l)) {
+        const biayaTimbangBB = b.MH_Timbang_BB * (b.Rate_MH_Timbang || b.Rate_MH_Proses);
+        const biayaTimbangBK = b.MH_Timbang_BK * (b.Rate_MH_Timbang || b.Rate_MH_Proses);
+        const biayaProses = b.MH_Proses * b.Rate_MH_Proses;
+        const biayaKemas = b.MH_Kemas * b.Rate_MH_Kemas;
+        const biayaAnalisa = b.MH_Analisa * b.Biaya_Analisa;
+        const biayaMesin = b.MH_Mesin * b.Rate_PLN;
+        return biayaTimbangBB + biayaTimbangBK + biayaProses + biayaKemas + biayaAnalisa + biayaMesin + b.Biaya_Reagen + b.Beban_Sisa_Bahan_Exp;
+      } else {
+        const totalMH = b.MH_Proses + b.MH_Kemas;
+        const directLabor = totalMH * b.Direct_Labor;
+        const factoryOH = totalMH * b.Factory_Overhead;
+        const depresiasi = totalMH * b.Depresiasi;
+        return directLabor + factoryOH + depresiasi + b.Beban_Sisa_Bahan_Exp;
+      }
+    };
+    
+    // Group batches by period and calculate average ratio for each month
+    const periodData = {};
+    
+    actualBatches.forEach(b => {
+      if (excludedProductIds.has(b.Product_ID)) return;
+      
+      const standardData = standardHPPMap[b.Product_ID];
+      if (!standardData || standardData.hppPerUnit <= 0) return;
+      
+      const overheadActual = calculateActualOverhead(b);
+      const totalHPPActual = (b.Total_Cost_BB || 0) + (b.Total_Cost_BK || 0) + overheadActual;
+      const hppActualPerUnit = b.Output_Actual > 0 ? totalHPPActual / b.Output_Actual : 0;
+      
+      if (hppActualPerUnit <= 0) return;
+      
+      const ratio = (hppActualPerUnit / standardData.hppPerUnit) * 100;
+      const isLower = ratio < 100;
+      const isHigher = ratio > 100;
+      
+      if (!periodData[b.Periode]) {
+        periodData[b.Periode] = { ratios: [], batchCount: 0, lowerCount: 0, higherCount: 0 };
+      }
+      periodData[b.Periode].ratios.push(ratio);
+      periodData[b.Periode].batchCount++;
+      if (isLower) periodData[b.Periode].lowerCount++;
+      if (isHigher) periodData[b.Periode].higherCount++;
+    });
+    
+    // Build result array for all 12 months
+    const trendData = months.map(m => {
+      const data = periodData[m.periode];
+      if (data && data.ratios.length > 0) {
+        const avgRatio = data.ratios.reduce((a, b) => a + b, 0) / data.ratios.length;
+        return {
+          periode: m.periode,
+          label: m.label,
+          avgRatio: parseFloat(avgRatio.toFixed(2)),
+          batchCount: data.batchCount,
+          lowerCount: data.lowerCount,
+          higherCount: data.higherCount
+        };
+      }
+      return {
+        periode: m.periode,
+        label: m.label,
+        avgRatio: null,
+        batchCount: 0,
+        lowerCount: 0,
+        higherCount: 0
+      };
+    });
+    
+    // Calculate overall average (excluding null months)
+    const validMonths = trendData.filter(t => t.avgRatio !== null);
+    const overallAvg = validMonths.length > 0 
+      ? validMonths.reduce((sum, t) => sum + t.avgRatio, 0) / validMonths.length
+      : 100;
+    
+    return {
+      lob: lob,
+      trendData,
+      overallAvgRatio: parseFloat(overallAvg.toFixed(2)),
+      totalBatches: validMonths.reduce((sum, t) => sum + t.batchCount, 0)
+    };
+  } catch (error) {
+    console.error("Error getting HPP Actual vs Standard trend:", error);
+    throw error;
+  }
+}

@@ -671,7 +671,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 20px 24px 24px;
+  padding: 20px 20px 24px;
   flex: 1;
   gap: 20px;
 }
@@ -2186,13 +2186,19 @@
 
 .actual-vs-standard-card {
   background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+  display: flex;
+  flex-direction: column;
 }
 
 .actual-vs-standard-card .card-header {
+  flex-shrink: 0;
+}
+
+.actual-vs-standard-card .card-body {
+  flex: 1;
   display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .actual-vs-standard-card .card-header h3 {
@@ -2200,26 +2206,71 @@
   min-width: 150px;
 }
 
-/* Mode Toggle (YTD/MTD) */
+/* Actual vs Standard Header - Two Row Layout */
+.actual-vs-std-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.actual-vs-std-header .header-row-1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.actual-vs-std-header .header-row-1 h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.actual-vs-std-header .header-row-1 svg {
+  flex-shrink: 0;
+}
+
+/* Mode Toggle (YTD/MTD/Trend) */
 .mode-toggle {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   background: #f1f5f9;
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 3px;
 }
 
 .mode-toggle .mode-btn {
-  padding: 5px 12px;
+  padding: 5px 14px;
   border: none;
   background: transparent;
-  border-radius: 6px;
+  border-radius: 5px;
   font-size: 12px;
   font-weight: 500;
   color: #64748b;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+@media (max-width: 1400px) {
+  .mode-toggle .mode-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 1366px) {
+  .mode-toggle {
+    gap: 2px;
+    padding: 2px;
+  }
+  
+  .mode-toggle .mode-btn {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
 }
 
 .mode-toggle .mode-btn:hover {
@@ -2232,10 +2283,17 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
+/* Month Selector - inline variant */
+.month-selector.inline {
+  margin-left: 0;
+  flex-shrink: 0;
+}
+
 /* Month Selector */
 .month-selector {
   position: relative;
-  margin-left: 8px;
+  margin-left: 4px;
+  flex-shrink: 0;
 }
 
 .month-dropdown-btn {
@@ -2294,12 +2352,27 @@
   color: white;
 }
 
+/* Compact month dropdown button */
+.month-dropdown-btn.compact {
+  padding: 2px 5px;
+  font-size: 10px;
+  gap: 3px;
+  border-color: #cbd5e1;
+}
+
+.month-dropdown-btn.compact svg {
+  width: 10px;
+  height: 10px;
+}
+
 /* Actual vs Standard Body */
 .actual-vs-std-body {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   padding-top: 8px;
+  flex: 1;
+  min-height: 0;
 }
 
 /* Ratio Chart Section */
@@ -2813,4 +2886,365 @@
   .batch-list-modal-wide .modal-search-compact input {
     width: 250px;
   }
+  
+  /* Compact mode toggle for smaller screens */
+  .actual-vs-std-header .mode-toggle .mode-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+  
+  .actual-vs-std-header .header-left h3 {
+    font-size: 13px;
+  }
+}
+
+/* ===== TREND VIEW STYLES ===== */
+
+/* Trend View Container */
+.trend-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.trend-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+  color: #64748b;
+}
+
+.trend-loading .spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* Trend Line Chart - Fill available space */
+.trend-line-chart {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.trend-line-chart svg {
+  width: 100%;
+  flex: 1;
+  min-height: 180px;
+}
+
+.trend-axis-label {
+  font-size: 2.5px;
+  fill: #94a3b8;
+  font-weight: 500;
+}
+
+.trend-ref-label {
+  font-size: 2.5px;
+  fill: #94a3b8;
+}
+
+.trend-chart-legend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  font-size: 11px;
+  padding: 6px 0;
+  flex-shrink: 0;
+}
+
+.trend-avg {
+  font-weight: 600;
+}
+
+.trend-target {
+  color: #64748b;
+}
+
+.trend-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+/* Trend Stats */
+.trend-stats {
+  text-align: center;
+  font-size: 11px;
+  color: #64748b;
+  flex-shrink: 0;
+  padding: 2px 0;
+}
+
+.trend-batch-count {
+  font-weight: 500;
+}
+
+/* Trend LOB Tabs */
+.trend-lob-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.lob-tab {
+  padding: 5px 12px;
+  border: none;
+  background: #f1f5f9;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lob-tab:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.lob-tab.active {
+  background: #3b82f6;
+  color: white;
+}
+
+/* Responsive adjustments for trend view */
+@media (max-width: 1366px) {
+  .trend-line-chart svg {
+    height: 120px;
+  }
+  
+  .trend-lob-tabs {
+    gap: 3px;
+  }
+  
+  .lob-tab {
+    padding: 4px 10px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .actual-vs-std-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .actual-vs-std-header .header-left {
+    width: 100%;
+  }
+  
+  .mode-toggle.compact {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .trend-lob-tabs {
+    flex-wrap: wrap;
+  }
+}
+
+/* Trend Chart Tooltip */
+.trend-tooltip {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 140px;
+  pointer-events: none;
+}
+
+.trend-tooltip .tooltip-header {
+  font-weight: 600;
+  font-size: 12px;
+  color: #1e293b;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.trend-tooltip .tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin: 3px 0;
+}
+
+.trend-tooltip .tooltip-label {
+  color: #64748b;
+}
+
+.trend-tooltip .tooltip-value {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.trend-tooltip .tooltip-value.under {
+  color: #10b981;
+}
+
+.trend-tooltip .tooltip-value.over {
+  color: #ef4444;
+}
+
+.trend-tooltip .tooltip-hint {
+  font-size: 10px;
+  color: #94a3b8;
+  text-align: center;
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 1px dashed #e5e7eb;
+}
+
+/* Trend chart data point hover effect */
+.trend-data-point circle {
+  transition: r 0.15s ease;
+}
+
+.trend-data-point:hover circle {
+  r: 2;
+}
+
+/* Modal loading state */
+.modal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #64748b;
+  gap: 12px;
+}
+
+.modal-loading .spinner {
+  animation: spin 1s linear infinite;
+  color: #3b82f6;
+}
+
+.modal-loading span {
+  font-size: 14px;
+}
+
+/* Mode Toggle Switch for Cards */
+.card-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.mode-toggle-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: #f3f4f6;
+  border-radius: 20px;
+}
+
+.mode-toggle-switch .toggle-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #9ca3af;
+  transition: color 0.2s;
+}
+
+.mode-toggle-switch .toggle-label.active {
+  color: #374151;
+}
+
+.toggle-container {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+
+.toggle-container input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #d1d5db;
+  transition: 0.3s;
+  border-radius: 20px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-container input:checked + .toggle-slider {
+  background-color: #3b82f6;
+}
+
+.toggle-container input:checked + .toggle-slider:before {
+  transform: translateX(16px);
+}
+
+/* Card loading state */
+.card-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #64748b;
+  gap: 12px;
+  min-height: 200px;
+}
+
+.card-loading .spin {
+  animation: spin 1s linear infinite;
+  color: #3b82f6;
+}
+
+.card-loading span {
+  font-size: 13px;
+}
+
+/* Actual batch count indicator */
+.actual-batch-count {
+  font-size: 11px;
+  color: #6b7280;
+  text-align: center;
+  margin-top: 8px;
+  padding: 4px 12px;
+  background: #f3f4f6;
+  border-radius: 12px;
+}
+
+.actual-note {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 400;
 }

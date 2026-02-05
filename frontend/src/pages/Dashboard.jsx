@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router';
 import { 
   PieChart, 
@@ -219,6 +220,210 @@ const DonutChart = ({ value, total, color = '#3b82f6', size = 120, label }) => {
   );
 };
 
+// Trend Line Chart Component for HPP Actual vs Standard 12-month trend
+const TrendLineChart = ({ trendData, overallAvg, onPointClick }) => {
+  const [hoveredPoint, setHoveredPoint] = useState(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const svgRef = React.useRef(null);
+
+  if (!trendData || trendData.length === 0) {
+    return <div className="trend-chart-empty">No trend data available</div>;
+  }
+
+  // Find min and max for scaling
+  const validValues = trendData.filter(d => d.avgRatio !== null).map(d => d.avgRatio);
+  if (validValues.length === 0) {
+    return <div className="trend-chart-empty">No trend data available</div>;
+  }
+  
+  const minVal = Math.min(...validValues, 90);
+  const maxVal = Math.max(...validValues, 110);
+  const range = maxVal - minVal || 10;
+  const padding = range * 0.1;
+  const yMin = Math.floor(minVal - padding);
+  const yMax = Math.ceil(maxVal + padding);
+  const yRange = yMax - yMin;
+
+  // Chart dimensions
+  const width = 100;
+  const height = 50;
+  const leftMargin = 8;
+  const rightMargin = 6;
+  const topMargin = 5;
+  const bottomMargin = 8;
+  const chartWidth = width - leftMargin - rightMargin;
+  const chartHeight = height - topMargin - bottomMargin;
+
+  // Calculate points
+  const points = trendData.map((d, i) => {
+    const x = leftMargin + (i / (trendData.length - 1)) * chartWidth;
+    const y = d.avgRatio !== null 
+      ? topMargin + ((yMax - d.avgRatio) / yRange) * chartHeight
+      : null;
+    return { x, y, ...d };
+  });
+
+  // Create path for the line (only connecting non-null points)
+  const validPoints = points.filter(p => p.y !== null);
+  const linePath = validPoints.length > 1
+    ? validPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
+    : '';
+
+  // Reference line at 100% (standard)
+  const refLineY = topMargin + ((yMax - 100) / yRange) * chartHeight;
+
+  // Color based on overall average
+  const getLineColor = (avg) => {
+    if (avg <= 95) return '#10b981';
+    if (avg <= 100) return '#22c55e';
+    if (avg <= 105) return '#f59e0b';
+    if (avg <= 110) return '#f97316';
+    return '#ef4444';
+  };
+  const lineColor = getLineColor(overallAvg);
+
+  // Handle mouse over on data point - use mouse event coordinates directly
+  const handlePointHover = (p, event) => {
+    if (p.avgRatio === null) return;
+    // Use clientX/clientY from the mouse event for accurate positioning
+    setTooltipPos({
+      x: event.clientX,
+      y: event.clientY
+    });
+    setHoveredPoint(p);
+  };
+
+  const handlePointLeave = () => {
+    setHoveredPoint(null);
+  };
+
+  const handlePointClick = (p) => {
+    if (p.avgRatio !== null && onPointClick) {
+      onPointClick(p);
+    }
+  };
+
+  return (
+    <div className="trend-line-chart">
+      <svg ref={svgRef} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
+        {/* Y-axis labels */}
+        <text x={leftMargin - 1} y={topMargin + 2} className="trend-axis-label" textAnchor="end">{yMax}%</text>
+        <text x={leftMargin - 1} y={topMargin + chartHeight} className="trend-axis-label" textAnchor="end">{yMin}%</text>
+        
+        {/* Reference line at 100% */}
+        {100 >= yMin && 100 <= yMax && (
+          <>
+            <line 
+              x1={leftMargin} 
+              y1={refLineY} 
+              x2={width - rightMargin} 
+              y2={refLineY}
+              stroke="#94a3b8"
+              strokeWidth="0.3"
+              strokeDasharray="2,2"
+            />
+            <text x={width - rightMargin + 1} y={refLineY + 1} className="trend-ref-label">Std</text>
+          </>
+        )}
+
+        {/* Grid lines */}
+        <line x1={leftMargin} y1={topMargin} x2={leftMargin} y2={topMargin + chartHeight} stroke="#e5e7eb" strokeWidth="0.2"/>
+        <line x1={leftMargin} y1={topMargin + chartHeight} x2={width - rightMargin} y2={topMargin + chartHeight} stroke="#e5e7eb" strokeWidth="0.2"/>
+
+        {/* Data line */}
+        {linePath && (
+          <path 
+            d={linePath} 
+            fill="none" 
+            stroke={lineColor} 
+            strokeWidth="1"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+
+        {/* Data points - clickable with hover effect */}
+        {validPoints.map((p, i) => (
+          <g 
+            key={i} 
+            className="trend-data-point"
+            onMouseEnter={(e) => handlePointHover(p, e)}
+            onMouseLeave={handlePointLeave}
+            onClick={() => handlePointClick(p)}
+            style={{ cursor: 'pointer' }}
+          >
+            {/* Larger invisible hit area */}
+            <circle cx={p.x} cy={p.y} r="3" fill="transparent" />
+            {/* Visible point */}
+            <circle 
+              cx={p.x} 
+              cy={p.y} 
+              r={hoveredPoint?.periode === p.periode ? "2" : "1.2"} 
+              fill={lineColor}
+              className={hoveredPoint?.periode === p.periode ? 'hovered' : ''}
+            />
+          </g>
+        ))}
+
+        {/* X-axis labels (show only first, middle, last) */}
+        {[0, 5, 11].map(idx => {
+          const p = points[idx];
+          if (!p) return null;
+          return (
+            <text key={idx} x={p.x} y={height - 1} className="trend-axis-label" textAnchor="middle">
+              {p.label}
+            </text>
+          );
+        })}
+      </svg>
+      
+      {/* Custom Tooltip */}
+      {/* Tooltip rendered via portal to body for proper overflow */}
+      {hoveredPoint && ReactDOM.createPortal(
+        <div 
+          className="trend-tooltip"
+          style={{
+            position: 'fixed',
+            left: tooltipPos.x + 12,
+            top: tooltipPos.y - 20,
+            transform: 'translateY(-100%)',
+            zIndex: 9999,
+            pointerEvents: 'none'
+          }}
+        >
+          <div className="tooltip-header">{hoveredPoint.label}</div>
+          <div className="tooltip-row">
+            <span className="tooltip-label">Avg Ratio:</span>
+            <span className={`tooltip-value ${hoveredPoint.avgRatio > 100 ? 'over' : 'under'}`}>
+              {hoveredPoint.avgRatio?.toFixed(1)}%
+            </span>
+          </div>
+          <div className="tooltip-row">
+            <span className="tooltip-label">Under Std:</span>
+            <span className="tooltip-value under">{hoveredPoint.lowerCount}/{hoveredPoint.batchCount}</span>
+          </div>
+          <div className="tooltip-row">
+            <span className="tooltip-label">Over Std:</span>
+            <span className="tooltip-value over">{hoveredPoint.higherCount}/{hoveredPoint.batchCount}</span>
+          </div>
+          <div className="tooltip-hint">Click for details</div>
+        </div>,
+        document.body
+      )}
+      
+      {/* Legend */}
+      <div className="trend-chart-legend">
+        <span className="trend-avg" style={{ color: lineColor }}>
+          Avg: {overallAvg?.toFixed(1)}%
+        </span>
+        <span className="trend-target">
+          Target: ≤100%
+        </span>
+      </div>
+    </div>
+  );
+};
+
 // Actual vs Standard Ratio Chart - circular gauge showing ratio
 const ActualVsStandardChart = ({ ratio, size = 160 }) => {
   // ratio is percentage: 100% means actual = standard
@@ -276,11 +481,11 @@ const ActualVsStandardChart = ({ ratio, size = 160 }) => {
           transform="rotate(-90 60 60)"
           className="ratio-progress"
         />
-        {/* Center text */}
-        <text x="60" y="55" textAnchor="middle" className="ratio-value" fill={color}>
+        {/* Center text - adjusted y positions for vertical centering */}
+        <text x="60" y="58" textAnchor="middle" className="ratio-value" fill={color}>
           {ratio.toFixed(1)}%
         </text>
-        <text x="60" y="75" textAnchor="middle" className="ratio-status" fill={color}>
+        <text x="60" y="72" textAnchor="middle" className="ratio-status" fill={color}>
           {getStatusText(ratio)}
         </text>
       </svg>
@@ -333,7 +538,7 @@ const BatchComparisonBar = ({ lowerPercent, higherPercent, lowerCount, higherCou
 };
 
 // Batch List Modal for Actual vs Standard comparison
-const BatchListModal = ({ isOpen, onClose, batches, title, filter = 'all' }) => {
+const BatchListModal = ({ isOpen, onClose, batches, title, filter = 'all', loading = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('variance');
   const [sortOrder, setSortOrder] = useState('desc');
@@ -427,51 +632,58 @@ const BatchListModal = ({ isOpen, onClose, batches, title, filter = 'all' }) => 
           <h3>{title}</h3>
           <button className="modal-close" onClick={onClose}><X size={20} /></button>
         </div>
-        <div className="modal-search-compact">
-          <input
-            type="text"
-            placeholder="Search by product or batch..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="modal-table-container">
-          <table className="modal-table batch-table">
-            <thead>
-              <tr>
-                <th onClick={() => handleSort('product')} className="sortable">
-                  Product {sortBy === 'product' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSort('batch')} className="sortable">
-                  Batch {sortBy === 'batch' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </th>
-                <th>Date</th>
-                <th onClick={() => handleSort('actual')} className="sortable">
-                  HPP Actual {sortBy === 'actual' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSort('standard')} className="sortable">
-                  HPP Std {sortBy === 'standard' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </th>
-                <th onClick={() => handleSort('variance')} className="sortable">
-                  Variance {sortBy === 'variance' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </th>
-                <th>Output</th>
-                <th>Total BB</th>
-                <th>Total BK</th>
-                <th>Overhead</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredBatches.map((batch, idx) => {
-                // Calculate output ratio for color coding
-                const outputRatio = batch.batchSizeStd > 0 ? (batch.outputActual / batch.batchSizeStd) * 100 : 100;
-                const outputColorClass = outputRatio >= 90 ? 'ratio-good' : outputRatio >= 75 ? 'ratio-warning' : 'ratio-danger';
-                
-                return (
-                <tr key={batch.hppActualId || idx}>
-                  <td>
-                    <div className="product-cell-inline">
+        {loading ? (
+          <div className="modal-loading">
+            <Loader2 className="spinner" size={32} />
+            <span>Loading batch data...</span>
+          </div>
+        ) : (
+          <>
+            <div className="modal-search-compact">
+              <input
+                type="text"
+                placeholder="Search by product or batch..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="modal-table-container">
+              <table className="modal-table batch-table">
+                <thead>
+                  <tr>
+                    <th onClick={() => handleSort('product')} className="sortable">
+                      Product {sortBy === 'product' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th onClick={() => handleSort('batch')} className="sortable">
+                      Batch {sortBy === 'batch' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th>Date</th>
+                    <th onClick={() => handleSort('actual')} className="sortable">
+                      HPP Actual {sortBy === 'actual' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th onClick={() => handleSort('standard')} className="sortable">
+                      HPP Std {sortBy === 'standard' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th onClick={() => handleSort('variance')} className="sortable">
+                      Variance {sortBy === 'variance' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th>Output</th>
+                    <th>Total BB</th>
+                    <th>Total BK</th>
+                    <th>Overhead</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredBatches.map((batch, idx) => {
+                    // Calculate output ratio for color coding
+                    const outputRatio = batch.batchSizeStd > 0 ? (batch.outputActual / batch.batchSizeStd) * 100 : 100;
+                    const outputColorClass = outputRatio >= 90 ? 'ratio-good' : outputRatio >= 75 ? 'ratio-warning' : 'ratio-danger';
+                    
+                    return (
+                    <tr key={batch.hppActualId || idx}>
+                      <td>
+                        <div className="product-cell-inline">
                       <span className="product-id">{batch.productId}</span>
                       <span className="product-name" title={batch.productName}>{batch.productName}</span>
                     </div>
@@ -515,15 +727,17 @@ const BatchListModal = ({ isOpen, onClose, batches, title, filter = 'all' }) => 
                   </td>
                 </tr>
               )})}
-            </tbody>
-          </table>
-          {filteredBatches.length === 0 && (
-            <div className="no-results">No batches found</div>
-          )}
-        </div>
-        <div className="modal-footer">
-          <span className="batch-count">{filteredBatches.length} batches</span>
-        </div>
+                </tbody>
+              </table>
+              {filteredBatches.length === 0 && (
+                <div className="no-results">No batches found</div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <span className="batch-count">{filteredBatches.length} batches</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -532,13 +746,14 @@ const BatchListModal = ({ isOpen, onClose, batches, title, filter = 'all' }) => 
 // Product List Modal - supports multiple display modes
 const ProductListModal = ({ isOpen, onClose, products, title, displayMode = 'cogs' }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState(displayMode === 'hpp-breakdown' ? 'bb' : 'cogs');
+  const [sortBy, setSortBy] = useState(displayMode === 'hpp-breakdown' || displayMode === 'batch' ? 'cogs' : 'cogs');
   const [sortOrder, setSortOrder] = useState('desc');
 
   const filteredProducts = useMemo(() => {
     let filtered = products.filter(p => 
       p.Product_Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.Product_ID?.toLowerCase().includes(searchTerm.toLowerCase())
+      p.Product_ID?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (displayMode === 'batch' && p.BatchNo?.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     filtered.sort((a, b) => {
@@ -547,6 +762,10 @@ const ProductListModal = ({ isOpen, onClose, products, title, displayMode = 'cog
         case 'name':
           aVal = a.Product_Name || '';
           bVal = b.Product_Name || '';
+          return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        case 'batch':
+          aVal = a.BatchNo || '';
+          bVal = b.BatchNo || '';
           return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
         case 'hpp':
           aVal = a.HPP || 0;
@@ -568,6 +787,10 @@ const ProductListModal = ({ isOpen, onClose, products, title, displayMode = 'cog
           aVal = parseFloat(a.totalOthers) || 0;
           bVal = parseFloat(b.totalOthers) || 0;
           break;
+        case 'output':
+          aVal = parseFloat(a.Output_Actual) || 0;
+          bVal = parseFloat(b.Output_Actual) || 0;
+          break;
         case 'cogs':
         default:
           aVal = parseFloat(a.COGS) || 0;
@@ -577,11 +800,19 @@ const ProductListModal = ({ isOpen, onClose, products, title, displayMode = 'cog
     });
 
     return filtered;
-  }, [products, searchTerm, sortBy, sortOrder]);
+  }, [products, searchTerm, sortBy, sortOrder, displayMode]);
 
   if (!isOpen) return null;
 
-  const sortOptions = displayMode === 'hpp-breakdown' 
+  const sortOptions = displayMode === 'batch' 
+    ? [
+        { value: 'cogs', label: 'Sort by COGS %' },
+        { value: 'name', label: 'Sort by Product' },
+        { value: 'batch', label: 'Sort by Batch No' },
+        { value: 'hpp', label: 'Sort by HPP/unit' },
+        { value: 'output', label: 'Sort by Output' },
+      ]
+    : displayMode === 'hpp-breakdown' 
     ? [
         { value: 'bb', label: 'Sort by BB' },
         { value: 'bk', label: 'Sort by BK' },
@@ -608,7 +839,7 @@ const ProductListModal = ({ isOpen, onClose, products, title, displayMode = 'cog
         <div className="modal-controls">
           <input
             type="text"
-            placeholder="Search products..."
+            placeholder={displayMode === 'batch' ? "Search products or batch no..." : "Search products..."}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="modal-search"
@@ -631,10 +862,12 @@ const ProductListModal = ({ isOpen, onClose, products, title, displayMode = 'cog
           <table className="product-table">
             <thead>
               <tr>
+                {displayMode === 'batch' && <th>Batch No</th>}
                 <th>Product ID</th>
                 <th>Product Name</th>
                 <th>LOB</th>
                 <th>Category</th>
+                {displayMode === 'batch' && <th>Output</th>}
                 <th>HNA</th>
                 {displayMode === 'hpp-breakdown' ? (
                   <>
@@ -643,14 +876,15 @@ const ProductListModal = ({ isOpen, onClose, products, title, displayMode = 'cog
                     <th>Others (Rp)</th>
                   </>
                 ) : (
-                  <th>HPP</th>
+                  <th>HPP/unit</th>
                 )}
                 <th>COGS %</th>
               </tr>
             </thead>
             <tbody>
               {filteredProducts.map((product, index) => (
-                <tr key={`${product.Product_ID}-${index}`}>
+                <tr key={displayMode === 'batch' ? `${product.HPP_Actual_ID}-${index}` : `${product.Product_ID}-${index}`}>
+                  {displayMode === 'batch' && <td className="batch-no">{product.BatchNo}</td>}
                   <td>{product.Product_ID}</td>
                   <td>{product.Product_Name}</td>
                   <td>
@@ -663,6 +897,7 @@ const ProductListModal = ({ isOpen, onClose, products, title, displayMode = 'cog
                       {product.tollCategory || '-'}
                     </span>
                   </td>
+                  {displayMode === 'batch' && <td>{formatNumber(product.Output_Actual)}</td>}
                   <td>{formatCurrency(product.HNA)}</td>
                   {displayMode === 'hpp-breakdown' ? (
                     <>
@@ -689,11 +924,11 @@ const ProductListModal = ({ isOpen, onClose, products, title, displayMode = 'cog
             </tbody>
           </table>
           {filteredProducts.length === 0 && (
-            <div className="no-results">No products found</div>
+            <div className="no-results">{displayMode === 'batch' ? 'No batches found' : 'No products found'}</div>
           )}
         </div>
         <div className="modal-footer">
-          <span className="product-count">{filteredProducts.length} products</span>
+          <span className="product-count">{filteredProducts.length} {displayMode === 'batch' ? 'batches' : 'products'}</span>
         </div>
       </div>
     </div>
@@ -722,11 +957,27 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
   
   // Actual vs Standard comparison states
   const [actualVsStandardData, setActualVsStandardData] = useState(null);
-  const [actualVsStandardMode, setActualVsStandardMode] = useState('YTD'); // 'YTD' or 'MTD'
+  const [actualVsStandardMode, setActualVsStandardMode] = useState('YTD'); // 'YTD', 'MTD', or 'Trend'
   const [actualVsStandardMonth, setActualVsStandardMonth] = useState(new Date().getMonth() + 1); // 1-12
   const [showBatchListModal, setShowBatchListModal] = useState(false);
   const [batchListFilter, setBatchListFilter] = useState('all'); // 'all', 'lower', 'higher'
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
+  
+  // Trend view states
+  const [trendData, setTrendData] = useState(null);
+  const [trendLobFilter, setTrendLobFilter] = useState('ALL'); // 'ALL', 'ETHICAL', 'OTC', 'GENERIK'
+  const [trendLoading, setTrendLoading] = useState(false);
+  const [trendPointBatches, setTrendPointBatches] = useState(null); // Batches for clicked trend point
+  const [trendPointLabel, setTrendPointLabel] = useState(''); // Label for clicked trend point modal
+  const [showTrendBatchModal, setShowTrendBatchModal] = useState(false);
+  const [trendPointLoading, setTrendPointLoading] = useState(false);
+
+  // Actual mode states for Cost Management and Pricing Risk cards
+  const [costMgmtMode, setCostMgmtMode] = useState('standard'); // 'standard' or 'actual'
+  const [pricingRiskMode, setPricingRiskMode] = useState('standard'); // 'standard' or 'actual'
+  const [actualDashboardData, setActualDashboardData] = useState(null);
+  const [actualDataLoading, setActualDataLoading] = useState(false);
+  const [showActualBatchModal, setShowActualBatchModal] = useState(false); // Modal for actual batch details
 
   // Fetch available years and dashboard data on mount
   useEffect(() => {
@@ -812,6 +1063,7 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
   useEffect(() => {
     const fetchActualVsStandard = async () => {
       if (!dashboardPeriod?.selectedYear) return;
+      if (actualVsStandardMode === 'Trend') return; // Skip for trend mode
       
       try {
         const response = await dashboardAPI.getActualVsStandard(
@@ -830,10 +1082,84 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
     fetchActualVsStandard();
   }, [dashboardPeriod?.selectedYear, actualVsStandardMode, actualVsStandardMonth]);
 
+  // Fetch Trend data when in Trend mode
+  useEffect(() => {
+    const fetchTrendData = async () => {
+      if (actualVsStandardMode !== 'Trend') return;
+      
+      try {
+        setTrendLoading(true);
+        const response = await dashboardAPI.getActualVsStandardTrend(trendLobFilter);
+        if (response.success) {
+          setTrendData(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch trend data:', err);
+      } finally {
+        setTrendLoading(false);
+      }
+    };
+
+    fetchTrendData();
+  }, [actualVsStandardMode, trendLobFilter]);
+
+  // Fetch Actual dashboard stats when card mode changes to 'actual'
+  useEffect(() => {
+    const fetchActualStats = async () => {
+      // Only fetch if at least one card is in actual mode
+      if (costMgmtMode !== 'actual' && pricingRiskMode !== 'actual') return;
+      if (!dashboardPeriod?.selectedYear) return;
+      // Skip if we already have data for this year
+      if (actualDashboardData?.year === dashboardPeriod.selectedYear) return;
+      
+      try {
+        setActualDataLoading(true);
+        const response = await dashboardAPI.getActualStats(dashboardPeriod.selectedYear);
+        if (response.success) {
+          setActualDashboardData(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch actual dashboard stats:', err);
+      } finally {
+        setActualDataLoading(false);
+      }
+    };
+
+    fetchActualStats();
+  }, [costMgmtMode, pricingRiskMode, dashboardPeriod?.selectedYear, actualDashboardData?.year]);
+
+  // Clear actual data when year changes
+  useEffect(() => {
+    setActualDashboardData(null);
+  }, [dashboardPeriod?.selectedYear]);
+
   // Get month name for display
   const getMonthName = (monthNum) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[(monthNum - 1) % 12];
+  };
+
+  // Handle trend point click - fetch batch data for that month
+  const handleTrendPointClick = async (point) => {
+    if (!point || !point.periode) return;
+    
+    try {
+      setTrendPointLoading(true);
+      setTrendPointLabel(point.label);
+      setShowTrendBatchModal(true);
+      
+      const response = await dashboardAPI.getActualVsStandardByPeriode(point.periode, trendLobFilter);
+      if (response.success) {
+        setTrendPointBatches(response.data.batches || []);
+      } else {
+        setTrendPointBatches([]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch batch data for trend point:', err);
+      setTrendPointBatches([]);
+    } finally {
+      setTrendPointLoading(false);
+    }
   };
 
   // Get cost distribution based on selected category
@@ -1016,31 +1342,18 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
       <div className="dashboard-grid">
         {/* HPP Actual vs Standard Card */}
         <div className="dashboard-card actual-vs-standard-card">
-          <div className="card-header">
-            <Activity size={24} />
-            <h3>HPP Actual vs Standard</h3>
-            <div className="mode-toggle">
-              <button 
-                className={`mode-btn ${actualVsStandardMode === 'YTD' ? 'active' : ''}`}
-                onClick={() => setActualVsStandardMode('YTD')}
-              >
-                YTD
-              </button>
-              <button 
-                className={`mode-btn ${actualVsStandardMode === 'MTD' ? 'active' : ''}`}
-                onClick={() => setActualVsStandardMode('MTD')}
-              >
-                MTD
-              </button>
+          <div className="card-header actual-vs-std-header">
+            <div className="header-row-1">
+              <Activity size={18} />
+              <h3>HPP Actual vs Std</h3>
               {actualVsStandardMode === 'MTD' && (
-                <div className="month-selector">
+                <div className="month-selector inline">
                   <button 
-                    className="month-dropdown-btn"
+                    className="month-dropdown-btn compact"
                     onClick={() => setShowMonthDropdown(!showMonthDropdown)}
                   >
-                    <Calendar size={14} />
                     {getMonthName(actualVsStandardMonth)}
-                    <ChevronDown size={14} />
+                    <ChevronDown size={10} />
                   </button>
                   {showMonthDropdown && (
                     <div className="month-dropdown">
@@ -1061,9 +1374,66 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
                 </div>
               )}
             </div>
+            <div className="mode-toggle">
+              <button 
+                className={`mode-btn ${actualVsStandardMode === 'YTD' ? 'active' : ''}`}
+                onClick={() => setActualVsStandardMode('YTD')}
+              >
+                YTD
+              </button>
+              <button 
+                className={`mode-btn ${actualVsStandardMode === 'MTD' ? 'active' : ''}`}
+                onClick={() => setActualVsStandardMode('MTD')}
+              >
+                MTD
+              </button>
+              <button 
+                className={`mode-btn ${actualVsStandardMode === 'Trend' ? 'active' : ''}`}
+                onClick={() => setActualVsStandardMode('Trend')}
+              >
+                Trend
+              </button>
+            </div>
           </div>
           <div className="card-body actual-vs-std-body">
-            {actualVsStandardData?.summary ? (
+            {actualVsStandardMode === 'Trend' ? (
+              // Trend View
+              <div className="trend-view">
+                {trendLoading ? (
+                  <div className="trend-loading">
+                    <Loader2 className="spinner" size={24} />
+                    <span>Loading trend data...</span>
+                  </div>
+                ) : trendData ? (
+                  <>
+                    <TrendLineChart 
+                      trendData={trendData.trendData}
+                      overallAvg={trendData.overallAvgRatio}
+                      onPointClick={handleTrendPointClick}
+                    />
+                    <div className="trend-stats">
+                      <span className="trend-batch-count">{trendData.totalBatches} batches analyzed</span>
+                    </div>
+                    <div className="trend-lob-tabs">
+                      {['ALL', 'OTC', 'ETH', 'Generik'].map(lob => (
+                        <button
+                          key={lob}
+                          className={`lob-tab ${trendLobFilter === (lob === 'ETH' ? 'ETHICAL' : lob === 'Generik' ? 'GENERIK' : lob) ? 'active' : ''}`}
+                          onClick={() => setTrendLobFilter(lob === 'ETH' ? 'ETHICAL' : lob === 'Generik' ? 'GENERIK' : lob)}
+                        >
+                          {lob}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="no-data-message">
+                    <span>No trend data available</span>
+                  </div>
+                )}
+              </div>
+            ) : actualVsStandardData?.summary ? (
+              // YTD/MTD View
               <>
                 <div className="ratio-chart-section">
                   <ActualVsStandardChart 
@@ -1115,56 +1485,103 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
           <div className="card-header">
             <PieChart size={24} />
             <h3>Cost Management</h3>
-            <span className="card-hint">Click ratio for details</span>
+            <div className="card-header-controls">
+              <div className="mode-toggle-switch">
+                <span className={`toggle-label ${costMgmtMode === 'standard' ? 'active' : ''}`}>Standard</span>
+                <label className="toggle-container">
+                  <input 
+                    type="checkbox" 
+                    checked={costMgmtMode === 'actual'}
+                    onChange={(e) => setCostMgmtMode(e.target.checked ? 'actual' : 'standard')}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+                <span className={`toggle-label ${costMgmtMode === 'actual' ? 'active' : ''}`}>Actual</span>
+              </div>
+            </div>
           </div>
           <div className="card-body">
-            <div className="cogs-ratio-section clickable" onClick={() => setShowProductModal(true)}>
-              <DonutChart 
-                value={parseFloat(dashboardData?.costManagement?.overallCOGS) || 0}
-                total={100}
-                color="#ef4444"
-                size={160}
-                label="COGS Ratio"
-              />
-            </div>
-            <div className="overall-distribution-section">
-              <div className="distribution-header">
-                <span className="distribution-title">Overall HPP Distribution</span>
-                <div className="distribution-legend">
-                  <span className="legend-item"><span className="legend-dot bb"></span>BB</span>
-                  <span className="legend-item"><span className="legend-dot bk"></span>BK</span>
-                  <span className="legend-item"><span className="legend-dot others"></span>Others</span>
+            {actualDataLoading && costMgmtMode === 'actual' ? (
+              <div className="card-loading">
+                <Loader2 className="spin" size={24} />
+                <span>Loading actual data...</span>
+              </div>
+            ) : (
+              <>
+                <div 
+                  className="cogs-ratio-section clickable" 
+                  onClick={() => {
+                    if (costMgmtMode === 'standard') {
+                      setShowProductModal(true);
+                    } else if (costMgmtMode === 'actual' && actualDashboardData?.batches?.length > 0) {
+                      setShowActualBatchModal(true);
+                    }
+                  }}
+                >
+                  <DonutChart 
+                    value={parseFloat(
+                      costMgmtMode === 'actual' 
+                        ? actualDashboardData?.costManagement?.overallCOGS 
+                        : dashboardData?.costManagement?.overallCOGS
+                    ) || 0}
+                    total={100}
+                    color="#ef4444"
+                    size={160}
+                    label="COGS Ratio"
+                  />
+                  {costMgmtMode === 'actual' && actualDashboardData?.batchCount > 0 && (
+                    <div className="actual-batch-count">
+                      Based on {actualDashboardData.batchCount} batches
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div 
-                className="overall-distribution-bar clickable"
-                onClick={() => handleHPPDistributionClick('ALL', 'lob')}
-                title="Click to view all products"
-              >
-                {(() => {
-                  const all = dashboardData?.costDistribution?.all || { bb: 0, bk: 0, others: 0 };
-                  const total = all.bb + all.bk + all.others;
-                  const bbPercent = total > 0 ? (all.bb / total) * 100 : 0;
-                  const bkPercent = total > 0 ? (all.bk / total) * 100 : 0;
-                  const othersPercent = total > 0 ? (all.others / total) * 100 : 0;
-                  return total > 0 ? (
-                    <>
-                      <div className="dist-segment bb" style={{ width: `${bbPercent}%` }}>
-                        <span className="segment-label">{bbPercent.toFixed(0)}%</span>
-                      </div>
-                      <div className="dist-segment bk" style={{ width: `${bkPercent}%` }}>
-                        <span className="segment-label">{bkPercent.toFixed(0)}%</span>
-                      </div>
-                      <div className="dist-segment others" style={{ width: `${othersPercent}%` }}>
-                        <span className="segment-label">{othersPercent.toFixed(0)}%</span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="dist-empty">No data</div>
-                  );
-                })()}
-              </div>
-            </div>
+                <div className="overall-distribution-section">
+                  <div className="distribution-header">
+                    <span className="distribution-title">Overall HPP Distribution</span>
+                    <div className="distribution-legend">
+                      <span className="legend-item"><span className="legend-dot bb"></span>BB</span>
+                      <span className="legend-item"><span className="legend-dot bk"></span>BK</span>
+                      <span className="legend-item"><span className="legend-dot others"></span>Others</span>
+                    </div>
+                  </div>
+                  <div 
+                    className="overall-distribution-bar clickable"
+                    onClick={() => {
+                      if (costMgmtMode === 'standard') {
+                        handleHPPDistributionClick('ALL', 'lob');
+                      } else if (costMgmtMode === 'actual' && actualDashboardData?.batches?.length > 0) {
+                        setShowActualBatchModal(true);
+                      }
+                    }}
+                    title={costMgmtMode === 'standard' ? "Click to view all products" : "Click to view all batches"}
+                  >
+                    {(() => {
+                      const dataSource = costMgmtMode === 'actual' ? actualDashboardData : dashboardData;
+                      const all = dataSource?.costDistribution?.all || { bb: 0, bk: 0, others: 0 };
+                      const total = all.bb + all.bk + all.others;
+                      const bbPercent = total > 0 ? (all.bb / total) * 100 : 0;
+                      const bkPercent = total > 0 ? (all.bk / total) * 100 : 0;
+                      const othersPercent = total > 0 ? (all.others / total) * 100 : 0;
+                      return total > 0 ? (
+                        <>
+                          <div className="dist-segment bb" style={{ width: `${bbPercent}%` }}>
+                            <span className="segment-label">{bbPercent.toFixed(0)}%</span>
+                          </div>
+                          <div className="dist-segment bk" style={{ width: `${bkPercent}%` }}>
+                            <span className="segment-label">{bkPercent.toFixed(0)}%</span>
+                          </div>
+                          <div className="dist-segment others" style={{ width: `${othersPercent}%` }}>
+                            <span className="segment-label">{othersPercent.toFixed(0)}%</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="dist-empty">No data</div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -1173,9 +1590,35 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
           <div className="card-header">
             <TrendingUp size={24} />
             <h3>Pricing Risk Indicator</h3>
+            <div className="card-header-controls">
+              <div className="mode-toggle-switch">
+                <span className={`toggle-label ${pricingRiskMode === 'standard' ? 'active' : ''}`}>Standard</span>
+                <label className="toggle-container">
+                  <input 
+                    type="checkbox" 
+                    checked={pricingRiskMode === 'actual'}
+                    onChange={(e) => setPricingRiskMode(e.target.checked ? 'actual' : 'standard')}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+                <span className={`toggle-label ${pricingRiskMode === 'actual' ? 'active' : ''}`}>Actual</span>
+              </div>
+            </div>
           </div>
           <div className="card-body">
-            <p className="card-description">COGS Ratio by Category</p>
+            {actualDataLoading && pricingRiskMode === 'actual' ? (
+              <div className="card-loading">
+                <Loader2 className="spin" size={24} />
+                <span>Loading actual data...</span>
+              </div>
+            ) : (
+              <>
+                <p className="card-description">
+                  COGS Ratio by Category
+                  {pricingRiskMode === 'actual' && actualDashboardData?.batchCount > 0 && (
+                    <span className="actual-note"> (from {actualDashboardData.batchCount} batches)</span>
+                  )}
+                </p>
             
             {/* LOB Categories - Gauge Style */}
             <div className="risk-section">
@@ -1186,7 +1629,8 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
                   { key: 'otc', label: 'OTC', color: '#10b981' },
                   { key: 'generik', label: 'Generik', color: '#f59e0b' }
                 ].map(item => {
-                  const value = parseFloat(dashboardData?.pricingRiskIndicator?.[item.key] || 0);
+                  const dataSource = pricingRiskMode === 'actual' ? actualDashboardData : dashboardData;
+                  const value = parseFloat(dataSource?.pricingRiskIndicator?.[item.key] || 0);
                   const riskLevel = value >= 40 ? 'high' : value >= 25 ? 'medium' : 'low';
                   return (
                     <div key={item.key} className={`risk-gauge-item ${riskLevel}`}>
@@ -1214,7 +1658,8 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
                   { key: 'import', label: 'Import', color: '#0ea5e9' },
                   { key: 'inhouse', label: 'Inhouse', color: '#f43f5e' }
                 ].map(item => {
-                  const value = parseFloat(dashboardData?.pricingRiskIndicator?.[item.key] || 0);
+                  const dataSource = pricingRiskMode === 'actual' ? actualDashboardData : dashboardData;
+                  const value = parseFloat(dataSource?.pricingRiskIndicator?.[item.key] || 0);
                   const riskLevel = value >= 40 ? 'high' : value >= 25 ? 'medium' : 'low';
                   return (
                     <div key={item.key} className="risk-compact-item">
@@ -1234,6 +1679,8 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
                 })}
               </div>
             </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -1488,6 +1935,15 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
         displayMode="cogs"
       />
 
+      {/* Actual Batch Modal - Cost Management (Actual Mode) */}
+      <ProductListModal
+        isOpen={showActualBatchModal}
+        onClose={() => setShowActualBatchModal(false)}
+        products={actualDashboardData?.batches || []}
+        title={`Batch COGS Details (Actual) - ${actualDashboardData?.year || dashboardPeriod?.selectedYear}`}
+        displayMode="batch"
+      />
+
       {/* HPP Breakdown Modal - Average HPP */}
       <ProductListModal
         isOpen={showHPPBreakdownModal}
@@ -1534,6 +1990,19 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
         batches={actualVsStandardData?.batches || []}
         title={`HPP Actual vs Standard - ${actualVsStandardMode} ${dashboardPeriod?.selectedYear}${actualVsStandardMode === 'MTD' ? ' ' + getMonthName(actualVsStandardMonth) : ''} - ${batchListFilter === 'lower' ? 'Lower Cost Batches' : batchListFilter === 'higher' ? 'Higher Cost Batches' : 'All Batches'}`}
         filter={batchListFilter}
+      />
+
+      {/* Batch List Modal - Trend Point Click */}
+      <BatchListModal
+        isOpen={showTrendBatchModal}
+        onClose={() => {
+          setShowTrendBatchModal(false);
+          setTrendPointBatches(null);
+        }}
+        batches={trendPointBatches || []}
+        title={`HPP Actual vs Standard - ${trendPointLabel}${trendLobFilter !== 'ALL' ? ` (${trendLobFilter})` : ''} - All Batches`}
+        filter="all"
+        loading={trendPointLoading}
       />
     </div>
   );

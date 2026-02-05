@@ -725,6 +725,13 @@ export const dashboardAPI = {
     return apiRequest(url);
   },
 
+  // Get dashboard statistics from HPP Actual batches
+  // Query: ?year=2026 (optional, defaults to current year)
+  getActualStats: (year = null) => {
+    const url = year ? `/dashboard/stats/actual?year=${year}` : '/dashboard/stats/actual';
+    return apiRequest(url);
+  },
+
   // Get available years for dashboard dropdown
   getYears: () => apiRequest('/dashboard/years'),
   
@@ -738,6 +745,22 @@ export const dashboardAPI = {
     if (month) params.append('month', month);
     const queryString = params.toString();
     return apiRequest(`${url}${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Get HPP Actual vs Standard 12-month trend
+  // Query: ?lob=ALL (optional: ALL, ETHICAL, OTC, GENERIK)
+  getActualVsStandardTrend: (lob = 'ALL') => {
+    const url = `/dashboard/actual-vs-standard/trend${lob ? `?lob=${lob}` : ''}`;
+    return apiRequest(url);
+  },
+
+  // Get HPP Actual vs Standard batch data for a specific periode
+  // Query: ?periode=202601&lob=ALL
+  getActualVsStandardByPeriode: (periode, lob = 'ALL') => {
+    const params = new URLSearchParams();
+    params.append('periode', periode);
+    if (lob) params.append('lob', lob);
+    return apiRequest(`/dashboard/actual-vs-standard/by-periode?${params.toString()}`);
   },
 };
 

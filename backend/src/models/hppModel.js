@@ -1323,10 +1323,46 @@ async function getHPPActualHeader(hppActualId) {
 }
 
 /**
+ * Get batches with calculation errors for a given period
+ * @param {string} periode - Period in YYYYMM format
+ * @returns {array} - List of batches with errors
+ */
+async function getErrorBatches(periode) {
+  try {
+    const db = await connect();
+    
+    const query = `
+      SELECT 
+        HPP_Actual_ID,
+        DNc_ProductID,
+        Product_Name,
+        BatchNo,
+        Calculation_Status,
+        Error_Message,
+        Calculation_Date
+      FROM t_COGS_HPP_Actual_Header
+      WHERE Periode = @periode
+        AND Calculation_Status = 'ERROR'
+      ORDER BY BatchNo
+    `;
+    
+    const result = await db.request()
+      .input('periode', sql.VarChar(6), periode)
+      .query(query);
+    
+    return result.recordset || [];
+    
+  } catch (error) {
+    console.error("Error in getErrorBatches:", error);
+    throw error;
+  }
+}
+
+/**
  * Calculate HPP Actual by calling the stored procedure
  * @param {string} periode - Period in YYYYMM format
  * @param {boolean} recalculateExisting - Whether to recalculate existing records
- * @returns {object} - Result from stored procedure
+ * @returns {object} - Result from stored procedure with error details
  */
 async function calculateHPPActual(periode, recalculateExisting = false) {
   try {
@@ -1343,13 +1379,21 @@ async function calculateHPPActual(periode, recalculateExisting = false) {
     
     console.log(`HPP Actual calculation completed:`, summary);
     
+    // If there were errors, fetch the error details
+    let errorBatches = [];
+    if (summary.Errors > 0) {
+      errorBatches = await getErrorBatches(periode);
+      console.log(`Found ${errorBatches.length} batches with errors`);
+    }
+    
     return {
       success: true,
       granulatesProcessed: summary.GranulatesProcessed || 0,
       totalProductBatches: summary.TotalProductBatches || 0,
       productsProcessed: summary.ProductsProcessed || 0,
       errors: summary.Errors || 0,
-      durationSeconds: summary.DurationSeconds || 0
+      durationSeconds: summary.DurationSeconds || 0,
+      errorBatches: errorBatches
     };
     
   } catch (error) {
@@ -1394,4 +1438,5 @@ module.exports = {
   getHPPActualDetail,
   getHPPActualHeader,
   calculateHPPActual,
+  getErrorBatches,
 };

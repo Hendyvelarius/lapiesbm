@@ -1203,10 +1203,35 @@ const HPPActualList = ({ user }) => {
                       <span className="value">{calculateResult.durationSeconds} seconds</span>
                     </div>
                     {calculateResult.errors > 0 && (
-                      <div className="detail-row warning">
-                        <span className="label">Errors:</span>
-                        <span className="value">{calculateResult.errors}</span>
-                      </div>
+                      <>
+                        <div className="detail-row warning">
+                          <span className="label">Errors:</span>
+                          <span className="value">{calculateResult.errors}</span>
+                        </div>
+                        
+                        {/* Error Batches Detail */}
+                        {calculateResult.errorBatches && calculateResult.errorBatches.length > 0 && (
+                          <div className="error-batches-section">
+                            <h4 className="error-batches-title">
+                              <AlertCircle size={16} />
+                              <span>Batches with Errors:</span>
+                            </h4>
+                            <div className="error-batches-list">
+                              {calculateResult.errorBatches.map((batch, index) => (
+                                <div key={batch.HPP_Actual_ID || index} className="error-batch-item">
+                                  <div className="error-batch-info">
+                                    <span className="batch-number">{batch.BatchNo}</span>
+                                    <span className="product-name">{batch.Product_Name || batch.DNc_ProductID}</span>
+                                  </div>
+                                  <div className="error-message">
+                                    {batch.Error_Message || 'Unknown error'}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
