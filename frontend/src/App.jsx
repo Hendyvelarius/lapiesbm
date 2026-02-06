@@ -13,6 +13,7 @@ import ProductFormula from './pages/ProductFormula';
 import GenerateHPP from './pages/GenerateHPP';
 import HPPResults from './pages/HPPResults';
 import HPPActualList from './pages/HPPActualList';
+import LandingPage from './pages/LandingPage';
 import { 
   authenticateFromURL, 
   storeAuthData, 
@@ -36,7 +37,7 @@ function RestrictedPage({ pageName }) {
         <div className="restricted-info">
           <p><strong>Available pages for your access level:</strong></p>
           <ul>
-            <li>Dashboard</li>
+            <li>Home (Landing Page)</li>
             <li>HPP Simulation</li>
           </ul>
         </div>
@@ -154,7 +155,9 @@ function AppContent() {
       case '/':
       case '/eSistemBiayaManufaktur':
       case '/eSistemBiayaManufaktur/':
-        return `Hello, ${userName}`;
+        return `Welcome, ${userName}`;
+      case '/dashboard':
+        return 'Dashboard';
       case '/hpp-simulation':
         return 'HPP Simulation';
       case '/currency':
@@ -174,7 +177,7 @@ function AppContent() {
       case '/hpp-actual':
         return 'HPP Actual Results';
       default:
-        return `Hello, ${userName}`;
+        return `Welcome, ${userName}`;
     }
   };
 
@@ -230,7 +233,7 @@ function AppContent() {
                 <p><strong>🚫 Department Access Restriction:</strong></p>
                 <ul>
                   <li>This application is restricted to authorized personnel only</li>
-                  <li><strong>Full Access:</strong> NT and PL department staff</li>
+                  <li><strong>Full Access:</strong> PL department staff, authorized NT users</li>
                   <li><strong>Limited Access:</strong> RD1/RD2/RD3 Managers, HD HO</li>
                   <li>Your current department/job level combination does not have access</li>
                   <li>If you believe this is an error, please contact your system administrator</li>
@@ -322,16 +325,24 @@ function AppContent() {
         // Dashboard period props
         dashboardPeriod={dashboardPeriod}
         setDashboardPeriod={setDashboardPeriod}
-        isDashboard={location.pathname === '/' || location.pathname === ''}
+        isDashboard={location.pathname === '/dashboard'}
       />
       <main className="main-content">
         <Routes>
           <Route path="/" element={
-            <Dashboard 
+            <LandingPage 
               user={authState.user} 
-              dashboardPeriod={dashboardPeriod}
-              setDashboardPeriod={setDashboardPeriod}
+              accessLevel={authState.accessLevel}
             />
+          } />
+          <Route path="/dashboard" element={
+            authState.accessLevel === 'full' 
+              ? <Dashboard 
+                  user={authState.user} 
+                  dashboardPeriod={dashboardPeriod}
+                  setDashboardPeriod={setDashboardPeriod}
+                />
+              : <RestrictedPage pageName="Dashboard" />
           } />
           <Route path="/hpp-simulation" element={<HPPSimulation user={authState.user} />} />
           {/* Routes below are only accessible to users with full access */}

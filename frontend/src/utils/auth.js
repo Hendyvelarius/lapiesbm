@@ -143,9 +143,31 @@ export const extractUserInfo = (payload) => {
 const checkDepartmentAccess = (userInfo) => {
   const empDeptID = userInfo.empDeptID;
   const empJobLevelID = userInfo.empJobLevelID;
+  const inisialNama = userInfo.inisialNama;
   
-  // NT and PL have full access regardless of job level
-  if (['NT', 'PL'].includes(empDeptID)) {
+  // NT department - only specific users (HWA, GWN, DNY) have full access
+  // All other NT users are denied completely
+  const NT_ALLOWED_INITIALS = ['HWA', 'GWN', 'DNY'];
+  if (empDeptID === 'NT') {
+    if (NT_ALLOWED_INITIALS.includes(inisialNama)) {
+      return {
+        allowed: true,
+        accessLevel: 'full',
+        message: 'Full access granted',
+        reason: null
+      };
+    } else {
+      return {
+        allowed: false,
+        accessLevel: null,
+        message: `Access denied. NT department access is restricted to authorized personnel only. Your initials: ${inisialNama || 'Unknown'}. Please contact your administrator if you believe this is an error.`,
+        reason: 'nt_user_restriction'
+      };
+    }
+  }
+  
+  // PL has full access regardless of job level
+  if (empDeptID === 'PL') {
     return {
       allowed: true,
       accessLevel: 'full',
@@ -154,7 +176,7 @@ const checkDepartmentAccess = (userInfo) => {
     };
   }
   
-  // RD2 MGR gets full access (same as NT/PL)
+  // RD2 MGR gets full access (same as PL)
   if (empDeptID === 'RD2' && empJobLevelID === 'MGR') {
     return {
       allowed: true,
@@ -164,13 +186,13 @@ const checkDepartmentAccess = (userInfo) => {
     };
   }
   
-  // RD1, RD3 managers get limited access (Dashboard + HPP Simulation only)
+  // RD1, RD3 managers get limited access (Home + HPP Simulation only)
   if (['RD1', 'RD3'].includes(empDeptID)) {
     if (empJobLevelID === 'MGR') {
       return {
         allowed: true,
         accessLevel: 'limited',
-        message: 'Limited access granted for manager level (Dashboard and HPP Simulation)',
+        message: 'Limited access granted for manager level (Home and HPP Simulation)',
         reason: null
       };
     } else {
@@ -193,12 +215,12 @@ const checkDepartmentAccess = (userInfo) => {
     };
   }
   
-  // HD department with HO job level gets limited access (Dashboard + HPP Simulation only)
+  // HD department with HO job level gets limited access (Home + HPP Simulation only)
   if (empDeptID === 'HD' && empJobLevelID === 'HO') {
     return {
       allowed: true,
       accessLevel: 'limited',
-      message: 'Limited access granted (Dashboard and HPP Simulation)',
+      message: 'Limited access granted (Home and HPP Simulation)',
       reason: null
     };
   }
@@ -207,7 +229,7 @@ const checkDepartmentAccess = (userInfo) => {
   return {
     allowed: false,
     accessLevel: null,
-    message: `Access denied. This application is restricted to NT, PL department staff, RD1/RD2/RD3 managers, and HD HO only. Your department: ${empDeptID || 'Unknown'}, Job Level: ${empJobLevelID || 'Unknown'}. Please contact your administrator if you believe this is an error.`,
+    message: `Access denied. This application is restricted to authorized PL department staff, RD1/RD2/RD3 managers, and HD HO only. Your department: ${empDeptID || 'Unknown'}, Job Level: ${empJobLevelID || 'Unknown'}. Please contact your administrator if you believe this is an error.`,
     reason: 'department_restriction'
   };
 };

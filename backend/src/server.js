@@ -13,6 +13,7 @@ const apiRoutes = require('./routes');
 
 // Import services
 const currencyScheduler = require('./services/currencySchedulerService');
+const hppActualScheduler = require('./services/hppActualSchedulerService');
 
 // Create Express app
 const app = express();
@@ -103,6 +104,10 @@ async function startServer() {
     currencyScheduler.startScheduler();
     console.log('📅 Currency scheduler started (daily at 23:00 WIB)');
 
+    // Start HPP Actual scheduler (runs daily at 10 PM)
+    hppActualScheduler.startScheduler();
+    console.log('📅 HPP Actual scheduler started (daily at 22:00 WIB)');
+
     // Start server
     app.listen(PORT, () => {
       console.log(`🚀 Server is running on port ${PORT}`);
@@ -131,12 +136,14 @@ process.on('uncaughtException', (err) => {
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down gracefully');
   currencyScheduler.stopScheduler();
+  hppActualScheduler.stopScheduler();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully');
   currencyScheduler.stopScheduler();
+  hppActualScheduler.stopScheduler();
   process.exit(0);
 });
 

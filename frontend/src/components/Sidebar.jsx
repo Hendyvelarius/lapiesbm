@@ -1,5 +1,5 @@
 import '../styles/Sidebar.css';
-import { FileText, BarChart3, DollarSign, Package, Calculator, Users, Layers, FlaskConical, Settings, CalendarX, ClipboardList, User } from 'lucide-react';
+import { FileText, BarChart3, DollarSign, Package, Calculator, Users, Layers, FlaskConical, Settings, CalendarX, ClipboardList, User, Home } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 
 export default function Sidebar({ user, accessLevel }) {
@@ -29,9 +29,16 @@ export default function Sidebar({ user, accessLevel }) {
           <ul className="sidebar-menu">
             <li className={location.pathname === '/' ? 'active' : ''}>
               <Link to="/" className="sidebar-link">
-                <BarChart3 className="sidebar-icon" size={20} /> Dashboard
+                <Home className="sidebar-icon" size={20} /> Home
               </Link>
             </li>
+            {hasFullAccess && (
+              <li className={location.pathname === '/dashboard' ? 'active' : ''}>
+                <Link to="/dashboard" className="sidebar-link">
+                  <BarChart3 className="sidebar-icon" size={20} /> Dashboard
+                </Link>
+              </li>
+            )}
             {hasFullAccess && (
               <li className={location.pathname === '/currency' ? 'active' : ''}>
                 <Link to="/currency" className="sidebar-link">
