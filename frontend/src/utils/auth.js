@@ -114,7 +114,7 @@ export const extractUserInfo = (payload) => {
       jabatan: payload.user?.Jabatan || 'Unknown Position',
       jobLevelID: payload.user?.Job_LevelID || 'Unknown',
       pkID: payload.user?.Pk_ID || 'Unknown',
-      inisialNama: payload.user?.Inisial_Nama || 'Unknown',
+      inisialNama: payload.user?.Inisial_Name || 'Unknown',
       empDeptID: payload.user?.emp_DeptID || 'Unknown',
       empJobLevelID: payload.user?.emp_JobLevelID || 'Unknown',
       
