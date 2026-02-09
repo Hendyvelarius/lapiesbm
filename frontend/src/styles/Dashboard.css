@@ -3108,13 +3108,13 @@
   border-top: 1px dashed #e5e7eb;
 }
 
-/* Trend chart data point hover effect */
-.trend-data-point circle {
-  transition: r 0.15s ease;
+/* Trend bar chart hover effect */
+.trend-bar rect {
+  transition: opacity 0.15s ease, stroke 0.15s ease;
 }
 
-.trend-data-point:hover circle {
-  r: 2;
+.trend-bar:hover rect {
+  opacity: 1 !important;
 }
 
 /* Modal loading state */

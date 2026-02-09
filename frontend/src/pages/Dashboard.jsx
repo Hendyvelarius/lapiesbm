@@ -220,7 +220,7 @@ const DonutChart = ({ value, total, color = '#3b82f6', size = 120, label }) => {
   );
 };
 
-// Trend Line Chart Component for HPP Actual vs Standard 12-month trend
+// Trend Bar Chart Component for HPP Actual vs Standard 12-month trend
 const TrendLineChart = ({ trendData, overallAvg, onPointClick }) => {
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
@@ -236,70 +236,77 @@ const TrendLineChart = ({ trendData, overallAvg, onPointClick }) => {
     return <div className="trend-chart-empty">No trend data available</div>;
   }
   
-  const minVal = Math.min(...validValues, 90);
-  const maxVal = Math.max(...validValues, 110);
-  const range = maxVal - minVal || 10;
-  const padding = range * 0.1;
-  const yMin = Math.floor(minVal - padding);
-  const yMax = Math.ceil(maxVal + padding);
+  // Fixed Y-axis range: 0% to 125%
+  const yMin = 0;
+  const yMax = 125;
   const yRange = yMax - yMin;
 
   // Chart dimensions
   const width = 100;
   const height = 50;
   const leftMargin = 8;
-  const rightMargin = 6;
+  const rightMargin = 4;
   const topMargin = 5;
   const bottomMargin = 8;
   const chartWidth = width - leftMargin - rightMargin;
   const chartHeight = height - topMargin - bottomMargin;
 
-  // Calculate points
-  const points = trendData.map((d, i) => {
-    const x = leftMargin + (i / (trendData.length - 1)) * chartWidth;
-    const y = d.avgRatio !== null 
+  // Bar layout
+  const barCount = trendData.length;
+  const barGap = chartWidth * 0.02;
+  const totalGaps = (barCount - 1) * barGap;
+  const barWidth = (chartWidth - totalGaps) / barCount;
+
+  // Calculate bars
+  const bars = trendData.map((d, i) => {
+    const x = leftMargin + i * (barWidth + barGap);
+    const barY = d.avgRatio !== null
       ? topMargin + ((yMax - d.avgRatio) / yRange) * chartHeight
       : null;
-    return { x, y, ...d };
+    const baseY = topMargin + chartHeight; // bottom of chart
+    const barHeight = barY !== null ? baseY - barY : 0;
+    return { x, barY, barHeight, barWidth, baseY, ...d };
   });
-
-  // Create path for the line (only connecting non-null points)
-  const validPoints = points.filter(p => p.y !== null);
-  const linePath = validPoints.length > 1
-    ? validPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
-    : '';
 
   // Reference line at 100% (standard)
   const refLineY = topMargin + ((yMax - 100) / yRange) * chartHeight;
 
-  // Color based on overall average
-  const getLineColor = (avg) => {
+  // Color for individual bar based on its ratio value
+  const getBarColor = (ratio) => {
+    if (ratio <= 95) return '#10b981';
+    if (ratio <= 100) return '#22c55e';
+    if (ratio <= 105) return '#f59e0b';
+    if (ratio <= 110) return '#f97316';
+    return '#ef4444';
+  };
+
+  // Overall average color for legend
+  const getOverallColor = (avg) => {
     if (avg <= 95) return '#10b981';
     if (avg <= 100) return '#22c55e';
     if (avg <= 105) return '#f59e0b';
     if (avg <= 110) return '#f97316';
     return '#ef4444';
   };
-  const lineColor = getLineColor(overallAvg);
+  const avgColor = getOverallColor(overallAvg);
 
-  // Handle mouse over on data point - use mouse event coordinates directly
-  const handlePointHover = (p, event) => {
-    if (p.avgRatio === null) return;
-    // Use clientX/clientY from the mouse event for accurate positioning
+  // Handle mouse over on bar
+  const handleBarHover = (bar, event) => {
+    if (bar.avgRatio === null) return;
     setTooltipPos({
       x: event.clientX,
       y: event.clientY
     });
-    setHoveredPoint(p);
+    setHoveredPoint(bar);
   };
 
-  const handlePointLeave = () => {
+  const handleBarLeave = () => {
     setHoveredPoint(null);
   };
 
-  const handlePointClick = (p) => {
-    if (p.avgRatio !== null && onPointClick) {
-      onPointClick(p);
+  const handleBarClick = (bar) => {
+    if (bar.avgRatio !== null && onPointClick) {
+      onPointClick(bar);
     }
   };
 
@@ -308,76 +315,74 @@ const TrendLineChart = ({ trendData, overallAvg, onPointClick }) => {
       <svg ref={svgRef} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
         {/* Y-axis labels */}
         <text x={leftMargin - 1} y={topMargin + 2} className="trend-axis-label" textAnchor="end">{yMax}%</text>
+        <text x={leftMargin - 1} y={topMargin + ((yMax - 100) / yRange) * chartHeight + 1} className="trend-axis-label" textAnchor="end">100%</text>
         <text x={leftMargin - 1} y={topMargin + chartHeight} className="trend-axis-label" textAnchor="end">{yMin}%</text>
         
-        {/* Reference line at 100% */}
-        {100 >= yMin && 100 <= yMax && (
-          <>
-            <line 
-              x1={leftMargin} 
-              y1={refLineY} 
-              x2={width - rightMargin} 
-              y2={refLineY}
-              stroke="#94a3b8"
-              strokeWidth="0.3"
-              strokeDasharray="2,2"
-            />
-            <text x={width - rightMargin + 1} y={refLineY + 1} className="trend-ref-label">Std</text>
-          </>
-        )}
-
         {/* Grid lines */}
         <line x1={leftMargin} y1={topMargin} x2={leftMargin} y2={topMargin + chartHeight} stroke="#e5e7eb" strokeWidth="0.2"/>
         <line x1={leftMargin} y1={topMargin + chartHeight} x2={width - rightMargin} y2={topMargin + chartHeight} stroke="#e5e7eb" strokeWidth="0.2"/>
 
-        {/* Data line */}
-        {linePath && (
-          <path 
-            d={linePath} 
-            fill="none" 
-            stroke={lineColor} 
-            strokeWidth="1"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        )}
-
-        {/* Data points - clickable with hover effect */}
-        {validPoints.map((p, i) => (
-          <g 
-            key={i} 
-            className="trend-data-point"
-            onMouseEnter={(e) => handlePointHover(p, e)}
-            onMouseLeave={handlePointLeave}
-            onClick={() => handlePointClick(p)}
-            style={{ cursor: 'pointer' }}
-          >
-            {/* Larger invisible hit area */}
-            <circle cx={p.x} cy={p.y} r="3" fill="transparent" />
-            {/* Visible point */}
-            <circle 
-              cx={p.x} 
-              cy={p.y} 
-              r={hoveredPoint?.periode === p.periode ? "2" : "1.2"} 
-              fill={lineColor}
-              className={hoveredPoint?.periode === p.periode ? 'hovered' : ''}
-            />
-          </g>
-        ))}
-
-        {/* X-axis labels (show only first, middle, last) */}
-        {[0, 5, 11].map(idx => {
-          const p = points[idx];
-          if (!p) return null;
+        {/* Bars */}
+        {bars.map((bar, i) => {
+          if (bar.avgRatio === null) return null;
+          const isHovered = hoveredPoint?.periode === bar.periode;
+          const barColor = getBarColor(bar.avgRatio);
           return (
-            <text key={idx} x={p.x} y={height - 1} className="trend-axis-label" textAnchor="middle">
-              {p.label}
-            </text>
+            <g
+              key={i}
+              className="trend-bar"
+              onMouseEnter={(e) => handleBarHover(bar, e)}
+              onMouseLeave={handleBarLeave}
+              onClick={() => handleBarClick(bar)}
+              style={{ cursor: 'pointer' }}
+            >
+              <rect
+                x={bar.x}
+                y={bar.barY}
+                width={barWidth}
+                height={bar.barHeight}
+                rx={0.5}
+                ry={0.5}
+                fill={barColor}
+                opacity={isHovered ? 1 : 0.8}
+                stroke={isHovered ? '#1e293b' : 'none'}
+                strokeWidth={isHovered ? 0.3 : 0}
+              />
+            </g>
           );
         })}
+
+        {/* Reference line at 100% - drawn on top of bars */}
+        <line 
+          x1={leftMargin} 
+          y1={refLineY} 
+          x2={width - rightMargin} 
+          y2={refLineY}
+          stroke="#475569"
+          strokeWidth="0.4"
+          strokeDasharray="2,1.5"
+        />
+
+        {/* X-axis labels - show every bar label if space allows, otherwise first/middle/last */}
+        {barCount <= 6 ? (
+          bars.map((bar, idx) => (
+            <text key={idx} x={bar.x + barWidth / 2} y={height - 1} className="trend-axis-label" textAnchor="middle">
+              {bar.label}
+            </text>
+          ))
+        ) : (
+          [0, Math.floor(barCount / 2), barCount - 1].map(idx => {
+            const bar = bars[idx];
+            if (!bar) return null;
+            return (
+              <text key={idx} x={bar.x + barWidth / 2} y={height - 1} className="trend-axis-label" textAnchor="middle">
+                {bar.label}
+              </text>
+            );
+          })
+        )}
       </svg>
       
-      {/* Custom Tooltip */}
       {/* Tooltip rendered via portal to body for proper overflow */}
       {hoveredPoint && ReactDOM.createPortal(
         <div 
@@ -413,7 +418,7 @@ const TrendLineChart = ({ trendData, overallAvg, onPointClick }) => {
       
       {/* Legend */}
       <div className="trend-chart-legend">
-        <span className="trend-avg" style={{ color: lineColor }}>
+        <span className="trend-avg" style={{ color: avgColor }}>
           Avg: {overallAvg?.toFixed(1)}%
         </span>
         <span className="trend-target">
