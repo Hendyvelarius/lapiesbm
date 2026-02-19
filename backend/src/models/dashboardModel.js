@@ -511,6 +511,7 @@ async function getHPPActualVsStandard(year = null, mode = 'YTD', month = null) {
       const margin = parseFloat(p.margin) || 0;
       const rounded = parseFloat(p.rounded) || 0;
       const batchSize = parseFloat(p.Batch_Size) || 0;
+      const rendemen = parseFloat(p.Group_Rendemen) || 100; // Rendemen percentage (default 100%)
       const totalBB = parseFloat(p.totalBB) || 0;
       const totalBK = parseFloat(p.totalBK) || 0;
       const lob = p.LOB || '';
@@ -562,6 +563,9 @@ async function getHPPActualVsStandard(year = null, mode = 'YTD', month = null) {
       standardHPPMap[p.Product_ID] = {
         hppPerUnit: hpp,
         batchSize: batchSize,
+        rendemen: rendemen,         // Rendemen percentage
+        // Expected output = Batch_Size * Rendemen / 100
+        expectedOutput: batchSize * rendemen / 100,
         totalBB: totalBB,           // Total for standard batch
         totalBK: totalBK,           // Total for standard batch  
         overhead: overheadStd,      // Total for standard batch
@@ -683,7 +687,8 @@ async function getHPPActualVsStandard(year = null, mode = 'YTD', month = null) {
         lob: b.LOB,
         category: b.Group_PNCategory_Name,
         outputActual: b.Output_Actual,
-        batchSizeStd: standardData.batchSize || b.Batch_Size_Std || 0,
+        // Use rendemen-adjusted expected output for fair comparison
+        batchSizeStd: standardData.expectedOutput || standardData.batchSize || b.Batch_Size_Std || 0,
         hppActualTotal: totalHPPActual,
         hppActualPerUnit: hppActualPerUnit,
         hppStandardPerUnit: hppStandardPerUnit,
@@ -811,6 +816,7 @@ async function getActualVsStandardByPeriode(periode, lob = 'ALL') {
       
       const hpp = parseFloat(p.HPP) || 0;
       const batchSize = parseFloat(p.Batch_Size) || 0;
+      const rendemen = parseFloat(p.Group_Rendemen) || 100; // Rendemen percentage (default 100%)
       // Try both field name conventions (totalBB/totalBK or Jml_BB/Jml_BK)
       const totalBB = parseFloat(p.totalBB) || parseFloat(p.Jml_BB) || 0;
       const totalBK = parseFloat(p.totalBK) || parseFloat(p.Jml_BK) || 0;
@@ -853,6 +859,8 @@ async function getActualVsStandardByPeriode(periode, lob = 'ALL') {
       standardHPPMap[p.Product_ID] = {
         hppPerUnit: hpp,
         batchSize: batchSize,
+        rendemen: rendemen,
+        expectedOutput: batchSize * rendemen / 100,
         totalBB: totalBB,
         totalBK: totalBK,
         overhead: overheadStd,
@@ -960,7 +968,8 @@ async function getActualVsStandardByPeriode(periode, lob = 'ALL') {
           lob: b.LOB,
           category: b.Group_PNCategory_Name,
           outputActual: b.Output_Actual,
-          batchSizeStd: standardData.batchSize || b.Batch_Size_Std || 0,
+          // Use rendemen-adjusted expected output for fair comparison
+          batchSizeStd: standardData.expectedOutput || standardData.batchSize || b.Batch_Size_Std || 0,
           hppActualTotal: totalHPPActual,
           hppActualPerUnit: hppActualPerUnit,
           hppStandardPerUnit: hppStandardPerUnit,
@@ -1285,8 +1294,9 @@ async function getActualDashboardStats(year = null) {
 }
 
 /**
- * Get 12-month trend data for HPP Actual vs Standard comparison
+ * Get 13-month trend data for HPP Actual vs Standard comparison
  * Returns monthly average ratio grouped by month, with optional LOB filter
+ * 13 months allows comparing same month year-over-year (e.g. Feb 2025 vs Feb 2026)
  * @param {string} lob - LOB filter: 'ALL', 'ETHICAL', 'OTC', 'GENERIK'
  * @returns {Object} Trend data with monthly averages
  */
@@ -1294,10 +1304,10 @@ async function getActualVsStandardTrend(lob = 'ALL') {
   try {
     const db = await connect();
     
-    // Get data for the last 12 months
+    // Get data for the last 13 months (allows year-over-year comparison for current month)
     const today = new Date();
     const months = [];
-    for (let i = 11; i >= 0; i--) {
+    for (let i = 12; i >= 0; i--) {
       const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
       months.push({
         year: d.getFullYear().toString(),
@@ -1430,7 +1440,7 @@ async function getActualVsStandardTrend(lob = 'ALL') {
       if (isHigher) periodData[b.Periode].higherCount++;
     });
     
-    // Build result array for all 12 months
+    // Build result array for all 13 months
     const trendData = months.map(m => {
       const data = periodData[m.periode];
       if (data && data.ratios.length > 0) {

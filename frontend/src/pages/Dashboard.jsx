@@ -220,7 +220,7 @@ const DonutChart = ({ value, total, color = '#3b82f6', size = 120, label }) => {
   );
 };
 
-// Trend Bar Chart Component for HPP Actual vs Standard 12-month trend
+// Trend Bar Chart Component for HPP Actual vs Standard 13-month trend
 const TrendLineChart = ({ trendData, overallAvg, onPointClick }) => {
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
@@ -246,8 +246,8 @@ const TrendLineChart = ({ trendData, overallAvg, onPointClick }) => {
   const height = 50;
   const leftMargin = 8;
   const rightMargin = 4;
-  const topMargin = 5;
-  const bottomMargin = 8;
+  const topMargin = 7;
+  const bottomMargin = 10;
   const chartWidth = width - leftMargin - rightMargin;
   const chartHeight = height - topMargin - bottomMargin;
 
@@ -322,7 +322,7 @@ const TrendLineChart = ({ trendData, overallAvg, onPointClick }) => {
         <line x1={leftMargin} y1={topMargin} x2={leftMargin} y2={topMargin + chartHeight} stroke="#e5e7eb" strokeWidth="0.2"/>
         <line x1={leftMargin} y1={topMargin + chartHeight} x2={width - rightMargin} y2={topMargin + chartHeight} stroke="#e5e7eb" strokeWidth="0.2"/>
 
-        {/* Bars */}
+        {/* Bars with percentage labels */}
         {bars.map((bar, i) => {
           if (bar.avgRatio === null) return null;
           const isHovered = hoveredPoint?.periode === bar.periode;
@@ -348,6 +348,16 @@ const TrendLineChart = ({ trendData, overallAvg, onPointClick }) => {
                 stroke={isHovered ? '#1e293b' : 'none'}
                 strokeWidth={isHovered ? 0.3 : 0}
               />
+              {/* Percentage label above bar */}
+              <text
+                x={bar.x + barWidth / 2}
+                y={bar.barY - 0.8}
+                textAnchor="middle"
+                className="trend-bar-label"
+                fill={barColor}
+              >
+                {Math.round(bar.avgRatio)}%
+              </text>
             </g>
           );
         })}
@@ -363,24 +373,20 @@ const TrendLineChart = ({ trendData, overallAvg, onPointClick }) => {
           strokeDasharray="2,1.5"
         />
 
-        {/* X-axis labels - show every bar label if space allows, otherwise first/middle/last */}
-        {barCount <= 6 ? (
-          bars.map((bar, idx) => (
-            <text key={idx} x={bar.x + barWidth / 2} y={height - 1} className="trend-axis-label" textAnchor="middle">
-              {bar.label}
-            </text>
-          ))
-        ) : (
-          [0, Math.floor(barCount / 2), barCount - 1].map(idx => {
-            const bar = bars[idx];
-            if (!bar) return null;
-            return (
-              <text key={idx} x={bar.x + barWidth / 2} y={height - 1} className="trend-axis-label" textAnchor="middle">
-                {bar.label}
+        {/* X-axis labels - split into month (row 1) and year (row 2) */}
+        {bars.map((bar, idx) => {
+          const [monthPart, yearPart] = (bar.label || '').split(' ');
+          return (
+            <g key={idx}>
+              <text x={bar.x + barWidth / 2} y={height - 4} className="trend-axis-label" textAnchor="middle">
+                {monthPart}
               </text>
-            );
-          })
-        )}
+              <text x={bar.x + barWidth / 2} y={height - 1} className="trend-axis-label-year" textAnchor="middle">
+                {yearPart}
+              </text>
+            </g>
+          );
+        })}
       </svg>
       
       {/* Tooltip rendered via portal to body for proper overflow */}
@@ -593,6 +599,10 @@ const BatchListModal = ({ isOpen, onClose, batches, title, filter = 'all', loadi
           aVal = a.batchNo || '';
           bVal = b.batchNo || '';
           return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        case 'date':
+          aVal = a.batchDate ? new Date(a.batchDate).getTime() : 0;
+          bVal = b.batchDate ? new Date(b.batchDate).getTime() : 0;
+          break;
         case 'actual':
           aVal = a.hppActualPerUnit || 0;
           bVal = b.hppActualPerUnit || 0;
@@ -602,9 +612,35 @@ const BatchListModal = ({ isOpen, onClose, batches, title, filter = 'all', loadi
           bVal = b.hppStandardPerUnit || 0;
           break;
         case 'variance':
+          // Signed variance: asc = cheapest first (most negative), desc = most expensive first (most positive)
+          aVal = a.variancePercent || 0;
+          bVal = b.variancePercent || 0;
+          break;
+        case 'output':
+          aVal = a.outputActual || 0;
+          bVal = b.outputActual || 0;
+          break;
+        case 'bb':
+          aVal = a.totalBBActual || 0;
+          bVal = b.totalBBActual || 0;
+          break;
+        case 'bk':
+          aVal = a.totalBKActual || 0;
+          bVal = b.totalBKActual || 0;
+          break;
+        case 'overhead':
+          aVal = a.overheadActual || 0;
+          bVal = b.overheadActual || 0;
+          break;
+        case 'status':
+          // lower < same < higher
+          const statusOrder = { lower: 0, same: 1, higher: 2 };
+          aVal = statusOrder[a.costStatus] ?? 1;
+          bVal = statusOrder[b.costStatus] ?? 1;
+          break;
         default:
-          aVal = Math.abs(a.variancePercent) || 0;
-          bVal = Math.abs(b.variancePercent) || 0;
+          aVal = a.variancePercent || 0;
+          bVal = b.variancePercent || 0;
           break;
       }
       return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
@@ -662,7 +698,9 @@ const BatchListModal = ({ isOpen, onClose, batches, title, filter = 'all', loadi
                     <th onClick={() => handleSort('batch')} className="sortable">
                       Batch {sortBy === 'batch' && (sortOrder === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th>Date</th>
+                    <th onClick={() => handleSort('date')} className="sortable">
+                      Date {sortBy === 'date' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </th>
                     <th onClick={() => handleSort('actual')} className="sortable">
                       HPP Actual {sortBy === 'actual' && (sortOrder === 'asc' ? '↑' : '↓')}
                     </th>
@@ -672,11 +710,21 @@ const BatchListModal = ({ isOpen, onClose, batches, title, filter = 'all', loadi
                     <th onClick={() => handleSort('variance')} className="sortable">
                       Variance {sortBy === 'variance' && (sortOrder === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th>Output</th>
-                    <th>Total BB</th>
-                    <th>Total BK</th>
-                    <th>Overhead</th>
-                    <th>Status</th>
+                    <th onClick={() => handleSort('output')} className="sortable">
+                      Output {sortBy === 'output' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th onClick={() => handleSort('bb')} className="sortable">
+                      Total BB {sortBy === 'bb' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th onClick={() => handleSort('bk')} className="sortable">
+                      Total BK {sortBy === 'bk' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th onClick={() => handleSort('overhead')} className="sortable">
+                      Overhead {sortBy === 'overhead' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th onClick={() => handleSort('status')} className="sortable">
+                      Status {sortBy === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>

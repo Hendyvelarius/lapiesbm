@@ -176,18 +176,18 @@ const checkDepartmentAccess = (userInfo) => {
     };
   }
   
-  // RD2 MGR gets full access (same as PL)
-  if (empDeptID === 'RD2' && empJobLevelID === 'MGR') {
-    return {
-      allowed: true,
-      accessLevel: 'full',
-      message: 'Full access granted for RD2 manager',
-      reason: null
-    };
-  }
+  // // RD2 MGR gets full access (same as PL)
+  // if (empDeptID === 'RD2' && empJobLevelID === 'MGR') {
+  //   return {
+  //     allowed: true,
+  //     accessLevel: 'full',
+  //     message: 'Full access granted for RD2 manager',
+  //     reason: null
+  //   };
+  // }
   
-  // RD1, RD3 managers get limited access (Home + HPP Simulation only)
-  if (['RD1', 'RD3'].includes(empDeptID)) {
+  // RD1, RD2, RD3 managers get limited access (Home + HPP Simulation only)
+  if (['RD1', 'RD2', 'RD3'].includes(empDeptID)) {
     if (empJobLevelID === 'MGR') {
       return {
         allowed: true,
@@ -199,20 +199,10 @@ const checkDepartmentAccess = (userInfo) => {
       return {
         allowed: false,
         accessLevel: null,
-        message: `Access denied. RD1 and RD3 department staff require Manager level access. Your department: ${empDeptID}, Job Level: ${empJobLevelID || 'Unknown'}. Please contact your administrator if you believe this is an error.`,
+        message: `Access denied. RD1, RD2, and RD3 department staff require Manager level access. Your department: ${empDeptID}, Job Level: ${empJobLevelID || 'Unknown'}. Please contact your administrator if you believe this is an error.`,
         reason: 'job_level_restriction'
       };
     }
-  }
-  
-  // RD2 non-managers are denied
-  if (empDeptID === 'RD2' && empJobLevelID !== 'MGR') {
-    return {
-      allowed: false,
-      accessLevel: null,
-      message: `Access denied. RD2 department staff require Manager level access. Your department: ${empDeptID}, Job Level: ${empJobLevelID || 'Unknown'}. Please contact your administrator if you believe this is an error.`,
-      reason: 'job_level_restriction'
-    };
   }
   
   // HD department with HO job level gets limited access (Home + HPP Simulation only)

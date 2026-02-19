@@ -76,7 +76,7 @@ class DashboardController {
   }
 
   /**
-   * Get HPP Actual vs Standard 12-month trend
+   * Get HPP Actual vs Standard 13-month trend
    * GET /api/dashboard/actual-vs-standard/trend?lob=ALL
    */
   static async getActualVsStandardTrend(req, res) {

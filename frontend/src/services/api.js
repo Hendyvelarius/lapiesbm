@@ -747,7 +747,7 @@ export const dashboardAPI = {
     return apiRequest(`${url}${queryString ? `?${queryString}` : ''}`);
   },
 
-  // Get HPP Actual vs Standard 12-month trend
+  // Get HPP Actual vs Standard 13-month trend
   // Query: ?lob=ALL (optional: ALL, ETHICAL, OTC, GENERIK)
   getActualVsStandardTrend: (lob = 'ALL') => {
     const url = `/dashboard/actual-vs-standard/trend${lob ? `?lob=${lob}` : ''}`;

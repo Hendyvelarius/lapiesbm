@@ -17,7 +17,7 @@ router.get('/years', DashboardController.getYears);
 // Query: ?year=2026&mode=YTD&month=1 (month only used when mode=MTD)
 router.get('/actual-vs-standard', DashboardController.getActualVsStandard);
 
-// GET /api/dashboard/actual-vs-standard/trend - Get 12-month trend data
+// GET /api/dashboard/actual-vs-standard/trend - Get 13-month trend data
 // Query: ?lob=ALL (optional: ALL, ETHICAL, OTC, GENERIK)
 router.get('/actual-vs-standard/trend', DashboardController.getActualVsStandardTrend);
 
