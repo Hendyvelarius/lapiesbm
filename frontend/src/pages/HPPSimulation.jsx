@@ -259,6 +259,7 @@ export default function HPPSimulation() {
   const [simulationHeader, setSimulationHeader] = useState(null);
   const [simulationDetailBahan, setSimulationDetailBahan] = useState([]);
   const [simulationSummary, setSimulationSummary] = useState(null);
+  const [editableHNA, setEditableHNA] = useState(0);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
   // Editable simulation parameters
@@ -318,6 +319,8 @@ export default function HPPSimulation() {
 
   // Custom material input modal states
   const [showCustomMaterialModal, setShowCustomMaterialModal] = useState(false);
+  const [existingCustomMaterials, setExistingCustomMaterials] = useState([]);
+  const [loadingCustomMaterials, setLoadingCustomMaterials] = useState(false);
   const [customMaterialData, setCustomMaterialData] = useState({
     name: '',
     purchasePrice: '',
@@ -1229,8 +1232,18 @@ export default function HPPSimulation() {
       
       // Filter data where Group_ProductID is null (default rates)
       const defaultGroups = data.filter(item => item.Group_ProductID === null);
-      setGroupsData(defaultGroups);
       
+      // Deduplicate by Group_PNCategoryID - keep the latest period's entry
+      const groupMap = new Map();
+      defaultGroups.forEach(group => {
+        const existing = groupMap.get(group.Group_PNCategoryID);
+        if (!existing || (group.Group_Periode || '') > (existing.Group_Periode || '')) {
+          groupMap.set(group.Group_PNCategoryID, group);
+        }
+      });
+      const uniqueGroups = Array.from(groupMap.values())
+        .sort((a, b) => parseInt(a.Group_PNCategoryID) - parseInt(b.Group_PNCategoryID));
+      setGroupsData(uniqueGroups);
 
     } catch (error) {
       console.error("Error loading pembebanan data:", error);
@@ -1242,8 +1255,35 @@ export default function HPPSimulation() {
   // Handle group selection and update overhead costs
   const handleGroupSelection = (groupId) => {
     setSelectedGroup(groupId);
+    
+    // Auto-link LOB <-> Group: if group 8 (Produk Generik) is selected, set LOB to GENERIC
+    // If a non-8 group is selected and LOB is GENERIC, change LOB to ETHICAL
+    if (groupId === "8") {
+      if (editableLOB !== "GENERIC") {
+        setEditableLOB("GENERIC");
+      }
+    } else if (groupId && editableLOB === "GENERIC") {
+      setEditableLOB("ETHICAL");
+    }
+    
     if (groupId) {
       updateOverheadFromGroup(groupId);
+    }
+  };
+
+  // Handle LOB change with auto-group linkage
+  const handleLOBChange = (newLOB) => {
+    setEditableLOB(newLOB);
+    
+    // Auto-link: if LOB changes to GENERIC, auto-set group to 8 (Produk Generik)
+    // If LOB changes away from GENERIC and group is 8, clear group selection
+    if (newLOB === "GENERIC") {
+      if (selectedGroup !== "8") {
+        setSelectedGroup("8");
+        updateOverheadFromGroup("8");
+      }
+    } else if (selectedGroup === "8") {
+      setSelectedGroup("");
     }
   };
 
@@ -1675,6 +1715,7 @@ export default function HPPSimulation() {
         Item_Unit: material.Item_Unit,
         Item_Unit_Price: material.Item_Unit_Price,
         Tipe_Bahan: material.Tipe_Bahan,
+        Seq_ID: material.Seq_ID,
       })) || [];
 
       setEditableMaterialData(formattedMaterials);
@@ -1694,7 +1735,20 @@ export default function HPPSimulation() {
       });
 
       // Set simulation type and selected product info for context
-      setSimulationType("existing");
+      const isCustomSim = simulation.Simulasi_Type === "Product Custom";
+      
+      if (isCustomSim) {
+        setIsCustomFormula(true);
+        setCustomProductName(headerData.Product_Name || "");
+        setCustomFormulaName(headerData.Formula || "");
+        setCustomLine(headerData.Group_PNCategory_Dept || "PN1");
+        setEditableHNA(headerData.HNA || 0);
+        setSimulationType("custom");
+      } else {
+        setIsCustomFormula(false);
+        setSimulationType("existing");
+      }
+      
       setSelectedProduct({
         Product_ID: headerData.Product_ID,
         Product_Name: headerData.Product_Name,
@@ -1702,9 +1756,6 @@ export default function HPPSimulation() {
 
       // Set edit mode
       setIsEditMode(true);
-
-      // Reset custom formula state
-      setIsCustomFormula(false);
       
       // Go directly to Step 4: Simulation Results for editing
       setStep(4);
@@ -1789,6 +1840,7 @@ export default function HPPSimulation() {
     setCustomProductName("");
     setCustomFormulaName("");
     setCustomLine("PN1");
+    setEditableHNA(0);
 
     // Create mock simulation results for Step 4
     const mockCustomSimulation = {
@@ -2246,8 +2298,8 @@ export default function HPPSimulation() {
       setLoadingDetails(false); // Reset loading details state
       setError("");
 
-      // Reset custom formula state when editing regular simulation
-      setIsCustomFormula(false);
+      // Detect if this is a custom formula simulation
+      const isCustomSim = simulation.Simulasi_Type === "Product Custom";
 
       // First, load the simulation header, detail data, and summary
       const [headerResponse, materialsResponse, summaryResponse] = await Promise.all([
@@ -2422,8 +2474,19 @@ export default function HPPSimulation() {
         KS: formulaParts.ks,
       });
 
-      // Set simulation type and selected product info for context
-      setSimulationType("existing");
+      // Set up based on whether this is a custom formula simulation
+      if (isCustomSim) {
+        setIsCustomFormula(true);
+        setCustomProductName(headerData.Product_Name || "");
+        setCustomFormulaName(headerData.Formula || "");
+        setCustomLine(headerData.Group_PNCategory_Dept || "PN1");
+        setEditableHNA(headerData.HNA || 0);
+        setSimulationType("custom");
+      } else {
+        setIsCustomFormula(false);
+        setSimulationType("existing");
+      }
+      
       setSelectedProduct({
         Product_ID: headerData.Product_ID,
         Product_Name: headerData.Product_Name,
@@ -2460,7 +2523,7 @@ export default function HPPSimulation() {
       
       // Fetch HPP Results data for Before/After comparison
       const productId = simulation.Product_ID;
-      if (productId && simulation.Simulasi_Type !== "Custom Formula") {
+      if (productId && simulation.Simulasi_Type !== "Product Custom") {
         await fetchHppResultsForProduct(productId);
       } else {
         setHppResultsData(null); // Custom formula has no "before" data
@@ -2923,13 +2986,15 @@ export default function HPPSimulation() {
       setError("");
 
       if (isCustomFormula) {
-        // Handle custom formula saving - create new simulation
+        // Handle custom formula saving
         if (!customProductName.trim() || !customFormulaName.trim()) {
           setError(
             "Product name and formula name are required for custom formulas"
           );
           return;
         }
+
+        const existingSimulasiId = simulationResults?.[0]?.Simulasi_ID;
 
         // Prepare header data for custom formula
         const headerData = {
@@ -2964,6 +3029,7 @@ export default function HPPSimulation() {
           Margin: marginType === "percent" 
             ? (editableOverheadData.Margin || 0) / 100 
             : (editableOverheadData.Margin || 0),
+          HNA: editableHNA || 0,
           user_id: currentUser?.logNIK || null,
         };
 
@@ -2977,13 +3043,22 @@ export default function HPPSimulation() {
           Item_Unit_Price: item.Item_Unit_Price,
         }));
 
-        // Call the create simulation API (assuming you have this endpoint)
-        const response = await hppAPI.createCustomSimulation(
-          headerData,
-          materials
-        );
-
-        notifier.success("Custom formula simulation saved successfully!");
+        if (existingSimulasiId) {
+          // Update existing custom simulation
+          const response = await hppAPI.saveSimulation(
+            existingSimulasiId,
+            headerData,
+            materials
+          );
+          notifier.success(`Custom formula simulation updated successfully! Updated ${response.data.materialsInserted} materials.`);
+        } else {
+          // Create new custom simulation
+          const response = await hppAPI.createCustomSimulation(
+            headerData,
+            materials
+          );
+          notifier.success("Custom formula simulation saved successfully!");
+        }
 
         // Reset custom formula state and return to list
         setIsCustomFormula(false);
@@ -3616,7 +3691,7 @@ export default function HPPSimulation() {
       Periode:
         simulationResults[0].Periode || new Date().getFullYear().toString(),
       Simulasi_ID: simulationResults[0].Simulasi_ID,
-      Seq_ID: Math.max(...editableMaterialData.map((m) => m.Seq_ID || 0)) + 1,
+      Seq_ID: Math.max(0, ...editableMaterialData.map((m) => m.Seq_ID || 0)) + 1,
       Tipe_Bahan: addMaterialType,
       Item_ID: material.ITEM_ID,
       Item_Name: material.Item_Name,
@@ -3630,7 +3705,7 @@ export default function HPPSimulation() {
   };
 
   // Add custom material function - now opens the custom material input modal
-  const addCustomMaterial = () => {
+  const addCustomMaterial = async () => {
     // Reset custom material data and open the input modal
     setCustomMaterialData({
       name: '',
@@ -3641,6 +3716,46 @@ export default function HPPSimulation() {
       conversionRate: '',
     });
     setShowCustomMaterialModal(true);
+
+    // Load existing custom materials from past simulations
+    if (existingCustomMaterials.length === 0) {
+      setLoadingCustomMaterials(true);
+      try {
+        const response = await hppAPI.getCustomMaterials();
+        if (response.success && response.data) {
+          setExistingCustomMaterials(response.data);
+        }
+      } catch (error) {
+        console.error('Error loading custom materials:', error);
+      } finally {
+        setLoadingCustomMaterials(false);
+      }
+    }
+  };
+
+  // Handle selecting an existing custom material from past simulations
+  const handleSelectExistingCustomMaterial = (material) => {
+    const nextSeqId = Math.max(0, ...editableMaterialData.map((m) => m.Seq_ID || 0)) + 1;
+    const customMaterial = {
+      Periode: simulationResults[0]?.Periode || new Date().getFullYear().toString(),
+      Simulasi_ID: simulationResults[0]?.Simulasi_ID,
+      Seq_ID: nextSeqId,
+      Tipe_Bahan: material.Tipe_Bahan || addMaterialType,
+      Item_ID: "CUSTOM",
+      Item_Name: material.Item_Name,
+      Item_QTY: 0,
+      Item_Unit: material.Item_Unit,
+      Item_Unit_Price: material.Item_Unit_Price,
+      isCustom: true,
+    };
+
+    setEditableMaterialData([...editableMaterialData, customMaterial]);
+    setShowCustomMaterialModal(false);
+    setShowAddMaterialModal(false);
+
+    notifier.success(
+      `Material "${material.Item_Name}" ditambahkan dengan harga Rp ${Number(material.Item_Unit_Price).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} per ${material.Item_Unit}. Atur kuantitas di tabel.`
+    );
   };
 
   // Handle custom material input field changes
@@ -3703,7 +3818,7 @@ export default function HPPSimulation() {
     const priceInRupiah = purchasePriceNum * currencyRate;
     const unitPrice = priceInRupiah / conversionRateNum;
     
-    const nextSeqId = Math.max(...editableMaterialData.map((m) => m.Seq_ID || 0)) + 1;
+    const nextSeqId = Math.max(0, ...editableMaterialData.map((m) => m.Seq_ID || 0)) + 1;
     const customMaterial = {
       Periode: simulationResults[0].Periode || new Date().getFullYear().toString(),
       Simulasi_ID: simulationResults[0].Simulasi_ID,
@@ -5364,6 +5479,20 @@ export default function HPPSimulation() {
                           ))}
                         </select>
                       </div>
+                      <div className="custom-input-item">
+                        <label className="custom-input-label">
+                          HNA (Rp):
+                        </label>
+                        <input
+                          type="number"
+                          value={editableHNA || ""}
+                          onChange={(e) => setEditableHNA(parseFloat(e.target.value) || 0)}
+                          className="custom-input-field"
+                          placeholder="Enter HNA value"
+                          min="0"
+                          step="1"
+                        />
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -5420,7 +5549,7 @@ export default function HPPSimulation() {
                           normalizeLOB(simulationResults[0].LOB) ||
                           "ETHICAL"
                         }
-                        onChange={(e) => setEditableLOB(e.target.value)}
+                        onChange={(e) => handleLOBChange(e.target.value)}
                         className="summary-select-input"
                       >
                         <option value="ETHICAL">ETHICAL</option>
@@ -6673,24 +6802,32 @@ export default function HPPSimulation() {
                         Rp {formatNumber(calculateGrandTotal(), 2)}
                       </span>
                     </div>
-                    {simulationSummary && (
+                    {(simulationSummary || (isCustomFormula && editableHNA > 0)) && (
                       <div className="total-cost-item">
                         <span className="total-label">HNA:</span>
                         <span className="total-value">
-                          {formatHNA(simulationSummary.Product_SalesHNA)}
+                          {isCustomFormula 
+                            ? formatHNA(editableHNA)
+                            : formatHNA(simulationSummary?.Product_SalesHNA)
+                          }
                         </span>
                       </div>
                     )}
                     <div className="total-cost-item grand-total">
                       <span className="total-label">Cost per Unit:</span>
                       <span className="total-value">
-                        {simulationSummary ? 
-                          formatCostPerUnitWithRatio(
-                            calculateCostPerUnitWithRendemen(), 
-                            simulationSummary.HPP_Ratio
-                          ) : 
-                          `Rp ${formatNumber(calculateCostPerUnitWithRendemen(), 2)}`
-                        }
+                        {(() => {
+                          const costPerUnit = calculateCostPerUnitWithRendemen();
+                          const hna = isCustomFormula ? editableHNA : simulationSummary?.Product_SalesHNA;
+                          if (hna && hna > 0) {
+                            const ratio = costPerUnit / hna;
+                            return formatCostPerUnitWithRatio(costPerUnit, ratio);
+                          }
+                          if (simulationSummary?.HPP_Ratio) {
+                            return formatCostPerUnitWithRatio(costPerUnit, simulationSummary.HPP_Ratio);
+                          }
+                          return `Rp ${formatNumber(costPerUnit, 2)}`;
+                        })()}
                       </span>
                     </div>
                   </div>
@@ -7979,7 +8116,9 @@ export default function HPPSimulation() {
                         <td className="number final">
                           <strong>
                             Rp{" "}
-                            {simulationSummary?.HNA 
+                            {isCustomFormula && editableHNA > 0
+                              ? formatNumber(editableHNA, 0)
+                              : simulationSummary?.HNA 
                               ? formatNumber(simulationSummary.HNA, 0)
                               : hppResultsData?.Product_SalesHNA
                               ? formatNumber(hppResultsData.Product_SalesHNA, 0)
@@ -7993,7 +8132,7 @@ export default function HPPSimulation() {
                               const marginValue = calculateMarginValue() || 0;
                               const roundedValue = getRoundedValue() || 0;
                               const trueHPP = unitCost + marginValue + roundedValue;
-                              const hna = simulationSummary?.HNA || hppResultsData?.Product_SalesHNA;
+                              const hna = isCustomFormula ? editableHNA : (simulationSummary?.HNA || hppResultsData?.Product_SalesHNA);
                               
                               if (hna && hna > 0) {
                                 const ratio = (trueHPP / hna) * 100;
@@ -8596,6 +8735,43 @@ export default function HPPSimulation() {
             </div>
             <div className="custom-material-modal-content">
               <div className="custom-material-form">
+                {/* Existing Custom Materials Selector */}
+                {(existingCustomMaterials.length > 0 || loadingCustomMaterials) && (
+                  <div className="form-group existing-custom-materials-section">
+                    <label>Gunakan Material Custom Sebelumnya</label>
+                    {loadingCustomMaterials ? (
+                      <p className="loading-hint">Memuat material custom...</p>
+                    ) : (
+                      <div className="existing-custom-materials-list">
+                        {existingCustomMaterials
+                          .filter(m => !addMaterialType || m.Tipe_Bahan === addMaterialType)
+                          .map((mat, idx) => (
+                            <div
+                              key={idx}
+                              className="existing-custom-material-item"
+                              onClick={() => handleSelectExistingCustomMaterial(mat)}
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => { if (e.key === 'Enter') handleSelectExistingCustomMaterial(mat); }}
+                            >
+                              <div className="ecm-name">{mat.Item_Name}</div>
+                              <div className="ecm-details">
+                                Rp {Number(mat.Item_Unit_Price).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} / {mat.Item_Unit}
+                              </div>
+                            </div>
+                          ))
+                        }
+                        {existingCustomMaterials.filter(m => !addMaterialType || m.Tipe_Bahan === addMaterialType).length === 0 && (
+                          <p className="no-existing-hint">Tidak ada material custom {addMaterialType === "BB" ? "Bahan Baku" : "Bahan Kemas"} sebelumnya</p>
+                        )}
+                      </div>
+                    )}
+                    <div className="existing-custom-divider">
+                      <span>atau buat baru</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Material Name */}
                 <div className="form-group">
                   <label htmlFor="customMaterialName">Nama Material <span className="required">*</span></label>

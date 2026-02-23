@@ -125,6 +125,38 @@ async function getSimulationHeader(simulasiId) {
   }
 }
 
+// Get distinct custom materials from all simulations (deduplicated by Item_Name, keeping latest Simulasi_ID)
+async function getDistinctCustomMaterials() {
+  try {
+    const db = await connect();
+    const query = `
+      WITH RankedCustom AS (
+        SELECT
+          d.Item_Name,
+          d.Item_Unit_Price,
+          d.Item_Unit,
+          d.Tipe_Bahan,
+          d.Simulasi_ID,
+          ROW_NUMBER() OVER (PARTITION BY d.Item_Name ORDER BY d.Simulasi_ID DESC) AS rn
+        FROM dbo.t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan d
+        WHERE d.Item_ID = 'CUSTOM'
+          AND d.Item_Name IS NOT NULL
+          AND LTRIM(RTRIM(d.Item_Name)) <> ''
+      )
+      SELECT Item_Name, Item_Unit_Price, Item_Unit, Tipe_Bahan, Simulasi_ID
+      FROM RankedCustom
+      WHERE rn = 1
+      ORDER BY Item_Name
+    `;
+
+    const result = await db.request().query(query);
+    return result.recordset || [];
+  } catch (error) {
+    console.error("Error fetching distinct custom materials:", error);
+    throw error;
+  }
+}
+
 // Get simulation detail materials by Simulasi_ID
 async function getSimulationDetailBahan(simulasiId) {
   try {
@@ -151,6 +183,9 @@ async function updateSimulationHeader(simulasiId, headerData) {
     const query = `
       UPDATE t_COGS_HPP_Product_Header_Simulasi 
       SET 
+        Product_Name = COALESCE(@ProductName, Product_Name),
+        Formula = COALESCE(@Formula, Formula),
+        Group_PNCategory_Dept = COALESCE(@GroupPNCategoryDept, Group_PNCategory_Dept),
         Simulasi_Deskripsi = @SimulasiDeskripsi,
         Group_Rendemen = @GroupRendemen,
         Batch_Size = @BatchSize,
@@ -174,6 +209,7 @@ async function updateSimulationHeader(simulasiId, headerData) {
         Depresiasi = @Depresiasi,
         Beban_Sisa_Bahan_Exp = @BebanSisaBahanExp,
         Margin = @Margin,
+        HNA = @HNA,
         process_date = GETDATE()
       WHERE Simulasi_ID = @SimulasiId
     `;
@@ -181,6 +217,9 @@ async function updateSimulationHeader(simulasiId, headerData) {
     const result = await db
       .request()
       .input("SimulasiId", sql.Int, simulasiId)
+      .input("ProductName", sql.VarChar(100), headerData.Product_Name || null)
+      .input("Formula", sql.VarChar(100), headerData.Formula || null)
+      .input("GroupPNCategoryDept", sql.VarChar(50), headerData.Group_PNCategory_Dept || null)
       .input(
         "SimulasiDeskripsi",
         sql.VarChar(255),
@@ -224,6 +263,7 @@ async function updateSimulationHeader(simulasiId, headerData) {
         headerData.Beban_Sisa_Bahan_Exp || null
       )
       .input("Margin", sql.Decimal(18, 6), headerData.Margin || null)
+      .input("HNA", sql.Decimal(18, 4), headerData.HNA || null)
       .query(query);
 
     return result.rowsAffected[0];
@@ -249,7 +289,7 @@ async function createSimulationHeader(headerData) {
         Simulasi_Deskripsi, Simulasi_Date, Simulasi_Type, Group_Rendemen, Batch_Size, LOB, Versi,
         MH_Proses_Std, MH_Kemas_Std, MH_Analisa_Std, MH_Timbang_BB, MH_Timbang_BK, MH_Mesin_Std,
         Biaya_Proses, Biaya_Kemas, Biaya_Analisa, Biaya_Generik, Biaya_Reagen, Toll_Fee, Rate_PLN,
-        Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp, Margin,
+        Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp, Margin, HNA,
         user_id, process_date, flag_delete
       ) 
       VALUES (
@@ -257,7 +297,7 @@ async function createSimulationHeader(headerData) {
         @SimulasiDeskripsi, @SimulasiDate, @SimulasiType, @GroupRendemen, @BatchSize, @LOB, @Versi,
         @MHProsesStd, @MHKemasStd, @MHAnalisaStd, @MHTimbangBB, @MHTimbangBK, @MHMesinStd,
         @BiayaProses, @BiayaKemas, @BiayaAnalisa, @BiayaGenerik, @BiayaReagen, @TollFee, @RatePLN,
-        @DirectLabor, @FactoryOverHead, @Depresiasi, @BebanSisaBahanExp, @Margin,
+        @DirectLabor, @FactoryOverHead, @Depresiasi, @BebanSisaBahanExp, @Margin, @HNA,
         @UserId, GETDATE(), 0
       )
     `;
@@ -324,6 +364,7 @@ async function createSimulationHeader(headerData) {
         headerData.Beban_Sisa_Bahan_Exp || null
       )
       .input("Margin", sql.Decimal(18, 6), headerData.Margin || null)
+      .input("HNA", sql.Decimal(18, 4), headerData.HNA || null)
       .input("UserId", sql.VarChar(50), headerData.user_id || null)
       .query(query);
 
@@ -1408,6 +1449,7 @@ module.exports = {
   generateHPPSimulation,
   getSimulationHeader,
   getSimulationDetailBahan,
+  getDistinctCustomMaterials,
   createSimulationHeader,
   updateSimulationHeader,
   deleteSimulationMaterials,

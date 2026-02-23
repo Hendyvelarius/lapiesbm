@@ -35,6 +35,9 @@ router.post('/simulation/create-custom', HPPController.createCustomSimulation);
 // Body: { cloneDescription?: "Custom description for the clone" }
 router.post('/simulation/clone/:simulasiId', HPPController.cloneSimulation);
 
+// GET /api/hpp/simulation/custom-materials - Get distinct custom materials from past simulations
+router.get('/simulation/custom-materials', HPPController.getDistinctCustomMaterials);
+
 // GET /api/hpp/simulation/list - Get list of all simulation records (excludes soft-deleted)
 router.get('/simulation/list', HPPController.getSimulationList);
 

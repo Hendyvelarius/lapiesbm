@@ -1,4 +1,4 @@
-const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, getMarkedForDeleteList, deleteSimulation, markSimulationForDelete, restoreSimulation, bulkMarkForDelete, permanentlyDeleteMarked, getSimulationOwner, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk, bulkMarkPriceChangeGroupForDelete, bulkDeletePriceChangeGroup, getHPPActualList, getHPPActualPeriods, getHPPActualDetail, getHPPActualHeader, calculateHPPActual } = require('../models/hppModel');
+const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, getDistinctCustomMaterials, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, getMarkedForDeleteList, deleteSimulation, markSimulationForDelete, restoreSimulation, bulkMarkForDelete, permanentlyDeleteMarked, getSimulationOwner, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk, bulkMarkPriceChangeGroupForDelete, bulkDeletePriceChangeGroup, getHPPActualList, getHPPActualPeriods, getHPPActualDetail, getHPPActualHeader, calculateHPPActual } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
@@ -171,6 +171,25 @@ class HPPController {
       res.status(500).json({
         success: false,
         message: 'Error retrieving simulation detail bahan',
+        error: error.message
+      });
+    }
+  }
+
+  // Get distinct custom materials from all past simulations
+  static async getDistinctCustomMaterials(req, res) {
+    try {
+      const result = await getDistinctCustomMaterials();
+      res.status(200).json({
+        success: true,
+        message: `Found ${result.length} distinct custom materials`,
+        data: result
+      });
+    } catch (error) {
+      console.error('Get Distinct Custom Materials Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving custom materials',
         error: error.message
       });
     }

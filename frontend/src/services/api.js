@@ -185,6 +185,9 @@ export const hppAPI = {
     body: JSON.stringify({ cloneDescription, userId }),
   }),
 
+  // Get distinct custom materials from past simulations
+  getCustomMaterials: () => apiRequest('/hpp/simulation/custom-materials'),
+
   // Get list of all simulation records
   getSimulationList: () => apiRequest('/hpp/simulation/list'),
 
