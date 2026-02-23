@@ -1169,6 +1169,8 @@ async function getHPPActualList(periode = null) {
         ISNULL(h.MH_Timbang_BB, 0) * ISNULL(h.Rate_MH_Timbang, 0) as Biaya_Timbang_BB,
         ISNULL(h.MH_Timbang_BK, 0) * ISNULL(h.Rate_MH_Timbang, 0) as Biaya_Timbang_BK,
         -- Calculate Total HPP per Batch
+        -- Ethical: BB + BK + Proses + Kemas + Expiry + Toll + Lain (NO FOH, NO Depresiasi)
+        -- Generic: Full calculation including FOH and Depresiasi
         (
           ISNULL(h.Total_Cost_BB, 0) +
           ISNULL(h.Total_Cost_BK, 0) +
@@ -1176,10 +1178,10 @@ async function getHPPActualList(periode = null) {
           (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Rate_MH_Kemas, 0)) +
           (ISNULL(h.MH_Timbang_BB, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
           (ISNULL(h.MH_Timbang_BK, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
-          (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Factory_Overhead, 0)) +
-          (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Factory_Overhead, 0)) +
-          (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Depresiasi, 0)) +
-          (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Depresiasi, 0)) +
+          CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
+          CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
+          CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
+          CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
           ISNULL(h.Biaya_Analisa, 0) +
           ISNULL(h.Biaya_Reagen, 0) +
           ISNULL(h.Cost_Utility, 0) +
@@ -1197,10 +1199,10 @@ async function getHPPActualList(periode = null) {
               (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Rate_MH_Kemas, 0)) +
               (ISNULL(h.MH_Timbang_BB, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
               (ISNULL(h.MH_Timbang_BK, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
-              (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Factory_Overhead, 0)) +
-              (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Factory_Overhead, 0)) +
-              (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Depresiasi, 0)) +
-              (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Depresiasi, 0)) +
+              CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
+              CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
+              CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
+              CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
               ISNULL(h.Biaya_Analisa, 0) +
               ISNULL(h.Biaya_Reagen, 0) +
               ISNULL(h.Cost_Utility, 0) +
@@ -1221,10 +1223,10 @@ async function getHPPActualList(periode = null) {
                 (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Rate_MH_Kemas, 0)) +
                 (ISNULL(h.MH_Timbang_BB, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
                 (ISNULL(h.MH_Timbang_BK, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
-                (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Factory_Overhead, 0)) +
-                (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Factory_Overhead, 0)) +
-                (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Depresiasi, 0)) +
-                (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Depresiasi, 0)) +
+                CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
+                CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
+                CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
+                CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
                 ISNULL(h.Biaya_Analisa, 0) +
                 ISNULL(h.Biaya_Reagen, 0) +
                 ISNULL(h.Cost_Utility, 0) +

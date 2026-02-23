@@ -53,6 +53,27 @@ const formatHPPRatio = (ratio) => {
   return `${percentage.replace('.', ',')}%`;
 };
 
+// Color comparison helper: returns CSS class based on actual vs standard
+// For cost/quantity fields: lower or equal = green (good), higher = red (bad)
+const getComparisonClass = (actualValue, standardValue) => {
+  if (standardValue === null || standardValue === undefined || standardValue === 0) return '';
+  if (actualValue === null || actualValue === undefined) return '';
+  const actual = parseFloat(actualValue) || 0;
+  const standard = parseFloat(standardValue) || 0;
+  if (actual <= standard) return 'cost-lower';
+  return 'cost-higher';
+};
+
+// For Output: higher or equal actual output = green (good), lower = red (bad)
+const getOutputComparisonClass = (actualValue, standardValue) => {
+  if (standardValue === null || standardValue === undefined || standardValue === 0) return '';
+  if (actualValue === null || actualValue === undefined) return '';
+  const actual = parseFloat(actualValue) || 0;
+  const standard = parseFloat(standardValue) || 0;
+  if (actual >= standard) return 'cost-lower';
+  return 'cost-higher';
+};
+
 // Pagination Component
 const Pagination = ({ currentPage, totalPages, onPageChange, totalItems }) => {
   const getVisiblePages = () => {
@@ -106,7 +127,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange, totalItems }) => {
 };
 
 // Ethical/OTC Table Component
-const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onBatchClick }) => (
+const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onBatchClick, standardHPPMap }) => (
   <div className="hpp-actual-table-container">
     <div className="hpp-actual-table-header">
       <h3><FileText className="hpp-actual-table-icon" />Ethical / OTC Products</h3>
@@ -140,33 +161,38 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
             <th>Biaya Proses</th>
             <th>Biaya Kemas</th>
             <th>Expiry Cost</th>
-            <th>Total HPP</th>
+            <th>HPP</th>
             <th>HPP/Unit</th>
             <th>HNA</th>
             <th>HPP/HNA</th>
           </tr>
         </thead>
         <tbody>
-          {data.map((item, index) => (
+          {data.map((item, index) => {
+            const std = standardHPPMap[item.Product_ID];
+            const actualMHProses = item.MH_Proses_Actual ?? item.MH_Proses_Std;
+            const actualMHKemas = item.MH_Kemas_Actual ?? item.MH_Kemas_Std;
+            return (
             <tr key={`${item.HPP_Actual_ID}-${index}`}>
               <td>{item.Product_ID}</td>
               <td className="product-name clickable" onClick={() => onBatchClick(item)}>{item.Product_Name}</td>
               <td className="batch-no">{item.BatchNo}</td>
               <td>{formatDate(item.BatchDate)}</td>
-              <td className="number">{formatNumber(item.Output_Actual, 0)}</td>
-              <td className="number">{formatCurrency(item.Total_Cost_BB)}</td>
-              <td className="number">{formatCurrency(item.Total_Cost_BK)}</td>
-              <td className="number">{item.MH_Proses_Actual ? <span className="actual">{formatNumber(item.MH_Proses_Actual)}</span> : <span className="std">{formatNumber(item.MH_Proses_Std)}</span>}</td>
-              <td className="number">{item.MH_Kemas_Actual ? <span className="actual">{formatNumber(item.MH_Kemas_Actual)}</span> : <span className="std">{formatNumber(item.MH_Kemas_Std)}</span>}</td>
-              <td className="number">{formatCurrency(item.Biaya_Proses)}</td>
-              <td className="number">{formatCurrency(item.Biaya_Kemas)}</td>
+              <td className={`number ${std ? getOutputComparisonClass(item.Output_Actual, std.expectedOutput) : ''}`}>{formatNumber(item.Output_Actual, 0)}</td>
+              <td className={`number ${std ? getComparisonClass(item.Total_Cost_BB, std.totalBB) : ''}`}>{formatCurrency(item.Total_Cost_BB)}</td>
+              <td className={`number ${std ? getComparisonClass(item.Total_Cost_BK, std.totalBK) : ''}`}>{formatCurrency(item.Total_Cost_BK)}</td>
+              <td className={`number ${std ? getComparisonClass(actualMHProses, std.mhProsesStd) : ''}`}>{item.MH_Proses_Actual ? <span>{formatNumber(item.MH_Proses_Actual)}</span> : <span className="std-italic">{formatNumber(item.MH_Proses_Std)}</span>}</td>
+              <td className={`number ${std ? getComparisonClass(actualMHKemas, std.mhKemasStd) : ''}`}>{item.MH_Kemas_Actual ? <span>{formatNumber(item.MH_Kemas_Actual)}</span> : <span className="std-italic">{formatNumber(item.MH_Kemas_Std)}</span>}</td>
+              <td className={`number ${std ? getComparisonClass(actualMHProses, std.mhProsesStd) : ''}`}>{formatCurrency(item.Biaya_Proses)}</td>
+              <td className={`number ${std ? getComparisonClass(actualMHKemas, std.mhKemasStd) : ''}`}>{formatCurrency(item.Biaya_Kemas)}</td>
               <td className="number">{formatCurrency(item.Beban_Sisa_Bahan_Exp)}</td>
-              <td className="number hpp-value">{formatCurrency(item.Total_HPP_Batch)}</td>
-              <td className="number hpp-unit">{formatCurrency(item.HPP_Per_Unit)}</td>
+              <td className={`number ${std ? getComparisonClass(item.Total_HPP_Batch, std.totalHPPBatch) : ''}`} style={{fontWeight: 600}}>{formatCurrency(item.Total_HPP_Batch)}</td>
+              <td className={`number ${std ? getComparisonClass(item.HPP_Per_Unit, std.hppPerUnit) : ''}`} style={{fontWeight: 500}}>{formatCurrency(item.HPP_Per_Unit)}</td>
               <td className="number hna-value">{formatCurrency(item.HNA)}</td>
               <td className="number hpp-ratio">{formatHPPRatio(item.HPP_Ratio)}</td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -175,7 +201,7 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
 );
 
 // Generic Table Component
-const GenericTable = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onBatchClick }) => (
+const GenericTable = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onBatchClick, standardHPPMap }) => (
   <div className="hpp-actual-table-container">
     <div className="hpp-actual-table-header">
       <h3><FileText className="hpp-actual-table-icon" />Generic Products</h3>
@@ -210,34 +236,39 @@ const GenericTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
             <th>Factory OH</th>
             <th>Depresiasi</th>
             <th>Expiry Cost</th>
-            <th>Total HPP</th>
+            <th>HPP</th>
             <th>HPP/Unit</th>
             <th>HNA</th>
             <th>HPP/HNA</th>
           </tr>
         </thead>
         <tbody>
-          {data.map((item, index) => (
+          {data.map((item, index) => {
+            const std = standardHPPMap[item.Product_ID];
+            const actualMHProses = item.MH_Proses_Actual ?? item.MH_Proses_Std;
+            const actualMHKemas = item.MH_Kemas_Actual ?? item.MH_Kemas_Std;
+            return (
             <tr key={`${item.HPP_Actual_ID}-${index}`}>
               <td>{item.Product_ID}</td>
               <td className="product-name clickable" onClick={() => onBatchClick(item)}>{item.Product_Name}</td>
               <td className="batch-no">{item.BatchNo}</td>
               <td>{formatDate(item.BatchDate)}</td>
-              <td className="number">{formatNumber(item.Output_Actual, 0)}</td>
-              <td className="number">{formatCurrency(item.Total_Cost_BB)}</td>
-              <td className="number">{formatCurrency(item.Total_Cost_BK)}</td>
-              <td className="number">{item.MH_Proses_Actual ? <span className="actual">{formatNumber(item.MH_Proses_Actual)}</span> : <span className="std">{formatNumber(item.MH_Proses_Std)}</span>}</td>
-              <td className="number">{item.MH_Kemas_Actual ? <span className="actual">{formatNumber(item.MH_Kemas_Actual)}</span> : <span className="std">{formatNumber(item.MH_Kemas_Std)}</span>}</td>
+              <td className={`number ${std ? getOutputComparisonClass(item.Output_Actual, std.expectedOutput) : ''}`}>{formatNumber(item.Output_Actual, 0)}</td>
+              <td className={`number ${std ? getComparisonClass(item.Total_Cost_BB, std.totalBB) : ''}`}>{formatCurrency(item.Total_Cost_BB)}</td>
+              <td className={`number ${std ? getComparisonClass(item.Total_Cost_BK, std.totalBK) : ''}`}>{formatCurrency(item.Total_Cost_BK)}</td>
+              <td className={`number ${std ? getComparisonClass(actualMHProses, std.mhProsesStd) : ''}`}>{item.MH_Proses_Actual ? <span>{formatNumber(item.MH_Proses_Actual)}</span> : <span className="std-italic">{formatNumber(item.MH_Proses_Std)}</span>}</td>
+              <td className={`number ${std ? getComparisonClass(actualMHKemas, std.mhKemasStd) : ''}`}>{item.MH_Kemas_Actual ? <span>{formatNumber(item.MH_Kemas_Actual)}</span> : <span className="std-italic">{formatNumber(item.MH_Kemas_Std)}</span>}</td>
               <td className="number">{formatCurrency(item.Direct_Labor)}</td>
               <td className="number">{formatCurrency(item.Factory_Overhead)}</td>
               <td className="number">{formatCurrency(item.Depresiasi)}</td>
               <td className="number">{formatCurrency(item.Beban_Sisa_Bahan_Exp)}</td>
-              <td className="number hpp-value">{formatCurrency(item.Total_HPP_Batch)}</td>
-              <td className="number hpp-unit">{formatCurrency(item.HPP_Per_Unit)}</td>
+              <td className={`number ${std ? getComparisonClass(item.Total_HPP_Batch, std.totalHPPBatch) : ''}`} style={{fontWeight: 600}}>{formatCurrency(item.Total_HPP_Batch)}</td>
+              <td className={`number ${std ? getComparisonClass(item.HPP_Per_Unit, std.hppPerUnit) : ''}`} style={{fontWeight: 500}}>{formatCurrency(item.HPP_Per_Unit)}</td>
               <td className="number hna-value">{formatCurrency(item.HNA)}</td>
               <td className="number hpp-ratio">{formatHPPRatio(item.HPP_Ratio)}</td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -667,6 +698,7 @@ const HPPActualList = ({ user }) => {
   const [activeTab, setActiveTab] = useState('ethical');
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
+  const [standardHPPMap, setStandardHPPMap] = useState({});
 
   // Modal state
   const [selectedBatch, setSelectedBatch] = useState(null);
@@ -735,6 +767,48 @@ const HPPActualList = ({ user }) => {
       } else {
         setError('Failed to load batches');
         setBatches([]);
+      }
+      
+      // Also fetch standard HPP for the year to enable color comparison
+      const year = periode.substring(0, 4);
+      try {
+        const stdResponse = await hppAPI.getResults(year);
+        if (stdResponse) {
+          const ethicalStd = stdResponse.ethical || [];
+          const generik1Std = stdResponse.generik1 || [];
+          // Note: generik2 (3rd recordset) is an alternative calculation method and must be ignored
+          
+          const map = {};
+          [...ethicalStd, ...generik1Std].forEach(p => {
+            const batchSize = parseFloat(p.Batch_Size) || 0;
+            const rendemen = parseFloat(p.Group_Rendemen) || 100;
+            const totalBB = parseFloat(p.totalBB) || 0;
+            const totalBK = parseFloat(p.totalBK) || 0;
+            const mhProsesStd = parseFloat(p.MH_Proses_Std) || 0;
+            const mhKemasStd = parseFloat(p.MH_Kemas_Std) || 0;
+            const hpp = parseFloat(p.HPP) || 0;
+            const expectedOutput = batchSize * rendemen / 100;
+            
+            // Total HPP Estimasi = HPP per unit × expected output
+            // Using the SP's precomputed HPP per unit is more reliable than manually summing components
+            const totalHPPBatch = hpp * expectedOutput;
+            
+            map[p.Product_ID] = {
+              expectedOutput,
+              totalBB,
+              totalBK,
+              mhProsesStd,
+              mhKemasStd,
+              totalHPPBatch,
+              hppPerUnit: hpp,
+            };
+          });
+          
+          setStandardHPPMap(map);
+        }
+      } catch (stdErr) {
+        console.warn('Could not load standard HPP for comparison:', stdErr);
+        // Non-critical - color coding just won't show
       }
     } catch (err) {
       console.error('Error loading batches:', err);
@@ -985,7 +1059,8 @@ const HPPActualList = ({ user }) => {
       pagination: currentPagination,
       onPageChange: (page) => handlePageChange(activeTab, page),
       totalPages: currentData.totalPages,
-      onBatchClick: handleBatchClick
+      onBatchClick: handleBatchClick,
+      standardHPPMap
     };
 
     return activeTab === 'ethical' ? <EthicalTable {...tableProps} /> : <GenericTable {...tableProps} />;

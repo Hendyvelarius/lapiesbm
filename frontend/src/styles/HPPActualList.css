@@ -364,6 +364,22 @@
   font-style: italic;
 }
 
+.hpp-actual-table .std-italic {
+  font-style: italic;
+  opacity: 0.8;
+}
+
+/* Cost comparison color coding: green = lower/equal to standard, red = higher than standard */
+.hpp-actual-table .cost-lower {
+  color: #059669;
+  font-weight: 600;
+}
+
+.hpp-actual-table .cost-higher {
+  color: #dc2626;
+  font-weight: 600;
+}
+
 .hpp-actual-table .hpp-value {
   font-weight: 600;
   color: #1e40af;
