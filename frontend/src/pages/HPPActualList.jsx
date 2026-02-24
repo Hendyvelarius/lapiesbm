@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Download, FileText, Loader2, ChevronLeft, ChevronRight, Search, RefreshCw, X, Calculator, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Download, FileText, Loader2, ChevronLeft, ChevronRight, Search, RefreshCw, X, Calculator, AlertCircle, CheckCircle2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -64,6 +64,15 @@ const getComparisonClass = (actualValue, standardValue) => {
   return 'cost-higher';
 };
 
+// HPP/HNA risk level: <25% = low (green), 25-39.9% = medium (yellow), >=40% = high (red)
+const getHPPRatioClass = (ratio) => {
+  if (!ratio || isNaN(ratio)) return '';
+  const value = parseFloat(ratio);
+  if (value >= 40) return 'ratio-high';
+  if (value >= 25) return 'ratio-medium';
+  return 'ratio-low';
+};
+
 // For Output: higher or equal actual output = green (good), lower = red (bad)
 const getOutputComparisonClass = (actualValue, standardValue) => {
   if (standardValue === null || standardValue === undefined || standardValue === 0) return '';
@@ -126,8 +135,24 @@ const Pagination = ({ currentPage, totalPages, onPageChange, totalItems }) => {
   );
 };
 
+// Sortable column header helper
+const SortableHeader = ({ label, columnKey, sortConfig, onSort }) => {
+  const isActive = sortConfig.key === columnKey;
+  const icon = isActive
+    ? (sortConfig.direction === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)
+    : <ArrowUpDown size={12} />;
+  return (
+    <th className="sortable-header" onClick={() => onSort(columnKey)}>
+      <div className="sortable-header-content">
+        <span>{label}</span>
+        <span className={`sort-icon ${isActive ? 'active' : ''}`}>{icon}</span>
+      </div>
+    </th>
+  );
+};
+
 // Ethical/OTC Table Component
-const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onBatchClick, standardHPPMap }) => (
+const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onBatchClick, standardHPPMap, sortConfig, onSort }) => (
   <div className="hpp-actual-table-container">
     <div className="hpp-actual-table-header">
       <h3><FileText className="hpp-actual-table-icon" />Ethical / OTC Products</h3>
@@ -149,22 +174,22 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
       <table className="hpp-actual-table">
         <thead>
           <tr>
-            <th>Product ID</th>
-            <th>Product Name</th>
-            <th>Batch No</th>
-            <th>Batch Date</th>
-            <th>Output</th>
-            <th>Total BB</th>
-            <th>Total BK</th>
-            <th>MH Proses</th>
-            <th>MH Kemas</th>
-            <th>Biaya Proses</th>
-            <th>Biaya Kemas</th>
-            <th>Expiry Cost</th>
-            <th>HPP</th>
-            <th>HPP/Unit</th>
-            <th>HNA</th>
-            <th>HPP/HNA</th>
+            <SortableHeader label="Product ID" columnKey="Product_ID" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Product Name" columnKey="Product_Name" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Batch No" columnKey="BatchNo" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Batch Date" columnKey="BatchDate" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Output" columnKey="Output_Actual" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Total BB" columnKey="Total_Cost_BB" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Total BK" columnKey="Total_Cost_BK" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="MH Proses" columnKey="MH_Proses_Sort" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="MH Kemas" columnKey="MH_Kemas_Sort" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Biaya Proses" columnKey="Biaya_Proses" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Biaya Kemas" columnKey="Biaya_Kemas" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Expiry Cost" columnKey="Beban_Sisa_Bahan_Exp" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="HPP" columnKey="Total_HPP_Batch" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="HPP/Unit" columnKey="HPP_Per_Unit" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="HNA" columnKey="HNA" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="HPP/HNA" columnKey="HPP_Ratio" sortConfig={sortConfig} onSort={onSort} />
           </tr>
         </thead>
         <tbody>
@@ -189,7 +214,7 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
               <td className={`number ${std ? getComparisonClass(item.Total_HPP_Batch, std.totalHPPBatch) : ''}`} style={{fontWeight: 600}}>{formatCurrency(item.Total_HPP_Batch)}</td>
               <td className={`number ${std ? getComparisonClass(item.HPP_Per_Unit, std.hppPerUnit) : ''}`} style={{fontWeight: 500}}>{formatCurrency(item.HPP_Per_Unit)}</td>
               <td className="number hna-value">{formatCurrency(item.HNA)}</td>
-              <td className="number hpp-ratio">{formatHPPRatio(item.HPP_Ratio)}</td>
+              <td className={`number hpp-ratio ${getHPPRatioClass(item.HPP_Ratio)}`}>{formatHPPRatio(item.HPP_Ratio)}</td>
             </tr>
             );
           })}
@@ -201,7 +226,7 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
 );
 
 // Generic Table Component
-const GenericTable = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onBatchClick, standardHPPMap }) => (
+const GenericTable = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onBatchClick, standardHPPMap, sortConfig, onSort }) => (
   <div className="hpp-actual-table-container">
     <div className="hpp-actual-table-header">
       <h3><FileText className="hpp-actual-table-icon" />Generic Products</h3>
@@ -223,23 +248,23 @@ const GenericTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
       <table className="hpp-actual-table">
         <thead>
           <tr>
-            <th>Product ID</th>
-            <th>Product Name</th>
-            <th>Batch No</th>
-            <th>Batch Date</th>
-            <th>Output</th>
-            <th>Total BB</th>
-            <th>Total BK</th>
-            <th>MH Proses</th>
-            <th>MH Kemas</th>
-            <th>Direct Labor</th>
-            <th>Factory OH</th>
-            <th>Depresiasi</th>
-            <th>Expiry Cost</th>
-            <th>HPP</th>
-            <th>HPP/Unit</th>
-            <th>HNA</th>
-            <th>HPP/HNA</th>
+            <SortableHeader label="Product ID" columnKey="Product_ID" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Product Name" columnKey="Product_Name" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Batch No" columnKey="BatchNo" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Batch Date" columnKey="BatchDate" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Output" columnKey="Output_Actual" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Total BB" columnKey="Total_Cost_BB" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Total BK" columnKey="Total_Cost_BK" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="MH Proses" columnKey="MH_Proses_Sort" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="MH Kemas" columnKey="MH_Kemas_Sort" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Direct Labor" columnKey="Direct_Labor" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Factory OH" columnKey="Factory_Overhead" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Depresiasi" columnKey="Depresiasi" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Expiry Cost" columnKey="Beban_Sisa_Bahan_Exp" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="HPP" columnKey="Total_HPP_Batch" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="HPP/Unit" columnKey="HPP_Per_Unit" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="HNA" columnKey="HNA" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="HPP/HNA" columnKey="HPP_Ratio" sortConfig={sortConfig} onSort={onSort} />
           </tr>
         </thead>
         <tbody>
@@ -265,7 +290,7 @@ const GenericTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
               <td className={`number ${std ? getComparisonClass(item.Total_HPP_Batch, std.totalHPPBatch) : ''}`} style={{fontWeight: 600}}>{formatCurrency(item.Total_HPP_Batch)}</td>
               <td className={`number ${std ? getComparisonClass(item.HPP_Per_Unit, std.hppPerUnit) : ''}`} style={{fontWeight: 500}}>{formatCurrency(item.HPP_Per_Unit)}</td>
               <td className="number hna-value">{formatCurrency(item.HNA)}</td>
-              <td className="number hpp-ratio">{formatHPPRatio(item.HPP_Ratio)}</td>
+              <td className={`number hpp-ratio ${getHPPRatioClass(item.HPP_Ratio)}`}>{formatHPPRatio(item.HPP_Ratio)}</td>
             </tr>
             );
           })}
@@ -715,6 +740,12 @@ const HPPActualList = ({ user }) => {
   const [calculateResult, setCalculateResult] = useState(null);
   const [calculateError, setCalculateError] = useState(null);
 
+  // Sort state for each tab
+  const [sortConfigs, setSortConfigs] = useState({
+    ethical: { key: null, direction: 'asc' },
+    generic: { key: null, direction: 'asc' }
+  });
+
   // Pagination state for each tab
   const [pagination, setPagination] = useState({
     ethical: { currentPage: 1, itemsPerPage: 50 },
@@ -888,24 +919,77 @@ const HPPActualList = ({ user }) => {
     }));
   };
 
-  // Process data
+  // Handle sort change
+  const handleSort = (tableType, columnKey) => {
+    setSortConfigs(prev => {
+      const current = prev[tableType];
+      let newDirection = 'asc';
+      if (current.key === columnKey) {
+        // Cycle: asc -> desc -> none
+        if (current.direction === 'asc') newDirection = 'desc';
+        else return { ...prev, [tableType]: { key: null, direction: 'asc' } };
+      }
+      return { ...prev, [tableType]: { key: columnKey, direction: newDirection } };
+    });
+    // Reset to page 1 when sorting changes
+    setPagination(prev => ({
+      ...prev,
+      [tableType]: { ...prev[tableType], currentPage: 1 }
+    }));
+  };
+
+  // Sort data by column
+  const getSortedData = (data, sortConfig) => {
+    if (!sortConfig.key) return data;
+    return [...data].sort((a, b) => {
+      let aVal, bVal;
+      // MH columns use actual if available, else std
+      if (sortConfig.key === 'MH_Proses_Sort') {
+        aVal = a.MH_Proses_Actual ?? a.MH_Proses_Std ?? 0;
+        bVal = b.MH_Proses_Actual ?? b.MH_Proses_Std ?? 0;
+      } else if (sortConfig.key === 'MH_Kemas_Sort') {
+        aVal = a.MH_Kemas_Actual ?? a.MH_Kemas_Std ?? 0;
+        bVal = b.MH_Kemas_Actual ?? b.MH_Kemas_Std ?? 0;
+      } else {
+        aVal = a[sortConfig.key];
+        bVal = b[sortConfig.key];
+      }
+      // Handle nulls
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      // String comparison for text columns
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sortConfig.direction === 'asc'
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+      // Numeric comparison
+      return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+  };
+
+  // Process data (filter -> sort -> paginate)
   const processedData = useMemo(() => {
     const ethicalFiltered = getFilteredData(splitBatches.ethical, searchTerms.ethical);
     const genericFiltered = getFilteredData(splitBatches.generic, searchTerms.generic);
 
+    const ethicalSorted = getSortedData(ethicalFiltered, sortConfigs.ethical);
+    const genericSorted = getSortedData(genericFiltered, sortConfigs.generic);
+
     return {
       ethical: {
-        filtered: ethicalFiltered,
-        paginated: getPaginatedData(ethicalFiltered, pagination.ethical.currentPage, pagination.ethical.itemsPerPage),
-        totalPages: Math.ceil(ethicalFiltered.length / pagination.ethical.itemsPerPage)
+        filtered: ethicalSorted,
+        paginated: getPaginatedData(ethicalSorted, pagination.ethical.currentPage, pagination.ethical.itemsPerPage),
+        totalPages: Math.ceil(ethicalSorted.length / pagination.ethical.itemsPerPage)
       },
       generic: {
-        filtered: genericFiltered,
-        paginated: getPaginatedData(genericFiltered, pagination.generic.currentPage, pagination.generic.itemsPerPage),
-        totalPages: Math.ceil(genericFiltered.length / pagination.generic.itemsPerPage)
+        filtered: genericSorted,
+        paginated: getPaginatedData(genericSorted, pagination.generic.currentPage, pagination.generic.itemsPerPage),
+        totalPages: Math.ceil(genericSorted.length / pagination.generic.itemsPerPage)
       }
     };
-  }, [splitBatches, searchTerms, pagination]);
+  }, [splitBatches, searchTerms, sortConfigs, pagination]);
 
   // Tab configuration
   const tabs = [
@@ -1060,7 +1144,9 @@ const HPPActualList = ({ user }) => {
       onPageChange: (page) => handlePageChange(activeTab, page),
       totalPages: currentData.totalPages,
       onBatchClick: handleBatchClick,
-      standardHPPMap
+      standardHPPMap,
+      sortConfig: sortConfigs[activeTab],
+      onSort: (columnKey) => handleSort(activeTab, columnKey)
     };
 
     return activeTab === 'ethical' ? <EthicalTable {...tableProps} /> : <GenericTable {...tableProps} />;
