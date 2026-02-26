@@ -361,6 +361,12 @@ export default function HPPSimulation() {
     'BTL-BTL': 1,
     'TAB-TAB': 1,
     'CAP-CAP': 1,
+    'ROLL-ROLL': 1,
+    'LEMBAR-LEMBAR': 1,
+    'BUAH-BUAH': 1,
+    'AMPUL-AMPUL': 1,
+    'VIAL-VIAL': 1,
+    'TSS-TSS': 1,
   };
 
   // Available units for selection
@@ -375,6 +381,12 @@ export default function HPPSimulation() {
     { value: 'BTL', label: 'Bottle (BTL)' },
     { value: 'TAB', label: 'Tablet (TAB)' },
     { value: 'CAP', label: 'Capsule (CAP)' },
+    { value: 'ROLL', label: 'Roll (ROLL)' },
+    { value: 'LEMBAR', label: 'Lembar (LEMBAR)' },
+    { value: 'BUAH', label: 'Buah (BUAH)' },
+    { value: 'AMPUL', label: 'Ampul (AMPUL)' },
+    { value: 'VIAL', label: 'Vial (VIAL)' },
+    { value: 'TSS', label: 'TSS (TSS)' },
   ];
 
   // Fetch material names for a group and cache the result (using cached materials)
