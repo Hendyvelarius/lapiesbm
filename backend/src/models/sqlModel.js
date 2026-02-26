@@ -1191,12 +1191,19 @@ async function getMaterial() {
   try {
     const db = await connect();
     const query = `
-      SELECT h.Periode, h.ITEM_ID, h.ITEM_TYPE, m.Item_Name, m.Item_Unit,
-             dbo.fnConvertBJ(h.ITEM_ID, 1, h.item_purchase_unit, m.Item_Unit)
-               * h.ITEM_PURCHASE_STD_PRICE
-               * ISNULL(c.Kurs, 1) AS Unit_Price
+      SELECT h.Periode, h.ITEM_ID, h.ITEM_TYPE,
+             COALESCE(m.Item_Name, h.ITEM_ID) AS Item_Name,
+             COALESCE(m.Item_Unit, h.ITEM_PURCHASE_UNIT) AS Item_Unit,
+             CASE
+               WHEN m.Item_ID IS NOT NULL THEN
+                 dbo.fnConvertBJ(h.ITEM_ID, 1, h.item_purchase_unit, m.Item_Unit)
+                 * h.ITEM_PURCHASE_STD_PRICE
+                 * ISNULL(c.Kurs, 1)
+               ELSE
+                 h.ITEM_PURCHASE_STD_PRICE * ISNULL(c.Kurs, 1)
+             END AS Unit_Price
       FROM M_COGS_STD_HRG_BAHAN h
-      INNER JOIN m_item_Manufacturing m ON h.ITEM_ID = m.Item_ID
+      LEFT JOIN m_item_Manufacturing m ON h.ITEM_ID = m.Item_ID
       LEFT JOIN vw_COGS_Currency_List c
         ON h.ITEM_CURRENCY = c.Curr_Code AND h.Periode = c.Periode
       WHERE h.ITEM_ID NOT LIKE '(NONE)'
@@ -1213,12 +1220,19 @@ async function getMaterialByPeriode(periode) {
   try {
     const db = await connect();
     let query = `
-      SELECT h.ITEM_ID, h.ITEM_TYPE, m.Item_Name, m.Item_Unit, 
-             dbo.fnConvertBJ(h.ITEM_ID, 1, h.item_purchase_unit, m.Item_Unit)
-               * h.ITEM_PURCHASE_STD_PRICE
-               * ISNULL(c.Kurs, 1) AS Unit_Price 
-      FROM M_COGS_STD_HRG_BAHAN h 
-      INNER JOIN m_item_Manufacturing m ON h.ITEM_ID = m.Item_ID 
+      SELECT h.ITEM_ID, h.ITEM_TYPE,
+             COALESCE(m.Item_Name, h.ITEM_ID) AS Item_Name,
+             COALESCE(m.Item_Unit, h.ITEM_PURCHASE_UNIT) AS Item_Unit,
+             CASE
+               WHEN m.Item_ID IS NOT NULL THEN
+                 dbo.fnConvertBJ(h.ITEM_ID, 1, h.item_purchase_unit, m.Item_Unit)
+                 * h.ITEM_PURCHASE_STD_PRICE
+                 * ISNULL(c.Kurs, 1)
+               ELSE
+                 h.ITEM_PURCHASE_STD_PRICE * ISNULL(c.Kurs, 1)
+             END AS Unit_Price
+      FROM M_COGS_STD_HRG_BAHAN h
+      LEFT JOIN m_item_Manufacturing m ON h.ITEM_ID = m.Item_ID
       LEFT JOIN vw_COGS_Currency_List c
         ON h.ITEM_CURRENCY = c.Curr_Code AND h.Periode = c.Periode
       WHERE h.ITEM_ID NOT LIKE '(NONE)'
