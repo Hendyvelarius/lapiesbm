@@ -309,6 +309,10 @@ export default function HPPSimulation() {
   const [groupsData, setGroupsData] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
 
+  // Group change confirmation modal state
+  const [showGroupChangeModal, setShowGroupChangeModal] = useState(false);
+  const [pendingGroupChange, setPendingGroupChange] = useState(null); // { groupId, fromLOBChange }
+
   // Material master data for adding new materials
   const [masterMaterials, setMasterMaterials] = useState([]);
   const [loadingMaterials, setLoadingMaterials] = useState(false);
@@ -543,11 +547,10 @@ export default function HPPSimulation() {
     }
   }, [masterMaterials, addMaterialType, showAddMaterialModal]);
 
-  // Auto-update overhead costs when group, LOB, or version changes
+  // Auto-update overhead costs when LOB or version changes (only if group is already selected for custom formulas)
+  // NOTE: This should NOT apply default values on load - only on explicit user changes
   useEffect(() => {
-    if (selectedGroup && isCustomFormula) {
-      updateOverheadFromGroup(selectedGroup);
-    }
+    // Skip - overhead defaults are now only applied through explicit group change confirmation
   }, [editableLOB, editableVersion, selectedGroup, isCustomFormula, groupsData]);
 
   // Sorting function
@@ -1266,47 +1269,86 @@ export default function HPPSimulation() {
 
   // Handle group selection and update overhead costs
   const handleGroupSelection = (groupId) => {
-    setSelectedGroup(groupId);
-    
-    // Auto-link LOB <-> Group: if group 8 (Produk Generik) is selected, set LOB to GENERIC
-    // If a non-8 group is selected and LOB is GENERIC, change LOB to ETHICAL
-    if (groupId === "8") {
-      if (editableLOB !== "GENERIC") {
-        setEditableLOB("GENERIC");
-      }
-    } else if (groupId && editableLOB === "GENERIC") {
-      setEditableLOB("ETHICAL");
+    // If selecting the same group or empty, just update without confirmation
+    if (!groupId || groupId === selectedGroup) {
+      setSelectedGroup(groupId);
+      return;
     }
     
-    if (groupId) {
-      updateOverheadFromGroup(groupId);
-    }
+    // Show confirmation modal before applying group defaults
+    setPendingGroupChange({ groupId, fromLOBChange: false });
+    setShowGroupChangeModal(true);
   };
 
   // Handle LOB change with auto-group linkage
   const handleLOBChange = (newLOB) => {
-    setEditableLOB(newLOB);
-    
     // Auto-link: if LOB changes to GENERIC, auto-set group to 8 (Produk Generik)
     // If LOB changes away from GENERIC and group is 8, clear group selection
     if (newLOB === "GENERIC") {
       if (selectedGroup !== "8") {
-        setSelectedGroup("8");
-        updateOverheadFromGroup("8");
+        // Don't change LOB yet - show confirmation modal first
+        // LOB will be set in confirmGroupChange
+        setPendingGroupChange({ groupId: "8", fromLOBChange: true, newLOB, previousLOB: editableLOB });
+        setShowGroupChangeModal(true);
+        return; // Don't change LOB until confirmed
       }
     } else if (selectedGroup === "8") {
       setSelectedGroup("");
     }
+    setEditableLOB(newLOB);
+  };
+
+  // Confirm group change and apply default overhead values
+  const confirmGroupChange = () => {
+    if (!pendingGroupChange) return;
+    
+    const { groupId, fromLOBChange, newLOB } = pendingGroupChange;
+    
+    setSelectedGroup(groupId);
+    
+    // If triggered by LOB change, now apply the LOB change that was deferred
+    if (fromLOBChange && newLOB) {
+      setEditableLOB(newLOB);
+    }
+    
+    // Auto-link LOB <-> Group (for direct group selection)
+    if (!fromLOBChange) {
+      if (groupId === "8") {
+        if (editableLOB !== "GENERIC") {
+          setEditableLOB("GENERIC");
+        }
+      } else if (groupId && editableLOB === "GENERIC") {
+        setEditableLOB("ETHICAL");
+      }
+    }
+    
+    // Apply default overhead values from group
+    if (groupId) {
+      // Pass the effective LOB since state may not be updated yet in this render cycle
+      const effectiveLOB = fromLOBChange && newLOB ? newLOB : editableLOB;
+      updateOverheadFromGroup(groupId, effectiveLOB);
+    }
+    
+    setShowGroupChangeModal(false);
+    setPendingGroupChange(null);
+  };
+
+  // Cancel group change
+  const cancelGroupChange = () => {
+    // LOB was not changed yet (deferred until confirmation), so nothing to revert
+    setShowGroupChangeModal(false);
+    setPendingGroupChange(null);
   };
 
   // Update overhead costs based on selected group and current LOB/Version
-  const updateOverheadFromGroup = (groupId) => {
+  // lobOverride allows passing the LOB value directly when state hasn't been updated yet
+  const updateOverheadFromGroup = (groupId, lobOverride = null) => {
     if (!groupId) return;
     
     const selectedGroupData = groupsData.find(g => g.Group_PNCategoryID === groupId);
     if (!selectedGroupData) return;
     
-    const currentLOB = getCurrentLOB();
+    const currentLOB = lobOverride ? normalizeLOB(lobOverride) : getCurrentLOB();
     const currentVersion = editableVersion || simulationResults?.[0]?.Versi || "1";
     
     // Update overhead costs based on LOB type
@@ -1318,11 +1360,13 @@ export default function HPPSimulation() {
         Biaya_Kemas: selectedGroupData.Group_Kemas_Rate,
       }));
     } else if (currentLOB === "GENERIC" && currentVersion === "1") {
-      // For GENERIC V1: use Group_Generik_Rate and Group_Analisa_Rate
+      // For GENERIC V1: use Group_Generik_Rate for overhead
+      // Biaya_Reagen is product-specific (from M_COGS_PEMBEBANAN_REAGEN), NOT a group default
+      // For custom products with no product ID, default to 0
       setEditableOverheadData(prev => ({
         ...prev,
         Biaya_Generik: selectedGroupData.Group_Generik_Rate,
-        Biaya_Reagen: selectedGroupData.Group_Analisa_Rate,
+        Biaya_Reagen: 0,
       }));
     }
     
@@ -1760,6 +1804,9 @@ export default function HPPSimulation() {
         setIsCustomFormula(false);
         setSimulationType("existing");
       }
+
+      // Restore saved group selection (without triggering default override)
+      setSelectedGroup(headerData.Group_PNCategory != null ? String(headerData.Group_PNCategory) : "");
       
       setSelectedProduct({
         Product_ID: headerData.Product_ID,
@@ -1843,6 +1890,7 @@ export default function HPPSimulation() {
     setIsEditMode(false); // Reset edit mode
     setCanEditCurrentSimulation(true); // Reset edit permission
     setIsNewPriceChangeSimulation(false); // Reset new simulation flag
+    setSelectedGroup(""); // Reset group selection
     loadSimulationList(); // Refresh the list
   };
 
@@ -1853,6 +1901,7 @@ export default function HPPSimulation() {
     setCustomFormulaName("");
     setCustomLine("PN1");
     setEditableHNA(0);
+    setSelectedGroup(""); // Reset group selection for new custom formula
 
     // Create mock simulation results for Step 4
     const mockCustomSimulation = {
@@ -2498,6 +2547,10 @@ export default function HPPSimulation() {
         setIsCustomFormula(false);
         setSimulationType("existing");
       }
+
+      // Restore saved group selection (without triggering default override)
+      // Works for both custom and existing simulations
+      setSelectedGroup(headerData.Group_PNCategory != null ? String(headerData.Group_PNCategory) : "");
       
       setSelectedProduct({
         Product_ID: headerData.Product_ID,
@@ -3013,7 +3066,7 @@ export default function HPPSimulation() {
           Product_ID: null, // Custom formulas don't have a product ID
           Product_Name: customProductName.trim(),
           Formula: customFormulaName.trim(),
-          Group_PNCategory: null, // Will be set based on department mapping if needed
+          Group_PNCategory: selectedGroup || null, // Save selected group
           Group_PNCategory_Dept: customLine,
           Periode: "2025",
           Simulasi_Deskripsi: editableDescription || "",
@@ -3096,6 +3149,7 @@ export default function HPPSimulation() {
             editableDescription ||
             simulationResults[0].Simulasi_Deskripsi ||
             "",
+          Group_PNCategory: selectedGroup || simulationResults[0].Group_PNCategory || null,
           Group_Rendemen:
             editableRendemen || simulationResults[0].Group_Rendemen,
           Batch_Size: editableBatchSize || simulationResults[0].Batch_Size,
@@ -6323,7 +6377,7 @@ export default function HPPSimulation() {
                               step="0.1"
                               min="0"
                             />
-                            <span className="formula-part">MH × Rp</span>
+                            <span className="formula-part">KWh × Rp</span>
                             <input
                               type="number"
                               value={editableOverheadData.Rate_PLN || 0}
@@ -7778,7 +7832,7 @@ export default function HPPSimulation() {
                                 editableOverheadData.MH_Mesin_Std || 0,
                                 2
                               )}{" "}
-                              MH × Rp{" "}
+                              KWh × Rp{" "}
                               {formatNumber(
                                 editableOverheadData.Rate_PLN || 0,
                                 2
@@ -8963,6 +9017,56 @@ export default function HPPSimulation() {
         priceChangeDescription={selectedPriceChangeDescription}
         priceChangeDate={selectedPriceChangeDate}
       />
+
+      {/* Group Change Confirmation Modal */}
+      {showGroupChangeModal && (
+        <div className="modal-overlay">
+          <div className="bulk-delete-modal" style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h3>⚠️ Change Product Group</h3>
+              <button
+                className="modal-close-btn"
+                onClick={cancelGroupChange}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-content">
+              <div className="bulk-delete-warning">
+                <p>
+                  {pendingGroupChange?.fromLOBChange 
+                    ? <>Changing the Product Type to <strong>GENERIC</strong> will automatically set the group to <strong>8. Produk Generik</strong>.</>
+                    : <>You are changing the product group to <strong>{
+                        groupsData.find(g => g.Group_PNCategoryID === pendingGroupChange?.groupId)
+                          ? `${pendingGroupChange?.groupId}. ${groupsData.find(g => g.Group_PNCategoryID === pendingGroupChange?.groupId)?.Group_PNCategory_Name}`
+                          : pendingGroupChange?.groupId
+                      }</strong>.</>
+                  }
+                </p>
+                <div className="warning-note" style={{ marginTop: '12px' }}>
+                  <strong>⚠️ Important:</strong> All overhead cost values (processing rate, packaging rate, generic rate, reagent rate, etc.) will be <strong>reverted to the default values</strong> for this group. Any custom values you have entered will be overwritten.
+                </div>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                className="cancel-btn"
+                onClick={cancelGroupChange}
+              >
+                Cancel
+              </button>
+              <button
+                className="confirm-delete-btn"
+                onClick={confirmGroupChange}
+                style={{ backgroundColor: '#2563eb' }}
+              >
+                <Check size={16} />
+                Confirm & Apply Defaults
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bulk Delete Confirmation Modal */}
       {bulkDeleteModalOpen && (

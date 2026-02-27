@@ -185,6 +185,7 @@ async function updateSimulationHeader(simulasiId, headerData) {
       SET 
         Product_Name = COALESCE(@ProductName, Product_Name),
         Formula = COALESCE(@Formula, Formula),
+        Group_PNCategory = COALESCE(@GroupPNCategory, Group_PNCategory),
         Group_PNCategory_Dept = COALESCE(@GroupPNCategoryDept, Group_PNCategory_Dept),
         Simulasi_Deskripsi = @SimulasiDeskripsi,
         Group_Rendemen = @GroupRendemen,
@@ -219,6 +220,7 @@ async function updateSimulationHeader(simulasiId, headerData) {
       .input("SimulasiId", sql.Int, simulasiId)
       .input("ProductName", sql.VarChar(100), headerData.Product_Name || null)
       .input("Formula", sql.VarChar(100), headerData.Formula || null)
+      .input("GroupPNCategory", sql.VarChar(10), headerData.Group_PNCategory || null)
       .input("GroupPNCategoryDept", sql.VarChar(50), headerData.Group_PNCategory_Dept || null)
       .input(
         "SimulasiDeskripsi",
