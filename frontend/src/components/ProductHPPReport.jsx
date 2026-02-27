@@ -442,7 +442,7 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear, isBeforeAfte
       
       // Adjust canvas capture options based on product type
       const captureOptions = {
-        scale: 2, // Higher resolution
+        scale: 1.5, // Good resolution while keeping file size small
         useCORS: true,
         backgroundColor: '#ffffff',
         width: modalContentRef.current.scrollWidth,
@@ -453,14 +453,16 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear, isBeforeAfte
 
       // For HPP Versi 2, use slightly different scale to prevent width issues
       if (productType === 'HPP Versi 2') {
-        captureOptions.scale = 1.8; // Slightly lower scale to prevent overflow
+        captureOptions.scale = 1.4; // Slightly lower scale to prevent overflow
       }
       
       // Capture the modal content as canvas
       const canvas = await html2canvas(modalContentRef.current, captureOptions);
 
-      // Create PDF
-      const imgData = canvas.toDataURL('image/png');
+      // Create PDF - use JPEG for much smaller file size
+      const imgQuality = 0.82;
+      const imgData = canvas.toDataURL('image/jpeg', imgQuality);
+      const imgFormat = 'JPEG';
       const pdf = new jsPDF('p', 'mm', 'a4');
       
       const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -469,7 +471,7 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear, isBeforeAfte
       const canvasHeight = canvas.height;
       
       // Calculate dimensions to fit the content with absolute minimal margins
-      const scaleRatio = productType === 'HPP Versi 2' ? 1.8 : 2;
+      const scaleRatio = productType === 'HPP Versi 2' ? 1.4 : 1.5;
       const widthRatio = (pdfWidth - 2) / (canvasWidth / scaleRatio); // Absolute minimal 1mm margins on sides
       const heightRatio = (pdfHeight - 4) / (canvasHeight / scaleRatio); // Absolute minimal margin for height
       const ratio = Math.min(widthRatio, heightRatio);
@@ -504,8 +506,8 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear, isBeforeAfte
           // Draw the portion of the original canvas
           tempCtx.drawImage(canvas, 0, (currentY / ratio) * scaleRatio, canvasWidth, tempCanvas.height, 0, 0, canvasWidth, tempCanvas.height);
           
-          const pageImgData = tempCanvas.toDataURL('image/png');
-          pdf.addImage(pageImgData, 'PNG', 1, 2, imgWidth, currentPageHeight);
+          const pageImgData = tempCanvas.toDataURL('image/jpeg', imgQuality);
+          pdf.addImage(pageImgData, imgFormat, 1, 2, imgWidth, currentPageHeight, undefined, 'FAST');
           
           currentY += currentPageHeight;
         }
@@ -513,7 +515,7 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear, isBeforeAfte
         // Content fits on one page - always align to left with absolute minimal margin to prevent right-shift
         const xPosition = 1; // Absolute minimal left margin instead of centering
         const yPosition = 2; // Absolute minimal top margin
-        pdf.addImage(imgData, 'PNG', xPosition, yPosition, imgWidth, imgHeight);
+        pdf.addImage(imgData, imgFormat, xPosition, yPosition, imgWidth, imgHeight, undefined, 'FAST');
       }
 
       // Save the PDF

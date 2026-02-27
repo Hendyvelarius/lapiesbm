@@ -440,7 +440,7 @@ const BatchDetailModal = ({ batch, materials, isOpen, onClose, isLoading }) => {
       document.body.appendChild(clone);
       
       const canvas = await html2canvas(clone, {
-        scale: 2,
+        scale: 1.5,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
@@ -486,10 +486,10 @@ const BatchDetailModal = ({ batch, materials, isOpen, onClose, isLoading }) => {
           canvas.width, sourceHeight   // dest width, height
         );
         
-        const pageImgData = pageCanvas.toDataURL('image/png');
+        const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.82);
         const sliceHeight = (sourceHeight * imgWidth) / canvas.width;
         
-        pdf.addImage(pageImgData, 'PNG', margin, margin, imgWidth, sliceHeight);
+        pdf.addImage(pageImgData, 'JPEG', margin, margin, imgWidth, sliceHeight, undefined, 'FAST');
       }
       
       pdf.save(`HPP_Actual_${batch.Product_ID}_${batch.BatchNo}_${new Date().toISOString().split('T')[0]}.pdf`);

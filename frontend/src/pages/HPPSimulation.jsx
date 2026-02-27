@@ -3978,6 +3978,8 @@ export default function HPPSimulation() {
       const pageHeight = 295; // A4 height in mm
       const marginLeft = 5; // 5mm left margin
       const marginTop = 5; // 5mm top margin
+      const imgFormat = "JPEG"; // JPEG for much smaller file size
+      const imgQuality = 0.82; // Good quality while keeping file small
       let isFirstPage = true;
 
       // If we have HPP Results data, capture "Before" page first
@@ -3994,7 +3996,7 @@ export default function HPPSimulation() {
         const beforeReportContent = document.querySelector("#product-hpp-report-before");
         if (beforeReportContent) {
           const canvas = await html2canvas(beforeReportContent, {
-            scale: 2,
+            scale: 1.5,
             useCORS: true,
             logging: false,
             width: beforeReportContent.scrollWidth,
@@ -4005,10 +4007,10 @@ export default function HPPSimulation() {
 
           // Validate canvas has content
           if (canvas.width > 0 && canvas.height > 0) {
-            const imgData = canvas.toDataURL("image/png");
+            const imgData = canvas.toDataURL("image/jpeg", imgQuality);
             
             // Check if image data is valid
-            if (imgData && imgData.startsWith('data:image/png')) {
+            if (imgData && imgData.length > 100) {
               const imgHeight = (canvas.height * imgWidth) / canvas.width;
               let heightLeft = imgHeight;
               let position = 0;
@@ -4016,11 +4018,13 @@ export default function HPPSimulation() {
               // Add Before page(s)
               pdf.addImage(
                 imgData,
-                "PNG",
+                imgFormat,
                 marginLeft,
                 marginTop + position,
                 imgWidth,
-                imgHeight
+                imgHeight,
+                undefined,
+                "FAST"
               );
               heightLeft -= pageHeight;
 
@@ -4029,11 +4033,13 @@ export default function HPPSimulation() {
                 pdf.addPage();
                 pdf.addImage(
                   imgData,
-                  "PNG",
+                  imgFormat,
                   marginLeft,
                   marginTop + position,
                   imgWidth,
-                  imgHeight
+                  imgHeight,
+                  undefined,
+                  "FAST"
                 );
                 heightLeft -= pageHeight;
               }
@@ -4059,7 +4065,7 @@ export default function HPPSimulation() {
           if (!isFirstPage) pdf.addPage();
           
           const canvas = await html2canvas(afterModalContent, {
-            scale: 2,
+            scale: 1.5,
             useCORS: true,
             logging: false,
             width: afterModalContent.scrollWidth,
@@ -4070,10 +4076,10 @@ export default function HPPSimulation() {
 
           // Validate canvas has content
           if (canvas.width > 0 && canvas.height > 0) {
-            const imgData = canvas.toDataURL("image/png");
+            const imgData = canvas.toDataURL("image/jpeg", imgQuality);
             
             // Check if image data is valid
-            if (imgData && imgData.startsWith('data:image/png')) {
+            if (imgData && imgData.length > 100) {
               const imgHeight = (canvas.height * imgWidth) / canvas.width;
               let heightLeft = imgHeight;
               let position = 0;
@@ -4081,11 +4087,13 @@ export default function HPPSimulation() {
               // Add After page(s)
               pdf.addImage(
                 imgData,
-                "PNG",
+                imgFormat,
                 marginLeft,
                 marginTop + position,
                 imgWidth,
-                imgHeight
+                imgHeight,
+                undefined,
+                "FAST"
               );
               heightLeft -= pageHeight;
 
@@ -4094,11 +4102,13 @@ export default function HPPSimulation() {
                 pdf.addPage();
                 pdf.addImage(
                   imgData,
-                  "PNG",
+                  imgFormat,
                   marginLeft,
                   marginTop + position,
                   imgWidth,
-                  imgHeight
+                  imgHeight,
+                  undefined,
+                  "FAST"
                 );
                 heightLeft -= pageHeight;
               }
@@ -4122,7 +4132,7 @@ export default function HPPSimulation() {
         }
 
         const canvas = await html2canvas(modalContent, {
-          scale: 2,
+          scale: 1.5,
           useCORS: true,
           logging: false,
           width: modalContent.scrollWidth,
@@ -4133,20 +4143,22 @@ export default function HPPSimulation() {
 
         // Validate canvas has content
         if (canvas.width > 0 && canvas.height > 0) {
-          const imgData = canvas.toDataURL("image/png");
+          const imgData = canvas.toDataURL("image/jpeg", imgQuality);
           
-          if (imgData && imgData.startsWith('data:image/png')) {
+          if (imgData && imgData.length > 100) {
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
             let heightLeft = imgHeight;
             let position = 0;
 
             pdf.addImage(
               imgData,
-              "PNG",
+              imgFormat,
               marginLeft,
               marginTop + position,
               imgWidth,
-              imgHeight
+              imgHeight,
+              undefined,
+              "FAST"
             );
             heightLeft -= pageHeight;
 
@@ -4155,11 +4167,13 @@ export default function HPPSimulation() {
               pdf.addPage();
               pdf.addImage(
                 imgData,
-                "PNG",
+                imgFormat,
                 marginLeft,
                 marginTop + position,
                 imgWidth,
-                imgHeight
+                imgHeight,
+                undefined,
+                "FAST"
               );
               heightLeft -= pageHeight;
             }
