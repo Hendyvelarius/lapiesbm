@@ -4457,13 +4457,6 @@ export default function HPPSimulation() {
                       >
                         ID {renderSortIcon("Simulasi_ID")}
                           </th>
-                          <th
-                            className="sortable-header"
-                        onClick={() => handleSort("Simulasi_Type")}
-                        title="Click to sort by Type"
-                      >
-                        Type {renderSortIcon("Simulasi_Type")}
-                      </th>
                       <th
                         className="sortable-header"
                         onClick={() => handleSort("Product_ID")}
@@ -4502,9 +4495,9 @@ export default function HPPSimulation() {
                       <th
                         className="sortable-header"
                         onClick={() => handleSort("process_date")}
-                        title="Click to sort by Last Updated"
+                        title="Click to sort by Updated"
                       >
-                        Last Updated {renderSortIcon("process_date")}
+                        Updated {renderSortIcon("process_date")}
                       </th>
                       <th
                         className="sortable-header"
@@ -4521,7 +4514,7 @@ export default function HPPSimulation() {
                       if (paginatedDisplayList.length === 0) {
                         return (
                           <tr>
-                            <td colSpan="10" className="no-data">
+                            <td colSpan="9" className="no-data">
                               {searchQuery.trim()
                                 ? `No simulations found matching "${searchQuery}". Try adjusting your search terms.`
                                 : 'No simulations found. Click "New Simulation" to create your first simulation.'}
@@ -4541,7 +4534,7 @@ export default function HPPSimulation() {
                               onClick={() => toggleGroup(item.groupKey)}
                               style={{ cursor: "pointer" }}
                             >
-                              <td colSpan="10" className="group-header">
+                              <td colSpan="9" className="group-header">
                                 <div className="group-header-content">
                                   <div className="group-toggle">
                                     {isExpanded ? (
@@ -4643,7 +4636,6 @@ export default function HPPSimulation() {
                               className={item.isGroupChild ? "group-child" : ""}
                             >
                               <td>{simulation.Simulasi_ID}</td>
-                              <td>{simulation.Simulasi_Type}</td>
                               <td>{simulation.Product_ID}</td>
                               <td className="product-name">
                                 {simulation.Product_Name}
@@ -4652,7 +4644,9 @@ export default function HPPSimulation() {
                                 {simulation.Formula}
                               </td>
                               <td className="description-cell">
-                                {simulation.Simulasi_Deskripsi || "-"}
+                                <div className="description-cell-content">
+                                  {simulation.Simulasi_Deskripsi || "-"}
+                                </div>
                               </td>
                               <td>
                                 {new Date(
@@ -4670,6 +4664,7 @@ export default function HPPSimulation() {
                                 {simulation.user_id || "-"}
                               </td>
                               <td className="actions-cell">
+                                <div className="actions-cell-content">
                                 <button
                                   className="preview-btn"
                                   onClick={() =>
@@ -4719,6 +4714,7 @@ export default function HPPSimulation() {
                                     <Trash2 size={16} />
                                   </button>
                                 )}
+                                </div>
                               </td>
                             </tr>
                           );
@@ -4892,13 +4888,12 @@ export default function HPPSimulation() {
                       <thead>
                         <tr>
                           <th>ID</th>
-                          <th>Type</th>
                           <th>Product ID</th>
                           <th>Product Name</th>
                           <th>Formula</th>
                           <th>Description</th>
                           <th>Date</th>
-                          <th>Last Updated</th>
+                          <th>Updated</th>
                           <th>User</th>
                           <th>Actions</th>
                         </tr>
@@ -4915,7 +4910,7 @@ export default function HPPSimulation() {
                                 onClick={() => toggleMarkedGroup(item.groupKey)}
                                 style={{ cursor: "pointer" }}
                               >
-                                <td colSpan="10" className="group-header">
+                                <td colSpan="9" className="group-header">
                                   <div className="group-header-content">
                                     <div className="group-toggle">
                                       {isExpanded ? (
@@ -4987,11 +4982,10 @@ export default function HPPSimulation() {
                                 className={`marked-for-delete-row ${item.isGroupChild ? "group-child" : ""}`}
                               >
                                 <td>{simulation.Simulasi_ID}</td>
-                                <td className="type-cell">{simulation.Simulasi_Type}</td>
                                 <td>{simulation.Product_ID}</td>
                                 <td className="product-name-cell">{simulation.Product_Name}</td>
                                 <td className="formula-cell">{simulation.Formula}</td>
-                                <td className="description-cell">{simulation.Simulasi_Deskripsi || "-"}</td>
+                                <td className="description-cell"><div className="description-cell-content">{simulation.Simulasi_Deskripsi || "-"}</div></td>
                                 <td>{new Date(simulation.Simulasi_Date).toLocaleDateString("id-ID")}</td>
                                 <td>
                                   {simulation.process_date
@@ -5000,6 +4994,7 @@ export default function HPPSimulation() {
                                 </td>
                                 <td className="user-cell">{simulation.user_id || "-"}</td>
                                 <td className="actions-cell">
+                                  <div className="actions-cell-content">
                                   <button
                                     className="restore-btn"
                                     onClick={() => handleRestoreSimulation(simulation.Simulasi_ID)}
@@ -5018,6 +5013,7 @@ export default function HPPSimulation() {
                                       <Trash2 size={16} />
                                     </button>
                                   )}
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -5616,6 +5612,7 @@ export default function HPPSimulation() {
                         className="summary-textarea-input"
                         placeholder="Add a description for this simulation (optional)"
                         rows="3"
+                        maxLength={4000}
                       />
                     </div>
                   </div>

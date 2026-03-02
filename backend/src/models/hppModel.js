@@ -224,7 +224,7 @@ async function updateSimulationHeader(simulasiId, headerData) {
       .input("GroupPNCategoryDept", sql.VarChar(50), headerData.Group_PNCategory_Dept || null)
       .input(
         "SimulasiDeskripsi",
-        sql.VarChar(255),
+        sql.VarChar(4000),
         headerData.Simulasi_Deskripsi || ""
       )
       .input(
@@ -323,7 +323,7 @@ async function createSimulationHeader(headerData) {
       .input("Periode", sql.VarChar(4), headerData.Periode || "2025")
       .input(
         "SimulasiDeskripsi",
-        sql.VarChar(255),
+        sql.VarChar(4000),
         headerData.Simulasi_Deskripsi || ""
       )
       .input("SimulasiDate", sql.DateTime, new Date())
@@ -573,7 +573,7 @@ async function bulkMarkForDelete(description, formattedDate, simulationType = 'P
 
     const result = await db
       .request()
-      .input('Description', sql.VarChar(255), description)
+      .input('Description', sql.VarChar(4000), description)
       .input('FormattedDate', sql.VarChar(50), formattedDate)
       .input('SimulationType', sql.VarChar(50), simulationType)
       .query(query);
@@ -736,7 +736,7 @@ async function getPriceChangeAffectedProducts(description, formattedDate) {
     
     const selectedIds = await db
       .request()
-      .input('Description', sql.VarChar(255), description)
+      .input('Description', sql.VarChar(4000), description)
       .input('FormattedDate', sql.VarChar(50), formattedDate)
       .query(selectedIdsQuery);
     
@@ -747,7 +747,7 @@ async function getPriceChangeAffectedProducts(description, formattedDate) {
     
     const result = await db
       .request()
-      .input('Description', sql.VarChar(255), description)
+      .input('Description', sql.VarChar(4000), description)
       .input('FormattedDate', sql.VarChar(50), formattedDate)
       .query(query);
 
@@ -783,7 +783,7 @@ async function getPriceUpdateAffectedProducts(description, formattedDate) {
     
     const selectedProductsResult = await db
       .request()
-      .input('Description', sql.VarChar(255), description)
+      .input('Description', sql.VarChar(4000), description)
       .input('FormattedDate', sql.VarChar(50), formattedDate)
       .query(selectedProductsQuery);
     
@@ -796,7 +796,7 @@ async function getPriceUpdateAffectedProducts(description, formattedDate) {
     
     const result = await db
       .request()
-      .input('Description', sql.VarChar(255), description)
+      .input('Description', sql.VarChar(4000), description)
       .input('FormattedDate', sql.VarChar(50), formattedDate)
       .query(query);
 
@@ -833,7 +833,7 @@ async function bulkDeletePriceChangeGroup(description, formattedDate) {
 
     const simulasiIds = await db
       .request()
-      .input('Description', sql.VarChar(255), description)
+      .input('Description', sql.VarChar(4000), description)
       .input('FormattedDate', sql.VarChar(50), formattedDate)
       .query(getIdsQuery);
 
@@ -854,7 +854,7 @@ async function bulkDeletePriceChangeGroup(description, formattedDate) {
 
     const result = await db
       .request()
-      .input('Description', sql.VarChar(255), description)
+      .input('Description', sql.VarChar(4000), description)
       .input('FormattedDate', sql.VarChar(50), formattedDate)
       .query(deleteHeaderQuery);
 
@@ -885,7 +885,7 @@ async function bulkMarkPriceChangeGroupForDelete(description, formattedDate) {
 
     const result = await db
       .request()
-      .input('Description', sql.VarChar(255), description)
+      .input('Description', sql.VarChar(4000), description)
       .input('FormattedDate', sql.VarChar(50), formattedDate)
       .query(query);
 
@@ -963,7 +963,7 @@ async function cloneSimulation(originalSimulasiId, cloneDescription, userId = nu
       await transaction.request()
         .input('NewSimulasiId', sql.Int, newSimulasiId)
         .input('OriginalSimulasiId', sql.Int, originalSimulasiId)
-        .input('CloneDescription', sql.VarChar(255), finalCloneDescription)
+        .input('CloneDescription', sql.VarChar(4000), finalCloneDescription)
         .input('UserId', sql.VarChar(50), userId)
         .query(cloneHeaderQuery);
       
@@ -1042,7 +1042,7 @@ async function getSimulationsForPriceChangeGroup(description, formattedDate, sim
 
     const result = await db
       .request()
-      .input('Description', sql.VarChar(255), description)
+      .input('Description', sql.VarChar(4000), description)
       .input('FormattedDate', sql.VarChar(50), formattedDate)
       .input('SimulationType', sql.VarChar(50), simulationType)
       .query(query);

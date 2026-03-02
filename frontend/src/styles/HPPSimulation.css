@@ -1967,33 +1967,37 @@
   min-width: 50px;
 } /* ID */
 .simulation-list-table th:nth-child(2) {
-  width: 8%;
-  min-width: 70px;
-} /* Type */
-.simulation-list-table th:nth-child(3) {
-  width: 8%;
+  width: 9%;
   min-width: 70px;
 } /* Product ID */
-.simulation-list-table th:nth-child(4) {
+.simulation-list-table th:nth-child(3) {
   width: 20%;
   min-width: 120px;
-} /* Product Name - More space for readability */
-.simulation-list-table th:nth-child(5) {
+} /* Product Name */
+.simulation-list-table th:nth-child(4) {
   width: 10%;
   min-width: 80px;
 } /* Formula */
-.simulation-list-table th:nth-child(6) {
-  width: 25%;
-  min-width: 150px;
+.simulation-list-table th:nth-child(5) {
+  width: 28%;
+  min-width: 200px;
 } /* Description - More space for better readability */
-.simulation-list-table th:nth-child(7) {
+.simulation-list-table th:nth-child(6) {
   width: 8%;
   min-width: 80px;
 } /* Date */
+.simulation-list-table th:nth-child(7) {
+  width: 8%;
+  min-width: 80px;
+} /* Updated */
 .simulation-list-table th:nth-child(8) {
+  width: 6%;
+  min-width: 60px;
+} /* User */
+.simulation-list-table th:nth-child(9) {
   width: 15%;
   min-width: 180px;
-} /* Actions - Flexible width for action buttons */
+} /* Actions */
 
 .simulation-list-table td {
   padding: 14px 12px;
@@ -2011,33 +2015,37 @@
   min-width: 50px;
 } /* ID */
 .simulation-list-table td:nth-child(2) {
-  width: 8%;
-  min-width: 70px;
-} /* Type */
-.simulation-list-table td:nth-child(3) {
-  width: 8%;
+  width: 9%;
   min-width: 70px;
 } /* Product ID */
-.simulation-list-table td:nth-child(4) {
+.simulation-list-table td:nth-child(3) {
   width: 20%;
   min-width: 120px;
-} /* Product Name - More space for readability */
-.simulation-list-table td:nth-child(5) {
+} /* Product Name */
+.simulation-list-table td:nth-child(4) {
   width: 10%;
   min-width: 80px;
 } /* Formula */
+.simulation-list-table td:nth-child(5) {
+  width: 28%;
+  min-width: 200px;
+} /* Description */
 .simulation-list-table td:nth-child(6) {
-  width: 25%;
-  min-width: 150px;
-} /* Description - More space for better readability */
-.simulation-list-table td:nth-child(7) {
   width: 8%;
   min-width: 80px;
 } /* Date */
+.simulation-list-table td:nth-child(7) {
+  width: 8%;
+  min-width: 80px;
+} /* Updated */
 .simulation-list-table td:nth-child(8) {
+  width: 6%;
+  min-width: 60px;
+} /* User */
+.simulation-list-table td:nth-child(9) {
   width: 15%;
   min-width: 180px;
-} /* Actions - Flexible width for action buttons */
+} /* Actions */
 
 /* Sortable header styles */
 .sortable-header {
@@ -2105,25 +2113,40 @@
 .description-cell {
   font-size: 13px;
   color: #6b7280;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 8px 12px;
+  padding: 8px 12px !important;
   font-style: italic;
-  /* Allow flexible width based on percentage */
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  vertical-align: middle !important;
+}
+
+.description-cell-content {
+  max-height: calc(5 * 1.4 * 13px);
+  overflow-y: auto;
+  overflow-x: hidden;
   word-break: break-word;
-  box-sizing: border-box;
-  max-width: none; /* Remove fixed max-width constraint */
+  line-height: 1.4;
+  font-size: 13px;
 }
 
 .actions-cell {
-  text-align: center;
-  width: 140px;
-  white-space: nowrap;
+  vertical-align: middle !important;
+  overflow: visible !important;
+  white-space: normal !important;
+}
+
+.actions-cell-content {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 2px;
+}
+
+.actions-cell > button,
+.actions-cell-content > button {
+  margin: 1px;
 }
 
 .edit-btn,
