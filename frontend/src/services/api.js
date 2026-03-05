@@ -729,9 +729,13 @@ export const dashboardAPI = {
   },
 
   // Get dashboard statistics from HPP Actual batches
-  // Query: ?year=2026 (optional, defaults to current year)
-  getActualStats: (year = null) => {
-    const url = year ? `/dashboard/stats/actual?year=${year}` : '/dashboard/stats/actual';
+  // Query: ?year=2026&month=1 (year and month optional; month only used for MTD view)
+  getActualStats: (year = null, month = null) => {
+    const params = new URLSearchParams();
+    if (year) params.append('year', year);
+    if (month) params.append('month', month);
+    const query = params.toString();
+    const url = query ? `/dashboard/stats/actual?${query}` : '/dashboard/stats/actual';
     return apiRequest(url);
   },
 

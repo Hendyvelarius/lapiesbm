@@ -1033,10 +1033,16 @@ module.exports = {
  * @param {string} year - Year (e.g., '2026')
  * @returns {Object} Dashboard stats based on actual batches
  */
-async function getActualDashboardStats(year = null) {
+async function getActualDashboardStats(year = null, month = null) {
   try {
     const db = await connect();
     const targetYear = year || new Date().getFullYear().toString();
+    // When month is provided, filter to that specific month only (MTD)
+    // Periode format is 'YYYYMM' e.g. '202601'
+    const targetMonth = month ? String(month).padStart(2, '0') : null;
+    const periodeFilter = targetMonth
+      ? `AND h.Periode = '${targetYear}${targetMonth}'`
+      : `AND h.Periode LIKE '${targetYear}%'`;
     
     // First, get standard HPP data to get Category (toll type) for each product
     // Category comes from sp_COGS_HPP_List, not from m_Product directly
@@ -1099,7 +1105,7 @@ async function getActualDashboardStats(year = null) {
       LEFT JOIN m_Product p ON h.DNc_ProductID = p.Product_ID
       WHERE h.Calculation_Status = 'COMPLETED'
         AND h.LOB != 'GRANULATE'
-        AND h.Periode LIKE '${targetYear}%'
+        ${periodeFilter}
         AND ISNULL(h.Output_Actual, 0) > 0
     `;
     
@@ -1109,6 +1115,7 @@ async function getActualDashboardStats(year = null) {
     if (batches.length === 0) {
       return {
         year: targetYear,
+        month: targetMonth || null,
         batchCount: 0,
         costManagement: {
           totalHPP: 0,
@@ -1244,6 +1251,7 @@ async function getActualDashboardStats(year = null) {
     
     return {
       year: targetYear,
+      month: targetMonth || null,
       batchCount: validBatches.length,
       costManagement: {
         totalHPP,

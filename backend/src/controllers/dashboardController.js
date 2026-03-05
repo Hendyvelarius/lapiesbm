@@ -136,8 +136,8 @@ class DashboardController {
    */
   static async getActualStats(req, res) {
     try {
-      const { year } = req.query;
-      const stats = await getActualDashboardStats(year);
+      const { year, month } = req.query;
+      const stats = await getActualDashboardStats(year, month ? parseInt(month, 10) : null);
       
       res.status(200).json({
         success: true,

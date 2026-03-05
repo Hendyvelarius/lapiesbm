@@ -3260,3 +3260,67 @@
   color: #6b7280;
   font-weight: 400;
 }
+
+/* Cost Management - period mode controls (YTD / Month) */
+.cost-period-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  padding: 6px 0 4px;
+  flex-wrap: wrap;
+}
+
+.period-mode-toggle {
+  display: flex;
+  background: #f3f4f6;
+  border-radius: 20px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.period-btn {
+  padding: 4px 14px;
+  border: none;
+  background: transparent;
+  border-radius: 18px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.18s;
+  line-height: 1.4;
+}
+
+.period-btn:hover {
+  color: #374151;
+  background: rgba(0,0,0,0.06);
+}
+
+.period-btn.active {
+  background: #fff;
+  color: #2563eb;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+.cost-month-select {
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.cost-month-select:hover,
+.cost-month-select:focus {
+  border-color: #2563eb;
+}
+
+.period-label {
+  color: #2563eb;
+  font-weight: 500;
+}

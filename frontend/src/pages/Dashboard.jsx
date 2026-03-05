@@ -1027,6 +1027,8 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
 
   // Actual mode states for Cost Management and Pricing Risk cards
   const [costMgmtMode, setCostMgmtMode] = useState('standard'); // 'standard' or 'actual'
+  const [costMgmtPeriodMode, setCostMgmtPeriodMode] = useState('YTD'); // 'YTD' or 'MTD'
+  const [costMgmtMonth, setCostMgmtMonth] = useState(new Date().getMonth() + 1); // 1-12
   const [pricingRiskMode, setPricingRiskMode] = useState('standard'); // 'standard' or 'actual'
   const [actualDashboardData, setActualDashboardData] = useState(null);
   const [actualDataLoading, setActualDataLoading] = useState(false);
@@ -1156,18 +1158,31 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
     fetchTrendData();
   }, [actualVsStandardMode, trendLobFilter]);
 
-  // Fetch Actual dashboard stats when card mode changes to 'actual'
+  // Fetch Actual dashboard stats when card mode / period mode / month changes
   useEffect(() => {
     const fetchActualStats = async () => {
-      // Only fetch if at least one card is in actual mode
+      // Only fetch if the cost management card is in actual mode
+      // (pricing risk card always uses YTD so no period filtering needed there)
       if (costMgmtMode !== 'actual' && pricingRiskMode !== 'actual') return;
       if (!dashboardPeriod?.selectedYear) return;
-      // Skip if we already have data for this year
-      if (actualDashboardData?.year === dashboardPeriod.selectedYear) return;
+
+      // Determine the month to request (only when costMgmtMode is actual and MTD selected)
+      const requestMonth = (costMgmtMode === 'actual' && costMgmtPeriodMode === 'MTD')
+        ? costMgmtMonth
+        : null;
+
+      // Skip if we already have data for the same parameters
+      const cacheHit =
+        actualDashboardData?.year === dashboardPeriod.selectedYear &&
+        (actualDashboardData?.month ?? null) === requestMonth;
+      if (cacheHit) return;
       
       try {
         setActualDataLoading(true);
-        const response = await dashboardAPI.getActualStats(dashboardPeriod.selectedYear);
+        const response = await dashboardAPI.getActualStats(
+          dashboardPeriod.selectedYear,
+          requestMonth
+        );
         if (response.success) {
           setActualDashboardData(response.data);
         }
@@ -1179,12 +1194,28 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
     };
 
     fetchActualStats();
-  }, [costMgmtMode, pricingRiskMode, dashboardPeriod?.selectedYear, actualDashboardData?.year]);
+  }, [costMgmtMode, pricingRiskMode, costMgmtPeriodMode, costMgmtMonth, dashboardPeriod?.selectedYear, actualDashboardData?.year, actualDashboardData?.month]);
 
   // Clear actual data when year changes
   useEffect(() => {
     setActualDashboardData(null);
   }, [dashboardPeriod?.selectedYear]);
+
+  // Clear actual data when period mode or month changes (to show loading spinner)
+  useEffect(() => {
+    if (costMgmtMode === 'actual') {
+      setActualDashboardData(null);
+    }
+  }, [costMgmtPeriodMode, costMgmtMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When year changes, clamp costMgmtMonth to the latest available month for that year
+  useEffect(() => {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+    if (parseInt(dashboardPeriod?.selectedYear) === currentYear && costMgmtMonth > currentMonth) {
+      setCostMgmtMonth(currentMonth);
+    }
+  }, [dashboardPeriod?.selectedYear]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get month name for display
   const getMonthName = (monthNum) => {
@@ -1561,6 +1592,45 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
               </div>
             ) : (
               <>
+                {/* Period mode controls - only shown for Actual mode */}
+                {costMgmtMode === 'actual' && (
+                  <div className="cost-period-controls">
+                    <div className="period-mode-toggle">
+                      <button
+                        className={`period-btn ${costMgmtPeriodMode === 'YTD' ? 'active' : ''}`}
+                        onClick={() => setCostMgmtPeriodMode('YTD')}
+                      >
+                        YTD
+                      </button>
+                      <button
+                        className={`period-btn ${costMgmtPeriodMode === 'MTD' ? 'active' : ''}`}
+                        onClick={() => setCostMgmtPeriodMode('MTD')}
+                      >
+                        Month
+                      </button>
+                    </div>
+                    {costMgmtPeriodMode === 'MTD' && (() => {
+                      const currentYear = new Date().getFullYear();
+                      const currentMonth = new Date().getMonth() + 1;
+                      const maxMonth = parseInt(dashboardPeriod?.selectedYear) === currentYear
+                        ? currentMonth
+                        : 12;
+                      return (
+                        <select
+                          className="cost-month-select"
+                          value={costMgmtMonth}
+                          onChange={e => setCostMgmtMonth(Number(e.target.value))}
+                        >
+                          {['January','February','March','April','May','June',
+                            'July','August','September','October','November','December'
+                          ].slice(0, maxMonth).map((m, i) => (
+                            <option key={i + 1} value={i + 1}>{m}</option>
+                          ))}
+                        </select>
+                      );
+                    })()}
+                  </div>
+                )}
                 <div 
                   className="cogs-ratio-section clickable" 
                   onClick={() => {
@@ -1584,7 +1654,12 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
                   />
                   {costMgmtMode === 'actual' && actualDashboardData?.batchCount > 0 && (
                     <div className="actual-batch-count">
-                      Based on {actualDashboardData.batchCount} batches
+                      Based on {actualDashboardData.batchCount} batch{actualDashboardData.batchCount !== 1 ? 'es' : ''}
+                      {costMgmtPeriodMode === 'MTD' && (
+                        <span className="period-label">
+                          {' '}— {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][costMgmtMonth - 1]} {dashboardPeriod?.selectedYear}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1993,7 +2068,11 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
         isOpen={showActualBatchModal}
         onClose={() => setShowActualBatchModal(false)}
         products={actualDashboardData?.batches || []}
-        title={`Batch COGS Details (Actual) - ${actualDashboardData?.year || dashboardPeriod?.selectedYear}`}
+        title={`Batch COGS Details (Actual) - ${
+          costMgmtPeriodMode === 'MTD'
+            ? `${['January','February','March','April','May','June','July','August','September','October','November','December'][costMgmtMonth - 1]} ${actualDashboardData?.year || dashboardPeriod?.selectedYear}`
+            : `YTD ${actualDashboardData?.year || dashboardPeriod?.selectedYear}`
+        }${actualDashboardData?.batchCount > 0 ? ` (${actualDashboardData.batchCount} batch${actualDashboardData.batchCount !== 1 ? 'es' : ''})` : ''}`}
         displayMode="batch"
       />
 
