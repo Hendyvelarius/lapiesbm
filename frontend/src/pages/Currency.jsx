@@ -25,6 +25,7 @@ const Currency = () => {
   const [dailyData, setDailyData] = useState([]);
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
   const [dateRange, setDateRange] = useState({ start: null, end: null });
+  const [displayStart, setDisplayStart] = useState(null); // true display-window start (chart filter)
   const [timeframe, setTimeframe] = useState('1M'); // 1W, 1M, 3M, 6M, 1Y, ALL, CUSTOM
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
@@ -131,9 +132,15 @@ const Currency = () => {
         }
       }
       
+      // Fetch 5 extra calendar days before the display window so getCurrencyStats
+      // always has a "previous" record even if the display window starts on the
+      // most recent data point (e.g. very short timeframe or data gap).
+      const fetchStart = new Date(startDate);
+      fetchStart.setDate(fetchStart.getDate() - 5);
+
       const [dataResponse, statsResponse, schedulerResponse] = await Promise.all([
         dailyCurrencyAPI.getAll({
-          startDate: startDate.toISOString().split('T')[0],
+          startDate: fetchStart.toISOString().split('T')[0],
           endDate: endDate.toISOString().split('T')[0],
         }),
         dailyCurrencyAPI.getStats(),
@@ -141,6 +148,7 @@ const Currency = () => {
       ]);
       
       setDailyData(dataResponse.data || []);
+      setDisplayStart(startDate); // chart filters to this date
       setStats(statsResponse.data || null);
       setSchedulerStatus(schedulerResponse?.data || null);
       setDateRange({ start: startDate, end: endDate });
@@ -208,27 +216,41 @@ const Currency = () => {
     }
   };
 
-  // Get chart data for a specific currency
+  // Get chart data for a specific currency, filtered to the display window
   const getChartData = useCallback((currencyCode) => {
     if (!dailyData || dailyData.length === 0) return [];
     
     return dailyData
-      .filter(item => item[currencyCode] != null)
+      .filter(item => {
+        if (item[currencyCode] == null) return false;
+        // Filter to display window (excludes the pre-fetch context buffer)
+        if (displayStart && new Date(item.date) < displayStart) return false;
+        return true;
+      })
       .map(item => ({
         date: item.date,
         value: parseFloat(item[currencyCode]) || 0,
       }))
       .sort((a, b) => new Date(a.date) - new Date(b.date));
-  }, [dailyData]);
+  }, [dailyData, displayStart]);
 
   // Calculate currency statistics
   const getCurrencyStats = useCallback((currencyCode) => {
-    const data = getChartData(currencyCode);
+    const data = getChartData(currencyCode); // chart-window data (for period stats)
     if (data.length === 0) return null;
     
+    // For daily change, use all fetched data (including pre-window context buffer)
+    // so we always have a true "previous" record even when only 1 record falls
+    // inside the display window (e.g. very short timeframe or minor data gap).
+    const allSorted = dailyData
+      .filter(item => item[currencyCode] != null)
+      .map(item => ({ date: item.date, value: parseFloat(item[currencyCode]) || 0 }))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    const current = allSorted.length > 0 ? allSorted[allSorted.length - 1].value : data[data.length - 1].value;
+    const previous = allSorted.length > 1 ? allSorted[allSorted.length - 2].value : current;
+
     const values = data.map(d => d.value);
-    const current = values[values.length - 1];
-    const previous = values.length > 1 ? values[values.length - 2] : current;
     const first = values[0];
     const high = Math.max(...values);
     const low = Math.min(...values);
@@ -250,9 +272,9 @@ const Currency = () => {
       periodChange,
       periodChangePercent,
       dataPoints: data.length,
-      latestDate: data[data.length - 1]?.date,
+      latestDate: allSorted[allSorted.length - 1]?.date,
     };
-  }, [getChartData]);
+  }, [getChartData, dailyData]);
 
   // Format currency value
   const formatCurrency = (value, decimals = 2) => {

@@ -7,21 +7,39 @@ const sql = require("mssql");
  */
 
 // Helper function to safely parse date strings to Date objects
+// IMPORTANT: always produces midnight UTC so that mssql's sql.Date stores
+// the same calendar date as the input string (avoids UTC+N timezone shifts).
 function parseDate(dateInput) {
   if (!dateInput) return null;
-  if (dateInput instanceof Date) return dateInput;
+  if (dateInput instanceof Date) {
+    // Normalise an incoming Date to midnight UTC of ITS LOCAL date
+    // (preserve the calendar date the caller intended, not the UTC instant)
+    const y = dateInput.getFullYear();
+    const m = dateInput.getMonth();
+    const d = dateInput.getDate();
+    return new Date(Date.UTC(y, m, d));
+  }
   
   // Handle string dates like "2025-12-14"
   if (typeof dateInput === 'string') {
-    // Parse YYYY-MM-DD format explicitly to avoid timezone issues
+    // Parse YYYY-MM-DD format as midnight UTC to avoid timezone shifts
     const parts = dateInput.split('-');
     if (parts.length === 3) {
-      const year = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
-      const day = parseInt(parts[2], 10);
-      return new Date(year, month, day);
+      const year  = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // 0-indexed
+      const day   = parseInt(parts[2], 10);
+      return new Date(Date.UTC(year, month, day));
     }
-    // Fallback to standard parsing
+    // Fallback: strip time and re-parse as UTC date
+    const datePart = dateInput.split('T')[0];
+    const fallbackParts = datePart.split('-');
+    if (fallbackParts.length === 3) {
+      return new Date(Date.UTC(
+        parseInt(fallbackParts[0], 10),
+        parseInt(fallbackParts[1], 10) - 1,
+        parseInt(fallbackParts[2], 10)
+      ));
+    }
     return new Date(dateInput);
   }
   
@@ -424,6 +442,7 @@ module.exports = {
   dateExists,
   getExistingDates,
   insertCurrencyRecord,
+  create: insertCurrencyRecord, // alias used by currencySchedulerService
   bulkInsertCurrencyRecords,
   updateCurrencyRecord,
   deleteCurrencyByDateRange,

@@ -66,7 +66,7 @@ async function fetchAndSaveDailyCurrency() {
 
     // Prepare the record for insertion
     const currencyRecord = {
-      Tanggal: latestRates.date,
+      date: latestRates.date,
       ...latestRates.rates
     };
 
