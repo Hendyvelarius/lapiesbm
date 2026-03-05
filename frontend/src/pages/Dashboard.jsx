@@ -10,9 +10,11 @@ import {
   DollarSign,
   Loader2,
   Grid3X3,
-  Activity
+  Activity,
+  Download
 } from 'lucide-react';
 import { dashboardAPI } from '../services/api';
+import { exportToExcel, COLORS } from '../utils/excelExport';
 import '../styles/Dashboard.css';
 
 // Utility functions
@@ -662,6 +664,89 @@ const BatchListModal = ({ isOpen, onClose, batches, title, filter = 'all', loadi
     return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
+  const handleExportToExcel = () => {
+    if (filteredBatches.length === 0) return;
+
+    const getRatioStatus = (actual, standard, outputActual, batchSizeStd) => {
+      if (!standard || standard === 0 || !batchSizeStd || batchSizeStd === 0) return 'neutral';
+      const actualPerUnit = outputActual > 0 ? actual / outputActual : 0;
+      const standardPerUnit = standard / batchSizeStd;
+      if (standardPerUnit === 0) return 'neutral';
+      const ratio = (actualPerUnit / standardPerUnit) * 100;
+      if (ratio <= 100) return 'good';
+      if (ratio <= 110) return 'warning';
+      return 'danger';
+    };
+
+    exportToExcel({
+      filename: 'Batch_Cost_Distribution',
+      sheetName: 'Batches',
+      title: title,
+      subtitle: `Exported: ${new Date().toLocaleString('id-ID')} | ${filteredBatches.length} batches`,
+      columns: [
+        { header: 'Product ID', key: 'productId', width: 14 },
+        { header: 'Product Name', key: 'productName', width: 28 },
+        { header: 'Batch No', key: 'batchNo', width: 14 },
+        { header: 'Date', key: 'date', width: 14 },
+        { header: 'HPP Actual', key: 'hppActual', width: 16 },
+        { header: 'HPP Standard', key: 'hppStd', width: 16 },
+        { header: 'Variance %', key: 'variance', width: 12 },
+        { header: 'Output (Act/Std)', key: 'output', width: 16 },
+        { header: 'Total BB (Act/Std)', key: 'bb', width: 18 },
+        { header: 'Total BK (Act/Std)', key: 'bk', width: 18 },
+        { header: 'Overhead (Act/Std)', key: 'overhead', width: 18 },
+        { header: 'Status', key: 'status', width: 11 },
+      ],
+      data: filteredBatches,
+      getValue: (row, col) => {
+        switch (col.key) {
+          case 'date': return row.batchDate ? new Date(row.batchDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+          case 'hppActual': return formatCurrency(row.hppActualPerUnit);
+          case 'hppStd': return formatCurrency(row.hppStandardPerUnit);
+          case 'variance': return `${row.variancePercent > 0 ? '+' : ''}${row.variancePercent?.toFixed(2)}%`;
+          case 'output': return `${formatNumber(row.outputActual)} / ${formatNumber(row.batchSizeStd)}`;
+          case 'bb': return `${formatLargeNumber(row.totalBBActual)} / ${formatLargeNumber(row.totalBBStd)}`;
+          case 'bk': return `${formatLargeNumber(row.totalBKActual)} / ${formatLargeNumber(row.totalBKStd)}`;
+          case 'overhead': return `${formatLargeNumber(row.overheadActual)} / ${formatLargeNumber(row.overheadStd)}`;
+          case 'status': return row.costStatus === 'lower' ? '↓ Lower' : row.costStatus === 'higher' ? '↑ Higher' : '= Same';
+          default: return undefined;
+        }
+      },
+      getCellStyle: (row, colIdx, col) => {
+        // Variance column
+        if (col?.key === 'variance') {
+          if (row.variancePercent > 0) return { fill: COLORS.redBg, fontColor: COLORS.redFont, align: 'right' };
+          if (row.variancePercent < 0) return { fill: COLORS.greenBg, fontColor: COLORS.greenFont, align: 'right' };
+          return { fill: COLORS.grayBg, fontColor: COLORS.grayFont, align: 'right' };
+        }
+        // Output column
+        if (col?.key === 'output') {
+          const outputRatio = row.batchSizeStd > 0 ? (row.outputActual / row.batchSizeStd) * 100 : 100;
+          if (outputRatio >= 90) return { fill: COLORS.greenBg, fontColor: COLORS.greenFont, align: 'right' };
+          if (outputRatio >= 75) return { fill: COLORS.yellowBg, fontColor: COLORS.yellowFont, align: 'right' };
+          return { fill: COLORS.redBg, fontColor: COLORS.redFont, align: 'right' };
+        }
+        // BB/BK/Overhead columns
+        if (col?.key === 'bb' || col?.key === 'bk' || col?.key === 'overhead') {
+          const actualKey = col.key === 'bb' ? 'totalBBActual' : col.key === 'bk' ? 'totalBKActual' : 'overheadActual';
+          const stdKey = col.key === 'bb' ? 'totalBBStd' : col.key === 'bk' ? 'totalBKStd' : 'overheadStd';
+          const status = getRatioStatus(row[actualKey], row[stdKey], row.outputActual, row.batchSizeStd);
+          if (status === 'good') return { fill: COLORS.greenBg, fontColor: COLORS.greenFont, align: 'right' };
+          if (status === 'warning') return { fill: COLORS.yellowBg, fontColor: COLORS.yellowFont, align: 'right' };
+          if (status === 'danger') return { fill: COLORS.redBg, fontColor: COLORS.redFont, align: 'right' };
+          return { align: 'right' };
+        }
+        // Status column
+        if (col?.key === 'status') {
+          if (row.costStatus === 'lower') return { fill: COLORS.blueBg, fontColor: COLORS.blueFont, align: 'center' };
+          if (row.costStatus === 'higher') return { fill: COLORS.orangeBg, fontColor: COLORS.orangeFont, align: 'center' };
+          return { fill: COLORS.grayBg, fontColor: COLORS.grayFont, align: 'center' };
+        }
+        return null;
+      },
+    });
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -669,7 +754,15 @@ const BatchListModal = ({ isOpen, onClose, batches, title, filter = 'all', loadi
       <div className="modal-content batch-list-modal batch-list-modal-wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{title}</h3>
-          <button className="modal-close" onClick={onClose}><X size={20} /></button>
+          <div className="modal-header-actions">
+            {filteredBatches.length > 0 && (
+              <button className="export-excel-btn" onClick={handleExportToExcel} title="Export to Excel">
+                <Download size={16} />
+                <span>Export Excel</span>
+              </button>
+            )}
+            <button className="modal-close" onClick={onClose}><X size={20} /></button>
+          </div>
         </div>
         {loading ? (
           <div className="modal-loading">
@@ -853,6 +946,59 @@ const ProductListModal = ({ isOpen, onClose, products, title, displayMode = 'cog
     return filtered;
   }, [products, searchTerm, sortBy, sortOrder, displayMode]);
 
+  const handleExportToExcel = () => {
+    if (filteredProducts.length === 0) return;
+
+    const isBatch = displayMode === 'batch';
+    const isBreakdown = displayMode === 'hpp-breakdown';
+
+    const columns = [];
+    if (isBatch) columns.push({ header: 'Batch No', key: 'BatchNo', width: 14 });
+    columns.push(
+      { header: 'Product ID', key: 'Product_ID', width: 14 },
+      { header: 'Product Name', key: 'Product_Name', width: 28 },
+      { header: 'LOB', key: 'category', width: 10 },
+      { header: 'Category', key: 'tollCategory', width: 14 },
+    );
+    if (isBatch) columns.push({ header: 'Output', key: 'Output_Actual', width: 12, type: 'number' });
+    columns.push({ header: 'HNA', key: 'HNA', width: 16, type: 'currency' });
+    if (isBreakdown) {
+      columns.push(
+        { header: 'BB (Rp)', key: 'totalBB', width: 16, type: 'currency' },
+        { header: 'BK (Rp)', key: 'totalBK', width: 16, type: 'currency' },
+        { header: 'Others (Rp)', key: 'totalOthers', width: 16, type: 'currency' },
+      );
+    } else {
+      columns.push({ header: 'HPP/unit', key: 'HPP', width: 16, type: 'currency' });
+    }
+    columns.push({ header: 'COGS %', key: 'COGS', width: 10, type: 'percent' });
+
+    exportToExcel({
+      filename: isBatch ? 'Batch_COGS_Details' : isBreakdown ? 'HPP_Breakdown' : 'Product_COGS_Details',
+      sheetName: isBatch ? 'Batches' : 'Products',
+      title: title,
+      subtitle: `Exported: ${new Date().toLocaleString('id-ID')} | ${filteredProducts.length} ${isBatch ? 'batches' : 'products'}`,
+      columns,
+      data: filteredProducts,
+      getValue: (row, col) => {
+        if (col.key === 'category') return row.category || '-';
+        if (col.key === 'tollCategory') return row.tollCategory || '-';
+        return undefined;
+      },
+      getCellStyle: (row, colIdx, col) => {
+        if (col?.key === 'COGS') {
+          const cogs = parseFloat(row.COGS);
+          if (cogs >= 30) return { fill: COLORS.redBg, fontColor: COLORS.redFont, align: 'right', bold: true };
+          return { fill: COLORS.greenBg, fontColor: COLORS.greenFont, align: 'right' };
+        }
+        if (col?.key === 'totalBB') return { fill: 'E3F2FD', fontColor: '1565C0', align: 'right' };
+        if (col?.key === 'totalBK') return { fill: 'FFF3E0', fontColor: 'E65100', align: 'right' };
+        if (col?.key === 'totalOthers') return { fill: 'F3E5F5', fontColor: '6A1B9A', align: 'right' };
+        return null;
+      },
+    });
+  };
+
   if (!isOpen) return null;
 
   const sortOptions = displayMode === 'batch' 
@@ -883,9 +1029,17 @@ const ProductListModal = ({ isOpen, onClose, products, title, displayMode = 'cog
       <div className="modal-content product-list-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{title}</h2>
-          <button className="modal-close-btn" onClick={onClose}>
-            <X size={20} />
-          </button>
+          <div className="modal-header-actions">
+            {filteredProducts.length > 0 && (
+              <button className="export-excel-btn" onClick={handleExportToExcel} title="Export to Excel">
+                <Download size={16} />
+                <span>Export Excel</span>
+              </button>
+            )}
+            <button className="modal-close-btn" onClick={onClose}>
+              <X size={20} />
+            </button>
+          </div>
         </div>
         <div className="modal-controls">
           <input

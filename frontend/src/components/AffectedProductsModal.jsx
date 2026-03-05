@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X, TrendingUp, TrendingDown, Minus, Download } from "lucide-react";
 import { hppAPI, masterAPI } from "../services/api";
+import { exportToExcel, COLORS } from "../utils/excelExport";
 import LoadingSpinner from "./LoadingSpinner";
 import "../styles/AffectedProductsModal.css";
 
@@ -228,6 +229,85 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
       console.error('Error fetching affected materials:', error);
       setAffectedMaterials([]);
     }
+  };
+
+  // Export affected products to Excel with color coding
+  const handleExportToExcel = () => {
+    if (!affectedProducts || affectedProducts.length === 0) return;
+
+    exportToExcel({
+      filename: `AffectedProducts_${affectedMaterials.map(m => m.Item_Name || m.ITEM_ID).join('_').replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 50) || 'PriceChange'}`,
+      sheetName: 'Affected Products',
+      title: `Products Affected by ${priceUpdateMode ? 'Price Update' : 'Price Change'}`,
+      subtitle: `${priceChangeDescription || 'N/A'} | Date: ${priceChangeDate ? new Date(priceChangeDate).toLocaleString() : 'N/A'}`,
+      columns: [
+        { header: 'ID', key: 'Product_ID', width: 12 },
+        { header: 'Product Name', key: 'Product_Name', width: 30 },
+        { header: 'Cost Before', key: 'costBefore', width: 16 },
+        { header: 'Cost After', key: 'costAfter', width: 16 },
+        { header: 'Change', key: 'costChange', width: 16 },
+        { header: 'HNA', key: 'hna', width: 16 },
+        { header: 'HPP Before', key: 'hppBefore', width: 20 },
+        { header: 'HPP After', key: 'hppAfter', width: 20 },
+        { header: 'Impact HPP', key: 'impactHPP', width: 12 },
+        { header: 'Impact HNA', key: 'impactHNA', width: 12 },
+      ],
+      data: affectedProducts,
+      getValue: (row, col) => {
+        const materialBefore = parseFloat(row.totalBahanSebelum || 0);
+        const materialAfter = parseFloat(row.totalBahanSesudah || 0);
+        const overhead = calculateOverhead(row);
+        const marginBefore = calculateMarginValue(row, materialBefore);
+        const marginAfter = calculateMarginValue(row, materialAfter);
+        const costBefore = materialBefore + overhead + marginBefore;
+        const costAfter = materialAfter + overhead + marginAfter;
+        const costChange = costAfter - costBefore;
+        const hna = parseFloat(row.Product_SalesHNA || 0);
+        const hppBefore = parseFloat(row.HPPSebelum || 0);
+        const hppAfter = parseFloat(row.HPPSesudah || 0);
+        const impactHPP = parseFloat(row.persentase_perubahan || 0);
+        const impactHNA = calculateImpactHNA(row.Rasio_HPP_Sebelum, row.Rasio_HPP_Sesudah);
+
+        switch (col.key) {
+          case 'costBefore': return formatCurrency(costBefore);
+          case 'costAfter': return formatCurrency(costAfter);
+          case 'costChange': return `${costChange > 0 ? '+' : ''}${formatCurrency(costChange)}`;
+          case 'hna': return formatCurrency(hna);
+          case 'hppBefore': return formatHPPWithRatio(hppBefore, row.Rasio_HPP_Sebelum);
+          case 'hppAfter': return formatHPPWithRatio(hppAfter, row.Rasio_HPP_Sesudah);
+          case 'impactHPP': return formatPercentage(impactHPP);
+          case 'impactHNA': return formatPercentage(impactHNA);
+          default: return undefined;
+        }
+      },
+      getCellStyle: (row, colIdx, col) => {
+        const materialBefore = parseFloat(row.totalBahanSebelum || 0);
+        const materialAfter = parseFloat(row.totalBahanSesudah || 0);
+        const overhead = calculateOverhead(row);
+        const marginBefore = calculateMarginValue(row, materialBefore);
+        const marginAfter = calculateMarginValue(row, materialAfter);
+        const costChange = (materialAfter + overhead + marginAfter) - (materialBefore + overhead + marginBefore);
+        const impactHPP = parseFloat(row.persentase_perubahan || 0);
+        const impactHNA = calculateImpactHNA(row.Rasio_HPP_Sebelum, row.Rasio_HPP_Sesudah);
+
+        if (col?.key === 'costChange') {
+          if (costChange > 0) return { fill: COLORS.redBg, fontColor: COLORS.redFont, align: 'right', bold: true };
+          if (costChange < 0) return { fill: COLORS.greenBg, fontColor: COLORS.greenFont, align: 'right', bold: true };
+          return { fill: COLORS.grayBg, fontColor: COLORS.grayFont, align: 'right' };
+        }
+        if (col?.key === 'impactHPP') {
+          if (impactHPP > 0) return { fill: COLORS.redBg, fontColor: COLORS.redFont, align: 'right', bold: true };
+          if (impactHPP < 0) return { fill: COLORS.greenBg, fontColor: COLORS.greenFont, align: 'right', bold: true };
+          return { fill: COLORS.grayBg, fontColor: COLORS.grayFont, align: 'right' };
+        }
+        if (col?.key === 'impactHNA') {
+          if (impactHNA > 0) return { fill: COLORS.redBg, fontColor: COLORS.redFont, align: 'right', bold: true };
+          if (impactHNA < 0) return { fill: COLORS.greenBg, fontColor: COLORS.greenFont, align: 'right', bold: true };
+          return { fill: COLORS.grayBg, fontColor: COLORS.grayFont, align: 'right' };
+        }
+        return null;
+      },
+    });
   };
 
   // Export affected products to PDF - optimized for large datasets
@@ -484,16 +564,27 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
           <h2>Products Affected by {priceUpdateMode ? 'Price Update' : 'Price Change'}</h2>
           <div className="modal-header-actions">
             {!loading && !error && affectedProducts.length > 0 && (
-              <button 
-                className="export-btn" 
-                onClick={handleExportToPDF}
-                disabled={isExporting}
-                title="Export to PDF"
-                aria-label="Export affected products to PDF"
-              >
-                <Download size={16} />
-                <span>{isExporting ? 'Exporting...' : 'Export PDF'}</span>
-              </button>
+              <>
+                <button 
+                  className="export-btn" 
+                  onClick={handleExportToExcel}
+                  title="Export to Excel"
+                  aria-label="Export affected products to Excel"
+                >
+                  <Download size={16} />
+                  <span>Export Excel</span>
+                </button>
+                <button 
+                  className="export-btn" 
+                  onClick={handleExportToPDF}
+                  disabled={isExporting}
+                  title="Export to PDF"
+                  aria-label="Export affected products to PDF"
+                >
+                  <Download size={16} />
+                  <span>{isExporting ? 'Exporting...' : 'Export PDF'}</span>
+                </button>
+              </>
             )}
             <button className="close-btn" onClick={onClose} aria-label="Close">
               <X size={20} />

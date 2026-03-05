@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { masterAPI, productsAPI } from '../services/api';
-import { Edit, Trash2, Lock } from 'lucide-react';
+import { Edit, Trash2, Lock, Download } from 'lucide-react';
 import AddExpiredMaterialModal from '../components/AddExpiredMaterialModal';
 import EditExpiredMaterialModal from '../components/EditExpiredMaterialModal';
+import { exportToExcel } from '../utils/excelExport';
 import '../styles/ExpiryCost.css';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
@@ -460,12 +461,52 @@ const ViewAffectedProductsModal = ({ allocationData, materials, productNames, on
     return (value * 100).toFixed(2) + '%';
   };
 
+  const handleExportToExcel = () => {
+    if (allocationData.length === 0) return;
+
+    exportToExcel({
+      filename: `Expiry_Cost_Allocation_${currentYear}`,
+      sheetName: 'Allocations',
+      title: `Affected Products - Expiry Cost Allocation (${currentYear})`,
+      subtitle: `Total Allocations: ${allocationData.length} | Period: ${currentYear}`,
+      columns: [
+        { header: 'Item ID', key: 'Item_ID', width: 14 },
+        { header: 'Item Name', key: 'itemName', width: 28 },
+        { header: 'Product ID', key: 'Product_ID', width: 14 },
+        { header: 'Product Name', key: 'productName', width: 28 },
+        { header: 'Proportion', key: 'proportion', width: 12 },
+        { header: 'Cost per Batch', key: 'costPerBatch', width: 18 },
+        { header: 'Total Batches', key: 'Total_Batch', width: 14, type: 'number' },
+        { header: 'Batch Size', key: 'batchSize', width: 14 },
+      ],
+      data: allocationData,
+      getValue: (row, col) => {
+        switch (col.key) {
+          case 'itemName': return getMaterialName(row.Item_ID);
+          case 'productName': return getProductName(row.Product_ID);
+          case 'proportion': return formatPercentage(row.Proporsi);
+          case 'costPerBatch': return `Rp ${formatCurrency(row.Beban_Sisa_Bahan_Exp)}`;
+          case 'batchSize': return formatCurrency(row.BatchSize);
+          default: return undefined;
+        }
+      },
+    });
+  };
+
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal modal-large">
         <div className="modal-header">
           <h3>Affected Products - Expiry Cost Allocation ({currentYear})</h3>
-          <button className="close-button" onClick={onClose}>×</button>
+          <div className="modal-header-actions">
+            {allocationData.length > 0 && (
+              <button className="export-excel-btn" onClick={handleExportToExcel} title="Export to Excel">
+                <Download size={16} />
+                <span>Export Excel</span>
+              </button>
+            )}
+            <button className="close-button" onClick={onClose}>×</button>
+          </div>
         </div>
 
         <div className="modal-body">

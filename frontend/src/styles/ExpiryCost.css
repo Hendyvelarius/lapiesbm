@@ -648,3 +648,36 @@
 .allocation-table .text-right {
   text-align: right;
 }
+
+/* Export Excel Button */
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.export-excel-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid #10b981;
+  background: #ecfdf5;
+  color: #059669;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.export-excel-btn:hover {
+  background: #d1fae5;
+  border-color: #059669;
+  color: #047857;
+}
+
+.export-excel-btn:active {
+  transform: scale(0.97);
+}
