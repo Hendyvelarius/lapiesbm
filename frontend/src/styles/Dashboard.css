@@ -3320,7 +3320,49 @@
   border-color: #2563eb;
 }
 
+/* HPP Actual vs Std month selector - larger and more prominent */
+.hpp-month-select {
+  font-size: 13px;
+  padding: 5px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  font-weight: 500;
+  min-width: 110px;
+}
+
+.hpp-month-select:hover {
+  border-color: #3b82f6;
+}
+
+.hpp-month-select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
 .period-label {
   color: #2563eb;
   font-weight: 500;
+}
+
+/* Smooth content transitions for card data changes */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.avs-data-view,
+.cost-data-view,
+.trend-view {
+  animation: fadeSlideIn 0.35s ease-out;
 }

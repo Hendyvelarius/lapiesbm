@@ -488,6 +488,10 @@ async function getHPPActualVsStandard(year = null, mode = 'YTD', month = null) {
     if (mode === 'MTD' && month) {
       const periodStr = `${targetYear}${String(month).padStart(2, '0')}`;
       periodFilter = `AND h.Periode = '${periodStr}'`;
+    } else if (month) {
+      // YTD up to selected month
+      const periodStr = `${targetYear}${String(month).padStart(2, '0')}`;
+      periodFilter = `AND h.Periode >= '${targetYear}01' AND h.Periode <= '${periodStr}'`;
     } else {
       // YTD - all periods in the year
       periodFilter = `AND h.Periode LIKE '${targetYear}%'`;
@@ -1033,16 +1037,22 @@ module.exports = {
  * @param {string} year - Year (e.g., '2026')
  * @returns {Object} Dashboard stats based on actual batches
  */
-async function getActualDashboardStats(year = null, month = null) {
+async function getActualDashboardStats(year = null, month = null, mode = 'YTD') {
   try {
     const db = await connect();
     const targetYear = year || new Date().getFullYear().toString();
-    // When month is provided, filter to that specific month only (MTD)
-    // Periode format is 'YYYYMM' e.g. '202601'
+    // mode='YTD' + month: Jan through that month
+    // mode='MTD' + month: that single month only
+    // no month: full year
     const targetMonth = month ? String(month).padStart(2, '0') : null;
-    const periodeFilter = targetMonth
-      ? `AND h.Periode = '${targetYear}${targetMonth}'`
-      : `AND h.Periode LIKE '${targetYear}%'`;
+    let periodeFilter;
+    if (targetMonth && mode === 'MTD') {
+      periodeFilter = `AND h.Periode = '${targetYear}${targetMonth}'`;
+    } else if (targetMonth) {
+      periodeFilter = `AND h.Periode >= '${targetYear}01' AND h.Periode <= '${targetYear}${targetMonth}'`;
+    } else {
+      periodeFilter = `AND h.Periode LIKE '${targetYear}%'`;
+    }
     
     // First, get standard HPP data to get Category (toll type) for each product
     // Category comes from sp_COGS_HPP_List, not from m_Product directly
@@ -1252,6 +1262,7 @@ async function getActualDashboardStats(year = null, month = null) {
     return {
       year: targetYear,
       month: targetMonth || null,
+      mode: mode,
       batchCount: validBatches.length,
       costManagement: {
         totalHPP,
@@ -1308,15 +1319,18 @@ async function getActualDashboardStats(year = null, month = null) {
  * @param {string} lob - LOB filter: 'ALL', 'ETHICAL', 'OTC', 'GENERIK'
  * @returns {Object} Trend data with monthly averages
  */
-async function getActualVsStandardTrend(lob = 'ALL') {
+async function getActualVsStandardTrend(lob = 'ALL', year = null, month = null) {
   try {
     const db = await connect();
     
-    // Get data for the last 13 months (allows year-over-year comparison for current month)
-    const today = new Date();
+    // Get data for the last 13 months ending at the specified year+month
+    // If not provided, default to current date
+    const endDate = (year && month)
+      ? new Date(parseInt(year), parseInt(month) - 1, 1)
+      : new Date();
     const months = [];
     for (let i = 12; i >= 0; i--) {
-      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const d = new Date(endDate.getFullYear(), endDate.getMonth() - i, 1);
       months.push({
         year: d.getFullYear().toString(),
         month: d.getMonth() + 1,

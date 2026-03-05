@@ -729,11 +729,12 @@ export const dashboardAPI = {
   },
 
   // Get dashboard statistics from HPP Actual batches
-  // Query: ?year=2026&month=1 (year and month optional; month only used for MTD view)
-  getActualStats: (year = null, month = null) => {
+  // Query: ?year=2026&month=3&mode=YTD (mode: YTD=Jan thru month, MTD=single month)
+  getActualStats: (year = null, month = null, mode = 'YTD') => {
     const params = new URLSearchParams();
     if (year) params.append('year', year);
     if (month) params.append('month', month);
+    if (mode) params.append('mode', mode);
     const query = params.toString();
     const url = query ? `/dashboard/stats/actual?${query}` : '/dashboard/stats/actual';
     return apiRequest(url);
@@ -743,7 +744,7 @@ export const dashboardAPI = {
   getYears: () => apiRequest('/dashboard/years'),
   
   // Get HPP Actual vs Standard comparison
-  // Query: ?year=2026&mode=YTD&month=1 (month only used when mode=MTD)
+  // Query: ?year=2026&mode=YTD&month=3 (YTD=Jan thru month, MTD=single month)
   getActualVsStandard: (year = null, mode = 'YTD', month = null) => {
     let url = '/dashboard/actual-vs-standard';
     const params = new URLSearchParams();
@@ -755,10 +756,14 @@ export const dashboardAPI = {
   },
 
   // Get HPP Actual vs Standard 13-month trend
-  // Query: ?lob=ALL (optional: ALL, ETHICAL, OTC, GENERIK)
-  getActualVsStandardTrend: (lob = 'ALL') => {
-    const url = `/dashboard/actual-vs-standard/trend${lob ? `?lob=${lob}` : ''}`;
-    return apiRequest(url);
+  // Query: ?lob=ALL&year=2026&month=3 (optional: lob, year, month)
+  getActualVsStandardTrend: (lob = 'ALL', year = null, month = null) => {
+    const params = new URLSearchParams();
+    if (lob) params.append('lob', lob);
+    if (year) params.append('year', year);
+    if (month) params.append('month', month);
+    const query = params.toString();
+    return apiRequest(`/dashboard/actual-vs-standard/trend${query ? `?${query}` : ''}`);
   },
 
   // Get HPP Actual vs Standard batch data for a specific periode

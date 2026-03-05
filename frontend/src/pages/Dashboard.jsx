@@ -10,9 +10,7 @@ import {
   DollarSign,
   Loader2,
   Grid3X3,
-  Activity,
-  ChevronDown,
-  Calendar
+  Activity
 } from 'lucide-react';
 import { dashboardAPI } from '../services/api';
 import '../styles/Dashboard.css';
@@ -1011,10 +1009,9 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
   // Actual vs Standard comparison states
   const [actualVsStandardData, setActualVsStandardData] = useState(null);
   const [actualVsStandardMode, setActualVsStandardMode] = useState('YTD'); // 'YTD', 'MTD', or 'Trend'
-  const [actualVsStandardMonth, setActualVsStandardMonth] = useState(new Date().getMonth() + 1); // 1-12
+  const [actualVsStdMonth, setActualVsStdMonth] = useState(new Date().getMonth() + 1); // 1-12, independent
   const [showBatchListModal, setShowBatchListModal] = useState(false);
   const [batchListFilter, setBatchListFilter] = useState('all'); // 'all', 'lower', 'higher'
-  const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   
   // Trend view states
   const [trendData, setTrendData] = useState(null);
@@ -1124,7 +1121,7 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
         const response = await dashboardAPI.getActualVsStandard(
           dashboardPeriod.selectedYear,
           actualVsStandardMode,
-          actualVsStandardMonth
+          actualVsStdMonth
         );
         if (response.success) {
           setActualVsStandardData(response.data);
@@ -1135,7 +1132,7 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
     };
 
     fetchActualVsStandard();
-  }, [dashboardPeriod?.selectedYear, actualVsStandardMode, actualVsStandardMonth]);
+  }, [dashboardPeriod?.selectedYear, actualVsStandardMode, actualVsStdMonth]);
 
   // Fetch Trend data when in Trend mode
   useEffect(() => {
@@ -1144,7 +1141,11 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
       
       try {
         setTrendLoading(true);
-        const response = await dashboardAPI.getActualVsStandardTrend(trendLobFilter);
+        const response = await dashboardAPI.getActualVsStandardTrend(
+          trendLobFilter,
+          dashboardPeriod?.selectedYear,
+          actualVsStdMonth
+        );
         if (response.success) {
           setTrendData(response.data);
         }
@@ -1156,32 +1157,32 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
     };
 
     fetchTrendData();
-  }, [actualVsStandardMode, trendLobFilter]);
+  }, [actualVsStandardMode, trendLobFilter, dashboardPeriod?.selectedYear, actualVsStdMonth]);
 
   // Fetch Actual dashboard stats when card mode / period mode / month changes
   useEffect(() => {
     const fetchActualStats = async () => {
-      // Only fetch if the cost management card is in actual mode
-      // (pricing risk card always uses YTD so no period filtering needed there)
       if (costMgmtMode !== 'actual' && pricingRiskMode !== 'actual') return;
       if (!dashboardPeriod?.selectedYear) return;
 
-      // Determine the month to request (only when costMgmtMode is actual and MTD selected)
-      const requestMonth = (costMgmtMode === 'actual' && costMgmtPeriodMode === 'MTD')
-        ? costMgmtMonth
-        : null;
+      // Determine request params based on period mode
+      const requestMonth = costMgmtMonth;
+      const requestMode = costMgmtPeriodMode; // 'YTD' or 'MTD'
 
       // Skip if we already have data for the same parameters
+      const cachedMonth = actualDashboardData?.month ? parseInt(actualDashboardData.month) : null;
       const cacheHit =
         actualDashboardData?.year === dashboardPeriod.selectedYear &&
-        (actualDashboardData?.month ?? null) === requestMonth;
+        cachedMonth === requestMonth &&
+        (actualDashboardData?.mode ?? 'YTD') === requestMode;
       if (cacheHit) return;
       
       try {
         setActualDataLoading(true);
         const response = await dashboardAPI.getActualStats(
           dashboardPeriod.selectedYear,
-          requestMonth
+          requestMonth,
+          requestMode
         );
         if (response.success) {
           setActualDashboardData(response.data);
@@ -1194,7 +1195,7 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
     };
 
     fetchActualStats();
-  }, [costMgmtMode, pricingRiskMode, costMgmtPeriodMode, costMgmtMonth, dashboardPeriod?.selectedYear, actualDashboardData?.year, actualDashboardData?.month]);
+  }, [costMgmtMode, pricingRiskMode, costMgmtPeriodMode, costMgmtMonth, dashboardPeriod?.selectedYear, actualDashboardData?.year, actualDashboardData?.month, actualDashboardData?.mode]);
 
   // Clear actual data when year changes
   useEffect(() => {
@@ -1208,12 +1209,13 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
     }
   }, [costMgmtPeriodMode, costMgmtMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // When year changes, clamp costMgmtMonth to the latest available month for that year
+  // When year changes, clamp month selectors to the latest available month for that year
   useEffect(() => {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
-    if (parseInt(dashboardPeriod?.selectedYear) === currentYear && costMgmtMonth > currentMonth) {
-      setCostMgmtMonth(currentMonth);
+    if (parseInt(dashboardPeriod?.selectedYear) === currentYear) {
+      if (actualVsStdMonth > currentMonth) setActualVsStdMonth(currentMonth);
+      if (costMgmtMonth > currentMonth) setCostMgmtMonth(currentMonth);
     }
   }, [dashboardPeriod?.selectedYear]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1430,33 +1432,30 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
             <div className="header-row-1">
               <Activity size={18} />
               <h3>HPP Actual vs Std</h3>
-              {actualVsStandardMode === 'MTD' && (
-                <div className="month-selector inline">
-                  <button 
-                    className="month-dropdown-btn compact"
-                    onClick={() => setShowMonthDropdown(!showMonthDropdown)}
-                  >
-                    {getMonthName(actualVsStandardMonth)}
-                    <ChevronDown size={10} />
-                  </button>
-                  {showMonthDropdown && (
-                    <div className="month-dropdown">
-                      {(actualVsStandardData?.availableMonths || [1,2,3,4,5,6,7,8,9,10,11,12]).map(m => (
-                        <button 
-                          key={m}
-                          className={`month-option ${m === actualVsStandardMonth ? 'active' : ''}`}
-                          onClick={() => {
-                            setActualVsStandardMonth(m);
-                            setShowMonthDropdown(false);
-                          }}
-                        >
-                          {getMonthName(m)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+              {(() => {
+                const currentYear = new Date().getFullYear();
+                const currentMonth = new Date().getMonth() + 1;
+                const maxMonth = parseInt(dashboardPeriod?.selectedYear) === currentYear
+                  ? currentMonth
+                  : 12;
+                return (
+                  <div className="month-selector inline">
+                    <select
+                      className="hpp-month-select"
+                      value={actualVsStdMonth}
+                      onChange={e => setActualVsStdMonth(Number(e.target.value))}
+                    >
+                      {['January','February','March','April','May','June',
+                        'July','August','September','October','November','December']
+                        .slice(0, maxMonth)
+                        .map((m, i) => (
+                          <option key={i + 1} value={i + 1}>{m}</option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                );
+              })()}
             </div>
             <div className="mode-toggle">
               <button 
@@ -1482,7 +1481,7 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
           <div className="card-body actual-vs-std-body">
             {actualVsStandardMode === 'Trend' ? (
               // Trend View
-              <div className="trend-view">
+              <div className="trend-view" key={`trend-${trendLobFilter}-${actualVsStdMonth}`}>
                 {trendLoading ? (
                   <div className="trend-loading">
                     <Loader2 className="spinner" size={24} />
@@ -1518,7 +1517,7 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
               </div>
             ) : actualVsStandardData?.summary ? (
               // YTD/MTD View
-              <>
+              <div className="avs-data-view" key={`avs-${actualVsStandardMode}-${actualVsStdMonth}`}>
                 <div className="ratio-chart-section">
                   <ActualVsStandardChart 
                     ratio={actualVsStandardData.summary.avgActualVsStandardRatio || 100}
@@ -1555,7 +1554,7 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
                     }}
                   />
                 </div>
-              </>
+              </div>
             ) : (
               <div className="no-data-message">
                 <span>No actual HPP data available for this period</span>
@@ -1592,7 +1591,7 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
               </div>
             ) : (
               <>
-                {/* Period mode controls - only shown for Actual mode */}
+                {/* Period mode controls - shown for Actual mode */}
                 {costMgmtMode === 'actual' && (
                   <div className="cost-period-controls">
                     <div className="period-mode-toggle">
@@ -1609,7 +1608,7 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
                         Month
                       </button>
                     </div>
-                    {costMgmtPeriodMode === 'MTD' && (() => {
+                    {(() => {
                       const currentYear = new Date().getFullYear();
                       const currentMonth = new Date().getMonth() + 1;
                       const maxMonth = parseInt(dashboardPeriod?.selectedYear) === currentYear
@@ -1631,6 +1630,7 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
                     })()}
                   </div>
                 )}
+                <div key={`cost-${costMgmtMode}-${costMgmtPeriodMode}-${costMgmtMonth}`} className="cost-data-view">
                 <div 
                   className="cogs-ratio-section clickable" 
                   onClick={() => {
@@ -1655,11 +1655,12 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
                   {costMgmtMode === 'actual' && actualDashboardData?.batchCount > 0 && (
                     <div className="actual-batch-count">
                       Based on {actualDashboardData.batchCount} batch{actualDashboardData.batchCount !== 1 ? 'es' : ''}
-                      {costMgmtPeriodMode === 'MTD' && (
-                        <span className="period-label">
-                          {' '}— {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][costMgmtMonth - 1]} {dashboardPeriod?.selectedYear}
-                        </span>
-                      )}
+                      <span className="period-label">
+                        {' '}— {costMgmtPeriodMode === 'MTD'
+                          ? `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][costMgmtMonth - 1]} ${dashboardPeriod?.selectedYear}`
+                          : `Jan–${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][costMgmtMonth - 1]} ${dashboardPeriod?.selectedYear}`
+                        }
+                      </span>
                     </div>
                   )}
                 </div>
@@ -1707,6 +1708,7 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
                       );
                     })()}
                   </div>
+                </div>
                 </div>
               </>
             )}
@@ -2071,7 +2073,7 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
         title={`Batch COGS Details (Actual) - ${
           costMgmtPeriodMode === 'MTD'
             ? `${['January','February','March','April','May','June','July','August','September','October','November','December'][costMgmtMonth - 1]} ${actualDashboardData?.year || dashboardPeriod?.selectedYear}`
-            : `YTD ${actualDashboardData?.year || dashboardPeriod?.selectedYear}`
+            : `Jan–${['January','February','March','April','May','June','July','August','September','October','November','December'][costMgmtMonth - 1]} ${actualDashboardData?.year || dashboardPeriod?.selectedYear}`
         }${actualDashboardData?.batchCount > 0 ? ` (${actualDashboardData.batchCount} batch${actualDashboardData.batchCount !== 1 ? 'es' : ''})` : ''}`}
         displayMode="batch"
       />
@@ -2120,7 +2122,7 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
         isOpen={showBatchListModal}
         onClose={() => setShowBatchListModal(false)}
         batches={actualVsStandardData?.batches || []}
-        title={`HPP Actual vs Standard - ${actualVsStandardMode} ${dashboardPeriod?.selectedYear}${actualVsStandardMode === 'MTD' ? ' ' + getMonthName(actualVsStandardMonth) : ''} - ${batchListFilter === 'lower' ? 'Lower Cost Batches' : batchListFilter === 'higher' ? 'Higher Cost Batches' : 'All Batches'}`}
+        title={`HPP Actual vs Standard - ${actualVsStandardMode} ${dashboardPeriod?.selectedYear}${actualVsStandardMode === 'MTD' ? ' ' + getMonthName(actualVsStdMonth) : ' (Jan–' + getMonthName(actualVsStdMonth) + ')'} - ${batchListFilter === 'lower' ? 'Lower Cost Batches' : batchListFilter === 'higher' ? 'Higher Cost Batches' : 'All Batches'}`}
         filter={batchListFilter}
       />
 

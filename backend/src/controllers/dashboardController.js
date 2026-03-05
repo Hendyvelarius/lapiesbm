@@ -81,9 +81,9 @@ class DashboardController {
    */
   static async getActualVsStandardTrend(req, res) {
     try {
-      const { lob = 'ALL' } = req.query;
+      const { lob = 'ALL', year, month } = req.query;
       
-      const data = await getActualVsStandardTrend(lob);
+      const data = await getActualVsStandardTrend(lob, year || null, month ? parseInt(month) : null);
       
       res.status(200).json({
         success: true,
@@ -136,8 +136,8 @@ class DashboardController {
    */
   static async getActualStats(req, res) {
     try {
-      const { year, month } = req.query;
-      const stats = await getActualDashboardStats(year, month ? parseInt(month, 10) : null);
+      const { year, month, mode } = req.query;
+      const stats = await getActualDashboardStats(year, month ? parseInt(month, 10) : null, mode || 'YTD');
       
       res.status(200).json({
         success: true,
