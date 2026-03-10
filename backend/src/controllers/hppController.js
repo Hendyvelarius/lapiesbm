@@ -1,4 +1,4 @@
-const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, getDistinctCustomMaterials, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, getMarkedForDeleteList, deleteSimulation, markSimulationForDelete, restoreSimulation, bulkMarkForDelete, permanentlyDeleteMarked, getSimulationOwner, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk, bulkMarkPriceChangeGroupForDelete, bulkDeletePriceChangeGroup, getHPPActualList, getHPPActualPeriods, getHPPActualDetail, getHPPActualHeader, calculateHPPActual } = require('../models/hppModel');
+const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, getDistinctCustomMaterials, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, getMarkedForDeleteList, deleteSimulation, markSimulationForDelete, restoreSimulation, bulkMarkForDelete, permanentlyDeleteMarked, getSimulationOwner, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk, bulkMarkPriceChangeGroupForDelete, bulkDeletePriceChangeGroup, getHPPActualList, getHPPActualGranulateList, getHPPActualPeriods, getHPPActualDetail, getHPPActualHeader, getHPPActualAllDetails, calculateHPPActual } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
@@ -1096,13 +1096,15 @@ class HPPController {
   // Get HPP Actual list
   static async getHPPActualListData(req, res) {
     try {
-      const { periode } = req.query;
-      const data = await getHPPActualList(periode);
+      const { periode, testMode } = req.query;
+      const useTestTable = testMode === 'true' || testMode === '1';
+      const data = await getHPPActualList(periode, useTestTable);
       
       res.status(200).json({
         success: true,
         data: data,
-        count: data.length
+        count: data.length,
+        testMode: useTestTable
       });
     } catch (error) {
       console.error('Get HPP Actual List Error:', error);
@@ -1114,14 +1116,40 @@ class HPPController {
     }
   }
 
+  // Get HPP Actual granulate batches for a period
+  static async getHPPActualGranulateListData(req, res) {
+    try {
+      const { periode, testMode } = req.query;
+      const useTestTable = testMode === 'true' || testMode === '1';
+      const data = await getHPPActualGranulateList(periode, useTestTable);
+
+      res.status(200).json({
+        success: true,
+        data: data,
+        count: data.length,
+        testMode: useTestTable
+      });
+    } catch (error) {
+      console.error('Get HPP Actual Granulate List Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving HPP Actual granulate list',
+        error: error.message
+      });
+    }
+  }
+
   // Get available periods for HPP Actual
   static async getHPPActualPeriodsData(req, res) {
     try {
-      const periods = await getHPPActualPeriods();
+      const { testMode } = req.query;
+      const useTestTable = testMode === 'true' || testMode === '1';
+      const periods = await getHPPActualPeriods(useTestTable);
       
       res.status(200).json({
         success: true,
-        data: periods
+        data: periods,
+        testMode: useTestTable
       });
     } catch (error) {
       console.error('Get HPP Actual Periods Error:', error);
@@ -1133,10 +1161,43 @@ class HPPController {
     }
   }
 
+  // Get all HPP Actual details for a period (for export)
+  static async getHPPActualAllDetailsData(req, res) {
+    try {
+      const { periode, testMode } = req.query;
+      const useTestTable = testMode === 'true' || testMode === '1';
+      
+      if (!periode) {
+        return res.status(400).json({
+          success: false,
+          message: 'Periode is required'
+        });
+      }
+      
+      const details = await getHPPActualAllDetails(periode, useTestTable);
+      
+      res.status(200).json({
+        success: true,
+        data: details,
+        count: details.length,
+        testMode: useTestTable
+      });
+    } catch (error) {
+      console.error('Get HPP Actual All Details Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving HPP Actual details for export',
+        error: error.message
+      });
+    }
+  }
+
   // Get HPP Actual detail (materials) for a batch
   static async getHPPActualDetailData(req, res) {
     try {
       const { hppActualId } = req.params;
+      const { testMode } = req.query;
+      const useTestTable = testMode === 'true' || testMode === '1';
       
       if (!hppActualId) {
         return res.status(400).json({
@@ -1146,8 +1207,8 @@ class HPPController {
       }
       
       const [header, details] = await Promise.all([
-        getHPPActualHeader(hppActualId),
-        getHPPActualDetail(hppActualId)
+        getHPPActualHeader(hppActualId, useTestTable),
+        getHPPActualDetail(hppActualId, useTestTable)
       ]);
       
       if (!header) {
@@ -1162,7 +1223,8 @@ class HPPController {
         data: {
           header,
           details
-        }
+        },
+        testMode: useTestTable
       });
     } catch (error) {
       console.error('Get HPP Actual Detail Error:', error);

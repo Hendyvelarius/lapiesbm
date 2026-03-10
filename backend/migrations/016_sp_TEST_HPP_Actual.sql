@@ -1,5 +1,5 @@
 -- =====================================================================
--- Stored Procedure: sp_COGS_Calculate_HPP_Actual (v15)
+-- Stored Procedure: sp_COGS_Calculate_HPP_Actual_TEST (v15)
 -- Purpose: Calculate true batch cost based on actual material prices
 -- Changes in v15:
 --   - FIX: Granulate material quantities had no unit conversion.
@@ -15,18 +15,8 @@
 -- Changes in v14:
 --   - FIX: Granulate Cost_Per_Unit was only based on raw material cost,
 --     missing processing manhour cost (MH × Biaya_Proses).
---     For example, ä0 batch cost was 5.69 IDR/g (material only) but
---     should be ~54 IDR/g including 30h × 250,000/h processing.
---     
---     SOLUTION: Granulate PASS 1 header UPDATE now joins to:
---     - tmp_spLapProduksi_GWN_ReleaseQA for actual manhours (MH_NyataProses)
---     - t_COGS_HPP_Product_Header for processing rates (Biaya_Proses) and all overhead
---     
---     Cost_Per_Unit = (Material + MH_Proses×Rate + Utility + Analisa + Reagen) / Output
---     Falls back to MH_Proses_Std when actual manhours not available.
---     
---     Granulate header INSERT now also populates group info, batch size,
---     rendemen, and manhour standards from t_COGS_HPP_Product_Header.
+--     SOLUTION: Granulate PASS 1 header UPDATE now joins to manhour report
+--     and standard HPP for full cost calculation.
 -- Changes in v13:
 --   - CRITICAL FIX: Unit conversion for material quantities
 --     MR_DNcQTY was being summed without checking units. For example,
@@ -96,11 +86,11 @@
 -- Database: SQL Server 2008 R2 compatible
 -- =====================================================================
 
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[sp_COGS_Calculate_HPP_Actual]') AND type in (N'P', N'PC'))
-    DROP PROCEDURE [dbo].[sp_COGS_Calculate_HPP_Actual]
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[sp_COGS_Calculate_HPP_Actual_TEST]') AND type in (N'P', N'PC'))
+    DROP PROCEDURE [dbo].[sp_COGS_Calculate_HPP_Actual_TEST]
 GO
 
-CREATE PROCEDURE [dbo].[sp_COGS_Calculate_HPP_Actual]
+CREATE PROCEDURE [dbo].[sp_COGS_Calculate_HPP_Actual_TEST]
     @Periode VARCHAR(6) = NULL,          -- YYYYMM format (e.g., '202501')
     @DNcNo VARCHAR(100) = NULL,          -- Specific batch DNc_No
     @RecalculateExisting BIT = 0,        -- Recalculate even if exists
@@ -192,7 +182,7 @@ BEGIN
         WHERE CONVERT(VARCHAR(6), DNC_TempelLabel, 112) = @Periode
           AND DNC_Diluluskan > 0
           AND (@RecalculateExisting = 1 OR DNc_No NOT IN (
-              SELECT DNc_No FROM t_COGS_HPP_Actual_Header WHERE Calculation_Status = 'COMPLETED'
+              SELECT DNc_No FROM t_COGS_HPP_Actual_Header_TEST WHERE Calculation_Status = 'COMPLETED'
           ));
     END
     ELSE
@@ -275,7 +265,7 @@ BEGIN
                                                  AND mr_gran.MR_ProductID LIKE N'ä%'
     -- Skip if already calculated (unless recalculating)
     WHERE (@RecalculateExisting = 1 OR NOT EXISTS (
-        SELECT 1 FROM t_COGS_HPP_Actual_Header 
+        SELECT 1 FROM t_COGS_HPP_Actual_Header_TEST 
         WHERE DNc_ProductID = mr_gran.MR_ProductID 
           AND BatchNo = dm_gran.DNC_BatchNo
           AND Calculation_Status = 'COMPLETED'
@@ -336,11 +326,11 @@ BEGIN
                 -- Delete existing records if recalculating
                 IF @RecalculateExisting = 1
                 BEGIN
-                    DELETE d FROM t_COGS_HPP_Actual_Detail d
-                    JOIN t_COGS_HPP_Actual_Header h ON d.HPP_Actual_ID = h.HPP_Actual_ID
+                    DELETE d FROM t_COGS_HPP_Actual_Detail_TEST d
+                    JOIN t_COGS_HPP_Actual_Header_TEST h ON d.HPP_Actual_ID = h.HPP_Actual_ID
                     WHERE h.DNc_ProductID = @GranProductID AND h.BatchNo = @GranBatchNo;
                     
-                    DELETE FROM t_COGS_HPP_Actual_Header 
+                    DELETE FROM t_COGS_HPP_Actual_Header_TEST 
                     WHERE DNc_ProductID = @GranProductID AND BatchNo = @GranBatchNo;
                 END
                 
@@ -370,7 +360,6 @@ BEGIN
                 END
                 
                 -- v14: Get group info and standard HPP data for granulates
-                -- Granulates exist in t_COGS_HPP_Product_Header but NOT in M_COGS_PRODUCT_GROUP_MANUAL
                 SELECT TOP 1
                     @GranGroupPNCategory = Group_PNCategory,
                     @GranGroupPNCategoryName = Group_PNCategory_Name,
@@ -425,7 +414,7 @@ BEGIN
                 END
                 
                 -- Insert Header for granulate (v14: includes group info and manhour standards)
-                INSERT INTO t_COGS_HPP_Actual_Header (
+                INSERT INTO t_COGS_HPP_Actual_Header_TEST (
                     DNc_No, DNc_ProductID, Product_Name, BatchNo, BatchDate, TempelLabel_Date,
                     Periode, LOB,
                     Group_PNCategory, Group_PNCategory_Name, Group_PNCategory_Dept,
@@ -435,14 +424,14 @@ BEGIN
                     Cost_Per_Unit
                 )
                 VALUES (
-                    @GranMRNo,                    -- Use MR_No as DNc_No for granulates
+                    @GranMRNo,
                     @GranProductID,
                     @GranProductName,
                     @GranBatchNo,
                     @GranMRDate,
                     @GranTempelLabel,
                     ISNULL(@Periode, CONVERT(VARCHAR(6), @GranTempelLabel, 112)),
-                    'GRANULATE',                  -- LOB = GRANULATE to identify these
+                    'GRANULATE',
                     @GranGroupPNCategory,
                     @GranGroupPNCategoryName,
                     @GranGroupDept,
@@ -454,7 +443,7 @@ BEGIN
                     'PROCESSING',
                     'SYSTEM',
                     GETDATE(),
-                    @GranCostPerGram              -- Preliminary; recalculated in UPDATE below
+                    @GranCostPerGram
                 );
                 
                 SET @GranHPPActualID = SCOPE_IDENTITY();
@@ -463,7 +452,7 @@ BEGIN
                 -- MR_DNcQTY may be in different units (g vs kg) per line.
                 -- Must convert from MR_ItemUnit (from Detail table) to Item_Unit (item master)
                 -- before computing Qty_In_PO_Unit and costs.
-                INSERT INTO t_COGS_HPP_Actual_Detail (
+                INSERT INTO t_COGS_HPP_Actual_Detail_TEST (
                     HPP_Actual_ID, DNc_No, Item_ID, Item_Name, Item_Type, Item_Unit,
                     Qty_Used, Usage_Unit, PO_Unit,
                     Unit_Conversion_Factor, Qty_In_PO_Unit,
@@ -567,19 +556,15 @@ BEGIN
                 WHERE d.MR_No = @GranMRNo;
                 
                 -- v14: Update header with totals, manhours, rates, and full Cost_Per_Unit
-                -- Same pattern as PASS 2 product UPDATE for consistency
                 UPDATE h
                 SET 
                     Total_Cost_BB = ISNULL(bb.Total, 0),
-                    -- Rendemen
                     Rendemen_Actual = CASE 
                         WHEN h.Batch_Size_Std > 0 THEN (h.Output_Actual * 100.0) / h.Batch_Size_Std 
                         ELSE NULL 
                     END,
-                    -- Actual manhours from production report (fall back to standard)
                     MH_Proses_Actual = ISNULL(mh.MH_NyataProses, h.MH_Proses_Std),
                     MH_Kemas_Actual = ISNULL(mh.MH_NyataKemas, 0),
-                    -- Rates from standard HPP
                     Rate_MH_Proses = ISNULL(std.Biaya_Proses, h.Rate_MH_Proses),
                     Rate_MH_Kemas = ISNULL(std.Biaya_Kemas, h.Rate_MH_Kemas),
                     Rate_MH_Timbang = ISNULL(std.Biaya_Proses, h.Rate_MH_Timbang),
@@ -594,8 +579,6 @@ BEGIN
                     MH_Analisa_Std = ISNULL(std.MH_Analisa_Std, h.MH_Analisa_Std),
                     MH_Mesin_Std = ISNULL(std.MH_Mesin_Std, h.MH_Mesin_Std),
                     Cost_Utility = ISNULL(std.MH_Mesin_Std, 0) * ISNULL(std.Rate_PLN, 0),
-                    -- v14: Cost_Per_Unit = Total production cost / Output
-                    -- Includes: material + processing MH + packaging MH + utility + analisa + reagen
                     Cost_Per_Unit = CASE WHEN h.Output_Actual > 0 THEN
                         (
                             ISNULL(bb.Total, 0)
@@ -606,23 +589,20 @@ BEGIN
                             + ISNULL(std.Biaya_Reagen, 0)
                         ) / h.Output_Actual
                     ELSE 0 END,
-                    -- Material counts
                     Count_Materials_PO = ISNULL(cnt.PO_Count, 0),
                     Count_Materials_UNLINKED = ISNULL(cnt.UNLINKED_Count, 0),
                     Calculation_Status = 'COMPLETED',
                     Calculation_Date = GETDATE()
-                FROM t_COGS_HPP_Actual_Header h
-                -- Actual manhours from production report
+                FROM t_COGS_HPP_Actual_Header_TEST h
                 LEFT JOIN tmp_spLapProduksi_GWN_ReleaseQA mh 
                     ON h.BatchNo = mh.Reg_BatchNo 
                     AND REPLACE(mh.Periode, ' ', '') = h.Periode
-                -- Standard HPP for rates and overhead
                 LEFT JOIN t_COGS_HPP_Product_Header std 
                     ON h.DNc_ProductID = std.Product_ID 
                     AND LEFT(h.Periode, 4) = std.Periode
                 LEFT JOIN (
                     SELECT HPP_Actual_ID, SUM(Qty_In_PO_Unit * Unit_Price_IDR) as Total
-                    FROM t_COGS_HPP_Actual_Detail
+                    FROM t_COGS_HPP_Actual_Detail_TEST
                     WHERE HPP_Actual_ID = @GranHPPActualID
                     GROUP BY HPP_Actual_ID
                 ) bb ON h.HPP_Actual_ID = bb.HPP_Actual_ID
@@ -630,7 +610,7 @@ BEGIN
                     SELECT HPP_Actual_ID,
                         SUM(CASE WHEN Price_Source = 'PO' THEN 1 ELSE 0 END) as PO_Count,
                         SUM(CASE WHEN Price_Source = 'UNLINKED' THEN 1 ELSE 0 END) as UNLINKED_Count
-                    FROM t_COGS_HPP_Actual_Detail
+                    FROM t_COGS_HPP_Actual_Detail_TEST
                     WHERE HPP_Actual_ID = @GranHPPActualID
                     GROUP BY HPP_Actual_ID
                 ) cnt ON h.HPP_Actual_ID = cnt.HPP_Actual_ID
@@ -704,8 +684,8 @@ BEGIN
             -- Delete existing records if recalculating
             IF @RecalculateExisting = 1
             BEGIN
-                DELETE FROM t_COGS_HPP_Actual_Detail WHERE DNc_No = @CurrentDNcNo;
-                DELETE FROM t_COGS_HPP_Actual_Header WHERE DNc_No = @CurrentDNcNo;
+                DELETE FROM t_COGS_HPP_Actual_Detail_TEST WHERE DNc_No = @CurrentDNcNo;
+                DELETE FROM t_COGS_HPP_Actual_Header_TEST WHERE DNc_No = @CurrentDNcNo;
             END
             
             -- =========================================
@@ -762,7 +742,7 @@ BEGIN
             -- =========================================
             -- Insert Header with Product/Group info
             -- =========================================
-            INSERT INTO t_COGS_HPP_Actual_Header (
+            INSERT INTO t_COGS_HPP_Actual_Header_TEST (
                 DNc_No, DNc_ProductID, Product_Name, BatchNo, BatchDate, TempelLabel_Date, 
                 Periode, LOB, 
                 Group_PNCategory, Group_PNCategory_Name, Group_PNCategory_Dept,
@@ -1094,7 +1074,7 @@ BEGIN
                     SELECT TOP 1 
                         @GranulateHPPActualID = HPP_Actual_ID,
                         @GranulateCostPerGram = Cost_Per_Unit
-                    FROM t_COGS_HPP_Actual_Header
+                    FROM t_COGS_HPP_Actual_Header_TEST
                     WHERE BatchNo = @GranulateDNCBatchNo
                       AND DNc_ProductID LIKE N'ä%'
                       AND LOB = 'GRANULATE'
@@ -1204,7 +1184,7 @@ BEGIN
                 m.Unit_Conversion_Factor = 1,
                 m.Qty_In_PO_Unit = m.Qty_Used
             FROM #Materials m
-            JOIN t_COGS_HPP_Actual_Header hpp ON m.BPHP_No = hpp.DNc_No
+            JOIN t_COGS_HPP_Actual_Header_TEST hpp ON m.BPHP_No = hpp.DNc_No
             WHERE m.Price_Source = 'BPHP' AND m.Unit_Price = 0
               AND m.Is_Granulate = 0;  -- v7: Skip granulates
             
@@ -1324,7 +1304,7 @@ BEGIN
             -- Insert Details with all new fields
             -- v10: Use per-row exchange rate from #Materials
             -- =========================================
-            INSERT INTO t_COGS_HPP_Actual_Detail (
+            INSERT INTO t_COGS_HPP_Actual_Detail_TEST (
                 HPP_Actual_ID, DNc_No, Item_ID, Item_Name, Item_Type, Item_Unit,
                 Qty_Required, Qty_Used, Usage_Unit, PO_Unit, Item_BJ, 
                 Unit_Conversion_Factor, Qty_In_PO_Unit,
@@ -1433,7 +1413,7 @@ BEGIN
                 Total_Cost_Returned = ISNULL(rtn.Total, 0),
                 Calculation_Status = 'COMPLETED',
                 Calculation_Date = GETDATE()
-            FROM t_COGS_HPP_Actual_Header h
+            FROM t_COGS_HPP_Actual_Header_TEST h
             -- v11: Join to actual manhours report
             LEFT JOIN tmp_spLapProduksi_GWN_ReleaseQA mh 
                 ON h.BatchNo = mh.Reg_BatchNo 
@@ -1445,13 +1425,13 @@ BEGIN
             LEFT JOIN (
                 -- BB total now includes granulates (which are type BB)
                 SELECT HPP_Actual_ID, SUM(Qty_In_PO_Unit * Unit_Price_IDR) as Total
-                FROM t_COGS_HPP_Actual_Detail
+                FROM t_COGS_HPP_Actual_Detail_TEST
                 WHERE Item_Type = 'BB'
                 GROUP BY HPP_Actual_ID
             ) bb ON h.HPP_Actual_ID = bb.HPP_Actual_ID
             LEFT JOIN (
                 SELECT HPP_Actual_ID, SUM(Qty_In_PO_Unit * Unit_Price_IDR) as Total
-                FROM t_COGS_HPP_Actual_Detail
+                FROM t_COGS_HPP_Actual_Detail_TEST
                 WHERE Item_Type = 'BK'
                 GROUP BY HPP_Actual_ID
             ) bk ON h.HPP_Actual_ID = bk.HPP_Actual_ID
@@ -1460,7 +1440,7 @@ BEGIN
                 SELECT HPP_Actual_ID, 
                        SUM(Qty_In_PO_Unit * Unit_Price_IDR) as Total,
                        COUNT(*) as GranCount
-                FROM t_COGS_HPP_Actual_Detail
+                FROM t_COGS_HPP_Actual_Detail_TEST
                 WHERE Is_Granulate = 1
                 GROUP BY HPP_Actual_ID
             ) gran ON h.HPP_Actual_ID = gran.HPP_Actual_ID
@@ -1472,14 +1452,14 @@ BEGIN
                     SUM(CASE WHEN Price_Source = 'STD' THEN 1 ELSE 0 END) as STD_Count,
                     SUM(CASE WHEN Price_Source = 'PM' THEN 1 ELSE 0 END) as PM_Count,
                     SUM(CASE WHEN Price_Source = 'UNLINKED' THEN 1 ELSE 0 END) as UNLINKED_Count
-                FROM t_COGS_HPP_Actual_Detail
+                FROM t_COGS_HPP_Actual_Detail_TEST
                 GROUP BY HPP_Actual_ID
             ) cnt ON h.HPP_Actual_ID = cnt.HPP_Actual_ID
             -- v13: Total cost of returned materials (Qty_Returned * Unit_Price_IDR * conversion)
             LEFT JOIN (
                 SELECT HPP_Actual_ID, 
                        SUM(ISNULL(Qty_Returned, 0) * Unit_Conversion_Factor * ISNULL(Unit_Price_IDR, 0)) as Total
-                FROM t_COGS_HPP_Actual_Detail
+                FROM t_COGS_HPP_Actual_Detail_TEST
                 WHERE ISNULL(Qty_Returned, 0) > 0
                 GROUP BY HPP_Actual_ID
             ) rtn ON h.HPP_Actual_ID = rtn.HPP_Actual_ID
@@ -1495,7 +1475,7 @@ BEGIN
             SET @Msg = 'Error processing batch ' + @CurrentDNcNo + ': ' + ERROR_MESSAGE();
             PRINT @Msg;
             
-            UPDATE t_COGS_HPP_Actual_Header 
+            UPDATE t_COGS_HPP_Actual_Header_TEST 
             SET Calculation_Status = 'ERROR',
                 Error_Message = ERROR_MESSAGE()
             WHERE DNc_No = @CurrentDNcNo;
@@ -1544,5 +1524,5 @@ BEGIN
 END
 GO
 
-PRINT 'Stored procedure sp_COGS_Calculate_HPP_Actual v12 created successfully';
+PRINT 'Stored procedure sp_COGS_Calculate_HPP_Actual_TEST v12 created successfully';
 GO

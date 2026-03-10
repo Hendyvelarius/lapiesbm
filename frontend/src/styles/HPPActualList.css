@@ -121,6 +121,58 @@
   cursor: not-allowed;
 }
 
+/* Test Mode Toggle Button */
+.hpp-actual-test-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 2px dashed #9333ea;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+  color: #9333ea;
+}
+
+.hpp-actual-test-toggle:hover {
+  background: #faf5ff;
+  border-color: #7c3aed;
+}
+
+.hpp-actual-test-toggle.active {
+  background: linear-gradient(135deg, #9333ea 0%, #7c3aed 100%);
+  color: white;
+  border-style: solid;
+}
+
+.hpp-actual-test-toggle.active:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(147, 51, 234, 0.3);
+}
+
+/* Test Mode Badge */
+.hpp-actual-test-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #9333ea 0%, #7c3aed 100%);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 20px;
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
 /* Error Display */
 .hpp-actual-error {
   background: #fef2f2;

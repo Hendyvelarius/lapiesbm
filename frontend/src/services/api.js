@@ -311,16 +311,41 @@ export const hppAPI = {
   // ==================== HPP ACTUAL APIs ====================
   
   // Get HPP Actual list with calculated total HPP per batch
-  getActualList: (periode = null) => {
-    const queryString = periode ? `?periode=${periode}` : '';
+  getActualList: (periode = null, testMode = false) => {
+    const params = new URLSearchParams();
+    if (periode) params.append('periode', periode);
+    if (testMode) params.append('testMode', 'true');
+    const queryString = params.toString() ? `?${params.toString()}` : '';
     return apiRequest(`/hpp/actual/list${queryString}`);
+  },
+
+  // Get HPP Actual granulate batches for a period
+  getActualGranulates: (periode = null, testMode = false) => {
+    const params = new URLSearchParams();
+    if (periode) params.append('periode', periode);
+    if (testMode) params.append('testMode', 'true');
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    return apiRequest(`/hpp/actual/granulates${queryString}`);
   },
   
   // Get available periods for HPP Actual
-  getActualPeriods: () => apiRequest('/hpp/actual/periods'),
+  getActualPeriods: (testMode = false) => {
+    const queryString = testMode ? '?testMode=true' : '';
+    return apiRequest(`/hpp/actual/periods${queryString}`);
+  },
   
   // Get HPP Actual detail (header + materials) by HPP_Actual_ID
-  getActualDetail: (hppActualId) => apiRequest(`/hpp/actual/${hppActualId}`),
+  getActualDetail: (hppActualId, testMode = false) => {
+    const queryString = testMode ? '?testMode=true' : '';
+    return apiRequest(`/hpp/actual/${hppActualId}${queryString}`);
+  },
+  
+  // Get all HPP Actual details for export
+  getActualAllDetails: (periode, testMode = false) => {
+    const params = new URLSearchParams({ periode });
+    if (testMode) params.append('testMode', 'true');
+    return apiRequest(`/hpp/actual/all-details?${params.toString()}`);
+  },
   
   // Calculate HPP Actual using stored procedure
   calculateActual: (periode, recalculateExisting = false) => apiRequest('/hpp/actual/calculate', {

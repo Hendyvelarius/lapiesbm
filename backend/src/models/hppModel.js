@@ -1106,10 +1106,15 @@ async function updateSimulationVersionBulk(simulationVersions) {
 /**
  * Get HPP Actual list for a given period
  * Returns calculated HPP values for each batch
+ * @param {string} periode - Period filter (optional)
+ * @param {boolean} useTestTable - If true, reads from _TEST tables
  */
-async function getHPPActualList(periode = null) {
+async function getHPPActualList(periode = null, useTestTable = false) {
   try {
     const db = await connect();
+    
+    // Determine table name based on test mode
+    const headerTable = useTestTable ? 't_COGS_HPP_Actual_Header_TEST' : 't_COGS_HPP_Actual_Header';
     
     // Build query to get all batches with calculated HPP
     // Join with m_Product to get HNA (Product_SalesHNA)
@@ -1162,6 +1167,7 @@ async function getHPPActualList(periode = null) {
         h.Count_Materials_MR,
         h.Count_Materials_STD,
         h.Count_Materials_UNLINKED,
+        h.Total_Cost_Returned,
         -- HNA from m_Product
         p.Product_SalesHNA as HNA,
         -- Calculate component costs
@@ -1239,7 +1245,7 @@ async function getHPPActualList(periode = null) {
             )
           ELSE 0
         END as HPP_Ratio
-      FROM t_COGS_HPP_Actual_Header h
+      FROM ${headerTable} h
       LEFT JOIN m_Product p ON p.Product_ID = h.DNc_ProductID
       WHERE h.LOB != 'GRANULATE'
         AND h.Calculation_Status = 'COMPLETED'
@@ -1265,16 +1271,19 @@ async function getHPPActualList(periode = null) {
 
 /**
  * Get available periods for HPP Actual
+ * @param {boolean} useTestTable - If true, reads from _TEST tables
  */
-async function getHPPActualPeriods() {
+async function getHPPActualPeriods(useTestTable = false) {
   try {
     const db = await connect();
+    
+    const headerTable = useTestTable ? 't_COGS_HPP_Actual_Header_TEST' : 't_COGS_HPP_Actual_Header';
     
     const query = `
       SELECT DISTINCT Periode, 
              COUNT(*) as BatchCount,
              SUM(CASE WHEN LOB = 'GRANULATE' THEN 1 ELSE 0 END) as GranulateCount
-      FROM t_COGS_HPP_Actual_Header
+      FROM ${headerTable}
       WHERE Calculation_Status = 'COMPLETED'
       GROUP BY Periode
       ORDER BY Periode DESC
@@ -1290,11 +1299,92 @@ async function getHPPActualPeriods() {
 }
 
 /**
- * Get HPP Actual detail (materials) for a specific batch
+ * Get HPP Actual granulate batches for a period
+ * @param {string} periode - YYYYMM format
+ * @param {boolean} useTestTable - If true, reads from _TEST tables
  */
-async function getHPPActualDetail(hppActualId) {
+async function getHPPActualGranulateList(periode = null, useTestTable = false) {
   try {
     const db = await connect();
+    const headerTable = useTestTable ? 't_COGS_HPP_Actual_Header_TEST' : 't_COGS_HPP_Actual_Header';
+
+    let query = `
+      SELECT 
+        h.HPP_Actual_ID,
+        h.DNc_No,
+        h.DNc_ProductID as Product_ID,
+        h.Product_Name,
+        h.BatchNo,
+        h.BatchDate,
+        h.TempelLabel_Date,
+        h.Periode,
+        h.LOB,
+        h.Group_PNCategory,
+        h.Group_PNCategory_Name,
+        h.Group_PNCategory_Dept,
+        h.Batch_Size_Std,
+        h.Output_Actual,
+        h.Rendemen_Std,
+        h.Rendemen_Actual,
+        h.Total_Cost_BB,
+        h.MH_Proses_Std,
+        h.MH_Proses_Actual,
+        h.Rate_MH_Proses,
+        h.MH_Kemas_Std,
+        h.MH_Kemas_Actual,
+        h.Rate_MH_Kemas,
+        h.Cost_Utility,
+        h.Biaya_Analisa,
+        h.Biaya_Reagen,
+        h.MH_Mesin_Std,
+        h.Rate_PLN,
+        h.Cost_Per_Unit,
+        h.Calculation_Status,
+        h.Calculation_Date,
+        h.Count_Materials_PO,
+        h.Count_Materials_UNLINKED,
+        -- Calculated costs
+        ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Rate_MH_Proses, 0) as Biaya_Proses,
+        ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Rate_MH_Kemas, 0) as Biaya_Kemas,
+        -- Total production cost
+        (
+          ISNULL(h.Total_Cost_BB, 0) +
+          ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Rate_MH_Proses, 0) +
+          ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Rate_MH_Kemas, 0) +
+          ISNULL(h.Cost_Utility, 0) +
+          ISNULL(h.Biaya_Analisa, 0) +
+          ISNULL(h.Biaya_Reagen, 0)
+        ) as Total_Production_Cost
+      FROM ${headerTable} h
+      WHERE h.LOB = 'GRANULATE'
+        AND h.Calculation_Status = 'COMPLETED'
+    `;
+
+    let request = db.request();
+    if (periode) {
+      query += ` AND h.Periode = @periode`;
+      request = request.input('periode', sql.VarChar(6), periode);
+    }
+    query += ` ORDER BY h.Periode DESC, h.DNc_ProductID, h.BatchNo`;
+
+    const result = await request.query(query);
+    return result.recordset || [];
+  } catch (error) {
+    console.error("Error in getHPPActualGranulateList:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get HPP Actual detail (materials) for a specific batch
+ * @param {number} hppActualId - HPP Actual ID
+ * @param {boolean} useTestTable - If true, reads from _TEST tables
+ */
+async function getHPPActualDetail(hppActualId, useTestTable = false) {
+  try {
+    const db = await connect();
+    
+    const detailTable = useTestTable ? 't_COGS_HPP_Actual_Detail_TEST' : 't_COGS_HPP_Actual_Detail';
     
     const query = `
       SELECT 
@@ -1323,9 +1413,10 @@ async function getHPPActualDetail(hppActualId) {
         d.Is_Granulate,
         d.Granulate_Batch,
         d.Granulate_Cost_Per_Gram,
+        d.Qty_Returned,
         -- Calculate total cost
         ISNULL(d.Qty_In_PO_Unit, d.Qty_Used) * ISNULL(d.Unit_Price_IDR, 0) as Total_Cost
-      FROM t_COGS_HPP_Actual_Detail d
+      FROM ${detailTable} d
       WHERE d.HPP_Actual_ID = @hppActualId
       ORDER BY d.Item_Type, d.Item_ID
     `;
@@ -1344,14 +1435,18 @@ async function getHPPActualDetail(hppActualId) {
 
 /**
  * Get HPP Actual header for a specific batch
+ * @param {number} hppActualId - HPP Actual ID
+ * @param {boolean} useTestTable - If true, reads from _TEST tables
  */
-async function getHPPActualHeader(hppActualId) {
+async function getHPPActualHeader(hppActualId, useTestTable = false) {
   try {
     const db = await connect();
     
+    const headerTable = useTestTable ? 't_COGS_HPP_Actual_Header_TEST' : 't_COGS_HPP_Actual_Header';
+    
     const query = `
       SELECT *
-      FROM t_COGS_HPP_Actual_Header
+      FROM ${headerTable}
       WHERE HPP_Actual_ID = @hppActualId
     `;
     
@@ -1363,6 +1458,71 @@ async function getHPPActualHeader(hppActualId) {
     
   } catch (error) {
     console.error("Error in getHPPActualHeader:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get all HPP Actual details for a period (for export)
+ * @param {string} periode - Period in YYYYMM format
+ * @param {boolean} useTestTable - If true, reads from _TEST tables
+ * @returns {array} - All material details for the period
+ */
+async function getHPPActualAllDetails(periode, useTestTable = false) {
+  try {
+    const db = await connect();
+    
+    const headerTable = useTestTable ? 't_COGS_HPP_Actual_Header_TEST' : 't_COGS_HPP_Actual_Header';
+    const detailTable = useTestTable ? 't_COGS_HPP_Actual_Detail_TEST' : 't_COGS_HPP_Actual_Detail';
+    
+    const query = `
+      SELECT 
+        h.DNc_No,
+        h.Product_Name,
+        h.BatchNo,
+        h.Periode,
+        h.LOB,
+        d.Item_ID as Material_Code,
+        d.Item_Name as Material_Name,
+        d.Item_Type,
+        d.Item_Unit,
+        d.Qty_Required,
+        d.Qty_Used,
+        d.Qty_Returned,
+        d.Usage_Unit,
+        d.PO_Unit,
+        d.Unit_Conversion_Factor,
+        d.Qty_In_PO_Unit,
+        d.Unit_Price,
+        d.Currency_Original,
+        d.Exchange_Rate,
+        d.Unit_Price_IDR,
+        d.Price_Source,
+        d.Price_Source_Level,
+        d.MR_No,
+        d.TTBA_No,
+        d.PO_No,
+        d.Is_Granulate,
+        d.Granulate_Batch,
+        d.Granulate_Cost_Per_Gram,
+        -- Calculate total cost (Net quantity * price)
+        d.Qty_In_PO_Unit * ISNULL(d.Unit_Price_IDR, 0) as Total_Cost
+      FROM ${detailTable} d
+      JOIN ${headerTable} h ON d.HPP_Actual_ID = h.HPP_Actual_ID
+      WHERE h.Periode = @periode
+        AND h.LOB != 'GRANULATE'
+        AND h.Calculation_Status = 'COMPLETED'
+      ORDER BY h.Product_Name, h.BatchNo, d.Item_Type, d.Item_ID
+    `;
+    
+    const result = await db.request()
+      .input('periode', sql.VarChar(6), periode)
+      .query(query);
+    
+    return result.recordset || [];
+    
+  } catch (error) {
+    console.error("Error in getHPPActualAllDetails:", error);
     throw error;
   }
 }
@@ -1480,9 +1640,11 @@ module.exports = {
   updateSimulationVersionBulk,
   // HPP Actual exports
   getHPPActualList,
+  getHPPActualGranulateList,
   getHPPActualPeriods,
   getHPPActualDetail,
   getHPPActualHeader,
+  getHPPActualAllDetails,
   calculateHPPActual,
   getErrorBatches,
 };

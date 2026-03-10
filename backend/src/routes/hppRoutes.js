@@ -109,11 +109,20 @@ router.put('/simulation/version-bulk', HPPController.updateSimulationVersionBulk
 // =====================================================================
 
 // GET /api/hpp/actual/list - Get HPP Actual list for a period
-// Query: ?periode=202601
+// Query: ?periode=202601&testMode=true
 router.get('/actual/list', HPPController.getHPPActualListData);
 
+// GET /api/hpp/actual/granulates - Get HPP Actual granulate batches for a period
+// Query: ?periode=202601&testMode=true
+router.get('/actual/granulates', HPPController.getHPPActualGranulateListData);
+
 // GET /api/hpp/actual/periods - Get available periods for HPP Actual
+// Query: ?testMode=true
 router.get('/actual/periods', HPPController.getHPPActualPeriodsData);
+
+// GET /api/hpp/actual/all-details - Get all details for export
+// Query: ?periode=202601&testMode=true
+router.get('/actual/all-details', HPPController.getHPPActualAllDetailsData);
 
 // GET /api/hpp/actual/:hppActualId - Get HPP Actual detail (header + materials)
 router.get('/actual/:hppActualId', HPPController.getHPPActualDetailData);
