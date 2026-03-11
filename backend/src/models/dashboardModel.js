@@ -617,7 +617,7 @@ async function getHPPActualVsStandard(year = null, mode = 'YTD', month = null) {
       FROM t_COGS_HPP_Actual_Header h
       LEFT JOIN m_Product p ON h.DNc_ProductID = p.Product_ID
       WHERE h.Calculation_Status = 'COMPLETED'
-        AND h.LOB != 'GRANULATE'
+        AND h.LOB NOT IN ('GRANULATE', 'FG')
         ${periodFilter}
         AND ISNULL(h.Output_Actual, 0) > 0
       ORDER BY h.BatchDate DESC, h.DNc_ProductID
@@ -908,7 +908,7 @@ async function getActualVsStandardByPeriode(periode, lob = 'ALL') {
       FROM t_COGS_HPP_Actual_Header h
       LEFT JOIN m_Product p ON h.DNc_ProductID = p.Product_ID
       WHERE h.Calculation_Status = 'COMPLETED'
-        AND h.LOB != 'GRANULATE'
+        AND h.LOB NOT IN ('GRANULATE', 'FG')
         AND h.Periode = '${periode}'
         AND ISNULL(h.Output_Actual, 0) > 0
         ${lobFilter}
@@ -1114,7 +1114,7 @@ async function getActualDashboardStats(year = null, month = null, mode = 'YTD') 
       FROM t_COGS_HPP_Actual_Header h
       LEFT JOIN m_Product p ON h.DNc_ProductID = p.Product_ID
       WHERE h.Calculation_Status = 'COMPLETED'
-        AND h.LOB != 'GRANULATE'
+        AND h.LOB NOT IN ('GRANULATE', 'FG')
         ${periodeFilter}
         AND ISNULL(h.Output_Actual, 0) > 0
     `;
@@ -1370,7 +1370,7 @@ async function getActualVsStandardTrend(lob = 'ALL', year = null, month = null) 
         ISNULL(h.Beban_Sisa_Bahan_Exp, 0) as Beban_Sisa_Bahan_Exp
       FROM t_COGS_HPP_Actual_Header h
       WHERE h.Calculation_Status = 'COMPLETED'
-        AND h.LOB != 'GRANULATE'
+        AND h.LOB NOT IN ('GRANULATE', 'FG')
         AND h.Periode IN (${months.map(m => `'${m.periode}'`).join(',')})
         AND ISNULL(h.Output_Actual, 0) > 0
         ${lobFilter}

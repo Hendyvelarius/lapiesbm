@@ -1,4 +1,4 @@
-const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, getDistinctCustomMaterials, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, getMarkedForDeleteList, deleteSimulation, markSimulationForDelete, restoreSimulation, bulkMarkForDelete, permanentlyDeleteMarked, getSimulationOwner, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk, bulkMarkPriceChangeGroupForDelete, bulkDeletePriceChangeGroup, getHPPActualList, getHPPActualGranulateList, getHPPActualPeriods, getHPPActualDetail, getHPPActualHeader, getHPPActualAllDetails, calculateHPPActual } = require('../models/hppModel');
+const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, getDistinctCustomMaterials, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, getMarkedForDeleteList, deleteSimulation, markSimulationForDelete, restoreSimulation, bulkMarkForDelete, permanentlyDeleteMarked, getSimulationOwner, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk, bulkMarkPriceChangeGroupForDelete, bulkDeletePriceChangeGroup, getHPPActualList, getHPPActualGranulateList, getHPPActualPeriods, getHPPActualDetail, getHPPActualHeader, getHPPActualAllDetails, getHPPActualIntermediateUsage, calculateHPPActual } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
@@ -1134,6 +1134,29 @@ class HPPController {
       res.status(500).json({
         success: false,
         message: 'Error retrieving HPP Actual granulate list',
+        error: error.message
+      });
+    }
+  }
+
+  // Get HPP Actual intermediate usage for a period
+  static async getHPPActualIntermediateUsageData(req, res) {
+    try {
+      const { periode, testMode } = req.query;
+      const useTestTable = testMode === 'true' || testMode === '1';
+      const data = await getHPPActualIntermediateUsage(periode, useTestTable);
+
+      res.status(200).json({
+        success: true,
+        data: data,
+        count: data.length,
+        testMode: useTestTable
+      });
+    } catch (error) {
+      console.error('Get HPP Actual Intermediate Usage Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving intermediate usage data',
         error: error.message
       });
     }

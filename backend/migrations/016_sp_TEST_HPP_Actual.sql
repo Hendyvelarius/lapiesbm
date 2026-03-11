@@ -1,6 +1,23 @@
 -- =====================================================================
--- Stored Procedure: sp_COGS_Calculate_HPP_Actual_TEST (v15)
+-- Stored Procedure: sp_COGS_Calculate_HPP_Actual_TEST (v16)
 -- Purpose: Calculate true batch cost based on actual material prices
+-- Changes in v16:
+--   - NEW: Finished Goods (FG) support as intermediate products
+--     FG items are produced like regular products but used as materials
+--     in other products, similar to granulates.
+--     
+--     IDENTIFICATION: MR_ItemType = 'FG' in t_Bon_Keluar_Bahan_Awal_Header
+--     
+--     PASS 1A (after granulates): Discover FG batches used by products
+--     - Find MRs with MR_ItemType = 'FG' linked to products we're processing
+--     - Each FG item in the MR detail is a finished good product
+--     - Trace FG product's own MRs to calculate raw material cost
+--     - Insert header with LOB = 'FG' and compute Cost_Per_Unit
+--     
+--     PASS 2: FG materials flagged and costed from pre-calculated headers
+--     - Materials where the consuming MR has MR_ItemType = 'FG' are flagged
+--     - Is_Granulate = 1 reused for FG (both are intermediates)
+--     - Cost lookup from t_COGS_HPP_Actual_Header_TEST WHERE LOB = 'FG'
 -- Changes in v15:
 --   - FIX: Granulate material quantities had no unit conversion.
 --     MR_DNcQTY was used as-is without checking MR_ItemUnit, so
@@ -137,6 +154,10 @@ BEGIN
     -- v9: Granulate pass variables
     DECLARE @GranulatePassCount INT = 0;
     DECLARE @GranulatePassProcessed INT = 0;
+    
+    -- v16: FG pass variables
+    DECLARE @FGPassCount INT = 0;
+    DECLARE @FGPassProcessed INT = 0;
     
     -- =========================================
     -- STEP 1: Identify PRODUCT batches to process
@@ -340,11 +361,11 @@ BEGIN
                 FROM m_Item_manufacturing
                 WHERE REPLACE(Item_ID, ' ', '') = @GranProductID;
                 
-                -- Get TempelLabel from t_dnc_manufacturing (latest for this batch in the year)
+                -- Get TempelLabel from t_dnc_manufacturing (latest for this batch, 2-year window for cross-year batches)
                 SELECT TOP 1 @GranTempelLabel = CAST(DNc_Date AS DATE)
                 FROM t_dnc_manufacturing
                 WHERE DNC_BatchNo = @GranBatchNo
-                  AND YEAR(DNc_Date) = @GranMRYear
+                  AND YEAR(DNc_Date) IN (@GranMRYear, @GranMRYear + 1)
                 ORDER BY DNc_Date DESC;
                 
                 -- Get currency rates for this date
@@ -373,11 +394,11 @@ BEGIN
                   AND Periode IN (@GroupPeriode, CAST(CAST(@GroupPeriode AS INT) - 1 AS VARCHAR))
                 ORDER BY Periode DESC;
                 
-                -- Calculate output quantity (filtered by year like v8)
+                -- Calculate output quantity (2-year window for cross-year batches)
                 SELECT @GranOutputQty = SUM(ISNULL(DNc_ReleaseQTY, 0))
                 FROM t_dnc_manufacturing
                 WHERE DNC_BatchNo = @GranBatchNo
-                  AND YEAR(DNc_Date) = @GranMRYear;
+                  AND YEAR(DNc_Date) IN (@GranMRYear, @GranMRYear + 1);
                 
                 -- Calculate raw material cost from the MR
                 SELECT @GranRawCost = SUM(
@@ -648,9 +669,303 @@ BEGIN
         DEALLOCATE granulate_batch_cursor;
     END
     
+    -- =========================================
+    -- v16 PASS 1A: Process FINISHED GOODS (FG) batches
+    -- FG items are identified by MR_ItemType = 'FG' in t_Bon_Keluar_Bahan_Awal_Header
+    -- They are produced like regular products but function as intermediate materials
+    -- =========================================
     IF @Debug = 1
     BEGIN
-        SET @Msg = 'PASS 1 Complete: ' + CAST(@GranulatePassProcessed AS VARCHAR) + ' granulates processed';
+        PRINT '';
+        PRINT '========================================';
+        PRINT 'PASS 1A: Processing Finished Goods (FG) Batches';
+        PRINT '========================================';
+    END
+    
+    CREATE TABLE #FGToProcess (
+        FGID INT IDENTITY(1,1) PRIMARY KEY,
+        FGProductID VARCHAR(50),
+        FGBatchNo VARCHAR(50),
+        FGDNcNo VARCHAR(100),
+        MR_No VARCHAR(100),
+        MR_Date DATETIME,
+        MR_Year INT,
+        OutputQty DECIMAL(18,2),
+        RawMaterialCost DECIMAL(18,4),
+        CostPerUnit DECIMAL(18,6),
+        Processed BIT DEFAULT 0
+    );
+    
+    INSERT INTO #FGToProcess (FGProductID, FGBatchNo, FGDNcNo, MR_No, MR_Date, MR_Year)
+    SELECT DISTINCT
+        d.MR_ItemID,
+        fg_dnc.DNc_BatchNo,
+        fg_dnc.DNc_No,
+        NULL,
+        CASE WHEN ISDATE(fg_dnc.DNC_BatchDate) = 1 THEN CONVERT(DATETIME, fg_dnc.DNC_BatchDate, 111) ELSE NULL END,
+        CASE WHEN ISDATE(fg_dnc.DNC_BatchDate) = 1 THEN YEAR(CONVERT(DATETIME, fg_dnc.DNC_BatchDate, 111)) ELSE NULL END
+    FROM #BatchesToProcess bp
+    JOIN t_Bon_Keluar_Bahan_Awal_Header h ON h.MR_ProductID = bp.DNc_ProductID 
+                                          AND h.MR_BatchNo = bp.DNc_BatchNo
+                                          AND h.MR_BatchDate = bp.DNC_BatchDate
+                                          AND h.MR_ItemType = 'FG'
+    JOIN t_Bon_Keluar_Bahan_Awal_DNc d ON h.MR_No = d.MR_No
+    JOIN t_dnc_product fg_dnc ON fg_dnc.DNc_BatchNo = d.MR_DNcNo AND fg_dnc.DNc_ProductID = d.MR_ItemID
+    WHERE (@RecalculateExisting = 1 OR NOT EXISTS (
+        SELECT 1 FROM t_COGS_HPP_Actual_Header_TEST 
+        WHERE DNc_ProductID = d.MR_ItemID 
+          AND BatchNo = fg_dnc.DNc_BatchNo
+          AND Calculation_Status = 'COMPLETED'
+    ));
+    
+    SELECT @FGPassCount = COUNT(*) FROM #FGToProcess;
+    
+    IF @Debug = 1
+    BEGIN
+        SET @Msg = 'Found ' + CAST(@FGPassCount AS VARCHAR) + ' FG batches to process';
+        PRINT @Msg;
+    END
+    
+    IF @FGPassCount > 0
+    BEGIN
+        DECLARE @FGID INT;
+        DECLARE @FGProductID VARCHAR(50);
+        DECLARE @FGBatchNo VARCHAR(50);
+        DECLARE @FGDNcNo VARCHAR(100);
+        DECLARE @FGMRNo VARCHAR(100);
+        DECLARE @FGMRDate DATETIME;
+        DECLARE @FGMRYear INT;
+        DECLARE @FGOutputQty DECIMAL(18,2);
+        DECLARE @FGRawCost DECIMAL(18,4);
+        DECLARE @FGCostPerUnit DECIMAL(18,6);
+        DECLARE @FGHPPActualID INT;
+        DECLARE @FGProductName VARCHAR(200);
+        DECLARE @FGTempelLabel DATE;
+        DECLARE @FGRateUSD DECIMAL(18,4), @FGRateEUR DECIMAL(18,4);
+        DECLARE @FGGroupPNCategory INT;
+        DECLARE @FGGroupPNCategoryName VARCHAR(100);
+        DECLARE @FGGroupDept VARCHAR(20);
+        DECLARE @FGBatchSizeStd DECIMAL(18,2);
+        DECLARE @FGRendemenStd DECIMAL(18,4);
+        DECLARE @FGMHProsesStd DECIMAL(18,4);
+        DECLARE @FGMHKemasStd DECIMAL(18,4);
+        
+        DECLARE fg_batch_cursor CURSOR LOCAL FAST_FORWARD FOR
+            SELECT FGID, FGProductID, FGBatchNo, FGDNcNo, MR_No, MR_Date, MR_Year
+            FROM #FGToProcess;
+        
+        OPEN fg_batch_cursor;
+        FETCH NEXT FROM fg_batch_cursor INTO @FGID, @FGProductID, @FGBatchNo, @FGDNcNo, @FGMRNo, @FGMRDate, @FGMRYear;
+        
+        WHILE @@FETCH_STATUS = 0
+        BEGIN
+            BEGIN TRY
+                IF @Debug = 1
+                BEGIN
+                    SET @Msg = 'Processing FG batch: ' + @FGBatchNo + ' (Product: ' + @FGProductID + ', DNcNo: ' + @FGDNcNo + ')';
+                    PRINT @Msg;
+                END
+                
+                IF @RecalculateExisting = 1
+                BEGIN
+                    DELETE d FROM t_COGS_HPP_Actual_Detail_TEST d
+                    JOIN t_COGS_HPP_Actual_Header_TEST h ON d.HPP_Actual_ID = h.HPP_Actual_ID
+                    WHERE h.DNc_ProductID = @FGProductID AND h.BatchNo = @FGBatchNo;
+                    
+                    DELETE FROM t_COGS_HPP_Actual_Header_TEST 
+                    WHERE DNc_ProductID = @FGProductID AND BatchNo = @FGBatchNo;
+                END
+                
+                SELECT @FGProductName = Product_Name FROM m_Product WHERE Product_ID = @FGProductID;
+                IF @FGProductName IS NULL
+                    SELECT @FGProductName = Item_Name FROM m_Item_manufacturing WHERE Item_ID = @FGProductID;
+                
+                SELECT TOP 1 @FGTempelLabel = CAST(DNC_TempelLabel AS DATE)
+                FROM t_dnc_product WHERE DNc_No = @FGDNcNo;
+                
+                SELECT TOP 1 @FGRateUSD = USD, @FGRateEUR = EUR
+                FROM m_COGS_Daily_Currency WHERE date <= ISNULL(@FGTempelLabel, @FGMRDate) ORDER BY date DESC;
+                IF @FGRateUSD IS NULL
+                    SELECT TOP 1 @FGRateUSD = USD, @FGRateEUR = EUR FROM m_COGS_Daily_Currency ORDER BY date ASC;
+                
+                SELECT TOP 1
+                    @FGGroupPNCategory = Group_PNCategory, @FGGroupPNCategoryName = Group_PNCategory_Name,
+                    @FGGroupDept = Group_PNCategory_Dept, @FGBatchSizeStd = Batch_Size,
+                    @FGRendemenStd = Group_Rendemen, @FGMHProsesStd = MH_Proses_Std, @FGMHKemasStd = MH_Kemas_Std
+                FROM t_COGS_HPP_Product_Header
+                WHERE Product_ID = @FGProductID
+                  AND Periode IN (@GroupPeriode, CAST(CAST(@GroupPeriode AS INT) - 1 AS VARCHAR))
+                ORDER BY Periode DESC;
+                
+                SELECT @FGOutputQty = DNC_Diluluskan FROM t_dnc_product WHERE DNc_No = @FGDNcNo;
+                
+                SELECT @FGRawCost = SUM(
+                    (ISNULL(d.MR_DNcQTY, 0) / 1000.0) * ISNULL(p.PO_UnitPrice, 0) *
+                    CASE p.PO_Currency WHEN 'USD' THEN ISNULL(@FGRateUSD, 1) WHEN 'EUR' THEN ISNULL(@FGRateEUR, 1) ELSE 1 END
+                )
+                FROM t_Bon_Keluar_Bahan_Awal_Header h
+                JOIN t_Bon_Keluar_Bahan_Awal_DNc d ON h.MR_No = d.MR_No
+                LEFT JOIN t_DNc_Manufacturing dm ON d.MR_DNcNo = dm.DNc_No
+                LEFT JOIN t_ttba_manufacturing_detail t ON dm.DNc_TTBANo = t.TTBA_No AND dm.DNc_TTBASeqID = t.TTBA_SeqID
+                LEFT JOIN t_PO_Manufacturing_Detail p ON t.TTBA_SourceDocNo = p.PO_No AND t.TTBA_SourceDocSeqID = p.PO_SeqID
+                WHERE h.MR_ProductID = @FGProductID AND h.MR_BatchNo = @FGBatchNo;
+                
+                IF ISNULL(@FGOutputQty, 0) > 0
+                    SET @FGCostPerUnit = ISNULL(@FGRawCost, 0) / @FGOutputQty;
+                ELSE
+                    SET @FGCostPerUnit = 0;
+                
+                IF @Debug = 1
+                BEGIN
+                    SET @Msg = '  MR: ' + ISNULL(@FGMRNo, 'N/A') + ', RawCost: ' + CAST(ISNULL(@FGRawCost,0) AS VARCHAR)
+                             + ', Output: ' + CAST(ISNULL(@FGOutputQty,0) AS VARCHAR)
+                             + ', Cost/unit: ' + CAST(ISNULL(@FGCostPerUnit,0) AS VARCHAR);
+                    PRINT @Msg;
+                END
+                
+                INSERT INTO t_COGS_HPP_Actual_Header_TEST (
+                    DNc_No, DNc_ProductID, Product_Name, BatchNo, BatchDate, TempelLabel_Date,
+                    Periode, LOB, Group_PNCategory, Group_PNCategory_Name, Group_PNCategory_Dept,
+                    Batch_Size_Std, Output_Actual, Rendemen_Std, MH_Proses_Std, MH_Kemas_Std,
+                    Calculation_Status, Created_By, Created_Date, Cost_Per_Unit
+                )
+                VALUES (
+                    @FGDNcNo, @FGProductID, @FGProductName, @FGBatchNo, @FGMRDate, @FGTempelLabel,
+                    ISNULL(@Periode, CONVERT(VARCHAR(6), @FGTempelLabel, 112)),
+                    'FG', @FGGroupPNCategory, @FGGroupPNCategoryName, @FGGroupDept,
+                    @FGBatchSizeStd, @FGOutputQty, @FGRendemenStd, @FGMHProsesStd, @FGMHKemasStd,
+                    'PROCESSING', 'SYSTEM', GETDATE(), @FGCostPerUnit
+                );
+                
+                SET @FGHPPActualID = SCOPE_IDENTITY();
+                
+                INSERT INTO t_COGS_HPP_Actual_Detail_TEST (
+                    HPP_Actual_ID, DNc_No, Item_ID, Item_Name, Item_Type, Item_Unit,
+                    Qty_Used, Usage_Unit, PO_Unit,
+                    Unit_Conversion_Factor, Qty_In_PO_Unit,
+                    Unit_Price, Currency_Original, Exchange_Rate, Unit_Price_IDR,
+                    Price_Source, Price_Source_Level,
+                    MR_No, MR_SeqID, DNc_Material,
+                    TTBA_No, TTBA_SeqID, PO_No, PO_SeqID,
+                    Qty_Returned, Created_Date
+                )
+                SELECT 
+                    @FGHPPActualID, @FGDNcNo, d.MR_ItemID, itm.Item_Name,
+                    COALESCE(itm.Item_Type, mst.ITEM_TYPE, 'BB'), itm.Item_Unit,
+                    ISNULL(d.MR_DNcQTY, 0) *
+                    CASE 
+                        WHEN COALESCE(det.MR_ItemUnit, itm.Item_Unit) = itm.Item_Unit THEN 1
+                        WHEN det.MR_ItemUnit = 'kg' AND itm.Item_Unit = 'g' THEN 1000
+                        WHEN det.MR_ItemUnit = 'g' AND itm.Item_Unit = 'kg' THEN 0.001
+                        WHEN det.MR_ItemUnit = 'mg' AND itm.Item_Unit = 'g' THEN 0.001
+                        WHEN det.MR_ItemUnit = 'mg' AND itm.Item_Unit = 'kg' THEN 0.000001
+                        WHEN det.MR_ItemUnit = 'kg' AND itm.Item_Unit = 'mg' THEN 1000000
+                        WHEN det.MR_ItemUnit = 'g' AND itm.Item_Unit = 'mg' THEN 1000
+                        WHEN det.MR_ItemUnit = 'L' AND itm.Item_Unit = 'mL' THEN 1000
+                        WHEN det.MR_ItemUnit = 'mL' AND itm.Item_Unit = 'L' THEN 0.001
+                        ELSE 1
+                    END,
+                    COALESCE(itm.Item_Unit, dm.DNc_UnitID), p.PO_ItemUnit,
+                    CASE 
+                        WHEN uc.Conversion_Factor IS NOT NULL THEN uc.Conversion_Factor
+                        WHEN COALESCE(itm.Item_Unit, dm.DNc_UnitID) = 'g' AND p.PO_ItemUnit = 'L' AND ISNULL(itm.Item_BJ, 0) > 0 THEN 0.001 / itm.Item_BJ
+                        WHEN COALESCE(itm.Item_Unit, dm.DNc_UnitID) = 'mL' AND p.PO_ItemUnit = 'L' THEN 0.001
+                        ELSE 1
+                    END,
+                    ISNULL(d.MR_DNcQTY, 0) *
+                    CASE 
+                        WHEN COALESCE(det.MR_ItemUnit, itm.Item_Unit) = itm.Item_Unit THEN 1
+                        WHEN det.MR_ItemUnit = 'kg' AND itm.Item_Unit = 'g' THEN 1000
+                        WHEN det.MR_ItemUnit = 'g' AND itm.Item_Unit = 'kg' THEN 0.001
+                        WHEN det.MR_ItemUnit = 'mg' AND itm.Item_Unit = 'g' THEN 0.001
+                        WHEN det.MR_ItemUnit = 'mg' AND itm.Item_Unit = 'kg' THEN 0.000001
+                        WHEN det.MR_ItemUnit = 'kg' AND itm.Item_Unit = 'mg' THEN 1000000
+                        WHEN det.MR_ItemUnit = 'g' AND itm.Item_Unit = 'mg' THEN 1000
+                        WHEN det.MR_ItemUnit = 'L' AND itm.Item_Unit = 'mL' THEN 1000
+                        WHEN det.MR_ItemUnit = 'mL' AND itm.Item_Unit = 'L' THEN 0.001
+                        ELSE 1
+                    END *
+                    CASE 
+                        WHEN uc.Conversion_Factor IS NOT NULL THEN uc.Conversion_Factor
+                        WHEN COALESCE(itm.Item_Unit, dm.DNc_UnitID) = 'g' AND p.PO_ItemUnit = 'L' AND ISNULL(itm.Item_BJ, 0) > 0 THEN 0.001 / itm.Item_BJ
+                        WHEN COALESCE(itm.Item_Unit, dm.DNc_UnitID) = 'mL' AND p.PO_ItemUnit = 'L' THEN 0.001
+                        ELSE 1
+                    END,
+                    p.PO_UnitPrice, p.PO_Currency,
+                    CASE p.PO_Currency WHEN 'USD' THEN ISNULL(@FGRateUSD, 1) WHEN 'EUR' THEN ISNULL(@FGRateEUR, 1) ELSE 1 END,
+                    p.PO_UnitPrice * CASE p.PO_Currency WHEN 'USD' THEN ISNULL(@FGRateUSD, 1) WHEN 'EUR' THEN ISNULL(@FGRateEUR, 1) ELSE 1 END,
+                    CASE WHEN p.PO_UnitPrice IS NOT NULL THEN 'PO' ELSE 'UNLINKED' END, 0,
+                    d.MR_No, d.MR_SeqID, d.MR_DNcNo,
+                    dm.DNc_TTBANo, dm.DNc_TTBASeqID, t.TTBA_SourceDocNo, t.TTBA_SourceDocSeqID,
+                    0, GETDATE()
+                FROM t_Bon_Keluar_Bahan_Awal_Header fgh
+                JOIN t_Bon_Keluar_Bahan_Awal_DNc d ON fgh.MR_No = d.MR_No
+                LEFT JOIN t_Bon_Keluar_Bahan_Awal_Detail det ON d.MR_No = det.MR_No AND d.MR_SeqID = det.MR_SeqID
+                LEFT JOIN t_DNc_Manufacturing dm ON d.MR_DNcNo = dm.DNc_No
+                LEFT JOIN t_ttba_manufacturing_detail t ON dm.DNc_TTBANo = t.TTBA_No AND dm.DNc_TTBASeqID = t.TTBA_SeqID
+                LEFT JOIN t_PO_Manufacturing_Detail p ON t.TTBA_SourceDocNo = p.PO_No AND t.TTBA_SourceDocSeqID = p.PO_SeqID
+                LEFT JOIN m_Item_manufacturing itm ON itm.Item_ID = d.MR_ItemID
+                LEFT JOIN M_COGS_Unit_Conversion uc ON COALESCE(itm.Item_Unit, dm.DNc_UnitID) = uc.From_Unit AND p.PO_ItemUnit = uc.To_Unit
+                LEFT JOIN (SELECT ITEM_ID, ITEM_TYPE FROM M_COGS_STD_HRG_BAHAN WHERE Periode = @GroupPeriode) mst ON mst.ITEM_ID = d.MR_ItemID
+                WHERE fgh.MR_ProductID = @FGProductID AND fgh.MR_BatchNo = @FGBatchNo;
+                
+                UPDATE h SET 
+                    Total_Cost_BB = ISNULL(bb.Total, 0),
+                    Rendemen_Actual = CASE WHEN h.Batch_Size_Std > 0 THEN (h.Output_Actual * 100.0) / h.Batch_Size_Std ELSE NULL END,
+                    MH_Proses_Actual = ISNULL(mh.MH_NyataProses, h.MH_Proses_Std),
+                    MH_Kemas_Actual = ISNULL(mh.MH_NyataKemas, 0),
+                    Rate_MH_Proses = ISNULL(std.Biaya_Proses, h.Rate_MH_Proses),
+                    Rate_MH_Kemas = ISNULL(std.Biaya_Kemas, h.Rate_MH_Kemas),
+                    Rate_MH_Timbang = ISNULL(std.Biaya_Proses, h.Rate_MH_Timbang),
+                    Direct_Labor = ISNULL(std.Direct_Labor, h.Direct_Labor),
+                    Factory_Overhead = ISNULL(std.Factory_Over_Head, h.Factory_Overhead),
+                    Depresiasi = ISNULL(std.Depresiasi, h.Depresiasi),
+                    Biaya_Analisa = ISNULL(std.Biaya_Analisa, h.Biaya_Analisa),
+                    Biaya_Reagen = ISNULL(std.Biaya_Reagen, h.Biaya_Reagen),
+                    Rate_PLN = ISNULL(std.Rate_PLN, h.Rate_PLN),
+                    MH_Timbang_BB = ISNULL(std.MH_Timbang_BB, h.MH_Timbang_BB),
+                    MH_Timbang_BK = ISNULL(std.MH_Timbang_BK, h.MH_Timbang_BK),
+                    MH_Analisa_Std = ISNULL(std.MH_Analisa_Std, h.MH_Analisa_Std),
+                    MH_Mesin_Std = ISNULL(std.MH_Mesin_Std, h.MH_Mesin_Std),
+                    Cost_Utility = ISNULL(std.MH_Mesin_Std, 0) * ISNULL(std.Rate_PLN, 0),
+                    Cost_Per_Unit = CASE WHEN h.Output_Actual > 0 THEN
+                        (ISNULL(bb.Total, 0) + ISNULL(mh.MH_NyataProses, ISNULL(std.MH_Proses_Std, 0)) * ISNULL(std.Biaya_Proses, 0)
+                        + ISNULL(mh.MH_NyataKemas, ISNULL(std.MH_Kemas_Std, 0)) * ISNULL(std.Biaya_Kemas, 0)
+                        + ISNULL(std.MH_Mesin_Std, 0) * ISNULL(std.Rate_PLN, 0)
+                        + ISNULL(std.Biaya_Analisa, 0) + ISNULL(std.Biaya_Reagen, 0)) / h.Output_Actual
+                    ELSE 0 END,
+                    Count_Materials_PO = ISNULL(cnt.PO_Count, 0),
+                    Count_Materials_UNLINKED = ISNULL(cnt.UNLINKED_Count, 0),
+                    Calculation_Status = 'COMPLETED', Calculation_Date = GETDATE()
+                FROM t_COGS_HPP_Actual_Header_TEST h
+                LEFT JOIN tmp_spLapProduksi_GWN_ReleaseQA mh ON h.BatchNo = mh.Reg_BatchNo AND REPLACE(mh.Periode, ' ', '') = h.Periode
+                LEFT JOIN t_COGS_HPP_Product_Header std ON h.DNc_ProductID = std.Product_ID AND LEFT(h.Periode, 4) = std.Periode
+                LEFT JOIN (SELECT HPP_Actual_ID, SUM(Qty_In_PO_Unit * Unit_Price_IDR) as Total FROM t_COGS_HPP_Actual_Detail_TEST WHERE HPP_Actual_ID = @FGHPPActualID GROUP BY HPP_Actual_ID) bb ON h.HPP_Actual_ID = bb.HPP_Actual_ID
+                LEFT JOIN (SELECT HPP_Actual_ID, SUM(CASE WHEN Price_Source = 'PO' THEN 1 ELSE 0 END) as PO_Count, SUM(CASE WHEN Price_Source = 'UNLINKED' THEN 1 ELSE 0 END) as UNLINKED_Count FROM t_COGS_HPP_Actual_Detail_TEST WHERE HPP_Actual_ID = @FGHPPActualID GROUP BY HPP_Actual_ID) cnt ON h.HPP_Actual_ID = cnt.HPP_Actual_ID
+                WHERE h.HPP_Actual_ID = @FGHPPActualID;
+                
+                UPDATE #FGToProcess SET OutputQty = @FGOutputQty, RawMaterialCost = @FGRawCost, CostPerUnit = @FGCostPerUnit, Processed = 1 WHERE FGID = @FGID;
+                SET @FGPassProcessed = @FGPassProcessed + 1;
+                
+                SET @FGGroupPNCategory = NULL; SET @FGGroupPNCategoryName = NULL; SET @FGGroupDept = NULL;
+                SET @FGBatchSizeStd = NULL; SET @FGRendemenStd = NULL; SET @FGMHProsesStd = NULL; SET @FGMHKemasStd = NULL;
+                
+            END TRY
+            BEGIN CATCH
+                SET @Msg = 'Error processing FG ' + @FGBatchNo + ': ' + ERROR_MESSAGE();
+                PRINT @Msg;
+            END CATCH
+            
+            FETCH NEXT FROM fg_batch_cursor INTO @FGID, @FGProductID, @FGBatchNo, @FGDNcNo, @FGMRNo, @FGMRDate, @FGMRYear;
+        END
+        
+        CLOSE fg_batch_cursor;
+        DEALLOCATE fg_batch_cursor;
+    END
+    
+    IF @Debug = 1
+    BEGIN
+        SET @Msg = 'PASS 1 Complete: ' + CAST(@GranulatePassProcessed AS VARCHAR) + ' granulates, ' + CAST(@FGPassProcessed AS VARCHAR) + ' FG processed';
         PRINT @Msg;
         PRINT '';
         PRINT '========================================';
@@ -679,6 +994,16 @@ BEGIN
             BEGIN
                 SET @Msg = 'Processing batch: ' + @CurrentDNcNo + ' (Product: ' + @CurrentProductID + ')';
                 PRINT @Msg;
+            END
+            
+            -- v16: Skip batches already processed as FG intermediate in PASS 1A
+            IF EXISTS (SELECT 1 FROM #FGToProcess WHERE FGProductID = @CurrentProductID AND FGBatchNo = @CurrentBatchNo)
+            BEGIN
+                IF @Debug = 1
+                    PRINT '  -> Skipping (already processed as FG intermediate in PASS 1A)';
+                FETCH NEXT FROM batch_cursor INTO @CurrentDNcNo, @CurrentProductID, @CurrentBatchNo,
+                                                  @CurrentDNCBatchDate, @CurrentBatchDate, @CurrentTempelLabel, @CurrentOutputActual;
+                CONTINUE;
             END
             
             -- Delete existing records if recalculating
@@ -953,9 +1278,10 @@ BEGIN
                 -- BPHP linkback
                 MAX(CASE WHEN t.TTBA_SourceDocNo LIKE '%/BPHP%' THEN t.TTBA_SourceDocNo ELSE NULL END),
                 -- v7: Flag granulate materials (Item_ID starts with ä)
-                CASE WHEN d.MR_ItemID LIKE N'ä%' THEN 1 ELSE 0 END,
-                -- Granulate batch = material batch number (e.g. ä8105)
-                CASE WHEN d.MR_ItemID LIKE N'ä%' THEN d.MR_DNcNo ELSE NULL END,
+                -- v16: Also flag FG materials (MR header has MR_ItemType = 'FG')
+                CASE WHEN d.MR_ItemID LIKE N'ä%' OR h.MR_ItemType = 'FG' THEN 1 ELSE 0 END,
+                -- Granulate/FG batch = material batch number
+                CASE WHEN d.MR_ItemID LIKE N'ä%' OR h.MR_ItemType = 'FG' THEN d.MR_DNcNo ELSE NULL END,
                 -- v10: PO Date and TTBA Date for exchange rate calculation
                 MAX(ph.PO_Date),
                 MAX(t.Process_Date)
@@ -991,7 +1317,7 @@ BEGIN
               AND h.MR_BatchNo = @CurrentBatchNo
               -- v4 CRITICAL FIX: Match BatchDate to prevent double-counting
               AND h.MR_BatchDate = @CurrentDNCBatchDate
-            GROUP BY d.MR_DNcNo, d.MR_ItemID;
+            GROUP BY d.MR_DNcNo, d.MR_ItemID, h.MR_ItemType;
             
             -- =========================================
             -- v13: Subtract returned materials (Bon Pengembalian)
@@ -1031,9 +1357,9 @@ BEGIN
             END
             
             -- =========================================
-            -- v9: Process GRANULATE materials
-            -- LOOKUP cost from pre-calculated granulate headers (Pass 1)
-            -- Much simpler than v7/v8 inline calculation
+            -- v9: Process GRANULATE and FG materials
+            -- LOOKUP cost from pre-calculated headers (Pass 1/1A)
+            -- v16: Extended to handle both granulates (LOB='GRANULATE') and FG (LOB='FG')
             -- =========================================
             DECLARE @GranulateRowNum INT;
             DECLARE @GranulateMRDNcNo VARCHAR(100);
@@ -1041,8 +1367,9 @@ BEGIN
             DECLARE @GranulateItemID VARCHAR(50);
             DECLARE @GranulateCostPerGram DECIMAL(18,6);
             DECLARE @GranulateHPPActualID INT;
+            DECLARE @IsGranulateItem BIT;
             
-            -- Cursor for granulate materials
+            -- Cursor for granulate AND FG materials
             DECLARE granulate_cursor CURSOR LOCAL FAST_FORWARD FOR
                 SELECT RowNum, MR_DNcNo, Item_ID
                 FROM #Materials
@@ -1056,54 +1383,72 @@ BEGIN
                 SET @GranulateDNCBatchNo = NULL;
                 SET @GranulateCostPerGram = 0;
                 SET @GranulateHPPActualID = NULL;
+                SET @IsGranulateItem = CASE WHEN @GranulateItemID LIKE N'ä%' THEN 1 ELSE 0 END;
                 
                 IF @Debug = 1
                 BEGIN
-                    SET @Msg = '  Looking up granulate: ' + @GranulateItemID + ' MR_DNcNo ' + ISNULL(@GranulateMRDNcNo, 'NULL');
+                    SET @Msg = '  Looking up ' + CASE WHEN @IsGranulateItem = 1 THEN 'granulate' ELSE 'FG' END 
+                             + ': ' + @GranulateItemID + ' MR_DNcNo ' + ISNULL(@GranulateMRDNcNo, 'NULL');
                     PRINT @Msg;
                 END
                 
-                -- Get the actual batch number from t_dnc_manufacturing
-                SELECT TOP 1 @GranulateDNCBatchNo = DNC_BatchNo
-                FROM t_dnc_manufacturing
-                WHERE DNc_No = @GranulateMRDNcNo;
-                
-                -- v9: Lookup cost from granulate's HPP Actual header (calculated in Pass 1)
-                IF @GranulateDNCBatchNo IS NOT NULL
+                IF @IsGranulateItem = 1
                 BEGIN
-                    SELECT TOP 1 
-                        @GranulateHPPActualID = HPP_Actual_ID,
-                        @GranulateCostPerGram = Cost_Per_Unit
-                    FROM t_COGS_HPP_Actual_Header_TEST
-                    WHERE BatchNo = @GranulateDNCBatchNo
-                      AND DNc_ProductID LIKE N'ä%'
-                      AND LOB = 'GRANULATE'
-                      AND Calculation_Status = 'COMPLETED'
-                    ORDER BY Created_Date DESC;
+                    SELECT TOP 1 @GranulateDNCBatchNo = DNC_BatchNo
+                    FROM t_dnc_manufacturing WHERE DNc_No = @GranulateMRDNcNo;
                     
-                    IF @Debug = 1
+                    IF @GranulateDNCBatchNo IS NOT NULL
                     BEGIN
-                        SET @Msg = '    Found granulate batch: ' + @GranulateDNCBatchNo 
-                                 + ', HPP_ID: ' + CAST(ISNULL(@GranulateHPPActualID, 0) AS VARCHAR)
-                                 + ', Cost/g: ' + CAST(ISNULL(@GranulateCostPerGram, 0) AS VARCHAR);
-                        PRINT @Msg;
+                        SELECT TOP 1 
+                            @GranulateHPPActualID = HPP_Actual_ID,
+                            @GranulateCostPerGram = Cost_Per_Unit
+                        FROM t_COGS_HPP_Actual_Header_TEST
+                        WHERE BatchNo = @GranulateDNCBatchNo
+                          AND DNc_ProductID LIKE N'ä%'
+                          AND LOB = 'GRANULATE'
+                          AND Calculation_Status = 'COMPLETED'
+                        ORDER BY Created_Date DESC;
+                    END
+                END
+                ELSE
+                BEGIN
+                    SELECT TOP 1 @GranulateDNCBatchNo = DNc_BatchNo
+                    FROM t_dnc_product WHERE DNc_BatchNo = @GranulateMRDNcNo AND DNc_ProductID = @GranulateItemID;
+                    
+                    IF @GranulateDNCBatchNo IS NOT NULL
+                    BEGIN
+                        SELECT TOP 1 
+                            @GranulateHPPActualID = HPP_Actual_ID,
+                            @GranulateCostPerGram = Cost_Per_Unit
+                        FROM t_COGS_HPP_Actual_Header_TEST
+                        WHERE BatchNo = @GranulateDNCBatchNo
+                          AND DNc_ProductID = @GranulateItemID
+                          AND LOB = 'FG'
+                          AND Calculation_Status = 'COMPLETED'
+                        ORDER BY Created_Date DESC;
                     END
                 END
                 
-                -- Update material record with granulate info
+                IF @Debug = 1
+                BEGIN
+                    SET @Msg = '    Found ' + CASE WHEN @IsGranulateItem = 1 THEN 'granulate' ELSE 'FG' END 
+                             + ' batch: ' + ISNULL(@GranulateDNCBatchNo, 'NULL')
+                             + ', HPP_ID: ' + CAST(ISNULL(@GranulateHPPActualID, 0) AS VARCHAR)
+                             + ', Cost/unit: ' + CAST(ISNULL(@GranulateCostPerGram, 0) AS VARCHAR);
+                    PRINT @Msg;
+                END
+                
                 UPDATE #Materials
                 SET Granulate_Batch = @GranulateDNCBatchNo,
                     Granulate_Cost_Per_Gram = @GranulateCostPerGram,
-                    -- v9: Store the granulate's HPP_Actual_ID for reference
                     Granulate_MR_No = CAST(@GranulateHPPActualID AS VARCHAR),
-                    -- Set the unit price as cost per gram
                     Unit_Price = ISNULL(@GranulateCostPerGram, 0),
                     Currency_Original = 'IDR',
-                    Price_Source = 'GRANULATE_HPP',  -- v9: Changed from GRANULATE_CALC
+                    Price_Source = CASE WHEN @IsGranulateItem = 1 THEN 'GRANULATE_HPP' ELSE 'FG_HPP' END,
                     Price_Source_Level = 0,
                     Unit_Conversion_Factor = 1,
                     Qty_In_PO_Unit = Qty_Used,
-                    PO_Unit = 'g'
+                    PO_Unit = CASE WHEN @IsGranulateItem = 1 THEN 'g' ELSE Item_Unit END
                 WHERE RowNum = @GranulateRowNum;
                 
                 SET @GranulateCount = @GranulateCount + 1;
@@ -1493,6 +1838,7 @@ BEGIN
     
     DROP TABLE #BatchesToProcess;
     DROP TABLE #GranulatesToProcess;
+    DROP TABLE #FGToProcess;
     
     -- =========================================
     -- Summary
@@ -1501,9 +1847,11 @@ BEGIN
     
     PRINT '';
     PRINT '========================================';
-    PRINT 'HPP Actual Calculation Summary (v13)';
+    PRINT 'HPP Actual Calculation Summary (v16)';
     PRINT '========================================';
     SET @Msg = 'Granulates processed: ' + CAST(@GranulatePassProcessed AS VARCHAR);
+    PRINT @Msg;
+    SET @Msg = 'FG processed: ' + CAST(@FGPassProcessed AS VARCHAR);
     PRINT @Msg;
     SET @Msg = 'Product batches: ' + CAST(@BatchCount AS VARCHAR);
     PRINT @Msg;
@@ -1517,6 +1865,7 @@ BEGIN
     
     SELECT 
         @GranulatePassProcessed as GranulatesProcessed,
+        @FGPassProcessed as FGProcessed,
         @BatchCount as TotalProductBatches,
         @ProcessedCount as ProductsProcessed,
         @ErrorCount as Errors,
@@ -1524,5 +1873,5 @@ BEGIN
 END
 GO
 
-PRINT 'Stored procedure sp_COGS_Calculate_HPP_Actual_TEST v12 created successfully';
+PRINT 'Stored procedure sp_COGS_Calculate_HPP_Actual_TEST v16 created successfully';
 GO

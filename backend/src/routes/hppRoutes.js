@@ -116,6 +116,10 @@ router.get('/actual/list', HPPController.getHPPActualListData);
 // Query: ?periode=202601&testMode=true
 router.get('/actual/granulates', HPPController.getHPPActualGranulateListData);
 
+// GET /api/hpp/actual/intermediate-usage - Get intermediates used by products in a period
+// Query: ?periode=202601&testMode=true
+router.get('/actual/intermediate-usage', HPPController.getHPPActualIntermediateUsageData);
+
 // GET /api/hpp/actual/periods - Get available periods for HPP Actual
 // Query: ?testMode=true
 router.get('/actual/periods', HPPController.getHPPActualPeriodsData);

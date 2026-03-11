@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Download, FileText, Loader2, ChevronLeft, ChevronRight, Search, RefreshCw, X, Calculator, AlertCircle, CheckCircle2, ArrowUp, ArrowDown, ArrowUpDown, FlaskConical, Beaker } from 'lucide-react';
+import { Download, FileText, Loader2, ChevronLeft, ChevronRight, Search, RefreshCw, X, Calculator, AlertCircle, CheckCircle2, ArrowUp, ArrowDown, ArrowUpDown, FlaskConical, Beaker, PackageCheck } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -312,17 +312,17 @@ const GenericTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
   </div>
 );
 
-// Granulate Table Component
+// Intermediate (Granulate + FG) Table Component
 const GranulateTable = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onBatchClick, sortConfig, onSort }) => (
   <div className="hpp-actual-table-container">
     <div className="hpp-actual-table-header">
-      <h3><Beaker className="hpp-actual-table-icon" />Granulate Batches</h3>
+      <h3><Beaker className="hpp-actual-table-icon" />Intermediate Batches</h3>
       <div className="hpp-actual-table-controls">
         <div className="hpp-actual-search-container">
           <Search size={16} className="hpp-actual-search-icon" />
           <input
             type="text"
-            placeholder="Search granulates..."
+            placeholder="Search intermediates..."
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
             className="hpp-actual-search-input"
@@ -337,8 +337,9 @@ const GranulateTable = ({ data, filteredCount, totalCount, searchTerm, onSearchC
           <tr>
             <SortableHeader label="Product ID" columnKey="Product_ID" sortConfig={sortConfig} onSort={onSort} />
             <SortableHeader label="Product Name" columnKey="Product_Name" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Type" columnKey="LOB" sortConfig={sortConfig} onSort={onSort} />
             <SortableHeader label="Batch No" columnKey="BatchNo" sortConfig={sortConfig} onSort={onSort} />
-            <SortableHeader label="Batch Date" columnKey="BatchDate" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Batch Date" columnKey="TempelLabel_Date" sortConfig={sortConfig} onSort={onSort} />
             <SortableHeader label="Output (g)" columnKey="Output_Actual" sortConfig={sortConfig} onSort={onSort} />
             <SortableHeader label="Total BB" columnKey="Total_Cost_BB" sortConfig={sortConfig} onSort={onSort} />
             <SortableHeader label="MH Proses" columnKey="MH_Proses_Sort" sortConfig={sortConfig} onSort={onSort} />
@@ -354,8 +355,9 @@ const GranulateTable = ({ data, filteredCount, totalCount, searchTerm, onSearchC
             <tr key={`${item.HPP_Actual_ID}-${index}`}>
               <td>{item.Product_ID}</td>
               <td className="product-name clickable" onClick={() => onBatchClick(item)}>{item.Product_Name}</td>
+              <td><span className={`source-badge ${item.LOB?.toLowerCase()}`}>{item.LOB === 'FG' ? 'FG' : 'Granulate'}</span></td>
               <td className="batch-no">{item.BatchNo}</td>
-              <td>{formatDate(item.BatchDate)}</td>
+              <td>{formatDate(item.TempelLabel_Date)}</td>
               <td className="number">{formatNumber(item.Output_Actual, 0)}</td>
               <td className="number">{formatCurrency(item.Total_Cost_BB)}</td>
               <td className="number">{item.MH_Proses_Actual ? <span>{formatNumber(item.MH_Proses_Actual)}</span> : <span className="std-italic">{formatNumber(item.MH_Proses_Std)}</span>}</td>
@@ -372,6 +374,64 @@ const GranulateTable = ({ data, filteredCount, totalCount, searchTerm, onSearchC
   </div>
 );
 
+// Intermediate Usage Table Component - shows intermediates consumed by products in the period
+const IntermediateUsageTable = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onBatchClick, sortConfig, onSort }) => (
+  <div className="hpp-actual-table-container">
+    <div className="hpp-actual-table-header">
+      <h3><PackageCheck className="hpp-actual-table-icon" />Intermediate Usage</h3>
+      <div className="hpp-actual-table-controls">
+        <div className="hpp-actual-search-container">
+          <Search size={16} className="hpp-actual-search-icon" />
+          <input
+            type="text"
+            placeholder="Search intermediate usage..."
+            value={searchTerm}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="hpp-actual-search-input"
+          />
+        </div>
+        <span className="hpp-actual-record-count">{filteredCount} of {totalCount} records</span>
+      </div>
+    </div>
+    <div className="hpp-actual-table-wrapper">
+      <table className="hpp-actual-table">
+        <thead>
+          <tr>
+            <SortableHeader label="Intermediate ID" columnKey="Intermediate_ID" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Intermediate Name" columnKey="Intermediate_Product_Name" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Type" columnKey="Intermediate_LOB" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Batch No" columnKey="BatchNo" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Cost/unit" columnKey="Cost_Per_Unit" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Used By" columnKey="Used_By_Count" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Total Qty Used" columnKey="Total_Qty_Used" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Total Cost" columnKey="Total_Cost" sortConfig={sortConfig} onSort={onSort} />
+            <th>Product Batches</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((item, index) => (
+            <tr key={`${item.Intermediate_ID}-${item.BatchNo}-${index}`}>
+              <td>{item.Intermediate_ID}</td>
+              <td className={item.Intermediate_HPP_ID ? 'product-name clickable' : 'product-name'} 
+                  onClick={() => item.Intermediate_HPP_ID && onBatchClick({ HPP_Actual_ID: item.Intermediate_HPP_ID, LOB: item.Intermediate_LOB, Product_Name: item.Intermediate_Product_Name, BatchNo: item.BatchNo })}>
+                {item.Intermediate_Product_Name || item.Intermediate_Name}
+              </td>
+              <td><span className={`source-badge ${item.Intermediate_LOB?.toLowerCase()}`}>{item.Intermediate_LOB === 'FG' ? 'FG' : 'Granulate'}</span></td>
+              <td className="batch-no">{item.BatchNo}</td>
+              <td className="number">{formatNumber(item.Cost_Per_Unit, 2)}</td>
+              <td className="number">{item.Used_By_Count} batch{item.Used_By_Count !== 1 ? 'es' : ''}</td>
+              <td className="number">{formatQty(item.Total_Qty_Used)}</td>
+              <td className="number" style={{fontWeight: 600}}>{formatCurrency(item.Total_Cost)}</td>
+              <td className="used-by-list">{item.Used_By_Batches}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <Pagination currentPage={pagination.currentPage} totalPages={totalPages} onPageChange={onPageChange} totalItems={filteredCount} />
+  </div>
+);
+
 // Batch Detail Modal Component
 const BatchDetailModal = ({ batch, materials, isOpen, onClose, isLoading }) => {
   const modalContentRef = useRef(null);
@@ -379,7 +439,7 @@ const BatchDetailModal = ({ batch, materials, isOpen, onClose, isLoading }) => {
 
   if (!isOpen || !batch) return null;
 
-  const isGranulate = batch.LOB === 'GRANULATE';
+  const isGranulate = batch.LOB === 'GRANULATE' || batch.LOB === 'FG';
 
   // Determine product type based on LOB and available data
   const isEthical = batch.LOB === 'ETHICAL' || batch.LOB === 'ETH' || batch.LOB === 'OTC';
@@ -593,7 +653,7 @@ const BatchDetailModal = ({ batch, materials, isOpen, onClose, isLoading }) => {
     <div className="hpp-actual-modal-overlay" onClick={onClose}>
       <div className="hpp-actual-modal" onClick={e => e.stopPropagation()}>
         <div className="hpp-actual-modal-header">
-          <h2>{isGranulate ? 'Granulate Production Cost' : 'HPP Actual Report'} - {batch.Product_Name}</h2>
+          <h2>{isGranulate ? (batch.LOB === 'FG' ? 'FG Production Cost' : 'Granulate Production Cost') : 'HPP Actual Report'} - {batch.Product_Name}</h2>
           <div className="hpp-actual-modal-actions">
             <button onClick={handleExportToPDF} disabled={isLoading || exporting} className="hpp-actual-export-btn pdf">
               {exporting ? <Loader2 className="spin" size={16} /> : <Download size={16} />}
@@ -614,7 +674,7 @@ const BatchDetailModal = ({ batch, materials, isOpen, onClose, isLoading }) => {
               {/* Document Header */}
               <div className="document-header">
                 <div className="header-row">
-                  <div className="header-left"><h3>{isGranulate ? 'Perhitungan Biaya Produksi Granulate' : 'Perhitungan HPP Actual'}</h3></div>
+                  <div className="header-left"><h3>{isGranulate ? (batch.LOB === 'FG' ? 'Perhitungan Biaya Produksi FG' : 'Perhitungan Biaya Produksi Granulate') : 'Perhitungan HPP Actual'}</h3></div>
                   <div className="header-right">
                     <div className="header-info"><span className="label">Site :</span><span className="value">{batch.Group_PNCategory_Dept || 'N/A'}</span></div>
                   </div>
@@ -631,7 +691,7 @@ const BatchDetailModal = ({ batch, materials, isOpen, onClose, isLoading }) => {
                     <div className="info-line"><span className="label">Output Actual</span><span className="separator">:</span><span className="value">{formatNumber(batch.Output_Actual, 0)} {isGranulate ? 'g' : 'UNIT'}</span></div>
                   </div>
                   <div className="info-right">
-                    <div className="info-line"><span className="label">LOB</span><span className="separator">:</span><span className="value">{isGranulate ? 'Granulate' : isEthical ? 'Ethical / OTC' : 'Generic'}</span></div>
+                    <div className="info-line"><span className="label">LOB</span><span className="separator">:</span><span className="value">{batch.LOB === 'GRANULATE' ? 'Granulate' : batch.LOB === 'FG' ? 'Finished Good' : isEthical ? 'Ethical / OTC' : 'Generic'}</span></div>
                     <div className="info-line"><span className="label">Periode</span><span className="separator">:</span><span className="value">{formatPeriod(batch.Periode)}</span></div>
                     <div className="info-line"><span className="label">Tanggal Print</span><span className="separator">:</span><span className="value">{formatPrintDate()}</span></div>
                     <div className="info-line"><span className="label">Category</span><span className="separator">:</span><span className="value">{batch.Group_PNCategory_Name || '-'}</span></div>
@@ -818,6 +878,7 @@ const HPPActualList = ({ user }) => {
   const [selectedPeriod, setSelectedPeriod] = useState('');
   const [batches, setBatches] = useState([]);
   const [granulates, setGranulates] = useState([]);
+  const [intermediateUsage, setIntermediateUsage] = useState([]);
   const [activeTab, setActiveTab] = useState('ethical');
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
@@ -846,21 +907,24 @@ const HPPActualList = ({ user }) => {
   const [sortConfigs, setSortConfigs] = useState({
     ethical: { key: null, direction: 'asc' },
     generic: { key: null, direction: 'asc' },
-    granulate: { key: null, direction: 'asc' }
+    granulate: { key: null, direction: 'asc' },
+    intermediateUsage: { key: null, direction: 'asc' }
   });
 
   // Pagination state for each tab
   const [pagination, setPagination] = useState({
     ethical: { currentPage: 1, itemsPerPage: 50 },
     generic: { currentPage: 1, itemsPerPage: 50 },
-    granulate: { currentPage: 1, itemsPerPage: 50 }
+    granulate: { currentPage: 1, itemsPerPage: 50 },
+    intermediateUsage: { currentPage: 1, itemsPerPage: 50 }
   });
 
   // Search state for each tab
   const [searchTerms, setSearchTerms] = useState({
     ethical: '',
     generic: '',
-    granulate: ''
+    granulate: '',
+    intermediateUsage: ''
   });
 
   // Load periods on mount or when test mode changes
@@ -873,6 +937,7 @@ const HPPActualList = ({ user }) => {
     if (selectedPeriod) {
       loadBatches(selectedPeriod);
       loadGranulates(selectedPeriod);
+      loadIntermediateUsage(selectedPeriod);
     }
   }, [selectedPeriod, testMode]);
 
@@ -970,6 +1035,20 @@ const HPPActualList = ({ user }) => {
     }
   };
 
+  const loadIntermediateUsage = async (periode) => {
+    try {
+      const response = await hppAPI.getActualIntermediateUsage(periode, testMode);
+      if (response.success) {
+        setIntermediateUsage(response.data || []);
+      } else {
+        setIntermediateUsage([]);
+      }
+    } catch (err) {
+      console.error('Error loading intermediate usage:', err);
+      setIntermediateUsage([]);
+    }
+  };
+
   const handleBatchClick = async (batch) => {
     setSelectedBatch(batch);
     setShowModal(true);
@@ -980,6 +1059,11 @@ const HPPActualList = ({ user }) => {
       const response = await hppAPI.getActualDetail(batch.HPP_Actual_ID, testMode);
       if (response.success) {
         setBatchMaterials(response.data.details || []);
+        // Merge full header data into selectedBatch (covers clicks from IntermediateUsageTable
+        // which only pass partial data)
+        if (response.data.header) {
+          setSelectedBatch(prev => ({ ...prev, ...response.data.header }));
+        }
       }
     } catch (err) {
       console.error('Error loading batch detail:', err);
@@ -998,6 +1082,7 @@ const HPPActualList = ({ user }) => {
     if (selectedPeriod) {
       loadBatches(selectedPeriod);
       loadGranulates(selectedPeriod);
+      loadIntermediateUsage(selectedPeriod);
     }
   };
 
@@ -1015,7 +1100,10 @@ const HPPActualList = ({ user }) => {
     return data.filter(item =>
       item.Product_ID?.toLowerCase().includes(term) ||
       item.Product_Name?.toLowerCase().includes(term) ||
-      item.BatchNo?.toLowerCase().includes(term)
+      item.BatchNo?.toLowerCase().includes(term) ||
+      item.Intermediate_ID?.toLowerCase().includes(term) ||
+      item.Intermediate_Product_Name?.toLowerCase().includes(term) ||
+      item.Used_By_Batches?.toLowerCase().includes(term)
     );
   };
 
@@ -1097,10 +1185,12 @@ const HPPActualList = ({ user }) => {
     const ethicalFiltered = getFilteredData(splitBatches.ethical, searchTerms.ethical);
     const genericFiltered = getFilteredData(splitBatches.generic, searchTerms.generic);
     const granulateFiltered = getFilteredData(granulates, searchTerms.granulate);
+    const intermediateUsageFiltered = getFilteredData(intermediateUsage, searchTerms.intermediateUsage);
 
     const ethicalSorted = getSortedData(ethicalFiltered, sortConfigs.ethical);
     const genericSorted = getSortedData(genericFiltered, sortConfigs.generic);
     const granulateSorted = getSortedData(granulateFiltered, sortConfigs.granulate);
+    const intermediateUsageSorted = getSortedData(intermediateUsageFiltered, sortConfigs.intermediateUsage);
 
     return {
       ethical: {
@@ -1117,15 +1207,21 @@ const HPPActualList = ({ user }) => {
         filtered: granulateSorted,
         paginated: getPaginatedData(granulateSorted, pagination.granulate.currentPage, pagination.granulate.itemsPerPage),
         totalPages: Math.ceil(granulateSorted.length / pagination.granulate.itemsPerPage)
+      },
+      intermediateUsage: {
+        filtered: intermediateUsageSorted,
+        paginated: getPaginatedData(intermediateUsageSorted, pagination.intermediateUsage.currentPage, pagination.intermediateUsage.itemsPerPage),
+        totalPages: Math.ceil(intermediateUsageSorted.length / pagination.intermediateUsage.itemsPerPage)
       }
     };
-  }, [splitBatches, granulates, searchTerms, sortConfigs, pagination]);
+  }, [splitBatches, granulates, intermediateUsage, searchTerms, sortConfigs, pagination]);
 
   // Tab configuration
   const tabs = [
     { id: 'ethical', label: 'Ethical / OTC', count: splitBatches.ethical.length },
     { id: 'generic', label: 'Generic', count: splitBatches.generic.length },
-    { id: 'granulate', label: 'Granulates', count: granulates.length, icon: 'beaker' }
+    { id: 'granulate', label: 'Intermediates', count: granulates.length, icon: 'beaker' },
+    { id: 'intermediateUsage', label: 'Intermediate Usage', count: intermediateUsage.length, icon: 'packageCheck' }
   ];
 
   // Export to Excel
@@ -1184,6 +1280,7 @@ const HPPActualList = ({ user }) => {
         const granulateColumnMapping = {
           'Product_ID': 'Product ID',
           'Product_Name': 'Product Name',
+          'LOB': 'Type',
           'BatchNo': 'Batch No',
           'BatchDate': 'Batch Date',
           'Periode': 'Period',
@@ -1211,7 +1308,31 @@ const HPPActualList = ({ user }) => {
           return transformed;
         });
         const ws = XLSX.utils.json_to_sheet(transformGranulate(granulates));
-        XLSX.utils.book_append_sheet(workbook, ws, 'Granulates');
+        XLSX.utils.book_append_sheet(workbook, ws, 'Intermediates');
+      }
+
+      // Add Intermediate Usage sheet
+      if (intermediateUsage.length > 0) {
+        const usageColumnMapping = {
+          'Intermediate_ID': 'Intermediate ID',
+          'Intermediate_Name': 'Intermediate Name',
+          'Intermediate_LOB': 'LOB',
+          'BatchNo': 'Batch No',
+          'Cost_Per_Unit': 'Cost/Unit',
+          'Used_By_Count': 'Used By (Count)',
+          'Total_Qty_Used': 'Total Qty Used',
+          'Total_Cost': 'Total Cost',
+          'Used_By_Batches': 'Product Batches'
+        };
+        const transformUsage = (data) => data.map(item => {
+          const transformed = {};
+          Object.entries(usageColumnMapping).forEach(([key, header]) => {
+            transformed[header] = item[key];
+          });
+          return transformed;
+        });
+        const usageWs = XLSX.utils.json_to_sheet(transformUsage(intermediateUsage));
+        XLSX.utils.book_append_sheet(workbook, usageWs, 'Intermediate Usage');
       }
 
       // Fetch and add Materials detail sheet
@@ -1308,6 +1429,7 @@ const HPPActualList = ({ user }) => {
         if (selectedPeriod === periode) {
           loadBatches(periode);
           loadGranulates(periode);
+          loadIntermediateUsage(periode);
         }
       } else {
         setCalculateError(response.message || 'Calculation failed');
@@ -1346,7 +1468,7 @@ const HPPActualList = ({ user }) => {
     const currentData = processedData[activeTab];
     const currentSearchTerm = searchTerms[activeTab];
     const currentPagination = pagination[activeTab];
-    const rawData = activeTab === 'ethical' ? splitBatches.ethical : activeTab === 'generic' ? splitBatches.generic : granulates;
+    const rawData = activeTab === 'ethical' ? splitBatches.ethical : activeTab === 'generic' ? splitBatches.generic : activeTab === 'intermediateUsage' ? intermediateUsage : granulates;
 
     const tableProps = {
       data: currentData.paginated,
@@ -1363,6 +1485,7 @@ const HPPActualList = ({ user }) => {
     };
 
     if (activeTab === 'granulate') return <GranulateTable {...tableProps} />;
+    if (activeTab === 'intermediateUsage') return <IntermediateUsageTable {...tableProps} />;
     if (activeTab === 'ethical') return <EthicalTable {...tableProps} standardHPPMap={standardHPPMap} />;
     return <GenericTable {...tableProps} standardHPPMap={standardHPPMap} />;
   };
@@ -1445,7 +1568,7 @@ const HPPActualList = ({ user }) => {
               onClick={() => setActiveTab(tab.id)}
               className={`hpp-actual-tab ${activeTab === tab.id ? 'active' : ''}`}
             >
-              {tab.icon === 'beaker' ? <Beaker size={18} /> : <FileText size={18} />}
+              {tab.icon === 'beaker' ? <Beaker size={18} /> : tab.icon === 'packageCheck' ? <PackageCheck size={18} /> : <FileText size={18} />}
               <span className="hpp-actual-tab-label">{tab.label}</span>
               <span className="hpp-actual-tab-count">{tab.count}</span>
             </button>
@@ -1573,8 +1696,8 @@ const HPPActualList = ({ user }) => {
                   </div>
                   <div className="success-details">
                     <div className="detail-row">
-                      <span className="label">Granulates Processed:</span>
-                      <span className="value">{calculateResult.granulatesProcessed}</span>
+                      <span className="label">Intermediates Processed:</span>
+                      <span className="value">{calculateResult.granulatesProcessed + (calculateResult.fgProcessed || 0)}</span>
                     </div>
                     <div className="detail-row">
                       <span className="label">Total Batches Found:</span>

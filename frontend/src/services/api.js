@@ -327,6 +327,15 @@ export const hppAPI = {
     const queryString = params.toString() ? `?${params.toString()}` : '';
     return apiRequest(`/hpp/actual/granulates${queryString}`);
   },
+
+  // Get HPP Actual intermediate usage for a period
+  getActualIntermediateUsage: (periode = null, testMode = false) => {
+    const params = new URLSearchParams();
+    if (periode) params.append('periode', periode);
+    if (testMode) params.append('testMode', 'true');
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    return apiRequest(`/hpp/actual/intermediate-usage${queryString}`);
+  },
   
   // Get available periods for HPP Actual
   getActualPeriods: (testMode = false) => {

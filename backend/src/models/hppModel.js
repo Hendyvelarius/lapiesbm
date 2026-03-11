@@ -1247,7 +1247,7 @@ async function getHPPActualList(periode = null, useTestTable = false) {
         END as HPP_Ratio
       FROM ${headerTable} h
       LEFT JOIN m_Product p ON p.Product_ID = h.DNc_ProductID
-      WHERE h.LOB != 'GRANULATE'
+      WHERE h.LOB NOT IN ('GRANULATE', 'FG')
         AND h.Calculation_Status = 'COMPLETED'
     `;
     
@@ -1282,7 +1282,7 @@ async function getHPPActualPeriods(useTestTable = false) {
     const query = `
       SELECT DISTINCT Periode, 
              COUNT(*) as BatchCount,
-             SUM(CASE WHEN LOB = 'GRANULATE' THEN 1 ELSE 0 END) as GranulateCount
+             SUM(CASE WHEN LOB IN ('GRANULATE', 'FG') THEN 1 ELSE 0 END) as GranulateCount
       FROM ${headerTable}
       WHERE Calculation_Status = 'COMPLETED'
       GROUP BY Periode
@@ -1356,13 +1356,16 @@ async function getHPPActualGranulateList(periode = null, useTestTable = false) {
           ISNULL(h.Biaya_Reagen, 0)
         ) as Total_Production_Cost
       FROM ${headerTable} h
-      WHERE h.LOB = 'GRANULATE'
+      WHERE h.LOB IN ('GRANULATE', 'FG')
         AND h.Calculation_Status = 'COMPLETED'
     `;
 
     let request = db.request();
     if (periode) {
-      query += ` AND h.Periode = @periode`;
+      // Filter by TempelLabel_Date (production/release date) within the period month
+      // (Periode is set to the consumer's period, not production date;
+      //  BatchDate is batch creation date which can be months earlier)
+      query += ` AND CONVERT(VARCHAR(6), h.TempelLabel_Date, 112) = @periode`;
       request = request.input('periode', sql.VarChar(6), periode);
     }
     query += ` ORDER BY h.Periode DESC, h.DNc_ProductID, h.BatchNo`;
@@ -1392,7 +1395,13 @@ async function getHPPActualDetail(hppActualId, useTestTable = false) {
         d.HPP_Actual_ID,
         d.DNc_No,
         d.Item_ID,
-        d.Item_Name,
+        CASE WHEN d.Is_Granulate = 1 AND d.Granulate_Batch IS NOT NULL 
+          THEN d.Granulate_Batch + ' - ' + ISNULL(d.Item_Name, ISNULL((
+            SELECT TOP 1 ih.Product_Name FROM ${useTestTable ? 't_COGS_HPP_Actual_Header_TEST' : 't_COGS_HPP_Actual_Header'} ih 
+            WHERE REPLACE(ih.DNc_ProductID, ' ', '') = REPLACE(d.Item_ID, ' ', '') AND ih.BatchNo = d.Granulate_Batch 
+              AND ih.LOB IN ('GRANULATE', 'FG') AND ih.Calculation_Status = 'COMPLETED'
+          ), d.Item_ID))
+          ELSE d.Item_Name END as Item_Name,
         d.Item_Type,
         d.Item_Unit,
         d.Qty_Required,
@@ -1445,7 +1454,7 @@ async function getHPPActualHeader(hppActualId, useTestTable = false) {
     const headerTable = useTestTable ? 't_COGS_HPP_Actual_Header_TEST' : 't_COGS_HPP_Actual_Header';
     
     const query = `
-      SELECT *
+      SELECT *, DNc_ProductID as Product_ID
       FROM ${headerTable}
       WHERE HPP_Actual_ID = @hppActualId
     `;
@@ -1483,7 +1492,13 @@ async function getHPPActualAllDetails(periode, useTestTable = false) {
         h.Periode,
         h.LOB,
         d.Item_ID as Material_Code,
-        d.Item_Name as Material_Name,
+        CASE WHEN d.Is_Granulate = 1 AND d.Granulate_Batch IS NOT NULL 
+          THEN d.Granulate_Batch + ' - ' + ISNULL(d.Item_Name, ISNULL((
+            SELECT TOP 1 ih.Product_Name FROM ${headerTable} ih 
+            WHERE REPLACE(ih.DNc_ProductID, ' ', '') = REPLACE(d.Item_ID, ' ', '') AND ih.BatchNo = d.Granulate_Batch 
+              AND ih.LOB IN ('GRANULATE', 'FG') AND ih.Calculation_Status = 'COMPLETED'
+          ), d.Item_ID))
+          ELSE d.Item_Name END as Material_Name,
         d.Item_Type,
         d.Item_Unit,
         d.Qty_Required,
@@ -1510,7 +1525,7 @@ async function getHPPActualAllDetails(periode, useTestTable = false) {
       FROM ${detailTable} d
       JOIN ${headerTable} h ON d.HPP_Actual_ID = h.HPP_Actual_ID
       WHERE h.Periode = @periode
-        AND h.LOB != 'GRANULATE'
+        AND h.LOB NOT IN ('GRANULATE', 'FG')
         AND h.Calculation_Status = 'COMPLETED'
       ORDER BY h.Product_Name, h.BatchNo, d.Item_Type, d.Item_ID
     `;
@@ -1523,6 +1538,90 @@ async function getHPPActualAllDetails(periode, useTestTable = false) {
     
   } catch (error) {
     console.error("Error in getHPPActualAllDetails:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get intermediate usage - intermediates consumed by products in a given period
+ * Shows which granulate/FG batches were used as materials by products in the period
+ * @param {string} periode - Period in YYYYMM format
+ * @param {boolean} useTestTable - If true, reads from _TEST tables
+ * @returns {array} - List of intermediate usage records
+ */
+async function getHPPActualIntermediateUsage(periode = null, useTestTable = false) {
+  try {
+    const db = await connect();
+    const headerTable = useTestTable ? 't_COGS_HPP_Actual_Header_TEST' : 't_COGS_HPP_Actual_Header';
+    const detailTable = useTestTable ? 't_COGS_HPP_Actual_Detail_TEST' : 't_COGS_HPP_Actual_Detail';
+
+    let query = `
+      SELECT 
+        d.Item_ID as Intermediate_ID,
+        d.Item_Name as Intermediate_Name,
+        d.Granulate_Batch as BatchNo,
+        d.Granulate_Cost_Per_Gram as Cost_Per_Unit,
+        -- Aggregate usage across all products in this period
+        COUNT(DISTINCT h.DNc_ProductID + h.BatchNo) as Used_By_Count,
+        SUM(d.Qty_Used) as Total_Qty_Used,
+        SUM(ISNULL(d.Qty_In_PO_Unit, d.Qty_Used) * ISNULL(d.Unit_Price_IDR, 0)) as Total_Cost,
+        -- Lookup intermediate's own header info
+        ih.LOB as Intermediate_LOB,
+        ih.Product_Name as Intermediate_Product_Name,
+        ih.Output_Actual as Intermediate_Output,
+        ih.Periode as Produced_Periode,
+        ih.BatchDate as Intermediate_BatchDate,
+        ih.HPP_Actual_ID as Intermediate_HPP_ID,
+        ih.Total_Cost_BB as Intermediate_Total_BB,
+        (
+          ISNULL(ih.Total_Cost_BB, 0) +
+          ISNULL(ih.MH_Proses_Actual, ih.MH_Proses_Std) * ISNULL(ih.Rate_MH_Proses, 0) +
+          ISNULL(ih.MH_Kemas_Actual, ih.MH_Kemas_Std) * ISNULL(ih.Rate_MH_Kemas, 0) +
+          ISNULL(ih.Cost_Utility, 0) +
+          ISNULL(ih.Biaya_Analisa, 0) +
+          ISNULL(ih.Biaya_Reagen, 0)
+        ) as Intermediate_Total_Cost,
+        -- List of products using this intermediate (comma-separated)
+        STUFF((
+          SELECT DISTINCT ', ' + h2.BatchNo
+          FROM ${detailTable} d2
+          JOIN ${headerTable} h2 ON d2.HPP_Actual_ID = h2.HPP_Actual_ID
+          WHERE d2.Is_Granulate = 1
+            AND d2.Item_ID = d.Item_ID
+            AND d2.Granulate_Batch = d.Granulate_Batch
+            AND h2.Periode = @periode
+            AND h2.LOB NOT IN ('GRANULATE', 'FG')
+            AND h2.Calculation_Status = 'COMPLETED'
+          FOR XML PATH('')
+        ), 1, 2, '') as Used_By_Batches
+      FROM ${detailTable} d
+      JOIN ${headerTable} h ON d.HPP_Actual_ID = h.HPP_Actual_ID
+      LEFT JOIN ${headerTable} ih ON REPLACE(ih.DNc_ProductID, ' ', '') = REPLACE(d.Item_ID, ' ', '') 
+                                  AND ih.BatchNo = d.Granulate_Batch
+                                  AND ih.LOB IN ('GRANULATE', 'FG')
+                                  AND ih.Calculation_Status = 'COMPLETED'
+      WHERE d.Is_Granulate = 1
+        AND h.LOB NOT IN ('GRANULATE', 'FG')
+        AND h.Calculation_Status = 'COMPLETED'
+    `;
+
+    let request = db.request();
+    if (periode) {
+      query += ` AND h.Periode = @periode`;
+      request = request.input('periode', sql.VarChar(6), periode);
+    }
+    query += ` GROUP BY d.Item_ID, d.Item_Name, d.Granulate_Batch, d.Granulate_Cost_Per_Gram,
+                ih.LOB, ih.Product_Name, ih.Output_Actual, ih.Periode, ih.BatchDate,
+                ih.HPP_Actual_ID, ih.Total_Cost_BB,
+                ih.MH_Proses_Actual, ih.MH_Proses_Std, ih.Rate_MH_Proses,
+                ih.MH_Kemas_Actual, ih.MH_Kemas_Std, ih.Rate_MH_Kemas,
+                ih.Cost_Utility, ih.Biaya_Analisa, ih.Biaya_Reagen
+              ORDER BY d.Item_ID, d.Granulate_Batch`;
+
+    const result = await request.query(query);
+    return result.recordset || [];
+  } catch (error) {
+    console.error("Error in getHPPActualIntermediateUsage:", error);
     throw error;
   }
 }
@@ -1594,6 +1693,7 @@ async function calculateHPPActual(periode, recalculateExisting = false) {
     return {
       success: true,
       granulatesProcessed: summary.GranulatesProcessed || 0,
+      fgProcessed: summary.FGProcessed || 0,
       totalProductBatches: summary.TotalProductBatches || 0,
       productsProcessed: summary.ProductsProcessed || 0,
       errors: summary.Errors || 0,
@@ -1645,6 +1745,7 @@ module.exports = {
   getHPPActualDetail,
   getHPPActualHeader,
   getHPPActualAllDetails,
+  getHPPActualIntermediateUsage,
   calculateHPPActual,
   getErrorBatches,
 };
