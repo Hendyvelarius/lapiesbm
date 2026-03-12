@@ -375,7 +375,7 @@ BEGIN
                 SELECT TOP 1 @GranTempelLabel = CAST(DNc_Date AS DATE)
                 FROM t_dnc_manufacturing
                 WHERE DNC_BatchNo = @GranBatchNo
-                  AND YEAR(DNc_Date) = @GranMRYear
+                  AND YEAR(DNc_Date) IN (@GranMRYear, @GranMRYear + 1)
                 ORDER BY DNc_Date DESC;
                 
                 -- Get currency rates for this date
@@ -409,7 +409,7 @@ BEGIN
                 SELECT @GranOutputQty = SUM(ISNULL(DNc_ReleaseQTY, 0))
                 FROM t_dnc_manufacturing
                 WHERE DNC_BatchNo = @GranBatchNo
-                  AND YEAR(DNc_Date) = @GranMRYear;
+                  AND YEAR(DNc_Date) IN (@GranMRYear, @GranMRYear + 1);
                 
                 -- Calculate raw material cost from the MR
                 SELECT @GranRawCost = SUM(
@@ -550,14 +550,14 @@ BEGIN
                             THEN 0.001
                         ELSE 1
                     END,
-                    p.PO_UnitPrice,
+                    ISNULL(p.PO_UnitPrice, 0),
                     p.PO_Currency,
                     CASE p.PO_Currency
                         WHEN 'USD' THEN ISNULL(@GranRateUSD, 1)
                         WHEN 'EUR' THEN ISNULL(@GranRateEUR, 1)
                         ELSE 1
                     END,
-                    p.PO_UnitPrice * CASE p.PO_Currency
+                    ISNULL(p.PO_UnitPrice, 0) * CASE p.PO_Currency
                         WHEN 'USD' THEN ISNULL(@GranRateUSD, 1)
                         WHEN 'EUR' THEN ISNULL(@GranRateEUR, 1)
                         ELSE 1
@@ -995,14 +995,14 @@ BEGIN
                             THEN 0.001
                         ELSE 1
                     END,
-                    p.PO_UnitPrice,
+                    ISNULL(p.PO_UnitPrice, 0),
                     p.PO_Currency,
                     CASE p.PO_Currency
                         WHEN 'USD' THEN ISNULL(@FGRateUSD, 1)
                         WHEN 'EUR' THEN ISNULL(@FGRateEUR, 1)
                         ELSE 1
                     END,
-                    p.PO_UnitPrice * CASE p.PO_Currency
+                    ISNULL(p.PO_UnitPrice, 0) * CASE p.PO_Currency
                         WHEN 'USD' THEN ISNULL(@FGRateUSD, 1)
                         WHEN 'EUR' THEN ISNULL(@FGRateEUR, 1)
                         ELSE 1
@@ -1336,14 +1336,17 @@ BEGIN
                 -- Item Name from master
                 MAX(itm.Item_Name),
                 -- v6 FIX: Get Item Type - prioritize m_Item_manufacturing (99.8% coverage)
-                -- Then fallback to M_COGS_STD_HRG_BAHAN, then pattern matching
+                -- Then fallback to M_COGS_STD_HRG_BAHAN, then PO header, then pattern matching
+                -- v16: FG items with no master data default to BK (same as H4 convention)
                 MAX(COALESCE(
                     itm.Item_Type,               -- 1st: m_Item_manufacturing (has .000 items)
                     mst.ITEM_TYPE,               -- 2nd: M_COGS_STD_HRG_BAHAN
-                    CASE                         -- 3rd: Pattern matching fallback
+                    ph.PO_ItemType,              -- 3rd: PO Header (BB or BK per purchase order)
+                    CASE                         -- 4th: Pattern matching + FG default fallback
                         WHEN d.MR_ItemID LIKE 'BB %' THEN 'BB'
                         WHEN d.MR_ItemID LIKE 'BK %' THEN 'BK'
                         WHEN d.MR_ItemID LIKE 'PM %' THEN 'PM'
+                        WHEN h.MR_ItemType = 'FG' THEN 'BK'  -- FG with no master entry defaults to BK
                         ELSE 'OTHER'
                     END
                 )),
@@ -1505,7 +1508,9 @@ BEGIN
                   AND rh.RTR_BatchDate = @CurrentDNCBatchDate
                   AND rd.RTR_GoodAmount > 0
                 GROUP BY rd.RTR_ItemID, rd.RTR_DNcNo
-            ) rtr ON m.Item_ID = rtr.RTR_ItemID AND m.MR_DNcNo = rtr.RTR_DNcNo;
+            ) rtr ON m.Item_ID = rtr.RTR_ItemID AND m.MR_DNcNo = rtr.RTR_DNcNo
+            -- v17: FG items (Is_Granulate=1 with non-ä ID) never have returns applied
+            WHERE NOT (m.Is_Granulate = 1 AND m.Item_ID NOT LIKE N'ä%');
             
             IF @Debug = 1
             BEGIN

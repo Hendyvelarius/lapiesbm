@@ -1346,7 +1346,9 @@ BEGIN
                   AND rh.RTR_BatchDate = @CurrentDNCBatchDate
                   AND rd.RTR_GoodAmount > 0
                 GROUP BY rd.RTR_ItemID, rd.RTR_DNcNo
-            ) rtr ON m.Item_ID = rtr.RTR_ItemID AND m.MR_DNcNo = rtr.RTR_DNcNo;
+            ) rtr ON m.Item_ID = rtr.RTR_ItemID AND m.MR_DNcNo = rtr.RTR_DNcNo
+            -- v17: FG items (Is_Granulate=1 with non-ä ID) never have returns applied
+            WHERE NOT (m.Is_Granulate = 1 AND m.Item_ID NOT LIKE N'ä%');
             
             IF @Debug = 1
             BEGIN
