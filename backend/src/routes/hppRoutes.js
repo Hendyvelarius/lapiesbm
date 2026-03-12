@@ -13,6 +13,10 @@ router.post('/generate', HPPController.generateHPPCalculation);
 // Query: ?year=2025
 router.get('/check-data-exists', HPPController.checkHPPDataExists);
 
+// GET /api/hpp/generated-products - Get list of Product_IDs that have been generated for a given year
+// Query: ?year=2025
+router.get('/generated-products', HPPController.getGeneratedProductIds);
+
 // POST /api/hpp/simulate-existing - Generate HPP simulation for existing product
 // Body: { productId: "01", formulaString: "GLC#-#B#A" }
 router.post('/simulate-existing', HPPController.generateHPPSimulation);

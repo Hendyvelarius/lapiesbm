@@ -1,4 +1,4 @@
-const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, getDistinctCustomMaterials, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, getMarkedForDeleteList, deleteSimulation, markSimulationForDelete, restoreSimulation, bulkMarkForDelete, permanentlyDeleteMarked, getSimulationOwner, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk, bulkMarkPriceChangeGroupForDelete, bulkDeletePriceChangeGroup, getHPPActualList, getHPPActualGranulateList, getHPPActualPeriods, getHPPActualDetail, getHPPActualHeader, getHPPActualAllDetails, getHPPActualIntermediateUsage, calculateHPPActual } = require('../models/hppModel');
+const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, getDistinctCustomMaterials, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, getMarkedForDeleteList, deleteSimulation, markSimulationForDelete, restoreSimulation, bulkMarkForDelete, permanentlyDeleteMarked, getSimulationOwner, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, getGeneratedProductIds, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk, bulkMarkPriceChangeGroupForDelete, bulkDeletePriceChangeGroup, getHPPActualList, getHPPActualGranulateList, getHPPActualPeriods, getHPPActualDetail, getHPPActualHeader, getHPPActualAllDetails, getHPPActualIntermediateUsage, calculateHPPActual } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
@@ -81,6 +81,40 @@ class HPPController {
       res.status(500).json({
         success: false,
         message: 'Error checking HPP data existence',
+        error: error.message
+      });
+    }
+  }
+
+  // Get list of Product_IDs that have been generated for a given year
+  static async getGeneratedProductIds(req, res) {
+    try {
+      const { year } = req.query;
+
+      if (!year) {
+        return res.status(400).json({
+          success: false,
+          message: 'Year parameter is required'
+        });
+      }
+
+      if (!/^\d{4}$/.test(year)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Year must be a 4-digit year (e.g., 2025)'
+        });
+      }
+
+      const productIds = await getGeneratedProductIds(year);
+
+      res.status(200).json({
+        success: true,
+        data: productIds
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving generated product IDs',
         error: error.message
       });
     }

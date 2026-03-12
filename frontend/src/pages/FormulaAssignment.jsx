@@ -27,6 +27,9 @@ const FormulaAssignment = ({ user }) => {
   const [importYear, setImportYear] = useState(new Date().getFullYear().toString());
   const [addYear, setAddYear] = useState(new Date().getFullYear().toString());
   
+  // Generated products tracking (for color coding)
+  const [generatedProductIds, setGeneratedProductIds] = useState(new Set());
+  
   // Generate year range for imports (current year +/- 2)
   const getImportYearRange = () => {
     const currentYear = new Date().getFullYear();
@@ -171,10 +174,11 @@ const FormulaAssignment = ({ user }) => {
       setLoading(true);
 
       // Load chosen formulas and product list
-      const [chosenRes, productsRes, yearsRes] = await Promise.all([
+      const [chosenRes, productsRes, yearsRes, generatedRes] = await Promise.all([
         api.products.getChosenFormula(selectedYear),
         api.master.getProductName(),
-        api.products.getAvailableYears()
+        api.products.getAvailableYears(),
+        api.hpp.getGeneratedProductIds(selectedYear)
       ]);
 
       setChosenFormulas(chosenRes || []);
@@ -182,6 +186,13 @@ const FormulaAssignment = ({ user }) => {
       
       if (yearsRes?.success && yearsRes?.data) {
         setAvailableYears(yearsRes.data);
+      }
+
+      // Build set of generated product IDs for color coding
+      if (generatedRes?.success && generatedRes?.data) {
+        setGeneratedProductIds(new Set(generatedRes.data));
+      } else {
+        setGeneratedProductIds(new Set());
       }
 
     } catch (err) {
@@ -1367,6 +1378,22 @@ const FormulaAssignment = ({ user }) => {
            hasFormula(formula.KP) && hasFormula(formula.KS);
   };
 
+  // Determine color status for a formula based on generation and lock state
+  // Pink (0): Not generated + locked (CRITICAL)
+  // Gray (1): Not generated + not locked
+  // Yellow (2): Generated + locked
+  // White (3): Generated + not locked
+  const getColorStatus = (formula) => {
+    const isGenerated = generatedProductIds.has(formula.Product_ID);
+    const isLocked = formula.isLock === 1;
+    if (!isGenerated && isLocked) return 'pink';
+    if (!isGenerated && !isLocked) return 'gray';
+    if (isGenerated && isLocked) return 'yellow';
+    return 'white';
+  };
+
+  const colorSortOrder = { pink: 0, gray: 1, yellow: 2, white: 3 };
+
   // Filter and sort chosen formulas based on search term and advanced filters
   const filteredChosenFormulas = chosenFormulas
     .filter(formula => {
@@ -1422,9 +1449,10 @@ const FormulaAssignment = ({ user }) => {
       return true;
     })
     .sort((a, b) => {
-      // Sort unlocked products first
-      if (a.isLock !== 1 && b.isLock === 1) return -1;
-      if (a.isLock === 1 && b.isLock !== 1) return 1;
+      // Sort by color status priority: pink → gray → yellow → white
+      const aOrder = colorSortOrder[getColorStatus(a)];
+      const bOrder = colorSortOrder[getColorStatus(b)];
+      if (aOrder !== bOrder) return aOrder - bOrder;
       
       // Then sort by isManual (important products first)
       if (a.isManual === 1 && b.isManual !== 1) return -1;
@@ -1653,7 +1681,7 @@ const FormulaAssignment = ({ user }) => {
                 </tr>
               ) : (
                 filteredChosenFormulas.map((formula, index) => (
-                  <tr key={`${formula.Product_ID}-${index}`} className={formula.isLock === 1 ? 'row-locked' : ''}>
+                  <tr key={`${formula.Product_ID}-${index}`} className={`row-${getColorStatus(formula)}`}>
                     <td className="lock-status-cell">
                       {formula.isLock === 1 ? '🔒' : '🔓'}
                     </td>

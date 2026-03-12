@@ -82,6 +82,41 @@ async function checkHPPDataExists(year) {
   }
 }
 
+// Get list of Product_IDs that have been generated (exist in HPP Standard data) for a given year
+async function getGeneratedProductIds(year) {
+  try {
+    const db = await connect();
+    let query;
+    let request = db.request();
+
+    if (year) {
+      query = `exec sp_COGS_HPP_List @year`;
+      request = request.input('year', sql.VarChar(4), year);
+    } else {
+      query = `exec sp_COGS_HPP_List`;
+    }
+
+    const result = await request.query(query);
+
+    // Collect unique Product_IDs from all 3 recordsets (ethical, generik1, generik2)
+    const productIds = new Set();
+    for (const recordset of result.recordsets) {
+      if (recordset) {
+        for (const row of recordset) {
+          if (row.Product_ID) {
+            productIds.add(row.Product_ID);
+          }
+        }
+      }
+    }
+
+    return Array.from(productIds);
+  } catch (error) {
+    console.error("Error getting generated product IDs:", error);
+    throw error;
+  }
+}
+
 // Generate HPP simulation for existing product with selected formulas
 async function generateHPPSimulation(productId, formulaString, userId = null) {
   try {
@@ -1745,6 +1780,7 @@ module.exports = {
   bulkMarkPriceChangeGroupForDelete,
   getSimulationSummary,
   checkHPPDataExists,
+  getGeneratedProductIds,
   commitPriceUpdate,
   getSimulationsForPriceChangeGroup,
   updateSimulationVersionBulk,

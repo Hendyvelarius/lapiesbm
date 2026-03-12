@@ -267,13 +267,41 @@
   font-size: 1.1rem;
 }
 
-/* Locked row styling */
-.row-locked {
+/* Color-coded row styling based on generation + lock status */
+/* Pink: Not generated + locked (CRITICAL) */
+.row-pink {
+  background-color: #ffe0e6;
+}
+
+.row-pink:hover {
+  background-color: #ffb3c1;
+}
+
+/* Gray: Not generated + not locked */
+.row-gray {
+  background-color: #f0f0f0;
+}
+
+.row-gray:hover {
+  background-color: #e0e0e0;
+}
+
+/* Yellow: Generated + locked */
+.row-yellow {
   background-color: #fef3c7;
 }
 
-.row-locked:hover {
+.row-yellow:hover {
   background-color: #fde68a;
+}
+
+/* White: Generated + not locked (default/good state) */
+.row-white {
+  background-color: #ffffff;
+}
+
+.row-white:hover {
+  background-color: #f9fafb;
 }
 
 .header-actions {

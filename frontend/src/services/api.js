@@ -149,6 +149,9 @@ export const hppAPI = {
     return apiRequest(`/hpp/data${queryString}`);
   },
 
+  // Get list of Product_IDs that have been generated for a given year
+  getGeneratedProductIds: (year) => apiRequest(`/hpp/generated-products?year=${year}`),
+
   // Generate HPP calculation
   generateCalculation: (periode) => apiRequest('/hpp/generate', {
     method: 'POST',
