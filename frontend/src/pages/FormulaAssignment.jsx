@@ -559,6 +559,8 @@ const FormulaAssignment = ({ user }) => {
       
       if (editingFormula) {
         // Update existing
+        const userName = user?.logNIK || 'SYSTEM';
+        const delegatedTo = user?.delegatedToNIK || null;
         await api.products.updateChosenFormula(formData.productId, {
           pi: formData.pi,
           ps: formData.ps,
@@ -566,18 +568,21 @@ const FormulaAssignment = ({ user }) => {
           ks: formData.ks,
           stdOutput: formData.stdOutput,
           isManual: 1,  // Default to manual (important)
-          periode: selectedYear  // Use the selected year, not current year
+          periode: selectedYear,  // Use the selected year, not current year
+          userId: userName,
+          delegatedTo: delegatedTo
         });
         notifier.success(`Formula assignment updated successfully for product ${formData.productId}`);
       } else {
         // Add new
         const userName = user?.logNIK || 'SYSTEM';
+        const delegatedTo = user?.delegatedToNIK || null;
         const dataToSend = {
           ...formData,
           isManual: 1,  // Default to manual (important)
           periode: addYear,
           userId: userName,
-          delegatedTo: userName
+          delegatedTo: delegatedTo
         };
         await api.products.addChosenFormula(dataToSend);
         notifier.success(`Formula assignment added successfully for product ${formData.productId}`);
@@ -762,7 +767,9 @@ const FormulaAssignment = ({ user }) => {
         try {
           setLoading(true);
           
-          const result = await api.products.lockYear(selectedYear.toString(), lockValue);
+          const userName = user?.logNIK || 'SYSTEM';
+          const delegatedTo = user?.delegatedToNIK || null;
+          const result = await api.products.lockYear(selectedYear.toString(), lockValue, userName, delegatedTo);
           
           if (result.success) {
             notifier.success(`All products in year ${selectedYear} ${action}ed successfully!`);
@@ -809,7 +816,9 @@ const FormulaAssignment = ({ user }) => {
           setLoading(true);
           
           // Call API to lock/unlock individual product
-          const result = await api.products.lockProduct(productId, selectedYear.toString(), currentLockStatus === 1 ? 0 : 1);
+          const userName = user?.logNIK || 'SYSTEM';
+          const delegatedTo = user?.delegatedToNIK || null;
+          const result = await api.products.lockProduct(productId, selectedYear.toString(), currentLockStatus === 1 ? 0 : 1, userName, delegatedTo);
           
           if (result.success) {
             notifier.success(`Product ${productId} ${action}ed successfully!`);
@@ -1206,6 +1215,7 @@ const FormulaAssignment = ({ user }) => {
   const transformImportData = (processedData, formulas) => {
     // Note: process_date is handled by the backend to ensure correct local timezone
     const userName = user?.logNIK || 'SYSTEM';
+    const delegatedTo = user?.delegatedToNIK || null;
     
     return processedData.map(product => {
       const productId = product.Product_ID;
@@ -1242,7 +1252,7 @@ const FormulaAssignment = ({ user }) => {
         Std_Output: stdOutput,
         isManual: null,
         user_id: userName,
-        delegated_to: userName,
+        delegated_to: delegatedTo,
         process_date: null, // Backend will set this with local timezone
         flag_update: null,
         from_update: null

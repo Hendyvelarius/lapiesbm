@@ -118,6 +118,9 @@ export const extractUserInfo = (payload) => {
       empDeptID: payload.user?.emp_DeptID || 'Unknown',
       empJobLevelID: payload.user?.emp_JobLevelID || 'Unknown',
       
+      // Delegation info - delegatedTo.log_NIK from JWT, null if no delegation
+      delegatedToNIK: payload.delegatedTo?.log_NIK || null,
+      
       // Token metadata
       issuedAt: payload.iat ? new Date(payload.iat * 1000).toLocaleString() : 'Unknown',
       expiresAt: payload.exp ? new Date(payload.exp * 1000).toLocaleString() : 'Unknown',

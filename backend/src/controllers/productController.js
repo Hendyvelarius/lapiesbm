@@ -84,7 +84,7 @@ class ProductController {
         userId || 'SYSTEM',
         isManual,
         periode,
-        delegatedTo || userId || 'SYSTEM'
+        delegatedTo || null
       );
 
       res.status(201).json({
@@ -104,7 +104,7 @@ class ProductController {
   static async updateChosenFormula(req, res) {
     try {
       const { productId } = req.params;
-      const { pi, ps, kp, ks, stdOutput, isManual, periode } = req.body;
+      const { pi, ps, kp, ks, stdOutput, isManual, periode, userId, delegatedTo } = req.body;
 
       const result = await updateChosenFormula(
         productId,
@@ -113,9 +113,10 @@ class ProductController {
         kp,
         ks,
         stdOutput,
-        'SYSTEM', // Default user
+        userId || 'SYSTEM',
         isManual,
-        periode  // Pass the periode from request
+        periode,
+        delegatedTo
       );
 
       if (result.rowsAffected[0] === 0) {
@@ -317,7 +318,7 @@ class ProductController {
 
   static async lockYear(req, res) {
     try {
-      const { periode, isLock } = req.body;
+      const { periode, isLock, userId, delegatedTo } = req.body;
       
       if (!periode) {
         return res.status(400).json({
@@ -326,7 +327,7 @@ class ProductController {
         });
       }
 
-      const result = await lockYear(periode, isLock);
+      const result = await lockYear(periode, isLock, userId, delegatedTo);
       
       res.status(200).json({
         success: true,
@@ -345,7 +346,7 @@ class ProductController {
 
   static async lockProduct(req, res) {
     try {
-      const { productId, periode, isLock } = req.body;
+      const { productId, periode, isLock, userId, delegatedTo } = req.body;
       
       if (!productId || !periode) {
         return res.status(400).json({
@@ -354,7 +355,7 @@ class ProductController {
         });
       }
 
-      const result = await productModel.lockProduct(productId, periode, isLock);
+      const result = await productModel.lockProduct(productId, periode, isLock, userId, delegatedTo);
       
       res.status(200).json({
         success: true,

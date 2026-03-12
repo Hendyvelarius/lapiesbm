@@ -129,15 +129,15 @@ export const productsAPI = {
   }),
   
   // Lock/unlock year
-  lockYear: (periode, isLock) => apiRequest('/products/lock-year', {
+  lockYear: (periode, isLock, userId, delegatedTo) => apiRequest('/products/lock-year', {
     method: 'POST',
-    body: JSON.stringify({ periode, isLock }),
+    body: JSON.stringify({ periode, isLock, userId, delegatedTo }),
   }),
   
   // Lock/unlock individual product
-  lockProduct: (productId, periode, isLock) => apiRequest('/products/lock-product', {
+  lockProduct: (productId, periode, isLock, userId, delegatedTo) => apiRequest('/products/lock-product', {
     method: 'POST',
-    body: JSON.stringify({ productId, periode, isLock }),
+    body: JSON.stringify({ productId, periode, isLock, userId, delegatedTo }),
   }),
 };
 

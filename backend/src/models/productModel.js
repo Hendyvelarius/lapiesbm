@@ -1,6 +1,14 @@
 const { connect } = require('../../config/sqlserver');
 const sql = require('mssql');
 
+// Get current datetime in WIB (GMT+7) for SQL Server storage
+// The mssql driver serializes Date objects using UTC (getUTCHours, etc.),
+// so we offset the epoch by +7h so the stored UTC value equals WIB time.
+function getWIBDateTime() {
+    const now = new Date();
+    return new Date(now.getTime() + (7 * 60 * 60 * 1000));
+}
+
 async function getFormula() {
     try {
         const pool = await connect();
@@ -65,9 +73,9 @@ async function addChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId, is
     try {
         const pool = await connect();
         const targetYear = periode || new Date().getFullYear().toString();
-        const currentDateTime = new Date();
+        const currentDateTime = getWIBDateTime();
         const finalUserId = userId || 'SYSTEM';
-        const finalDelegatedTo = delegatedTo || userId || 'SYSTEM';
+        const finalDelegatedTo = delegatedTo || null;
         
         const query = `
             INSERT INTO M_COGS_PRODUCT_FORMULA_FIX 
@@ -97,11 +105,13 @@ async function addChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId, is
 }
 
 // Update chosen formula record
-async function updateChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId, isManual, periode = null) {
+async function updateChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId, isManual, periode = null, delegatedTo = null) {
     try {
         const pool = await connect();
         const targetYear = periode || new Date().getFullYear().toString();
-        const currentDateTime = new Date();
+        const currentDateTime = getWIBDateTime();
+        const finalUserId = userId || 'SYSTEM';
+        const finalDelegatedTo = delegatedTo || null;
         
         const query = `
             UPDATE M_COGS_PRODUCT_FORMULA_FIX 
@@ -125,8 +135,8 @@ async function updateChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId,
             .input('kp', sql.VarChar, kp === null ? null : (kp || ''))
             .input('ks', sql.VarChar, ks === null ? null : (ks || ''))
             .input('stdOutput', sql.Decimal(18,2), stdOutput || 0)
-            .input('userId', sql.VarChar, userId || 'SYSTEM')
-            .input('delegatedTo', sql.VarChar, userId || 'SYSTEM')
+            .input('userId', sql.VarChar, finalUserId)
+            .input('delegatedTo', sql.VarChar, finalDelegatedTo)
             .input('processDate', sql.DateTime, currentDateTime)
             .input('isManual', sql.Int, isManual)
             .query(query);
@@ -235,7 +245,7 @@ async function autoAssignFormulas() {
                     .input('stdOutput', sql.Decimal(18,2), assignment.Std_Output || 0)
                     .input('userId', sql.VarChar, 'AUTO_ASSIGN')
                     .input('delegatedTo', sql.VarChar, 'AUTO_ASSIGN')
-                    .input('processDate', sql.DateTime, new Date())
+                    .input('processDate', sql.DateTime, getWIBDateTime())
                     .query(`
                         INSERT INTO M_COGS_PRODUCT_FORMULA_FIX 
                         (Periode, Product_ID, PI, PS, KP, KS, Std_Output, user_id, delegated_to, process_date)
@@ -415,7 +425,7 @@ async function bulkImportFormulas(importData) {
                     .input('isManual', sql.Bit, assignment.isManual)
                     .input('userId', sql.VarChar, assignment.user_id || 'AUTO_ASSIGN')
                     .input('delegatedTo', sql.VarChar, assignment.delegated_to || 'AUTO_ASSIGN')
-                    .input('processDate', sql.DateTime, new Date(assignment.process_date))
+                    .input('processDate', sql.DateTime, assignment.process_date ? new Date(assignment.process_date) : getWIBDateTime())
                     .input('flagUpdate', sql.VarChar, assignment.flag_update)
                     .input('fromUpdate', sql.VarChar, assignment.from_update)
                     .query(`
@@ -463,20 +473,29 @@ async function generateHPP(productId) {
 }
 
 // Lock/Unlock year - update isLock for all formulas in a specific periode
-async function lockYear(periode, isLock) {
+async function lockYear(periode, isLock, userId = null, delegatedTo = null) {
     try {
         const pool = await connect();
         const lockValue = isLock ? 1 : 0;
+        const currentDateTime = getWIBDateTime();
+        const finalUserId = userId || 'SYSTEM';
+        const finalDelegatedTo = delegatedTo || null;
         
         const query = `
             UPDATE M_COGS_PRODUCT_FORMULA_FIX
-            SET isLock = @isLock
+            SET isLock = @isLock,
+                user_id = @userId,
+                delegated_to = @delegatedTo,
+                process_date = @processDate
             WHERE Periode = @periode
         `;
         
         const result = await pool.request()
             .input('periode', sql.VarChar, periode)
             .input('isLock', sql.Int, lockValue)
+            .input('userId', sql.VarChar, finalUserId)
+            .input('delegatedTo', sql.VarChar, finalDelegatedTo)
+            .input('processDate', sql.DateTime, currentDateTime)
             .query(query);
             
         return {
@@ -492,14 +511,20 @@ async function lockYear(periode, isLock) {
 }
 
 // Lock/Unlock individual product - update isLock for a specific product in a periode
-async function lockProduct(productId, periode, isLock) {
+async function lockProduct(productId, periode, isLock, userId = null, delegatedTo = null) {
     try {
         const pool = await connect();
         const lockValue = isLock ? 1 : 0;
+        const currentDateTime = getWIBDateTime();
+        const finalUserId = userId || 'SYSTEM';
+        const finalDelegatedTo = delegatedTo || null;
         
         const query = `
             UPDATE M_COGS_PRODUCT_FORMULA_FIX
-            SET isLock = @isLock
+            SET isLock = @isLock,
+                user_id = @userId,
+                delegated_to = @delegatedTo,
+                process_date = @processDate
             WHERE Product_ID = @productId AND Periode = @periode
         `;
         
@@ -507,6 +532,9 @@ async function lockProduct(productId, periode, isLock) {
             .input('productId', sql.VarChar, productId)
             .input('periode', sql.VarChar, periode)
             .input('isLock', sql.Int, lockValue)
+            .input('userId', sql.VarChar, finalUserId)
+            .input('delegatedTo', sql.VarChar, finalDelegatedTo)
+            .input('processDate', sql.DateTime, currentDateTime)
             .query(query);
             
         return {
