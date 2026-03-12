@@ -74,7 +74,7 @@ class MasterController {
 
     static async addHargaBahan(req, res) {
         try {
-            const { itemId, itemType, unit, price, currency, rate, userId, periode } = req.body;
+            const { itemId, itemType, unit, price, currency, rate, userId, periode, delegatedTo } = req.body;
             
             // Validate required fields (note: price can be 0, so check for null/undefined specifically)
             if (!itemId || !itemType || !unit || price === null || price === undefined || !currency || !userId) {
@@ -92,7 +92,7 @@ class MasterController {
                 });
             }
             
-            const result = await addHargaBahan(itemId, itemType, unit, price, currency, rate || 1, userId, periode);
+            const result = await addHargaBahan(itemId, itemType, unit, price, currency, rate || 1, userId, periode, delegatedTo);
             res.status(201).json({
                 success: true,
                 message: 'Harga bahan added successfully',
@@ -111,7 +111,7 @@ class MasterController {
     static async updateHargaBahan(req, res) {
         try {
             const { id } = req.params;
-            const { itemType, unit, price, currency, rate, userId, periode } = req.body;
+            const { itemType, unit, price, currency, rate, userId, periode, delegatedTo } = req.body;
             
             // Validate required fields (note: price can be 0, so check for null/undefined specifically)
             if (!id || !itemType || !unit || price === null || price === undefined || !currency || !userId) {
@@ -137,7 +137,7 @@ class MasterController {
                 });
             }
             
-            const result = await updateHargaBahan(parseInt(id), itemType, unit, price, currency, rate || 1, userId, periode);
+            const result = await updateHargaBahan(parseInt(id), itemType, unit, price, currency, rate || 1, userId, periode, delegatedTo);
             res.status(200).json({
                 success: true,
                 message: 'Harga bahan updated successfully',
@@ -980,7 +980,9 @@ class MasterController {
                 groupKemasRate,
                 groupPLNRate,
                 groupAnalisaRate,
-                groupPNCategoryRateAs
+                groupPNCategoryRateAs,
+                userId,
+                delegatedTo
             } = req.body;
 
             // Validate required fields
@@ -1000,8 +1002,9 @@ class MasterController {
                 groupKemasRate,
                 groupPLNRate || null,
                 groupAnalisaRate || null,
-                'GWN', // Default user for now
-                groupPNCategoryRateAs || null
+                userId || 'GWN',
+                groupPNCategoryRateAs || null,
+                delegatedTo || null
             );
 
             res.status(201).json({
@@ -1030,7 +1033,9 @@ class MasterController {
                 groupKemasRate,
                 groupPLNRate,
                 groupAnalisaRate,
-                groupPNCategoryRateAs
+                groupPNCategoryRateAs,
+                userId,
+                delegatedTo
             } = req.body;
 
             // Validate required fields
@@ -1059,7 +1064,8 @@ class MasterController {
                 groupPLNRate || null,
                 groupAnalisaRate || null,
                 groupPNCategoryRateAs || null,
-                'GWN' // Default user for now
+                userId || 'GWN',
+                delegatedTo || null
             );
 
             if (result.rowsAffected[0] === 0) {
@@ -1120,7 +1126,7 @@ class MasterController {
 
     static async bulkImportPembebanan(req, res) {
         try {
-            const { pembebanانData, userId = "system", periode = null, lockedProductIds = [] } = req.body;
+            const { pembebanانData, userId = "system", delegatedTo, periode = null, lockedProductIds = [] } = req.body;
             
             // Validate required fields
             if (!pembebanانData || !Array.isArray(pembebanانData) || pembebanانData.length === 0) {
@@ -1190,7 +1196,7 @@ class MasterController {
                 tollFee: parseFloat(row.tollFee) || 0
             }));
             
-            const insertResult = await bulkInsertPembebanan(insertData, userId, importPeriode);
+            const insertResult = await bulkInsertPembebanan(insertData, userId, importPeriode, delegatedTo);
             
             // Count default vs custom rates
             const defaultRatesCount = pembebanانData.filter(row => row.isDefaultRate).length;
@@ -1296,7 +1302,8 @@ class MasterController {
                 ppiItemId, 
                 ppiQty, 
                 ppiUnitId,
-                userId = "GWN"
+                userId = "GWN",
+                delegatedTo
             } = req.body;
             
             // Validate required fields
@@ -1328,7 +1335,8 @@ class MasterController {
                 ppiItemId,
                 ppiQty, // Keep as string to preserve decimal precision
                 ppiUnitId,
-                userId
+                userId,
+                delegatedTo || null
             );
             
             res.status(201).json({
@@ -1354,7 +1362,8 @@ class MasterController {
                 ppiProductId, 
                 ppiBatchSize, 
                 ingredients,
-                userId = "GWN"
+                userId = "GWN",
+                delegatedTo
             } = req.body;
             
             // Validate required fields
@@ -1405,7 +1414,8 @@ class MasterController {
                 ppiProductId,
                 parseFloat(ppiBatchSize),
                 ingredients,
-                userId
+                userId,
+                delegatedTo || null
             );
             
             res.status(201).json({
@@ -1434,7 +1444,8 @@ class MasterController {
                 ppiItemId, 
                 ppiQty, 
                 ppiUnitId,
-                userId = "GWN"
+                userId = "GWN",
+                delegatedTo
             } = req.body;
             
             // Validate required fields
@@ -1466,7 +1477,8 @@ class MasterController {
                 ppiItemId,
                 ppiQty, // Keep as string to preserve decimal precision
                 ppiUnitId,
-                userId
+                userId,
+                delegatedTo || null
             );
             
             res.status(200).json({

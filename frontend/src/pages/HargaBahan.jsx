@@ -1303,8 +1303,8 @@ const HargaBahan = () => {
           ITEM_PURCHASE_STD_PRICE: price,
           ITEM_CURRENCY: item.finalCurrency || item.kurs || null,
           ITEM_PRC_ID: item.kodePrinciple || null,
-          user_id: 'SYSTEM',
-          delegated_to: 'SYSTEM'
+          user_id: getCurrentUser()?.logNIK || 'SYSTEM',
+          delegated_to: getCurrentUser()?.delegatedToNIK || null
         };
         
         // Debug each item mapping
@@ -1417,8 +1417,8 @@ const HargaBahan = () => {
           ITEM_PURCHASE_STD_PRICE: finalPrice,
           ITEM_CURRENCY: item.ITEM_CURRENCY || item.finalCurrency || item.currency || 'IDR',
           ITEM_PRC_ID: item.ITEM_PRC_ID || item.principle || null,
-          user_id: 'SYSTEM',
-          delegated_to: 'SYSTEM'
+          user_id: getCurrentUser()?.logNIK || 'SYSTEM',
+          delegated_to: getCurrentUser()?.delegatedToNIK || null
           // Note: process_date is intentionally omitted - backend will use local server time
         };
       });
@@ -2065,6 +2065,7 @@ const HargaBahan = () => {
         currency: formData.currency,
         rate: formData.rate,
         userId: currentUser?.logNIK || 'SYSTEM',
+        delegatedTo: currentUser?.delegatedToNIK || null,
         periode: selectedPeriode
       };
       

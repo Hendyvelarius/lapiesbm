@@ -891,6 +891,7 @@ class HPPController {
   static async restoreSimulation(req, res) {
     try {
       const { simulasiId } = req.params;
+      const { userId } = req.body;
       
       if (!simulasiId) {
         return res.status(400).json({
@@ -899,7 +900,7 @@ class HPPController {
         });
       }
 
-      const result = await restoreSimulation(simulasiId);
+      const result = await restoreSimulation(simulasiId, userId);
 
       if (!result.success) {
         return res.status(404).json({

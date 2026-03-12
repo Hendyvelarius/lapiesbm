@@ -79,7 +79,7 @@ class ExpiryCostController {
   // Create new expired material
   static async createExpiredMaterial(req, res) {
     try {
-      const { itemId, itemUnit, itemQty, periode, userId, processDate } = req.body;
+      const { itemId, itemUnit, itemQty, periode, userId, delegatedTo } = req.body;
       
       // Validation
       if (!itemId || !itemUnit || !itemQty) {
@@ -102,7 +102,7 @@ class ExpiryCostController {
         itemQty: parseFloat(itemQty),
         periode: periode || new Date().getFullYear().toString(),
         userId: userId || 'SYSTEM',
-        processDate: processDate ? new Date(processDate) : new Date()
+        delegatedTo: delegatedTo || null
       };
       
       const newExpiredMaterial = await ExpiryCostModel.createExpiredMaterial(expiredMaterialData);
@@ -125,7 +125,7 @@ class ExpiryCostController {
   static async updateExpiredMaterial(req, res) {
     try {
       const { id } = req.params;
-      const { itemId, itemUnit, itemQty, periode, userId, processDate } = req.body;
+      const { itemId, itemUnit, itemQty, periode, userId, delegatedTo } = req.body;
       
       if (!id || isNaN(id)) {
         return res.status(400).json({
@@ -164,7 +164,7 @@ class ExpiryCostController {
         itemQty: parseFloat(itemQty),
         periode: periode || existingRecord.PERIODE,
         userId: userId || existingRecord.user_id,
-        processDate: processDate ? new Date(processDate) : existingRecord.process_date
+        delegatedTo: delegatedTo || null
       };
       
       const updatedExpiredMaterial = await ExpiryCostModel.updateExpiredMaterial(parseInt(id), updateData);

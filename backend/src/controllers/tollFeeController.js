@@ -213,7 +213,6 @@ class TollFeeController {
         rounded: rounded || '',
         userId: userId || 'SYSTEM',
         delegatedTo: delegatedTo || null,
-        processDate: processDate ? new Date(processDate) : new Date(),
         flagUpdate: '1',
         fromUpdate: 'UPDATE'
       };
@@ -278,7 +277,6 @@ class TollFeeController {
         rounded: rounded || '',
         userId: userId || 'SYSTEM',
         delegatedTo: delegatedTo || null,
-        processDate: processDate ? new Date(processDate) : new Date(),
         flagUpdate: '1',
         fromUpdate: 'UPDATE'
       };
@@ -502,7 +500,6 @@ class TollFeeController {
             periode: entry.periode || null,
             userId: userId || entry.userId || 'SYSTEM',
             delegatedTo: entry.delegatedTo || null,
-            processDate: entry.processDate ? new Date(entry.processDate) : new Date(),
             flagUpdate: '0',
             fromUpdate: 'BULK_INSERT'
           });

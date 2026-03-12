@@ -1,6 +1,12 @@
 const { connect } = require('../../config/sqlserver');
 const sql = require('mssql');
 
+// Get current datetime in WIB (GMT+7) for SQL Server storage
+function getWIBDateTime() {
+    const now = new Date();
+    return new Date(now.getTime() + (7 * 60 * 60 * 1000));
+}
+
 /**
  * Get current local datetime as a string suitable for SQL Server.
  * This avoids UTC conversion that happens with toISOString().
@@ -329,7 +335,7 @@ class TollFeeModel {
         .input('rounded', sql.VarChar, tollFeeData.rounded || null)
         .input('userId', sql.NVarChar, tollFeeData.userId)
         .input('delegatedTo', sql.NVarChar, tollFeeData.delegatedTo || null)
-        .input('processDate', sql.DateTime, tollFeeData.processDate || new Date())
+        .input('processDate', sql.DateTime, tollFeeData.processDate || getWIBDateTime())
         .input('flagUpdate', sql.NVarChar, tollFeeData.flagUpdate || '1')
         .input('fromUpdate', sql.NVarChar, tollFeeData.fromUpdate || 'UPDATE')
         .query(query);
@@ -373,7 +379,7 @@ class TollFeeModel {
         .input('rounded', sql.VarChar, tollFeeData.rounded || null)
         .input('userId', sql.NVarChar, tollFeeData.userId)
         .input('delegatedTo', sql.NVarChar, tollFeeData.delegatedTo || null)
-        .input('processDate', sql.DateTime, tollFeeData.processDate || new Date())
+        .input('processDate', sql.DateTime, tollFeeData.processDate || getWIBDateTime())
         .input('flagUpdate', sql.NVarChar, tollFeeData.flagUpdate || '1')
         .input('fromUpdate', sql.NVarChar, tollFeeData.fromUpdate || 'UPDATE')
         .query(query);
@@ -550,7 +556,7 @@ class TollFeeModel {
           entry.periode || null,
           entry.userId || 'SYSTEM',
           entry.delegatedTo || null,
-          entry.processDate || new Date(),
+          entry.processDate || getWIBDateTime(),
           entry.flagUpdate || '0',
           entry.fromUpdate || 'BULK_INSERT'
         );

@@ -1,6 +1,12 @@
 const { connect } = require('../../config/sqlserver');
 const sql = require('mssql');
 
+// Get current datetime in WIB (GMT+7) for SQL Server storage
+function getWIBDateTime() {
+    const now = new Date();
+    return new Date(now.getTime() + (7 * 60 * 60 * 1000));
+}
+
 // CRUD operations for M_COGS_BEBAN_SISA_BAHAN_EXP
 class ExpiryCostModel {
   
@@ -71,7 +77,7 @@ class ExpiryCostModel {
   static async createExpiredMaterial(data) {
     try {
       const pool = await connect();
-      const currentDateTime = new Date();
+      const currentDateTime = getWIBDateTime();
       
       const query = `
         INSERT INTO M_COGS_BEBAN_SISA_BAHAN_EXP 
@@ -87,8 +93,8 @@ class ExpiryCostModel {
         .input('itemUnit', sql.VarChar(10), data.itemUnit)
         .input('itemQty', sql.Decimal(18, 2), data.itemQty)
         .input('userId', sql.VarChar(50), data.userId || 'SYSTEM')
-        .input('delegatedTo', sql.VarChar(50), data.delegatedTo || data.userId || 'SYSTEM')
-        .input('processDate', sql.DateTime, data.processDate || currentDateTime)
+        .input('delegatedTo', sql.VarChar(50), data.delegatedTo || null)
+        .input('processDate', sql.DateTime, currentDateTime)
         .input('flagUpdate', sql.VarChar(10), data.flagUpdate || null)
         .input('fromUpdate', sql.VarChar(50), data.fromUpdate || null)
         .query(query);
@@ -105,7 +111,7 @@ class ExpiryCostModel {
   static async updateExpiredMaterial(id, data) {
     try {
       const pool = await connect();
-      const currentDateTime = new Date();
+      const currentDateTime = getWIBDateTime();
       
       const query = `
         UPDATE M_COGS_BEBAN_SISA_BAHAN_EXP 
@@ -130,8 +136,8 @@ class ExpiryCostModel {
         .input('itemUnit', sql.VarChar(10), data.itemUnit)
         .input('itemQty', sql.Decimal(18, 2), data.itemQty)
         .input('userId', sql.VarChar(50), data.userId)
-        .input('delegatedTo', sql.VarChar(50), data.delegatedTo || data.userId)
-        .input('processDate', sql.DateTime, data.processDate || currentDateTime)
+        .input('delegatedTo', sql.VarChar(50), data.delegatedTo || null)
+        .input('processDate', sql.DateTime, currentDateTime)
         .input('flagUpdate', sql.VarChar(10), data.flagUpdate || null)
         .input('fromUpdate', sql.VarChar(50), data.fromUpdate || null)
         .input('updatedAt', sql.DateTime, currentDateTime)

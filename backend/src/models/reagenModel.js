@@ -1,6 +1,12 @@
 const { connect } = require('../../config/sqlserver');
 const sql = require('mssql');
 
+// Get current datetime in WIB (GMT+7) for SQL Server storage
+function getWIBDateTime() {
+    const now = new Date();
+    return new Date(now.getTime() + (7 * 60 * 60 * 1000));
+}
+
 // CRUD operations for M_COGS_PEMBEBANAN_REAGEN
 class ReagenModel {
   
@@ -144,7 +150,7 @@ class ReagenModel {
         .input('reagenRate', sql.Decimal(18,2), reagenData.reagenRate)
         .input('userId', sql.NVarChar, reagenData.userId)
         .input('delegatedTo', sql.NVarChar, reagenData.delegatedTo || null)
-        .input('processDate', sql.DateTime, reagenData.processDate || new Date())
+        .input('processDate', sql.DateTime, reagenData.processDate || getWIBDateTime())
         .input('flagUpdate', sql.NVarChar, reagenData.flagUpdate || '0')
         .input('fromUpdate', sql.NVarChar, reagenData.fromUpdate || 'INSERT')
         .query(query);
@@ -186,7 +192,7 @@ class ReagenModel {
         .input('reagenRate', sql.Decimal(18,2), reagenData.reagenRate)
         .input('userId', sql.NVarChar, reagenData.userId)
         .input('delegatedTo', sql.NVarChar, reagenData.delegatedTo || null)
-        .input('processDate', sql.DateTime, reagenData.processDate || new Date())
+        .input('processDate', sql.DateTime, reagenData.processDate || getWIBDateTime())
         .input('flagUpdate', sql.NVarChar, reagenData.flagUpdate || '1')
         .input('fromUpdate', sql.NVarChar, reagenData.fromUpdate || 'UPDATE')
         .query(query);
@@ -333,7 +339,7 @@ class ReagenModel {
           entry.periode || null,
           entry.userId || 'SYSTEM',
           entry.delegatedTo || null,
-          entry.processDate || new Date(),
+          entry.processDate || getWIBDateTime(),
           entry.flagUpdate || '0',
           entry.fromUpdate || 'BULK_INSERT'
         );

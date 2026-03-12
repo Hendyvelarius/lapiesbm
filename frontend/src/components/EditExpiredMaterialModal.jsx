@@ -113,7 +113,7 @@ const EditExpiredMaterialModal = ({ material, materials, onClose, onSave }) => {
         itemUnit: formData.itemUnit.trim(),
         periode: formData.periode.trim(),
         userId: currentUser?.logNIK || formData.userId.trim() || 'SYSTEM',
-        processDate: material.process_date // Keep original process date
+        delegatedTo: currentUser?.delegatedToNIK || null
       };
 
       const response = await apiCall(`/expiry-cost/${material.pk_id}`, 'PUT', submitData);

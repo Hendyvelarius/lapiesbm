@@ -162,7 +162,8 @@ const AddExpiredMaterialModal = ({ materials, onClose, onSave, currentYear }) =>
         itemQty: parseFloat(formData.itemQty),
         itemUnit: formData.itemUnit.trim(),
         periode: currentYear,
-        userId: currentUser?.logNIK || 'SYSTEM'
+        userId: currentUser?.logNIK || 'SYSTEM',
+        delegatedTo: currentUser?.delegatedToNIK || null
         // Note: processDate is handled by the backend to ensure correct local timezone
       };
 

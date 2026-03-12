@@ -1,6 +1,12 @@
 const { connect } = require('../../config/sqlserver');
 const sql = require('mssql');
 
+// Get current datetime in WIB (GMT+7) for SQL Server storage
+function getWIBDateTime() {
+    const now = new Date();
+    return new Date(now.getTime() + (7 * 60 * 60 * 1000));
+}
+
 /**
  * Get current local datetime as a string suitable for SQL Server.
  * This avoids UTC conversion that happens with toISOString().
@@ -89,7 +95,7 @@ async function getHargaBahan(periode = null) {
   }
 }
 
-async function addHargaBahan(itemId, itemType, unit, price, currency, rate, userId, periode = null) {
+async function addHargaBahan(itemId, itemType, unit, price, currency, rate, userId, periode = null, delegatedTo = null) {
   try {
     const db = await connect();
     const currentDateTime = getLocalDateTime();
@@ -118,7 +124,7 @@ async function addHargaBahan(itemId, itemType, unit, price, currency, rate, user
         @currency,
         @periode,
         @userId,
-        @userId,
+        @delegatedTo,
         @processDate,
         NULL,
         NULL,
@@ -135,6 +141,7 @@ async function addHargaBahan(itemId, itemType, unit, price, currency, rate, user
       .input('currency', currency)
       .input('periode', insertPeriode)
       .input('userId', userId)
+      .input('delegatedTo', delegatedTo || null)
       .input('processDate', currentDateTime)
       .input('createdAt', currentDateTime)
       .input('updatedAt', currentDateTime)
@@ -151,7 +158,7 @@ async function addHargaBahan(itemId, itemType, unit, price, currency, rate, user
   }
 }
 
-async function updateHargaBahan(pkId, itemType, unit, price, currency, rate, userId, periode = null) {
+async function updateHargaBahan(pkId, itemType, unit, price, currency, rate, userId, periode = null, delegatedTo = null) {
   try {
     const db = await connect();
     const currentDateTime = getLocalDateTime();
@@ -166,7 +173,7 @@ async function updateHargaBahan(pkId, itemType, unit, price, currency, rate, use
         ITEM_CURRENCY = @currency,
         Periode = @periode,
         user_id = @userId,
-        delegated_to = @userId,
+        delegated_to = @delegatedTo,
         process_date = @processDate,
         flag_update = 'Y',
         from_update = @userId,
@@ -182,6 +189,7 @@ async function updateHargaBahan(pkId, itemType, unit, price, currency, rate, use
       .input('currency', currency)
       .input('periode', updatePeriode)
       .input('userId', userId)
+      .input('delegatedTo', delegatedTo || null)
       .input('processDate', currentDateTime)
       .input('updatedAt', currentDateTime)
       .query(query);
@@ -342,7 +350,7 @@ async function bulkInsertHargaBahan(dataArray) {
         request.input(`param${rowIndex}_5`, sql.VarChar, item.ITEM_PRC_ID || null);
         request.input(`param${rowIndex}_6`, sql.VarChar, item.Periode || new Date().getFullYear().toString());
         request.input(`param${rowIndex}_7`, sql.VarChar, item.user_id || 'SYSTEM');
-        request.input(`param${rowIndex}_8`, sql.VarChar, item.delegated_to || 'SYSTEM');
+        request.input(`param${rowIndex}_8`, sql.VarChar, item.delegated_to || null);
         request.input(`param${rowIndex}_9`, sql.VarChar, item.process_date || currentDateStr);
         request.input(`param${rowIndex}_10`, sql.VarChar, currentDateStr);
         request.input(`param${rowIndex}_11`, sql.VarChar, currentDateStr);
@@ -911,11 +919,11 @@ async function getPembebanan() {
   }
 }
 
-async function addPembebanan(groupPNCategoryID, groupPNCategoryName, groupProductID, groupProsesRate, groupKemasRate, groupPLNRate, groupAnalisaRate, userId, groupPNCategoryRateAs = null) {
+async function addPembebanan(groupPNCategoryID, groupPNCategoryName, groupProductID, groupProsesRate, groupKemasRate, groupPLNRate, groupAnalisaRate, userId, groupPNCategoryRateAs = null, delegatedTo = null) {
   try {
     const db = await connect();
     const currentYear = new Date().getFullYear().toString();
-    const currentDateTime = new Date().toISOString();
+    const currentDateTime = getWIBDateTime();
     
     // Ensure all string parameters are actually strings
     const categoryId = String(groupPNCategoryID || '');
@@ -941,7 +949,7 @@ async function addPembebanan(groupPNCategoryID, groupPNCategoryName, groupProduc
       .input('analisaRate', sql.Decimal(18,2), groupAnalisaRate)
       .input('rateAs', sql.VarChar, rateAs)
       .input('userId', sql.VarChar, userIdStr)
-      .input('delegatedTo', sql.VarChar, userIdStr)
+      .input('delegatedTo', sql.VarChar, delegatedTo || null)
       .input('processDate', sql.DateTime, currentDateTime)
       .input('flagUpdate', sql.VarChar, null)
       .input('fromUpdate', sql.VarChar, null)
@@ -954,11 +962,11 @@ async function addPembebanan(groupPNCategoryID, groupPNCategoryName, groupProduc
   }
 }
 
-async function updatePembebanan(pkId, groupPNCategoryID, groupPNCategoryName, groupProductID, groupProsesRate, groupKemasRate, groupPLNRate, groupAnalisaRate, groupPNCategoryRateAs, userId) {
+async function updatePembebanan(pkId, groupPNCategoryID, groupPNCategoryName, groupProductID, groupProsesRate, groupKemasRate, groupPLNRate, groupAnalisaRate, groupPNCategoryRateAs, userId, delegatedTo = null) {
   try {
     const db = await connect();
     const currentYear = new Date().getFullYear().toString();
-    const currentDateTime = new Date().toISOString();
+    const currentDateTime = getWIBDateTime();
     
     // Ensure all string parameters are actually strings
     const categoryId = String(groupPNCategoryID || '');
@@ -998,7 +1006,7 @@ async function updatePembebanan(pkId, groupPNCategoryID, groupPNCategoryName, gr
       .input('analisaRate', sql.Decimal(18,2), groupAnalisaRate)
       .input('rateAsGroupId', sql.VarChar, rateAsGroupId)
       .input('userId', sql.VarChar, userIdStr)
-      .input('delegatedTo', sql.VarChar, userIdStr)
+      .input('delegatedTo', sql.VarChar, delegatedTo || null)
       .input('processDate', sql.DateTime, currentDateTime)
       .input('flagUpdate', sql.VarChar, null)
       .input('fromUpdate', sql.VarChar, null)
@@ -1094,7 +1102,7 @@ async function bulkDeletePembebanانWithProductID(userId = "system") {
   }
 }
 
-async function bulkInsertPembebanan(pembebanانData, userId = "system", periode = null) {
+async function bulkInsertPembebanan(pembebanانData, userId = "system", periode = null, delegatedTo = null) {
   try {
     const db = await connect();
     
@@ -1107,7 +1115,7 @@ async function bulkInsertPembebanan(pembebanانData, userId = "system", periode
     }
     
     const insertPeriode = periode || new Date().getFullYear().toString();
-    const currentDateTime = new Date().toISOString();
+    const currentDateTime = getWIBDateTime();
     
     // Build bulk insert query
     const insertQuery = `
@@ -1165,7 +1173,7 @@ async function bulkInsertPembebanan(pembebanانData, userId = "system", periode
       request.input(`${paramPrefix}_analisaRate`, sql.Decimal(18, 2), item.groupAnalisaRate);
       request.input(`${paramPrefix}_rateAsGroupId`, sql.VarChar, item.groupPNCategoryRateAs ? String(item.groupPNCategoryRateAs) : null);
       request.input(`${paramPrefix}_userId`, sql.VarChar, String(userId));
-      request.input(`${paramPrefix}_delegatedTo`, sql.VarChar, String(userId));
+      request.input(`${paramPrefix}_delegatedTo`, sql.VarChar, delegatedTo || null);
       request.input(`${paramPrefix}_processDate`, sql.DateTime, currentDateTime);
       request.input(`${paramPrefix}_flagUpdate`, sql.VarChar, null);
       request.input(`${paramPrefix}_fromUpdate`, sql.VarChar, null);
@@ -1360,10 +1368,10 @@ async function exportAllFormulaDetailSumPerSubID() {
 
 // === FORMULA MANUAL CUD OPERATIONS ===
 
-async function addFormulaManual(ppiType, ppiSubId, ppiProductId, ppiBatchSize, ppiSeqId, ppiItemId, ppiQty, ppiUnitId, userId) {
+async function addFormulaManual(ppiType, ppiSubId, ppiProductId, ppiBatchSize, ppiSeqId, ppiItemId, ppiQty, ppiUnitId, userId, delegatedTo = null) {
   try {
     const db = await connect();
-    const currentDateTime = new Date().toISOString();
+    const currentDateTime = getWIBDateTime();
     
     const query = `
       INSERT INTO M_COGS_FORMULA_MANUAL (
@@ -1390,7 +1398,7 @@ async function addFormulaManual(ppiType, ppiSubId, ppiProductId, ppiBatchSize, p
         @ppiQty,
         @ppiUnitId,
         @userId,
-        @userId,
+        @delegatedTo,
         @processDate,
         NULL,
         NULL
@@ -1407,6 +1415,7 @@ async function addFormulaManual(ppiType, ppiSubId, ppiProductId, ppiBatchSize, p
       .input('ppiQty', ppiQty)
       .input('ppiUnitId', ppiUnitId)
       .input('userId', userId)
+      .input('delegatedTo', delegatedTo || null)
       .input('processDate', currentDateTime)
       .query(query);
       
@@ -1421,10 +1430,10 @@ async function addFormulaManual(ppiType, ppiSubId, ppiProductId, ppiBatchSize, p
   }
 }
 
-async function addBatchFormulaManual(ppiType, ppiSubId, ppiProductId, ppiBatchSize, ingredients, userId) {
+async function addBatchFormulaManual(ppiType, ppiSubId, ppiProductId, ppiBatchSize, ingredients, userId, delegatedTo = null) {
   try {
     const db = await connect();
-    const currentDateTime = new Date().toISOString();
+    const currentDateTime = getWIBDateTime();
     
     // Build the VALUES clause for multiple ingredients
     const valuesClauses = ingredients.map((_, index) => `(
@@ -1437,7 +1446,7 @@ async function addBatchFormulaManual(ppiType, ppiSubId, ppiProductId, ppiBatchSi
       @ppiQty${index},
       @ppiUnitId${index},
       @userId,
-      @userId,
+      @delegatedTo,
       @processDate,
       NULL,
       NULL
@@ -1467,6 +1476,7 @@ async function addBatchFormulaManual(ppiType, ppiSubId, ppiProductId, ppiBatchSi
       .input('ppiProductId', ppiProductId)
       .input('ppiBatchSize', ppiBatchSize)
       .input('userId', userId)
+      .input('delegatedTo', delegatedTo || null)
       .input('processDate', currentDateTime);
     
     // Add parameters for each ingredient
@@ -1492,10 +1502,10 @@ async function addBatchFormulaManual(ppiType, ppiSubId, ppiProductId, ppiBatchSi
   }
 }
 
-async function updateFormulaManual(ppiType, ppiSubId, ppiProductId, originalSeqId, ppiSeqId, ppiItemId, ppiQty, ppiUnitId, userId) {
+async function updateFormulaManual(ppiType, ppiSubId, ppiProductId, originalSeqId, ppiSeqId, ppiItemId, ppiQty, ppiUnitId, userId, delegatedTo = null) {
   try {
     const db = await connect();
-    const currentDateTime = new Date().toISOString();
+    const currentDateTime = getWIBDateTime();
     
     const query = `
       UPDATE M_COGS_FORMULA_MANUAL 
@@ -1505,7 +1515,7 @@ async function updateFormulaManual(ppiType, ppiSubId, ppiProductId, originalSeqI
         PPI_QTY = @ppiQty,
         PPI_UnitID = @ppiUnitId,
         user_id = @userId,
-        delegated_to = @userId,
+        delegated_to = @delegatedTo,
         process_date = @processDate,
         flag_update = 1,
         from_update = 'MANUAL'
@@ -1525,6 +1535,7 @@ async function updateFormulaManual(ppiType, ppiSubId, ppiProductId, originalSeqI
       .input('ppiQty', ppiQty)
       .input('ppiUnitId', ppiUnitId)
       .input('userId', userId)
+      .input('delegatedTo', delegatedTo || null)
       .input('processDate', currentDateTime)
       .query(query);
     

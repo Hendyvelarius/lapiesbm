@@ -1,6 +1,12 @@
 const { connect } = require("../../config/sqlserver");
 const sql = require("mssql");
 
+// Get current datetime in WIB (GMT+7) for SQL Server storage
+function getWIBDateTime() {
+    const now = new Date();
+    return new Date(now.getTime() + (7 * 60 * 60 * 1000));
+}
+
 async function getHPP(year = null) {
   try {
     const db = await connect();
@@ -326,7 +332,7 @@ async function createSimulationHeader(headerData) {
         sql.VarChar(4000),
         headerData.Simulasi_Deskripsi || ""
       )
-      .input("SimulasiDate", sql.DateTime, new Date())
+      .input("SimulasiDate", sql.DateTime, getWIBDateTime())
       .input("SimulasiType", sql.VarChar(50), "Product Custom")
       .input(
         "GroupRendemen",
@@ -511,6 +517,7 @@ async function markSimulationForDelete(simulasiId, userId) {
     const query = `
       UPDATE t_COGS_HPP_Product_Header_Simulasi 
       SET flag_delete = 1,
+          user_id = @UserId,
           process_date = GETDATE()
       WHERE Simulasi_ID = @SimulasiId
     `;
@@ -518,6 +525,7 @@ async function markSimulationForDelete(simulasiId, userId) {
     const result = await db
       .request()
       .input("SimulasiId", sql.Int, simulasiId)
+      .input("UserId", sql.VarChar(50), userId || 'SYSTEM')
       .query(query);
 
     return {
@@ -531,13 +539,14 @@ async function markSimulationForDelete(simulasiId, userId) {
 }
 
 // Restore simulation from deletion (unmark)
-async function restoreSimulation(simulasiId) {
+async function restoreSimulation(simulasiId, userId) {
   try {
     const db = await connect();
     
     const query = `
       UPDATE t_COGS_HPP_Product_Header_Simulasi 
       SET flag_delete = 0,
+          user_id = @UserId,
           process_date = GETDATE()
       WHERE Simulasi_ID = @SimulasiId
     `;
@@ -545,6 +554,7 @@ async function restoreSimulation(simulasiId) {
     const result = await db
       .request()
       .input("SimulasiId", sql.Int, simulasiId)
+      .input("UserId", sql.VarChar(50), userId || 'SYSTEM')
       .query(query);
 
     return {

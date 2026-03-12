@@ -394,8 +394,8 @@ const Reagen = ({ user }) => {
       const updateData = {
         productId: originalItem.productId,
         reagenRate: parseFloat(editFormData.reagenRate) || 0,
-        userId: user?.nama || user?.inisialNama || 'SYSTEM',
-        delegatedTo: originalItem.delegatedTo
+        userId: user?.logNIK || 'SYSTEM',
+        delegatedTo: user?.delegatedToNIK || null
         // Note: processDate is handled by the backend to ensure correct local timezone
       };
       
@@ -460,8 +460,8 @@ const Reagen = ({ user }) => {
       const newEntry = {
         productId: addFormData.selectedProduct.Product_ID,
         reagenRate: parseFloat(addFormData.reagenRate),
-        userId: user?.nama || user?.inisialNama || 'SYSTEM',
-        delegatedTo: null
+        userId: user?.logNIK || 'SYSTEM',
+        delegatedTo: user?.delegatedToNIK || null
         // Note: processDate is handled by the backend to ensure correct local timezone
       };
       
@@ -752,13 +752,13 @@ const Reagen = ({ user }) => {
       }
 
       // Step 3: Prepare entries for bulk insert with proper user tracking
-      const userId = user?.logNIK || user?.nama || user?.inisialNama || 'SYSTEM';
+      const userId = user?.logNIK || 'SYSTEM';
       const entriesToInsert = entriesToImport.map(entry => ({
         productId: entry.productId,
         reagenRate: entry.reagenRate,
         periode: selectedPeriode,
         userId: userId,
-        delegatedTo: null
+        delegatedTo: user?.delegatedToNIK || null
         // Note: processDate is handled by the backend to ensure correct local timezone
       }));
 

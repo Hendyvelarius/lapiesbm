@@ -400,8 +400,8 @@ const TollFee = ({ user }) => {
       const updateData = {
         tollFeeRate: editFormData.tollFeeRate || '', // Keep as string (varchar)
         rounded: editFormData.rounded || '', // Keep as string (varchar)
-        userId: user?.nama || user?.inisialNama || 'SYSTEM',
-        delegatedTo: originalItem.delegatedTo
+        userId: user?.logNIK || 'SYSTEM',
+        delegatedTo: user?.delegatedToNIK || null
         // Note: processDate is handled by the backend to ensure correct local timezone
       };
       
@@ -469,7 +469,7 @@ const TollFee = ({ user }) => {
       
       // Get current user for user_id
       const currentUser = getCurrentUser();
-      const userId = currentUser?.logNIK || currentUser?.nama || 'SYSTEM';
+      const userId = currentUser?.logNIK || 'SYSTEM';
       
       const newEntry = {
         productId: addFormData.selectedProduct.Product_ID,
@@ -477,7 +477,7 @@ const TollFee = ({ user }) => {
         tollFeeRate: addFormData.tollFeeRate.trim(),
         rounded: addFormData.rounded?.trim() || '',
         userId: userId,
-        delegatedTo: null
+        delegatedTo: currentUser?.delegatedToNIK || null
         // Note: processDate and fromUpdate are handled by the backend
       };
       
@@ -856,14 +856,14 @@ const TollFee = ({ user }) => {
       }
 
       // Step 3: Prepare entries for bulk insert with proper user tracking
-      const userId = user?.logNIK || user?.nama || user?.inisialNama || 'SYSTEM';
+      const userId = user?.logNIK || 'SYSTEM';
       const entriesToInsert = entriesToImport.map(entry => ({
         productId: entry.productId,
         tollFeeRate: entry.tollFeeRate,
         rounded: entry.rounded,
         periode: entry.periode,
         userId: userId,
-        delegatedTo: null
+        delegatedTo: user?.delegatedToNIK || null
         // Note: processDate is handled by the backend to ensure correct local timezone
       }));
 
