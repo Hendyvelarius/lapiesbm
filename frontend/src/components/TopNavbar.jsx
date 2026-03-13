@@ -1,15 +1,14 @@
-import { useNavigate } from 'react-router';
-import { Calendar, ChevronDown, RefreshCw } from 'lucide-react';
+import { useLocation } from 'react-router';
+import { Calendar, ChevronDown, RefreshCw, CircleHelp } from 'lucide-react';
 import '../styles/TopNavbar.css';
 
 export default function TopNavbar({ 
-  notificationCount = 0, 
   dashboardPeriod,
   setDashboardPeriod,
   isDashboard = false,
   ...props 
 }) {
-  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleYearSelect = (year) => {
     if (setDashboardPeriod) {
@@ -39,6 +38,14 @@ export default function TopNavbar({
         triggerRefresh: true
       }));
     }
+  };
+
+  const handleOpenHelp = () => {
+    window.dispatchEvent(new CustomEvent('esbm:open-help', {
+      detail: {
+        pathname: location.pathname
+      }
+    }));
   };
 
   return (
@@ -94,14 +101,13 @@ export default function TopNavbar({
                 <circle cx="12" cy="12" r="3"/>
               </svg>
             </button>
-            <button className="notifications-btn" onClick={() => navigate('/')}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-              </svg>
-              {notificationCount > 0 && (
-                <span className="notification-badge">{notificationCount}</span>
-              )}
+            <button
+              className="notifications-btn help-btn"
+              onClick={handleOpenHelp}
+              title="Open page help"
+              aria-label="Open page help"
+            >
+              <CircleHelp size={22} />
             </button>
             <div className="user-profile">
               <div className="user-avatar">

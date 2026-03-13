@@ -5,6 +5,7 @@ import 'awesome-notifications/dist/style.css';
 import * as XLSX from 'xlsx';
 import { FileDown, FileUp, Filter, X } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
+import GuidedTour from '../components/GuidedTour';
 import '../styles/FormulaAssignment.css';
 
 const FormulaAssignment = ({ user }) => {
@@ -136,6 +137,153 @@ const FormulaAssignment = ({ user }) => {
   const [availableFormulas, setAvailableFormulas] = useState([]);
   const [loadingImport, setLoadingImport] = useState(false);
   const [importStep, setImportStep] = useState('upload'); // 'upload', 'validation', 'confirmation'
+
+  const [isHelpTourOpen, setIsHelpTourOpen] = useState(false);
+  const [helpTourStepIndex, setHelpTourStepIndex] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
+  const helpTourSteps = useMemo(() => ([
+    {
+      selector: '[data-tour="formula-year-controls"]',
+      title: 'Pilih Tahun Periode Kerja',
+      paragraphs: [
+        'Bagian ini digunakan untuk menentukan periode tahun formula assignment yang sedang Anda lihat atau kerjakan.',
+        'Seluruh isi tabel, proses edit, delete, lock, unlock, dan import di halaman ini mengikuti tahun yang dipilih di sini.',
+        'Biasakan selalu memeriksa tahun terlebih dahulu sebelum melakukan perubahan apa pun agar tidak salah mengubah data periode lain.'
+      ],
+      watchOut: 'Kesalahan yang paling sering terjadi adalah user langsung edit data tanpa mengecek tahun aktif. Pastikan tahun sudah benar sebelum melanjutkan.'
+    },
+    {
+      selector: '[data-tour="formula-search"]',
+      title: 'Cari Produk Dengan Cepat',
+      paragraphs: [
+        'Gunakan kolom pencarian ini untuk menemukan product berdasarkan Product ID atau Product Name.',
+        'Saat Anda mengetik, tabel akan langsung difilter sehingga lebih mudah mencari item yang ingin diperiksa atau diperbaiki.',
+        'Fitur ini sangat berguna jika data assignment dalam satu tahun berjumlah banyak.'
+      ],
+      watchOut: 'Jika data terlihat hilang atau tidak lengkap, cek kembali apakah masih ada kata kunci pencarian yang aktif.'
+    },
+    {
+      selector: '[data-tour="formula-filter-btn"]',
+      title: 'Buka Filter Lanjutan',
+      paragraphs: [
+        'Tombol Filters digunakan untuk membuka filter lanjutan berdasarkan status lock dan kelengkapan formula.',
+        'Dengan filter ini Anda bisa fokus ke data yang masih incomplete, masih unlocked, sudah locked, atau data yang masih missing pada PI, PS, KP, atau KS.',
+        'Ini sangat membantu saat melakukan pengecekan kualitas data sebelum Generate HPP.'
+      ],
+      watchOut: 'Filter aktif akan menyembunyikan sebagian baris. Jika hasil tabel terasa tidak sesuai, periksa filter yang sedang aktif.'
+    },
+    {
+      selector: '[data-tour="formula-advanced-filters"]',
+      title: 'Panel Filter Lanjutan',
+      paragraphs: [
+        'Di panel ini Anda dapat menyaring data berdasarkan Lock Status dan Formula Status.',
+        'Gunakan Lock Status untuk memisahkan product yang masih bisa diubah dan yang sudah dikunci.',
+        'Gunakan Formula Status untuk menemukan assignment yang sudah lengkap atau yang masih missing pada tipe formula tertentu.',
+        'Cara kerja ini memudahkan Anda menentukan prioritas perbaikan sebelum proses HPP dijalankan.'
+      ]
+    },
+    {
+      selector: '[data-tour="formula-import-btn"]',
+      title: 'Import Formula Dari Excel',
+      paragraphs: [
+        'Tombol Import Excel digunakan untuk memasukkan formula assignment secara massal dari file Excel.',
+        'Sistem akan membaca sheet Summary Per SubID, lalu memvalidasi Product ID, TypeCode, formula aktif, dan kesesuaian BatchSize.',
+        'Fitur ini cocok digunakan saat update formula dilakukan dalam jumlah besar dan ingin mengurangi input manual satu per satu.'
+      ],
+      watchOut: 'Import dapat mengganti assignment yang sudah ada pada tahun target. Pastikan tahun import benar, file yang dipilih benar, dan isi datanya sudah diperiksa sebelum menekan konfirmasi.'
+    },
+    {
+      selector: '[data-tour="formula-add-btn"]',
+      title: 'Tambah Assignment Baru',
+      paragraphs: [
+        'Gunakan tombol Add New Assignment untuk membuat formula assignment secara manual bagi product yang belum memiliki assignment.',
+        'Di dalam form, user akan memilih tahun, memilih product yang masih available, memilih formula per tipe, lalu menentukan standard output.',
+        'Proses ini digunakan ketika assignment belum tersedia atau perlu dibuat manual berdasarkan keputusan user.'
+      ]
+    },
+    {
+      selector: '[data-tour="formula-table"]',
+      title: 'Tabel Formula Assignment',
+      paragraphs: [
+        'Tabel ini adalah pusat utama monitoring formula assignment. Di sini Anda dapat melihat status lock, Product ID, nama product, formula PI, PS, KP, KS, serta Std Output untuk setiap product.',
+        'Untuk performa dan kemudahan baca, data ditampilkan dengan pagination. Navigasi halaman berada di bagian bawah tabel.',
+        'Perhatikan warna baris karena warna tersebut menunjukkan kombinasi status generate dan status lock.'
+      ],
+      bullets: [
+        'Pink: product belum pernah di-generate tetapi sudah locked (kondisi paling berisiko).',
+        'Gray: product belum di-generate dan masih unlocked (masih aman untuk diperbaiki).',
+        'Yellow: product sudah di-generate dan sudah locked (umumnya kondisi final).',
+        'White: product sudah di-generate tetapi masih unlocked (masih dapat diubah bila diperlukan).'
+      ],
+      watchOut: 'Jangan mengunci product yang belum di-generate. Jika product belum generated, pastikan assignment sudah benar lalu lakukan Generate HPP terlebih dahulu sebelum lock.'
+    },
+    {
+      selector: '[data-tour="formula-row-actions"]',
+      title: 'Aksi Per Product',
+      paragraphs: [
+        'Pada setiap baris product tersedia tombol Edit, Lock atau Unlock, dan Delete.',
+        'Tombol Edit dipakai untuk memperbarui formula assignment. Tombol Lock digunakan untuk mengunci product agar assignment tidak bisa diubah lagi. Tombol Unlock digunakan jika product perlu dibuka kembali untuk revisi. Tombol Delete digunakan untuk menghapus assignment.',
+        'Perlu diingat, product yang sudah locked tidak dapat diedit atau dihapus sampai di-unlock kembali.'
+      ]
+    },
+    {
+      selector: '[data-tour="sidebar-generate-hpp"]',
+      title: 'Langkah Setelah Assignment Siap',
+      paragraphs: [
+        'Setelah seluruh formula assignment sudah lengkap, sesuai, dan product yang belum generated belum di-lock, Anda dapat melanjutkan proses perhitungan HPP.',
+        'Untuk menjalankan perhitungan, buka menu sidebar lalu masuk ke halaman Generate HPP.',
+        'Halaman tersebut digunakan untuk memproses kalkulasi HPP berdasarkan assignment yang sudah Anda siapkan di halaman ini.'
+      ],
+      watchOut: 'Sebelum pindah ke Generate HPP, lakukan pengecekan terakhir pada kelengkapan formula, tahun aktif, dan status lock product.'
+    }
+  ]), []);
+
+  const startHelpTour = useCallback(() => {
+    setShowAdvancedFilters(false);
+    setCurrentPage(1);
+    setHelpTourStepIndex(0);
+    setIsHelpTourOpen(true);
+  }, []);
+
+  const closeHelpTour = useCallback(() => {
+    setIsHelpTourOpen(false);
+    setShowAdvancedFilters(false);
+  }, []);
+
+  const handleNextHelpStep = useCallback(() => {
+    if (helpTourStepIndex >= helpTourSteps.length - 1) {
+      closeHelpTour();
+      return;
+    }
+    setHelpTourStepIndex((prev) => prev + 1);
+  }, [helpTourStepIndex, helpTourSteps.length, closeHelpTour]);
+
+  const handlePrevHelpStep = useCallback(() => {
+    if (helpTourStepIndex <= 0) return;
+    setHelpTourStepIndex((prev) => prev - 1);
+  }, [helpTourStepIndex]);
+
+  useEffect(() => {
+    const handleOpenHelp = (event) => {
+      const pathname = event.detail?.pathname || window.location.pathname || '';
+      if (pathname === '/formula-assignment' || pathname.endsWith('/formula-assignment')) {
+        startHelpTour();
+      }
+    };
+
+    window.addEventListener('esbm:open-help', handleOpenHelp);
+    return () => window.removeEventListener('esbm:open-help', handleOpenHelp);
+  }, [startHelpTour]);
+
+  useEffect(() => {
+    if (!isHelpTourOpen) return;
+    const activeStep = helpTourSteps[helpTourStepIndex];
+    if (activeStep?.selector === '[data-tour="formula-advanced-filters"]') {
+      setShowAdvancedFilters(true);
+    }
+  }, [isHelpTourOpen, helpTourStepIndex, helpTourSteps]);
 
   // Filter products based on search term
   useEffect(() => {
@@ -1462,6 +1610,22 @@ const FormulaAssignment = ({ user }) => {
       return a.Product_ID.localeCompare(b.Product_ID);
     });
 
+  const totalPages = Math.max(1, Math.ceil(filteredChosenFormulas.length / itemsPerPage));
+  const paginatedChosenFormulas = filteredChosenFormulas.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [tableSearchTerm, advancedFilters, selectedYear]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   // Calculate filter statistics
   const filterStats = useMemo(() => {
     const total = chosenFormulas.length;
@@ -1501,7 +1665,7 @@ const FormulaAssignment = ({ user }) => {
     <div className="formula-assignment-container">
       <div className="content-section">
         <div className="section-header">
-          <div className="year-selector-container">
+          <div className="year-selector-container" data-tour="formula-year-controls">
             <label htmlFor="year-selector">Year:</label>
             <select
               id="year-selector"
@@ -1547,12 +1711,14 @@ const FormulaAssignment = ({ user }) => {
                 value={tableSearchTerm}
                 onChange={(e) => setTableSearchTerm(e.target.value)}
                 className="table-search-input"
+                data-tour="formula-search"
               />
             </div>
             <button
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
               className={`btn-filter ${showAdvancedFilters ? 'active' : ''} ${hasActiveFilters ? 'has-filters' : ''}`}
               title="Advanced Filters"
+              data-tour="formula-filter-btn"
             >
               <Filter size={16} />
               Filters {hasActiveFilters && `(${[
@@ -1575,6 +1741,7 @@ const FormulaAssignment = ({ user }) => {
               className="btn-secondary import-btn"
               disabled={loading || chosenFormulas.some(f => f.isLock === 1)}
               title="Import formula assignments from Excel file"
+              data-tour="formula-import-btn"
             >
               <FileUp size={16} />
               Import Excel
@@ -1592,6 +1759,7 @@ const FormulaAssignment = ({ user }) => {
             <button 
               onClick={handleAdd} 
               className="btn-primary"
+              data-tour="formula-add-btn"
             >
               Add New Assignment
             </button>
@@ -1600,7 +1768,7 @@ const FormulaAssignment = ({ user }) => {
 
         {/* Advanced Filters Panel */}
         {showAdvancedFilters && (
-          <div className="advanced-filters-panel">
+          <div className="advanced-filters-panel" data-tour="formula-advanced-filters">
             <div className="filter-group">
               <label>Lock Status:</label>
               <select
@@ -1651,7 +1819,7 @@ const FormulaAssignment = ({ user }) => {
           </div>
         )}
 
-        <div className="table-container">
+        <div className="table-container" data-tour="formula-table">
           <table className="formula-assignment-table">
             <thead>
               <tr>
@@ -1667,7 +1835,7 @@ const FormulaAssignment = ({ user }) => {
               </tr>
             </thead>
             <tbody>
-              {filteredChosenFormulas.length === 0 ? (
+              {paginatedChosenFormulas.length === 0 ? (
                 <tr>
                   <td colSpan="9" className="no-data">
                     {(tableSearchTerm.trim() || hasActiveFilters)
@@ -1680,7 +1848,7 @@ const FormulaAssignment = ({ user }) => {
                   </td>
                 </tr>
               ) : (
-                filteredChosenFormulas.map((formula, index) => (
+                paginatedChosenFormulas.map((formula, index) => (
                   <tr key={`${formula.Product_ID}-${index}`} className={`row-${getColorStatus(formula)}`}>
                     <td className="lock-status-cell">
                       {formula.isLock === 1 ? '🔒' : '🔓'}
@@ -1693,7 +1861,7 @@ const FormulaAssignment = ({ user }) => {
                     <td>{getFormulaDetails(formula.KS)}</td>
                     <td>{formula.Std_Output || 0}</td>
                     <td>
-                      <div className="action-buttons">
+                      <div className="action-buttons" data-tour="formula-row-actions">
                         <button 
                           onClick={(e) => {
                             e.preventDefault();
@@ -1746,6 +1914,36 @@ const FormulaAssignment = ({ user }) => {
             </tbody>
           </table>
         </div>
+
+        {filteredChosenFormulas.length > 0 && (
+          <div className="table-pagination" data-tour="formula-pagination">
+            <div className="pagination-info">
+              Menampilkan {(currentPage - 1) * itemsPerPage + 1}-
+              {Math.min(currentPage * itemsPerPage, filteredChosenFormulas.length)} dari {filteredChosenFormulas.length} data
+            </div>
+            <div className="pagination-actions">
+              <button
+                type="button"
+                className="pagination-btn"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                Sebelumnya
+              </button>
+              <span className="pagination-page-indicator">
+                Halaman {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                className="pagination-btn"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Berikutnya
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add Modal */}
@@ -2444,6 +2642,15 @@ const FormulaAssignment = ({ user }) => {
           </div>
         </div>
       )}
+
+      <GuidedTour
+        isOpen={isHelpTourOpen}
+        steps={helpTourSteps}
+        currentStepIndex={helpTourStepIndex}
+        onNext={handleNextHelpStep}
+        onPrev={handlePrevHelpStep}
+        onClose={closeHelpTour}
+      />
     </div>
   );
 };

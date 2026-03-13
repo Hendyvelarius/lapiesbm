@@ -202,6 +202,14 @@
   color: #374151;
 }
 
+.help-btn {
+  color: #0f766e;
+}
+
+.help-btn:hover {
+  color: #115e59;
+}
+
 .user-profile {
   position: relative;
 }

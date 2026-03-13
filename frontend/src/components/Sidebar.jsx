@@ -81,7 +81,7 @@ export default function Sidebar({ user, accessLevel }) {
             </li>
             {hasFullAccess && (
               <li className={location.pathname === '/generate-hpp' ? 'active' : ''}>
-                <Link to="/generate-hpp" className="sidebar-link">
+                <Link to="/generate-hpp" className="sidebar-link" data-tour="sidebar-generate-hpp">
                   <Calculator className="sidebar-icon" size={20} /> Generate HPP
                 </Link>
               </li>
