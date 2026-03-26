@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { productsAPI } from '../services/api';
 import '../styles/GenerateHPP.css';
 import { CheckCircle, Calculator, Eye, AlertTriangle, Clock, ChevronRight } from 'lucide-react';
 import ValidationModal from '../components/ValidationModal';
+import GuidedTour from '../components/GuidedTour';
 
 // API base configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
@@ -60,8 +61,110 @@ export default function GenerateHPP() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [yearLoaded, setYearLoaded] = useState(false); // Prevent showing wrong year initially
   const [showOverwriteModal, setShowOverwriteModal] = useState(false);
+  const [isHelpTourOpen, setIsHelpTourOpen] = useState(false);
+  const [helpTourStepIndex, setHelpTourStepIndex] = useState(0);
 
   const currentYear = new Date().getFullYear().toString();
+
+  const helpTourSteps = useMemo(() => ([
+    {
+      selector: '[data-tour="generate-header"]',
+      title: 'Ringkasan Proses Generate HPP',
+      paragraphs: [
+        'Halaman ini adalah alur resmi untuk menjalankan perhitungan HPP Standard. Proses dibagi menjadi 3 tahap: Validation Check, HPP Calculation, dan Check Data Validity.',
+        'Urutan proses sebaiknya tidak dilompati agar hasil HPP tetap valid dan konsisten untuk tahun periode yang dipilih.'
+      ]
+    },
+    {
+      selector: '[data-tour="generate-year-selector"]',
+      title: 'Pilih Tahun Perhitungan',
+      paragraphs: [
+        'Pada Step 1, pilih tahun yang akan dihitung. Tahun ini menentukan data formula assignment, harga bahan, dan parameter yang akan dipakai sistem saat generate.',
+        'Pastikan tahun sesuai dengan periode kerja yang sudah Anda finalisasi di Formula Assignment.'
+      ],
+      watchOut: 'Jika tahun salah, hasil generate akan tersimpan ke periode yang salah.'
+    },
+    {
+      selector: '[data-tour="generate-step-1"]',
+      title: 'Step 1 - Validation Check',
+      paragraphs: [
+        'Klik tombol Check untuk menjalankan validasi data sebelum kalkulasi.',
+        'Validasi ini membantu memastikan kelengkapan dan konsistensi data agar proses kalkulasi tidak gagal di tengah jalan.'
+      ],
+      bullets: [
+        'Pastikan formula assignment per product sudah sesuai.',
+        'Pastikan data master pendukung (misalnya material, cost, parameter) sudah siap.',
+        'Tinjau warning/failure sebelum lanjut ke step berikutnya.'
+      ]
+    },
+    {
+      selector: '[data-tour="generate-step-2"]',
+      title: 'Step 2 - HPP Calculation',
+      paragraphs: [
+        'Setelah validasi lolos, lanjutkan ke Calculate untuk menjalankan prosedur perhitungan HPP.',
+        'Sistem akan menjalankan proses backend dan menyimpan hasil ke tabel HPP hasil perhitungan.'
+      ],
+      watchOut: 'Jika muncul konfirmasi overwrite, artinya data tahun tersebut sudah ada. Lanjutkan hanya jika Anda memang ingin menimpa hasil sebelumnya.'
+    },
+    {
+      selector: '[data-tour="generate-step-3"]',
+      title: 'Step 3 - Check Data Validity',
+      paragraphs: [
+        'Tahap ini digunakan untuk meninjau hasil kalkulasi HPP yang sudah terbentuk.',
+        'Dari step ini Anda bisa menuju halaman HPP Standard untuk memeriksa nilai HPP per produk, rasio, dan data pendukung lainnya.'
+      ]
+    },
+    {
+      selector: '[data-tour="generate-important-notes"]',
+      title: 'Catatan Penting Sebelum Final',
+      paragraphs: [
+        'Selalu baca bagian Important Notes sebagai checklist operasional sebelum dan sesudah kalkulasi.',
+        'Jika semua sudah sesuai, Anda dapat melanjutkan review detail ke menu HPP Standard.'
+      ]
+    },
+    {
+      selector: '[data-tour="sidebar-hpp-standard"]',
+      title: 'Lanjut Ke HPP Standard',
+      paragraphs: [
+        'Setelah proses Generate selesai, buka menu sidebar HPP Standard untuk validasi hasil detail dan analisis nilai HPP.',
+        'Anda juga bisa masuk lewat tombol Check Data di Step 3, namun menu sidebar ini tetap menjadi jalur navigasi utama.'
+      ]
+    }
+  ]), []);
+
+  const startHelpTour = useCallback(() => {
+    setHelpTourStepIndex(0);
+    setIsHelpTourOpen(true);
+  }, []);
+
+  const closeHelpTour = useCallback(() => {
+    setIsHelpTourOpen(false);
+  }, []);
+
+  const handleNextHelpStep = useCallback(() => {
+    if (helpTourStepIndex >= helpTourSteps.length - 1) {
+      closeHelpTour();
+      return;
+    }
+    setHelpTourStepIndex((prev) => prev + 1);
+  }, [helpTourStepIndex, helpTourSteps.length, closeHelpTour]);
+
+  const handlePrevHelpStep = useCallback(() => {
+    if (helpTourStepIndex <= 0) return;
+    setHelpTourStepIndex((prev) => prev - 1);
+  }, [helpTourStepIndex]);
+
+  useEffect(() => {
+    const handleOpenHelp = (event) => {
+      const pathname = event.detail?.pathname || window.location.pathname || '';
+      if (pathname === '/generate-hpp' || pathname.endsWith('/generate-hpp')) {
+        startHelpTour();
+      }
+    };
+
+    window.addEventListener('esbm:open-help', handleOpenHelp);
+    return () => window.removeEventListener('esbm:open-help', handleOpenHelp);
+  }, [startHelpTour]);
 
   // Fetch default year on component mount
   useEffect(() => {
@@ -251,7 +354,7 @@ export default function GenerateHPP() {
   return (
     <div className="generate-hpp-container">
       <div className="hpp-process-container">
-        <div className="process-header">
+        <div className="process-header" data-tour="generate-header">
           <h2>HPP Generation Process</h2>
           <button 
             className="btn-reset"
@@ -268,7 +371,7 @@ export default function GenerateHPP() {
             const statusClass = getStepStatusClass(step.number, step.status);
             
             return (
-              <div key={step.number} className={`step-card ${statusClass}`}>
+              <div key={step.number} className={`step-card ${statusClass}`} data-tour={`generate-step-${step.number}`}>
                 <div className="step-header">
                   <div className="step-number-container">
                     <div className="step-number">{step.number}</div>
@@ -282,7 +385,7 @@ export default function GenerateHPP() {
                 
                 <div className="step-actions">
                   {step.number === 1 && (
-                    <div className="year-selector">
+                    <div className="year-selector" data-tour="generate-year-selector">
                       <label htmlFor="step1-year-select">Year:</label>
                       <select 
                         id="step1-year-select" 
@@ -299,6 +402,7 @@ export default function GenerateHPP() {
                   <button
                     className={`btn-step ${statusClass}`}
                     onClick={() => handleStepAction(step.number)}
+                    data-tour={step.number === 3 ? 'generate-step3-action' : undefined}
                     disabled={step.number > currentStep || loading || step.status === 'completed' || 
                              (step.number > 1 && stepStatus.validation === 'failed')}
                   >
@@ -354,7 +458,7 @@ export default function GenerateHPP() {
           </div>
         )}
 
-        <div className="process-info">
+        <div className="process-info" data-tour="generate-important-notes">
           <div className="info-card">
             <AlertTriangle size={20} />
             <div>
@@ -376,6 +480,15 @@ export default function GenerateHPP() {
         onClose={handleValidationClose}
         onValidationComplete={handleValidationComplete}
         selectedYear={selectedYear}
+      />
+
+      <GuidedTour
+        isOpen={isHelpTourOpen}
+        steps={helpTourSteps}
+        currentStepIndex={helpTourStepIndex}
+        onNext={handleNextHelpStep}
+        onPrev={handlePrevHelpStep}
+        onClose={closeHelpTour}
       />
     </div>
   );

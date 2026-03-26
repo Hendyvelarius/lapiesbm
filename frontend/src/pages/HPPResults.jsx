@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Download, FileText, Loader2, ChevronLeft, ChevronRight, Search, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import * as XLSX from 'xlsx';
 import { hppAPI, masterAPI, productsAPI, tollFeeAPI } from '../services/api';
 import ProductHPPReport from '../components/ProductHPPReport';
+import GuidedTour from '../components/GuidedTour';
 import '../styles/HPPResults.css';
 
 // Utility functions
@@ -63,7 +64,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange, totalItems }) => {
   if (totalPages <= 1) return null;
 
   return (
-    <div className="hpp-pagination">
+    <div className="hpp-pagination" data-tour="hpp-results-pagination">
       <div className="hpp-pagination-info">
         Showing page {currentPage} of {totalPages} ({totalItems} total items)
       </div>
@@ -101,11 +102,11 @@ const Pagination = ({ currentPage, totalPages, onPageChange, totalItems }) => {
 
 // Table components moved outside to prevent re-creation on each render
 const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onProductClick }) => (
-  <div className="hpp-table-container">
+  <div className="hpp-table-container" data-tour="hpp-results-table">
     <div className="hpp-table-header">
       <h3><FileText className="hpp-table-icon" />Ethical / OTC Products</h3>
       <div className="hpp-table-controls">
-        <div className="hpp-search-container">
+        <div className="hpp-search-container" data-tour="hpp-results-search">
           <Search size={16} className="hpp-search-icon" />
           <input
             type="text"
@@ -147,7 +148,7 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
           {data.map((item, index) => (
             <tr key={`${item.Product_ID}-${index}`}>
               <td>{item.Product_ID}</td>
-              <td className="product-name clickable" onClick={() => onProductClick(item)}>{item.Product_Name}</td>
+              <td className="product-name clickable" data-tour="hpp-results-product-click" onClick={() => onProductClick(item)}>{item.Product_Name}</td>
               <td>{formatCurrency(item.totalBB)}</td>
               <td>{formatCurrency(item.totalBK)}</td>
               <td>{formatNumber(item.MH_Proses_Std)}</td>
@@ -196,11 +197,11 @@ const EthicalTable = ({ data, filteredCount, totalCount, searchTerm, onSearchCha
 );
 
 const Generik1Table = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onProductClick }) => (
-  <div className="hpp-table-container">
+  <div className="hpp-table-container" data-tour="hpp-results-table">
     <div className="hpp-table-header">
       <h3><FileText className="hpp-table-icon" />Generic Products (Versi 1)</h3>
       <div className="hpp-table-controls">
-        <div className="hpp-search-container">
+        <div className="hpp-search-container" data-tour="hpp-results-search">
           <Search size={16} className="hpp-search-icon" />
           <input
             type="text"
@@ -246,7 +247,7 @@ const Generik1Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
           {data.map((item, index) => (
             <tr key={`${item.Product_ID}-${index}`}>
               <td>{item.Product_ID}</td>
-              <td className="product-name clickable" onClick={() => onProductClick(item)}>{item.Product_Name}</td>
+              <td className="product-name clickable" data-tour="hpp-results-product-click" onClick={() => onProductClick(item)}>{item.Product_Name}</td>
               <td>{formatCurrency(item.totalBB)}</td>
               <td>{formatCurrency(item.totalBK)}</td>
               <td>{formatNumber(item.MH_Proses_Std)}</td>
@@ -281,11 +282,11 @@ const Generik1Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
 );
 
 const Generik2Table = ({ data, filteredCount, totalCount, searchTerm, onSearchChange, pagination, onPageChange, totalPages, onProductClick }) => (
-  <div className="hpp-table-container">
+  <div className="hpp-table-container" data-tour="hpp-results-table">
     <div className="hpp-table-header">
       <h3><FileText className="hpp-table-icon" />HPP Products (Versi 2)</h3>
       <div className="hpp-table-controls">
-        <div className="hpp-search-container">
+        <div className="hpp-search-container" data-tour="hpp-results-search">
           <Search size={16} className="hpp-search-icon" />
           <input
             type="text"
@@ -325,7 +326,7 @@ const Generik2Table = ({ data, filteredCount, totalCount, searchTerm, onSearchCh
           {data.map((item, index) => (
             <tr key={`${item.Product_ID}-${index}`}>
               <td>{item.Product_ID}</td>
-              <td className="product-name clickable" onClick={() => onProductClick(item)}>{item.Product_Name}</td>
+              <td className="product-name clickable" data-tour="hpp-results-product-click" onClick={() => onProductClick(item)}>{item.Product_Name}</td>
               <td>{formatCurrency(item.totalBB)}</td>
               <td>{formatCurrency(item.totalBK)}</td>
               <td>{formatNumber(item.MH_Proses_Std)}</td>
@@ -366,6 +367,8 @@ const HPPResults = () => {
   const [exporting, setExporting] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [yearLoaded, setYearLoaded] = useState(false); // Prevent race condition with default year
+  const [isHelpTourOpen, setIsHelpTourOpen] = useState(false);
+  const [helpTourStepIndex, setHelpTourStepIndex] = useState(0);
   
   // Product HPP Report modal state
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -384,6 +387,114 @@ const HPPResults = () => {
     generik1: '',
     generik2: ''
   });
+
+  const helpTourSteps = useMemo(() => ([
+    {
+      selector: '[data-tour="hpp-results-year-selector"]',
+      title: 'Pilih Tahun HPP Standard',
+      paragraphs: [
+        'Dropdown Year menentukan periode hasil HPP Standard yang sedang Anda tinjau.',
+        'Saat tahun berubah, data tabel akan dimuat ulang agar analisis tetap sesuai periode.'
+      ],
+      watchOut: 'Pastikan tahun sesuai dengan periode yang sebelumnya sudah Anda generate di halaman Generate HPP.'
+    },
+    {
+      selector: '[data-tour="hpp-results-actions"]',
+      title: 'Aksi Utama Halaman',
+      paragraphs: [
+        'Di bagian ini tersedia tombol Export to Excel untuk mengunduh data hasil HPP Standard.',
+        'Tombol Generate New HPP digunakan untuk kembali ke halaman Generate HPP jika Anda perlu menghitung ulang.'
+      ]
+    },
+    {
+      selector: '[data-tour="hpp-results-tabs"]',
+      title: 'Pilih Kelompok Produk',
+      paragraphs: [
+        'Tab digunakan untuk berpindah kelompok hasil: Ethical/OTC, Generic Versi 1, dan HPP Versi 2.',
+        'Setiap tab memiliki data, pencarian, dan pagination masing-masing.'
+      ]
+    },
+    {
+      selector: '[data-tour="hpp-results-search"]',
+      title: 'Pencarian Produk',
+      paragraphs: [
+        'Gunakan kolom Search untuk memfilter daftar produk berdasarkan Product ID atau Product Name.',
+        'Pencarian membantu audit cepat ketika Anda ingin memeriksa product tertentu tanpa scroll panjang.'
+      ]
+    },
+    {
+      selector: '[data-tour="hpp-results-table"]',
+      title: 'Tabel HPP Standard',
+      paragraphs: [
+        'Tabel ini menampilkan komponen biaya, nilai HPP, HNA, dan rasio HPP/HNA untuk produk pada tab aktif.',
+        'Gunakan tabel ini untuk validasi hasil perhitungan dan identifikasi nilai yang perlu ditinjau lebih lanjut.'
+      ]
+    },
+    {
+      selector: '[data-tour="hpp-results-pagination"]',
+      title: 'Navigasi Halaman Data',
+      paragraphs: [
+        'Pagination membantu Anda membaca data secara bertahap agar lebih ringan dan mudah dipantau.',
+        'Gunakan tombol halaman untuk berpindah antar data tanpa memuat semua baris sekaligus.'
+      ]
+    },
+    {
+      selector: '[data-tour="hpp-results-product-click"]',
+      title: 'Detail Per Product',
+      paragraphs: [
+        'Klik nama product untuk membuka laporan detail Product HPP Report.',
+        'Laporan detail ini berguna untuk tracing komponen biaya dan validasi hasil sampai level item/material.'
+      ]
+    },
+    {
+      selector: '[data-tour="sidebar-generate-hpp"]',
+      title: 'Jika Perlu Hitung Ulang',
+      paragraphs: [
+        'Jika saat review ditemukan data yang perlu diperbaiki, kembali ke menu Generate HPP melalui sidebar.',
+        'Setelah generate ulang selesai, kembali ke HPP Standard untuk verifikasi final.'
+      ]
+    }
+  ]), []);
+
+  const startHelpTour = useCallback(() => {
+    setActiveTab('ethical');
+    setPagination(prev => ({
+      ethical: { ...prev.ethical, currentPage: 1 },
+      generik1: { ...prev.generik1, currentPage: 1 },
+      generik2: { ...prev.generik2, currentPage: 1 }
+    }));
+    setHelpTourStepIndex(0);
+    setIsHelpTourOpen(true);
+  }, []);
+
+  const closeHelpTour = useCallback(() => {
+    setIsHelpTourOpen(false);
+  }, []);
+
+  const handleNextHelpStep = useCallback(() => {
+    if (helpTourStepIndex >= helpTourSteps.length - 1) {
+      closeHelpTour();
+      return;
+    }
+    setHelpTourStepIndex((prev) => prev + 1);
+  }, [helpTourStepIndex, helpTourSteps.length, closeHelpTour]);
+
+  const handlePrevHelpStep = useCallback(() => {
+    if (helpTourStepIndex <= 0) return;
+    setHelpTourStepIndex((prev) => prev - 1);
+  }, [helpTourStepIndex]);
+
+  useEffect(() => {
+    const handleOpenHelp = (event) => {
+      const pathname = event.detail?.pathname || window.location.pathname || '';
+      if (pathname === '/hpp-results' || pathname.endsWith('/hpp-results')) {
+        startHelpTour();
+      }
+    };
+
+    window.addEventListener('esbm:open-help', handleOpenHelp);
+    return () => window.removeEventListener('esbm:open-help', handleOpenHelp);
+  }, [startHelpTour]);
 
   // Fetch default year on component mount
   useEffect(() => {
@@ -760,7 +871,7 @@ const HPPResults = () => {
   return (
     <div className="hpp-results-page">
       <div className="hpp-results-header">
-        <div className="hpp-year-selector">
+        <div className="hpp-year-selector" data-tour="hpp-results-year-selector">
           <label htmlFor="year-select">Year:</label>
           <select 
             id="year-select" 
@@ -773,7 +884,7 @@ const HPPResults = () => {
             ))}
           </select>
         </div>
-        <div className="hpp-header-actions">
+        <div className="hpp-header-actions" data-tour="hpp-results-actions">
           <button 
             className="hpp-export-btn"
             onClick={handleExportToExcel}
@@ -805,7 +916,7 @@ const HPPResults = () => {
       <div className="hpp-results-content">
         {/* Tab Navigation */}
         <div className="hpp-tabs-container">
-          <div className="hpp-tabs-header">
+          <div className="hpp-tabs-header" data-tour="hpp-results-tabs">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -835,6 +946,15 @@ const HPPResults = () => {
         isOpen={showProductReport}
         onClose={handleCloseProductReport}
         selectedYear={selectedYear}
+      />
+
+      <GuidedTour
+        isOpen={isHelpTourOpen}
+        steps={helpTourSteps}
+        currentStepIndex={helpTourStepIndex}
+        onNext={handleNextHelpStep}
+        onPrev={handlePrevHelpStep}
+        onClose={closeHelpTour}
       />
     </div>
   );
