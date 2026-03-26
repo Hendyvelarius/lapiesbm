@@ -1457,65 +1457,28 @@ const HargaBahan = () => {
     console.log('=== Starting Bahan Kemas Processing ===');
     console.log('Import data sample (first 3 items):', importData.slice(0, 3));
     
-    // Step 1: Normalize item codes (remove .xxx endings)
-    const normalizedData = importData.map(item => {
-      const normalized = normalizeKode(item.itemId || item.itemCode); // Support both new and legacy field names
-      console.log(`Normalizing: "${item.itemId || item.itemCode}" → "${normalized}"`);
+    // Process each item individually (treat all .xxx variants as separate items)
+    const processedItems = importData.map(item => {
+      const code = item.itemId || item.itemCode;
       return {
         ...item,
-        originalCode: item.itemId || item.itemCode,
-        itemId: normalized, // New field name
-        itemCode: normalized, // Legacy field name for compatibility
-        ITEM_ID: normalized // Update the database field too
+        originalCode: code,
+        itemId: code,
+        itemCode: code,
+        ITEM_ID: code,
+        isDuplicate: false,
+        finalPrice: parseFloat(item.price) || 0,
+        finalCurrency: item.currency,
+        finalUnit: item.unit
       };
     });
     
-    // Step 2: Group by normalized code to find duplicates
-    const groupedData = {};
-    normalizedData.forEach(item => {
-      if (!groupedData[item.itemCode]) {
-        groupedData[item.itemCode] = [];
-      }
-      groupedData[item.itemCode].push(item);
-    });
-    
-    console.log('Grouped data keys:', Object.keys(groupedData));
-    console.log('Groups with duplicates:', Object.keys(groupedData).filter(key => groupedData[key].length > 1));
-    
-    // Step 3: Process each group
-    const processedGroups = [];
-    
-    for (const [code, items] of Object.entries(groupedData)) {
-      if (items.length === 1) {
-        // Single item - mark as processed
-        const processedItem = {
-          ...items[0],
-          isDuplicate: false,
-          finalPrice: parseFloat(items[0].price) || 0,
-          finalCurrency: items[0].currency,
-          finalUnit: items[0].unit
-        };
-        processedGroups.push(processedItem);
-      } else {
-        // Multiple items - find highest priced item
-        console.log(`Processing ${items.length} duplicates for code: ${code}`);
-        const highestPricedItem = await findHighestPricedBahanKemas(items, currencyData);
-        if (highestPricedItem) {
-          processedGroups.push(highestPricedItem);
-        }
-      }
-    }
-    
-    // Sort results: duplicates first, then singles
-    const sortedResults = processedGroups.sort((a, b) => {
-      // Duplicates (isDuplicate: true) should come first
-      if (a.isDuplicate && !b.isDuplicate) return -1;
-      if (!a.isDuplicate && b.isDuplicate) return 1;
-      // Within same type, sort by code alphabetically
+    // Sort by code alphabetically
+    const sortedResults = processedItems.sort((a, b) => {
       return a.itemCode.localeCompare(b.itemCode);
     });
     
-    console.log('Sorted results (duplicates first):', sortedResults.length);
+    console.log('Processed results:', sortedResults.length);
     return sortedResults;
   };
 
@@ -1576,70 +1539,33 @@ const HargaBahan = () => {
     console.log('Import data sample (first 3 items):', importData.slice(0, 3));
     console.log('Manufacturing items sample (first 5 items):', manufacturingItems.slice(0, 5));
     
-    // Step 1: Normalize codes (remove .000 endings)
-    const normalizedData = importData.map(item => {
-      const normalized = normalizeKode(item.kode);
-      console.log(`Normalizing: "${item.kode}" → "${normalized}"`);
-      return {
-        ...item,
-        originalKode: item.kode,
-        kode: normalized
-      };
-    });
+    // Process each item individually (treat all .xxx variants as separate items)
+    const processedItems = [];
     
-    // Step 2: Group by normalized kode to find duplicates
-    const groupedData = {};
-    normalizedData.forEach(item => {
-      if (!groupedData[item.kode]) {
-        groupedData[item.kode] = [];
-      }
-      groupedData[item.kode].push(item);
-    });
-    
-    console.log('Grouped data keys:', Object.keys(groupedData));
-    
-    // Step 3: Process each group
-    const processedGroups = [];
-    
-    for (const [kode, items] of Object.entries(groupedData)) {
-      if (items.length === 1) {
-        // Single item, just process normally
-        const processedItem = await processSingleItem(items[0], manufacturingItems, currencyData);
-        if (processedItem) {
-          processedGroups.push(processedItem);
-        }
-      } else {
-        // Multiple items, need to find the highest priced one
-        console.log(`Found ${items.length} duplicates for kode: ${kode}`);
-        const highestPricedItem = await findHighestPricedItem(items, manufacturingItems, currencyData);
-        if (highestPricedItem) {
-          processedGroups.push(highestPricedItem);
-        }
+    for (const item of importData) {
+      const processedItem = await processSingleItem(item, manufacturingItems, currencyData);
+      if (processedItem) {
+        processedItems.push(processedItem);
       }
     }
     
-    // Sort results: duplicates first, then singles
-    const sortedResults = processedGroups.sort((a, b) => {
-      // Duplicates (isDuplicate: true) should come first
-      if (a.isDuplicate && !b.isDuplicate) return -1;
-      if (!a.isDuplicate && b.isDuplicate) return 1;
-      // Within same type, sort by kode alphabetically
+    // Sort by kode alphabetically
+    const sortedResults = processedItems.sort((a, b) => {
       return a.kode.localeCompare(b.kode);
     });
     
-    console.log('Sorted results (duplicates first):', sortedResults.length);
+    console.log('Processed results:', sortedResults.length);
     return sortedResults;
   };
 
   const normalizeKode = (kode) => {
-    // Remove .### pattern from the end (dot followed by 3 numbers)
-    return kode.toString().replace(/\.\d{3}$/, '');
+    // Keep the original code as-is (treat .xxx variants as separate items)
+    return kode.toString();
   };
 
   const processSingleItem = async (item, manufacturingItems, currencyData) => {
     console.log(`\n=== Processing single item ===`);
     console.log(`Looking for kode: "${item.kode}"`);
-    console.log(`Original kode was: "${item.originalKode}"`);
     
     // Show available Item_IDs for comparison
     const availableItemIds = manufacturingItems.map(mi => mi.Item_ID).slice(0, 10);

@@ -173,26 +173,13 @@ const ProductHPPReport = ({ product, isOpen, onClose, selectedYear, isBeforeAfte
       // Filter materials for this specific product
       const productMaterials = response.filter(item => item.product_id === product.Product_ID);
       
-      // Normalize Item_Name display (remove .xxx suffix)
-      const normalizedMaterials = productMaterials.map(item => ({
-        ...item,
-        Item_Name: normalizeItemName(item.Item_Name)
-      }));
-      
-      setMaterialUsage(normalizedMaterials);
+      setMaterialUsage(productMaterials);
     } catch (error) {
       console.error('Error fetching material usage:', error);
       setError('Failed to load material usage data');
     } finally {
       setLoading(false);
     }
-  };
-
-  // Normalize Item_Name by removing .xxx suffix (e.g., "Foodstuffs.000" → "Foodstuffs")
-  const normalizeItemName = (name) => {
-    if (!name) return name;
-    // Remove pattern of dot followed by 3 digits at the end
-    return name.toString().replace(/\.\d{3}$/, '');
   };
 
   // Separate materials into Bahan Baku and Bahan Kemas
