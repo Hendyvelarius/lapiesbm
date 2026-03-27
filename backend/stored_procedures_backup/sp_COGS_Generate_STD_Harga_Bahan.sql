@@ -1,0 +1,9 @@
+create procedure sp_COGS_Generate_STD_Harga_Bahan
+as
+select case when a.item_id like '%.%' then 
+	(case when a.item_id like '%.%' then left(a.item_id,LEN(a.item_id)-4) else a.item_id end )
+ else a.item_id end as Item_ID, a.ITEM_TYPE, ITEM_PURCHASE_UNIT, ITEM_PURCHASE_STD_PRICE, a.ITEM_CURRENCY, 
+c.item_unit, dbo.fnConvertBJ(a.ITEM_ID, 1, item_purchase_unit, c.Item_Unit)*(ITEM_PURCHASE_STD_PRICE*Kurs) NilaiDalamRupiah
+into #tmpDataSTDHrgBahan
+from tmp_M_COGS_STD_HRG_BAHAN a left join m_item_manufacturing c on a.ITEM_ID= c.Item_ID
+left join vw_COGS_Currency_List curr on curr.periode=YEAR(getdate()) and Curr_Code=a.ITEM_CURRENCY

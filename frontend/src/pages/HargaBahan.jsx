@@ -505,7 +505,7 @@ const HargaBahan = () => {
       setAvailableItems(availableForPricing);
       
       // Set default currency rate
-      const defaultCurrency = currentYearCurrencies.find(curr => curr.Curr_Code === 'IDR');
+      const defaultCurrency = periodeCurrencies.find(curr => curr.Curr_Code === 'IDR');
       if (defaultCurrency) {
         setFormData(prev => ({ ...prev, rate: defaultCurrency.Kurs }));
       }
@@ -1457,21 +1457,44 @@ const HargaBahan = () => {
     console.log('=== Starting Bahan Kemas Processing ===');
     console.log('Import data sample (first 3 items):', importData.slice(0, 3));
     
-    // Process each item individually (treat all .xxx variants as separate items)
-    const processedItems = importData.map(item => {
+    // Group by exact item code to detect true duplicates
+    const groupedByCode = {};
+    for (const item of importData) {
       const code = item.itemId || item.itemCode;
-      return {
-        ...item,
-        originalCode: code,
-        itemId: code,
-        itemCode: code,
-        ITEM_ID: code,
-        isDuplicate: false,
-        finalPrice: parseFloat(item.price) || 0,
-        finalCurrency: item.currency,
-        finalUnit: item.unit
-      };
-    });
+      if (!groupedByCode[code]) {
+        groupedByCode[code] = [];
+      }
+      groupedByCode[code].push({ ...item, itemId: code, itemCode: code, ITEM_ID: code });
+    }
+    
+    console.log(`Grouped into ${Object.keys(groupedByCode).length} unique codes from ${importData.length} rows`);
+    
+    // For each group: if single item, use it directly; if duplicates, pick highest price
+    const processedItems = [];
+    for (const [code, items] of Object.entries(groupedByCode)) {
+      if (items.length === 1) {
+        processedItems.push({
+          ...items[0],
+          originalCode: code,
+          isDuplicate: false,
+          finalPrice: parseFloat(items[0].price) || 0,
+          finalCurrency: items[0].currency,
+          finalUnit: items[0].unit
+        });
+      } else {
+        console.log(`Duplicate code "${code}" found ${items.length} times, selecting highest price`);
+        const highest = await findHighestPricedBahanKemas(items, currencyData);
+        if (highest) {
+          processedItems.push({
+            ...highest,
+            originalCode: code,
+            itemId: code,
+            itemCode: code,
+            ITEM_ID: code
+          });
+        }
+      }
+    }
     
     // Sort by code alphabetically
     const sortedResults = processedItems.sort((a, b) => {
@@ -1539,13 +1562,35 @@ const HargaBahan = () => {
     console.log('Import data sample (first 3 items):', importData.slice(0, 3));
     console.log('Manufacturing items sample (first 5 items):', manufacturingItems.slice(0, 5));
     
-    // Process each item individually (treat all .xxx variants as separate items)
-    const processedItems = [];
-    
+    // Group by exact kode to detect true duplicates
+    const groupedByKode = {};
     for (const item of importData) {
-      const processedItem = await processSingleItem(item, manufacturingItems, currencyData);
-      if (processedItem) {
-        processedItems.push(processedItem);
+      const kode = item.kode;
+      if (!groupedByKode[kode]) {
+        groupedByKode[kode] = [];
+      }
+      groupedByKode[kode].push(item);
+    }
+    
+    console.log(`Grouped into ${Object.keys(groupedByKode).length} unique codes from ${importData.length} rows`);
+    
+    // For each group: if single item, process directly; if duplicates, pick highest price
+    const processedItems = [];
+    for (const [kode, items] of Object.entries(groupedByKode)) {
+      if (items.length === 1) {
+        const processedItem = await processSingleItem(items[0], manufacturingItems, currencyData);
+        if (processedItem) {
+          processedItems.push(processedItem);
+        }
+      } else {
+        console.log(`Duplicate kode "${kode}" found ${items.length} times, selecting highest price`);
+        const highest = await findHighestPricedItem(items, manufacturingItems, currencyData);
+        if (highest) {
+          processedItems.push({
+            ...highest,
+            finalPrice: highest.originalPrice
+          });
+        }
       }
     }
     
@@ -3015,9 +3060,7 @@ const HargaBahan = () => {
                     <li><strong>Row 1:</strong> Must contain headers (will be skipped)</li>
                     <li><strong>Data starts from Row 2</strong></li>
                     <li><strong>Item Type validation:</strong> Only "Bahan Kemas" entries will be processed</li>
-                    <li><strong>Duplicate handling:</strong> Items with same code will be automatically deduplicated by highest price</li>
-                    <li><strong>Currency conversion:</strong> All prices will be normalized to IDR for comparison</li>
-                    <li><strong>Code normalization:</strong> Codes ending with ".xxx" (e.g., "130.000") will be normalized to "130"</li>
+                    <li><strong>Code variants:</strong> Each material code variant (e.g., "130", "130.000", "130.001") is treated as a separate item</li>
                   </ul>
                   
                   <div style={{ backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '8px', padding: '15px', margin: '15px 0' }}>
@@ -3181,9 +3224,7 @@ const HargaBahan = () => {
                     <li><strong>Row 1:</strong> Must contain headers (will be skipped)</li>
                     <li><strong>Data starts from Row 2</strong></li>
                     <li><strong>Item Type validation:</strong> Only "Bahan Baku" entries will be processed</li>
-                    <li><strong>Duplicate handling:</strong> Items with same code will be automatically deduplicated by highest price</li>
-                    <li><strong>Currency conversion:</strong> All prices will be normalized to IDR for comparison</li>
-                    <li><strong>Code normalization:</strong> Codes ending with ".xxx" (e.g., "130.000") will be normalized to "130"</li>
+                    <li><strong>Code variants:</strong> Each material code variant (e.g., "130", "130.000", "130.001") is treated as a separate item</li>
                   </ul>
                   
                   <div style={{ backgroundColor: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '8px', padding: '15px', margin: '15px 0' }}>
