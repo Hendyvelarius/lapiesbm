@@ -194,6 +194,9 @@ export default function HPPSimulation() {
   const [groupMaterialNames, setGroupMaterialNames] = useState({}); // Cache material names by group key
   const [allMaterials, setAllMaterials] = useState([]); // Cache all materials to avoid repeated API calls
 
+  // No products affected modal state
+  const [noProductsAffectedModal, setNoProductsAffectedModal] = useState({ open: false, materials: [] });
+
   // Bulk delete confirmation modal states
   const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
   const [bulkDeleteDescription, setBulkDeleteDescription] = useState("");
@@ -2210,6 +2213,18 @@ export default function HPPSimulation() {
         materialPriceChanges,
         currentUser?.logNIK || null
       );
+
+      // Check if any products were actually affected
+      const totalRowsAffected = (result.data?.rowsAffected || []).reduce((sum, n) => sum + n, 0);
+      if (totalRowsAffected === 0) {
+        // No products use the selected materials
+        setNoProductsAffectedModal({
+          open: true,
+          materials: selectedMaterials.map(m => ({ id: m.ITEM_ID, name: m.ITEM_Name || m.ITEM_ID }))
+        });
+        setLoadingImpact(false);
+        return;
+      }
 
       // Store the materials that were changed for finding the created simulation
       const changedMaterialIds = selectedMaterials.map(m => m.ITEM_ID);
@@ -9073,6 +9088,47 @@ export default function HPPSimulation() {
               >
                 <Check size={16} />
                 Confirm & Apply Defaults
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* No Products Affected Modal */}
+      {noProductsAffectedModal.open && (
+        <div className="modal-overlay">
+          <div className="bulk-delete-modal" style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h3>⚠️ No Products Affected</h3>
+              <button
+                className="modal-close-btn"
+                onClick={() => setNoProductsAffectedModal({ open: false, materials: [] })}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-content">
+              <div className="bulk-delete-warning">
+                <p>
+                  The simulation completed, but <strong>no products</strong> were found using the selected material{noProductsAffectedModal.materials.length !== 1 ? 's' : ''}:
+                </p>
+                <ul style={{ margin: '12px 0', paddingLeft: '20px' }}>
+                  {noProductsAffectedModal.materials.map(m => (
+                    <li key={m.id}><strong>{m.id}</strong> — {m.name}</li>
+                  ))}
+                </ul>
+                <div className="warning-note" style={{ marginTop: '12px' }}>
+                  This may happen if the material is not included in any active product formula. Please verify the material selection and try again.
+                </div>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                className="confirm-delete-btn"
+                onClick={() => setNoProductsAffectedModal({ open: false, materials: [] })}
+                style={{ backgroundColor: '#2563eb' }}
+              >
+                OK
               </button>
             </div>
           </div>
