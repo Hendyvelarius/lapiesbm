@@ -367,11 +367,24 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
       // Get active formula details containing all materials used in active formulas
       const activeFormulaDetails = await api.products.getActiveFormulaDetails();
       
+      // Only check materials for unlocked products
+      const { chosenFormulas } = validationData;
+      const unlockedProductIds = new Set(
+        chosenFormulas
+          .filter(cf => !cf.isLock || cf.isLock === 0)
+          .map(cf => cf.Product_ID)
+      );
+      const lockedCount = chosenFormulas.length - unlockedProductIds.size;
+      
+      const relevantFormulaDetails = activeFormulaDetails.filter(
+        formula => unlockedProductIds.has(formula.Product_ID)
+      );
+      
       const missingPriceMaterials = [];
       const checkedMaterials = new Set(); // To avoid duplicate checks
       
-      // Check each material in active formulas
-      activeFormulaDetails.forEach(formula => {
+      // Check each material in unlocked product formulas
+      relevantFormulaDetails.forEach(formula => {
         const materialKey = `${formula.PPI_ItemID}`;
         
         // Skip if already checked this material
@@ -427,8 +440,12 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
       }
       
       updateStepStatus(3, 'completed', {
-        summary: `All ${checkedMaterials.size} formula materials have valid pricing`,
-        details: `Checked materials from ${activeFormulaDetails.length} active formula entries`
+        summary: lockedCount > 0
+          ? `All ${checkedMaterials.size} formula materials have valid pricing (${lockedCount} locked skipped)`
+          : `All ${checkedMaterials.size} formula materials have valid pricing`,
+        details: lockedCount > 0
+          ? `Checked materials from ${relevantFormulaDetails.length} active formula entries (${lockedCount} locked products skipped)`
+          : `Checked materials from ${relevantFormulaDetails.length} active formula entries`
       });
       
       return true;

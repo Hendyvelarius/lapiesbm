@@ -1222,7 +1222,11 @@ async function getActualDashboardStats(year = null, month = null, mode = 'YTD') 
     // Overall totals for Cost Management
     const totalHPP = validBatches.reduce((sum, b) => sum + b.totalHPP, 0);
     const totalHNA = validBatches.reduce((sum, b) => sum + (b.hna * b.outputActual), 0);
-    const overallCOGS = totalHNA > 0 ? (totalHPP / totalHNA) * 100 : 0;
+    // Calculate COGS Ratio using Simple Average (consistent with LOB/category averages)
+    // This treats each batch equally, rather than weighting by HNA value
+    const overallCOGS = batchesWithHNA.length > 0
+      ? batchesWithHNA.reduce((sum, b) => sum + b.cogs, 0) / batchesWithHNA.length
+      : 0;
     
     // Calculate average COGS by LOB (weighted by batch count with valid HNA)
     const calculateAvgCOGS = (filterFn) => {

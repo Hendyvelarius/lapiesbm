@@ -93,6 +93,7 @@ BEGIN
         FROM t_dnc_product
         WHERE CONVERT(VARCHAR(6), DNC_TempelLabel, 112) = @Periode
           AND DNC_Diluluskan > 0
+          AND LEN(DNC_BatchDate) = 10  -- Exclude repack batches (non-standard date format)
           AND (@RecalculateExisting = 1 OR DNc_No NOT IN (
               SELECT DNc_No FROM t_COGS_HPP_Actual_Header WHERE Calculation_Status = 'COMPLETED'
           ));
