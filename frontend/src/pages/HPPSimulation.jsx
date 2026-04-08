@@ -2214,20 +2214,9 @@ export default function HPPSimulation() {
         currentUser?.logNIK || null
       );
 
-      // Check if any products were actually affected
-      const totalRowsAffected = (result.data?.rowsAffected || []).reduce((sum, n) => sum + n, 0);
-      if (totalRowsAffected === 0) {
-        // No products use the selected materials
-        setNoProductsAffectedModal({
-          open: true,
-          materials: selectedMaterials.map(m => ({ id: m.ITEM_ID, name: m.ITEM_Name || m.ITEM_ID }))
-        });
-        setLoadingImpact(false);
-        return;
-      }
-
-      // Store the materials that were changed for finding the created simulation
+      // Store the materials info before resetting for the no-products-affected check later
       const changedMaterialIds = selectedMaterials.map(m => m.ITEM_ID);
+      const changedMaterialsInfo = selectedMaterials.map(m => ({ id: m.ITEM_ID, name: m.ITEM_Name || m.ITEM_ID }));
 
       // Show success message
       notifier.success("Price change simulation generated successfully!");
@@ -2290,9 +2279,11 @@ export default function HPPSimulation() {
               setAffectedProductsModalOpen(true);
             }
           } else {
-            console.warn("Could not find matching simulation for automatic modal opening");
-            // Fallback - just notify user that simulation was created
-            notifier.info("Price change simulation created. You can view affected products from the simulation list.");
+            // No matching simulation found — the selected materials are not used by any product
+            setNoProductsAffectedModal({
+              open: true,
+              materials: changedMaterialsInfo
+            });
             setIsNewPriceChangeSimulation(false); // Reset the flag
           }
         } catch (error) {
