@@ -435,6 +435,218 @@ const TrendLineChart = ({ trendData, overallAvg, onPointClick }) => {
   );
 };
 
+// Cost Management 13-month COGS Trend Bar Chart
+const CostTrendBarChart = ({ trendData, overallAvg, onPointClick }) => {
+  const [hoveredPoint, setHoveredPoint] = useState(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const svgRef = React.useRef(null);
+
+  if (!trendData || trendData.length === 0) {
+    return <div className="trend-chart-empty">No trend data available</div>;
+  }
+
+  const validValues = trendData.filter(d => d.avgCogs !== null).map(d => d.avgCogs);
+  if (validValues.length === 0) {
+    return <div className="trend-chart-empty">No trend data available</div>;
+  }
+
+  // Y-axis: 0% to 60%, reference line at 30% (high COGS threshold)
+  const yMin = 0;
+  const yMax = 60;
+  const yRange = yMax - yMin;
+  const refValue = 30;
+
+  // Chart dimensions
+  const width = 100;
+  const height = 50;
+  const leftMargin = 8;
+  const rightMargin = 4;
+  const topMargin = 7;
+  const bottomMargin = 10;
+  const chartWidth = width - leftMargin - rightMargin;
+  const chartHeight = height - topMargin - bottomMargin;
+
+  const barCount = trendData.length;
+  const barGap = chartWidth * 0.02;
+  const totalGaps = (barCount - 1) * barGap;
+  const barWidth = (chartWidth - totalGaps) / barCount;
+
+  const bars = trendData.map((d, i) => {
+    const x = leftMargin + i * (barWidth + barGap);
+    const barY = d.avgCogs !== null
+      ? topMargin + ((yMax - Math.min(d.avgCogs, yMax)) / yRange) * chartHeight
+      : null;
+    const baseY = topMargin + chartHeight;
+    const barHeight = barY !== null ? baseY - barY : 0;
+    return { x, barY, barHeight, barWidth, baseY, ...d };
+  });
+
+  const refLineY = topMargin + ((yMax - refValue) / yRange) * chartHeight;
+
+  // COGS bar color: low is good, high is bad
+  const getBarColor = (cogs) => {
+    if (cogs < 20) return '#10b981';   // green
+    if (cogs < 30) return '#22c55e';   // light green
+    if (cogs < 40) return '#f59e0b';   // amber
+    if (cogs < 50) return '#f97316';   // orange
+    return '#ef4444';                  // red
+  };
+
+  const avgColor = getBarColor(overallAvg);
+
+  const handleBarHover = (bar, event) => {
+    if (bar.avgCogs === null) return;
+    setTooltipPos({ x: event.clientX, y: event.clientY });
+    setHoveredPoint(bar);
+  };
+
+  const handleBarLeave = () => setHoveredPoint(null);
+
+  const handleBarClick = (bar) => {
+    if (bar.avgCogs !== null && onPointClick) onPointClick(bar);
+  };
+
+  return (
+    <div className="trend-line-chart">
+      <svg ref={svgRef} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
+        {/* Y-axis labels */}
+        <text x={leftMargin - 1} y={topMargin + 2} className="trend-axis-label" textAnchor="end">{yMax}%</text>
+        <text x={leftMargin - 1} y={refLineY + 1} className="trend-axis-label" textAnchor="end">{refValue}%</text>
+        <text x={leftMargin - 1} y={topMargin + chartHeight} className="trend-axis-label" textAnchor="end">{yMin}%</text>
+
+        {/* Grid lines */}
+        <line x1={leftMargin} y1={topMargin} x2={leftMargin} y2={topMargin + chartHeight} stroke="#e5e7eb" strokeWidth="0.2"/>
+        <line x1={leftMargin} y1={topMargin + chartHeight} x2={width - rightMargin} y2={topMargin + chartHeight} stroke="#e5e7eb" strokeWidth="0.2"/>
+
+        {/* Reference line at 30% - drawn before bars so labels render on top */}
+        <line
+          x1={leftMargin}
+          y1={refLineY}
+          x2={width - rightMargin}
+          y2={refLineY}
+          stroke="#475569"
+          strokeWidth="0.4"
+          strokeDasharray="2,1.5"
+        />
+
+        {/* Bars with percentage labels */}
+        {bars.map((bar, i) => {
+          if (bar.avgCogs === null) return null;
+          const isHovered = hoveredPoint?.periode === bar.periode;
+          const barColor = getBarColor(bar.avgCogs);
+          const labelY = bar.barY - 0.8;
+          const labelNearRef = Math.abs(labelY - refLineY) < 2.5;
+          return (
+            <g
+              key={i}
+              className="trend-bar"
+              onMouseEnter={(e) => handleBarHover(bar, e)}
+              onMouseLeave={handleBarLeave}
+              onClick={() => handleBarClick(bar)}
+              style={{ cursor: 'pointer' }}
+            >
+              <rect
+                x={bar.x}
+                y={bar.barY}
+                width={barWidth}
+                height={bar.barHeight}
+                rx={0.5}
+                ry={0.5}
+                fill={barColor}
+                opacity={isHovered ? 1 : 0.8}
+                stroke={isHovered ? '#1e293b' : 'none'}
+                strokeWidth={isHovered ? 0.3 : 0}
+              />
+              {/* White halo behind label to mask the dashed reference line when label sits on it */}
+              {labelNearRef && (
+                <text
+                  x={bar.x + barWidth / 2}
+                  y={labelY}
+                  textAnchor="middle"
+                  className="trend-bar-label"
+                  stroke="#ffffff"
+                  strokeWidth="1.2"
+                  strokeLinejoin="round"
+                  paintOrder="stroke"
+                  fill={barColor}
+                >
+                  {bar.avgCogs.toFixed(1)}%
+                </text>
+              )}
+              <text
+                x={bar.x + barWidth / 2}
+                y={labelY}
+                textAnchor="middle"
+                className="trend-bar-label"
+                fill={barColor}
+              >
+                {bar.avgCogs.toFixed(1)}%
+              </text>
+            </g>
+          );
+        })}
+
+        {/* X-axis labels - month + year */}
+        {bars.map((bar, idx) => {
+          const [monthPart, yearPart] = (bar.label || '').split(' ');
+          return (
+            <g key={idx}>
+              <text x={bar.x + barWidth / 2} y={height - 4} className="trend-axis-label" textAnchor="middle">
+                {monthPart}
+              </text>
+              <text x={bar.x + barWidth / 2} y={height - 1} className="trend-axis-label-year" textAnchor="middle">
+                {yearPart}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Tooltip rendered via portal to body */}
+      {hoveredPoint && ReactDOM.createPortal(
+        <div
+          className="trend-tooltip"
+          style={{
+            position: 'fixed',
+            left: tooltipPos.x + 12,
+            top: tooltipPos.y - 20,
+            transform: 'translateY(-100%)',
+            zIndex: 9999,
+            pointerEvents: 'none'
+          }}
+        >
+          <div className="tooltip-header">{hoveredPoint.label}</div>
+          <div className="tooltip-row">
+            <span className="tooltip-label">Avg COGS:</span>
+            <span className={`tooltip-value ${hoveredPoint.avgCogs >= 30 ? 'over' : 'under'}`}>
+              {hoveredPoint.avgCogs?.toFixed(1)}%
+            </span>
+          </div>
+          <div className="tooltip-row">
+            <span className="tooltip-label">&lt;30%:</span>
+            <span className="tooltip-value under">{hoveredPoint.lowCount}/{hoveredPoint.batchCount}</span>
+          </div>
+          <div className="tooltip-row">
+            <span className="tooltip-label">≥30%:</span>
+            <span className="tooltip-value over">{hoveredPoint.highCount}/{hoveredPoint.batchCount}</span>
+          </div>
+          <div className="tooltip-hint">Click for details</div>
+        </div>,
+        document.body
+      )}
+
+      <div className="trend-chart-legend">
+        <span className="trend-avg" style={{ color: avgColor }}>
+          Avg: {overallAvg?.toFixed(1)}%
+        </span>
+        <span className="trend-target">
+          Target: &lt;30%
+        </span>
+      </div>
+    </div>
+  );
+};
+
 // Actual vs Standard Ratio Chart - circular gauge showing ratio
 const ActualVsStandardChart = ({ ratio, size = 160 }) => {
   // ratio is percentage: 100% means actual = standard
@@ -1178,12 +1390,21 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
 
   // Actual mode states for Cost Management and Pricing Risk cards
   const [costMgmtMode, setCostMgmtMode] = useState('standard'); // 'standard' or 'actual'
-  const [costMgmtPeriodMode, setCostMgmtPeriodMode] = useState('YTD'); // 'YTD' or 'MTD'
+  const [costMgmtPeriodMode, setCostMgmtPeriodMode] = useState('YTD'); // 'YTD', 'MTD', or 'Trend'
   const [costMgmtMonth, setCostMgmtMonth] = useState(new Date().getMonth() + 1); // 1-12
   const [pricingRiskMode, setPricingRiskMode] = useState('standard'); // 'standard' or 'actual'
   const [actualDashboardData, setActualDashboardData] = useState(null);
   const [actualDataLoading, setActualDataLoading] = useState(false);
   const [showActualBatchModal, setShowActualBatchModal] = useState(false); // Modal for actual batch details
+
+  // Cost Management Trend states
+  const [costTrendData, setCostTrendData] = useState(null);
+  const [costTrendLobFilter, setCostTrendLobFilter] = useState('ALL');
+  const [costTrendLoading, setCostTrendLoading] = useState(false);
+  const [costTrendPointBatches, setCostTrendPointBatches] = useState(null);
+  const [costTrendPointLabel, setCostTrendPointLabel] = useState('');
+  const [showCostTrendBatchModal, setShowCostTrendBatchModal] = useState(false);
+  const [costTrendPointLoading, setCostTrendPointLoading] = useState(false);
 
   // Fetch available years and dashboard data on mount
   useEffect(() => {
@@ -1318,10 +1539,12 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
     const fetchActualStats = async () => {
       if (costMgmtMode !== 'actual' && pricingRiskMode !== 'actual') return;
       if (!dashboardPeriod?.selectedYear) return;
+      // Skip in Trend mode for Cost Management (Pricing Risk still uses standard fetch)
+      if (costMgmtMode === 'actual' && costMgmtPeriodMode === 'Trend' && pricingRiskMode !== 'actual') return;
 
-      // Determine request params based on period mode
+      // Determine request params based on period mode (Trend falls back to YTD for Pricing Risk needs)
       const requestMonth = costMgmtMonth;
-      const requestMode = costMgmtPeriodMode; // 'YTD' or 'MTD'
+      const requestMode = costMgmtPeriodMode === 'Trend' ? 'YTD' : costMgmtPeriodMode;
 
       // Skip if we already have data for the same parameters
       const cachedMonth = actualDashboardData?.month ? parseInt(actualDashboardData.month) : null;
@@ -1350,6 +1573,32 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
 
     fetchActualStats();
   }, [costMgmtMode, pricingRiskMode, costMgmtPeriodMode, costMgmtMonth, dashboardPeriod?.selectedYear, actualDashboardData?.year, actualDashboardData?.month, actualDashboardData?.mode]);
+
+  // Fetch Cost Management Trend data when in Trend mode
+  useEffect(() => {
+    const fetchCostTrend = async () => {
+      if (costMgmtMode !== 'actual' || costMgmtPeriodMode !== 'Trend') return;
+      if (!dashboardPeriod?.selectedYear) return;
+
+      try {
+        setCostTrendLoading(true);
+        const response = await dashboardAPI.getCostManagementTrend(
+          costTrendLobFilter,
+          dashboardPeriod.selectedYear,
+          costMgmtMonth
+        );
+        if (response.success) {
+          setCostTrendData(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch cost management trend:', err);
+      } finally {
+        setCostTrendLoading(false);
+      }
+    };
+
+    fetchCostTrend();
+  }, [costMgmtMode, costMgmtPeriodMode, costTrendLobFilter, dashboardPeriod?.selectedYear, costMgmtMonth]);
 
   // Clear actual data when year changes
   useEffect(() => {
@@ -1382,12 +1631,12 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
   // Handle trend point click - fetch batch data for that month
   const handleTrendPointClick = async (point) => {
     if (!point || !point.periode) return;
-    
+
     try {
       setTrendPointLoading(true);
       setTrendPointLabel(point.label);
       setShowTrendBatchModal(true);
-      
+
       const response = await dashboardAPI.getActualVsStandardByPeriode(point.periode, trendLobFilter);
       if (response.success) {
         setTrendPointBatches(response.data.batches || []);
@@ -1399,6 +1648,38 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
       setTrendPointBatches([]);
     } finally {
       setTrendPointLoading(false);
+    }
+  };
+
+  // Handle Cost Management trend point click - fetch batches for that month
+  const handleCostTrendPointClick = async (point) => {
+    if (!point || !point.periode) return;
+
+    try {
+      setCostTrendPointLoading(true);
+      setCostTrendPointLabel(point.label);
+      setShowCostTrendBatchModal(true);
+
+      // periode is YYYYMM; pull year/month from it
+      const pYear = point.periode.substring(0, 4);
+      const pMonth = parseInt(point.periode.substring(4, 6), 10);
+
+      const response = await dashboardAPI.getActualStats(pYear, pMonth, 'MTD');
+      if (response.success) {
+        let batches = response.data?.batches || [];
+        // Apply LOB filter consistent with the trend chart
+        if (costTrendLobFilter !== 'ALL') {
+          batches = batches.filter(b => b.category === costTrendLobFilter);
+        }
+        setCostTrendPointBatches(batches);
+      } else {
+        setCostTrendPointBatches([]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch batch data for cost trend point:', err);
+      setCostTrendPointBatches([]);
+    } finally {
+      setCostTrendPointLoading(false);
     }
   };
 
@@ -1738,7 +2019,7 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
             </div>
           </div>
           <div className="card-body">
-            {actualDataLoading && costMgmtMode === 'actual' ? (
+            {actualDataLoading && costMgmtMode === 'actual' && costMgmtPeriodMode !== 'Trend' ? (
               <div className="card-loading">
                 <Loader2 className="spin" size={24} />
                 <span>Loading actual data...</span>
@@ -1761,8 +2042,14 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
                       >
                         Month
                       </button>
+                      <button
+                        className={`period-btn ${costMgmtPeriodMode === 'Trend' ? 'active' : ''}`}
+                        onClick={() => setCostMgmtPeriodMode('Trend')}
+                      >
+                        Trend
+                      </button>
                     </div>
-                    {(() => {
+                    {costMgmtPeriodMode !== 'Trend' && (() => {
                       const currentYear = new Date().getFullYear();
                       const currentMonth = new Date().getMonth() + 1;
                       const maxMonth = parseInt(dashboardPeriod?.selectedYear) === currentYear
@@ -1784,6 +2071,45 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
                     })()}
                   </div>
                 )}
+                {costMgmtMode === 'actual' && costMgmtPeriodMode === 'Trend' ? (
+                  <div className="cost-trend-view" key={`cost-trend-${costTrendLobFilter}-${costMgmtMonth}-${dashboardPeriod?.selectedYear}`}>
+                    {costTrendLoading ? (
+                      <div className="trend-loading">
+                        <Loader2 className="spinner" size={24} />
+                        <span>Loading trend data...</span>
+                      </div>
+                    ) : costTrendData ? (
+                      <>
+                        <CostTrendBarChart
+                          trendData={costTrendData.trendData}
+                          overallAvg={costTrendData.overallAvgCogs}
+                          onPointClick={handleCostTrendPointClick}
+                        />
+                        <div className="trend-stats">
+                          <span className="trend-batch-count">{costTrendData.totalBatches} batches analyzed</span>
+                        </div>
+                        <div className="trend-lob-tabs">
+                          {['ALL', 'OTC', 'ETH', 'Generik'].map(lob => {
+                            const lobValue = lob === 'ETH' ? 'ETHICAL' : lob === 'Generik' ? 'GENERIK' : lob;
+                            return (
+                              <button
+                                key={lob}
+                                className={`lob-tab ${costTrendLobFilter === lobValue ? 'active' : ''}`}
+                                onClick={() => setCostTrendLobFilter(lobValue)}
+                              >
+                                {lob}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="no-data-message">
+                        <span>No trend data available</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
                 <div key={`cost-${costMgmtMode}-${costMgmtPeriodMode}-${costMgmtMonth}`} className="cost-data-view">
                 <div 
                   className="cogs-ratio-section clickable" 
@@ -1864,6 +2190,7 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
                   </div>
                 </div>
                 </div>
+                )}
               </>
             )}
           </div>
@@ -2291,6 +2618,18 @@ export default function Dashboard({ dashboardPeriod, setDashboardPeriod }) {
         title={`HPP Actual vs Standard - ${trendPointLabel}${trendLobFilter !== 'ALL' ? ` (${trendLobFilter})` : ''} - All Batches`}
         filter="all"
         loading={trendPointLoading}
+      />
+
+      {/* Product List Modal - Cost Management Trend Point Click */}
+      <ProductListModal
+        isOpen={showCostTrendBatchModal}
+        onClose={() => {
+          setShowCostTrendBatchModal(false);
+          setCostTrendPointBatches(null);
+        }}
+        products={costTrendPointBatches || []}
+        title={`Batch COGS Details (Actual) - ${costTrendPointLabel}${costTrendLobFilter !== 'ALL' ? ` (${costTrendLobFilter})` : ''}`}
+        displayMode="batch"
       />
     </div>
   );

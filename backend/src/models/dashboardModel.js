@@ -1028,7 +1028,8 @@ module.exports = {
   getHPPActualVsStandard,
   getActualVsStandardTrend,
   getActualVsStandardByPeriode,
-  getActualDashboardStats
+  getActualDashboardStats,
+  getCostManagementTrend
 };
 
 /**
@@ -1504,6 +1505,180 @@ async function getActualVsStandardTrend(lob = 'ALL', year = null, month = null) 
     };
   } catch (error) {
     console.error("Error getting HPP Actual vs Standard trend:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get 13-month trend data for Cost Management overall COGS ratio
+ * Returns monthly average COGS ratio (HPP/HNA) using actual batches, with optional LOB filter
+ * @param {string} lob - LOB filter: 'ALL', 'ETHICAL', 'OTC', 'GENERIK'
+ * @param {string} year - Optional anchor year (defaults to current)
+ * @param {number} month - Optional anchor month (1-12, defaults to current)
+ * @returns {Object} Trend data with monthly average COGS ratios
+ */
+async function getCostManagementTrend(lob = 'ALL', year = null, month = null) {
+  try {
+    const db = await connect();
+
+    // Build the 13-month window ending at the provided year+month (inclusive)
+    const endDate = (year && month)
+      ? new Date(parseInt(year), parseInt(month) - 1, 1)
+      : new Date();
+    const months = [];
+    for (let i = 12; i >= 0; i--) {
+      const d = new Date(endDate.getFullYear(), endDate.getMonth() - i, 1);
+      months.push({
+        year: d.getFullYear().toString(),
+        month: d.getMonth() + 1,
+        periode: `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`,
+        label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+      });
+    }
+
+    // LOB filter (matches actualLOB normalization below)
+    const lobFilter = lob && lob !== 'ALL' ? `AND h.LOB = '${lob}'` : '';
+
+    // Query all completed batches for the 13-month window (excluding granulates / FG)
+    const query = `
+      SELECT
+        h.HPP_Actual_ID,
+        h.DNc_ProductID,
+        h.Product_Name,
+        h.BatchNo,
+        h.Periode,
+        h.LOB,
+        h.Output_Actual,
+        h.Total_Cost_BB,
+        h.Total_Cost_BK,
+        p.Product_SalesHNA as HNA,
+        ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) as MH_Proses,
+        ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) as MH_Kemas,
+        ISNULL(h.Rate_MH_Proses, 0) as Rate_MH_Proses,
+        ISNULL(h.Rate_MH_Kemas, 0) as Rate_MH_Kemas,
+        ISNULL(h.MH_Timbang_BB, 0) as MH_Timbang_BB,
+        ISNULL(h.MH_Timbang_BK, 0) as MH_Timbang_BK,
+        ISNULL(h.Rate_MH_Timbang, 0) as Rate_MH_Timbang,
+        ISNULL(h.MH_Analisa_Std, 0) as MH_Analisa,
+        ISNULL(h.Biaya_Analisa, 0) as Biaya_Analisa,
+        ISNULL(h.MH_Mesin_Std, 0) as MH_Mesin,
+        ISNULL(h.Rate_PLN, 0) as Rate_PLN,
+        ISNULL(h.Biaya_Reagen, 0) as Biaya_Reagen,
+        ISNULL(h.Beban_Sisa_Bahan_Exp, 0) as Beban_Sisa_Bahan_Exp
+      FROM t_COGS_HPP_Actual_Header h
+      LEFT JOIN m_Product p ON h.DNc_ProductID = p.Product_ID
+      WHERE h.Calculation_Status = 'COMPLETED'
+        AND h.LOB NOT IN ('GRANULATE', 'FG')
+        AND h.Periode IN (${months.map(m => `'${m.periode}'`).join(',')})
+        AND ISNULL(h.Output_Actual, 0) > 0
+        ${lobFilter}
+    `;
+
+    const result = await db.request().query(query);
+    const batches = result.recordset || [];
+
+    // Get standard HPP data to identify products to exclude (margin/rounded) and Category map
+    // Use latest year in our window for category resolution
+    const latestYear = months[months.length - 1].year;
+    const standardRequest = db.request().input('year', sql.VarChar(4), latestYear);
+    const standardResult = await standardRequest.query(`exec sp_COGS_HPP_List @year`);
+
+    const ethical = standardResult.recordsets[0] || [];
+    const generik1 = standardResult.recordsets[1] || [];
+
+    const categoryMap = {};
+    const excludedProductIds = new Set();
+
+    [...ethical, ...generik1].forEach(p => {
+      categoryMap[p.Product_ID] = p.Category;
+      const margin = parseFloat(p.margin) || 0;
+      const rounded = parseFloat(p.rounded) || 0;
+      if (margin !== 0 || rounded !== 0) {
+        excludedProductIds.add(p.Product_ID);
+      }
+    });
+
+    // Overhead calculation matches getActualDashboardStats
+    const calculateOverhead = (b) => {
+      const l = (b.LOB || '').toUpperCase();
+      const biayaProses = (b.MH_Proses || 0) * (b.Rate_MH_Proses || 0);
+      const biayaKemas = (b.MH_Kemas || 0) * (b.Rate_MH_Kemas || 0);
+      if (l === 'GENERIK' || l === 'GENERIC') {
+        const biayaTimbangBB = (b.MH_Timbang_BB || 0) * (b.Rate_MH_Timbang || b.Rate_MH_Proses || 0);
+        const biayaTimbangBK = (b.MH_Timbang_BK || 0) * (b.Rate_MH_Timbang || b.Rate_MH_Proses || 0);
+        const biayaAnalisa = (b.MH_Analisa || 0) * (b.Biaya_Analisa || 0);
+        const biayaMesin = (b.MH_Mesin || 0) * (b.Rate_PLN || 0);
+        return biayaTimbangBB + biayaTimbangBK + biayaProses + biayaKemas +
+               biayaAnalisa + biayaMesin + (b.Biaya_Reagen || 0) + (b.Beban_Sisa_Bahan_Exp || 0);
+      }
+      return biayaProses + biayaKemas + (b.Beban_Sisa_Bahan_Exp || 0);
+    };
+
+    // Compute per-batch COGS, filter Toll In, group by Periode
+    const periodData = {};
+
+    batches.forEach(b => {
+      if (excludedProductIds.has(b.DNc_ProductID)) return;
+      const tollCategory = categoryMap[b.DNc_ProductID] || null;
+      if (tollCategory === 'Toll In') return;
+
+      const totalBB = parseFloat(b.Total_Cost_BB) || 0;
+      const totalBK = parseFloat(b.Total_Cost_BK) || 0;
+      const overhead = calculateOverhead(b);
+      const totalHPP = totalBB + totalBK + overhead;
+      const hna = parseFloat(b.HNA) || 0;
+      const outputActual = parseFloat(b.Output_Actual) || 0;
+
+      if (hna <= 0 || outputActual <= 0) return;
+
+      const hppPerUnit = totalHPP / outputActual;
+      const cogs = (hppPerUnit / hna) * 100;
+
+      if (!periodData[b.Periode]) {
+        periodData[b.Periode] = { cogsValues: [], batchCount: 0, highCount: 0, lowCount: 0 };
+      }
+      periodData[b.Periode].cogsValues.push(cogs);
+      periodData[b.Periode].batchCount++;
+      if (cogs >= 30) periodData[b.Periode].highCount++;
+      else periodData[b.Periode].lowCount++;
+    });
+
+    const trendData = months.map(m => {
+      const data = periodData[m.periode];
+      if (data && data.cogsValues.length > 0) {
+        const avgCogs = data.cogsValues.reduce((a, b) => a + b, 0) / data.cogsValues.length;
+        return {
+          periode: m.periode,
+          label: m.label,
+          avgCogs: parseFloat(avgCogs.toFixed(2)),
+          batchCount: data.batchCount,
+          highCount: data.highCount,
+          lowCount: data.lowCount
+        };
+      }
+      return {
+        periode: m.periode,
+        label: m.label,
+        avgCogs: null,
+        batchCount: 0,
+        highCount: 0,
+        lowCount: 0
+      };
+    });
+
+    const validMonths = trendData.filter(t => t.avgCogs !== null);
+    const overallAvg = validMonths.length > 0
+      ? validMonths.reduce((sum, t) => sum + t.avgCogs, 0) / validMonths.length
+      : 0;
+
+    return {
+      lob: lob,
+      trendData,
+      overallAvgCogs: parseFloat(overallAvg.toFixed(2)),
+      totalBatches: validMonths.reduce((sum, t) => sum + t.batchCount, 0)
+    };
+  } catch (error) {
+    console.error("Error getting Cost Management trend:", error);
     throw error;
   }
 }

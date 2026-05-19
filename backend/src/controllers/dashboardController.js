@@ -1,4 +1,4 @@
-const { getDashboardStats, getAvailableYears, getLatestPeriode, getHPPActualVsStandard, getActualVsStandardTrend, getActualVsStandardByPeriode, getActualDashboardStats } = require('../models/dashboardModel');
+const { getDashboardStats, getAvailableYears, getLatestPeriode, getHPPActualVsStandard, getActualVsStandardTrend, getActualVsStandardByPeriode, getActualDashboardStats, getCostManagementTrend } = require('../models/dashboardModel');
 
 class DashboardController {
   /**
@@ -125,6 +125,28 @@ class DashboardController {
       res.status(500).json({
         success: false,
         message: 'Error retrieving HPP Actual vs Standard by periode',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Get Cost Management 13-month COGS trend
+   * GET /api/dashboard/cost-management/trend?lob=ALL&year=2026&month=5
+   */
+  static async getCostManagementTrend(req, res) {
+    try {
+      const { lob = 'ALL', year, month } = req.query;
+      const data = await getCostManagementTrend(lob, year || null, month ? parseInt(month) : null);
+      res.status(200).json({
+        success: true,
+        data
+      });
+    } catch (error) {
+      console.error('Error fetching Cost Management trend:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving Cost Management trend',
         error: error.message
       });
     }

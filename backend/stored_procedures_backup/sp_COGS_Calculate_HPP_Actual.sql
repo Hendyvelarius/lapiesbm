@@ -106,6 +106,35 @@ BEGIN
     
     SELECT @BatchCount = COUNT(*) FROM #BatchesToProcess;
     
+    -- =========================================
+    -- CLEANUP: Remove previously calculated repack batches for this period
+    -- Repack batches have non-standard DNC_BatchDate (LEN != 10)
+    -- They may have been calculated before the exclusion filter was added
+    -- =========================================
+    IF @Periode IS NOT NULL
+    BEGIN
+        DECLARE @RepackCleanupCount INT = 0;
+        
+        DELETE d FROM t_COGS_HPP_Actual_Detail d
+        INNER JOIN t_COGS_HPP_Actual_Header h ON d.DNc_No = h.DNc_No
+        INNER JOIN t_dnc_product p ON h.DNc_No = p.DNc_No
+        WHERE CONVERT(VARCHAR(6), h.TempelLabel_Date, 112) = @Periode
+          AND LEN(p.DNC_BatchDate) != 10;
+        
+        DELETE h FROM t_COGS_HPP_Actual_Header h
+        INNER JOIN t_dnc_product p ON h.DNc_No = p.DNc_No
+        WHERE CONVERT(VARCHAR(6), h.TempelLabel_Date, 112) = @Periode
+          AND LEN(p.DNC_BatchDate) != 10;
+        
+        SET @RepackCleanupCount = @@ROWCOUNT;
+        
+        IF @Debug = 1 AND @RepackCleanupCount > 0
+        BEGIN
+            SET @Msg = 'Cleaned up ' + CAST(@RepackCleanupCount AS VARCHAR) + ' repack batch header(s) from period ' + @Periode;
+            PRINT @Msg;
+        END
+    END
+    
     IF @Debug = 1
     BEGIN
         SET @Msg = 'Found ' + CAST(@BatchCount AS VARCHAR) + ' batches to process';

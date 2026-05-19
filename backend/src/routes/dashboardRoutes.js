@@ -25,4 +25,8 @@ router.get('/actual-vs-standard/trend', DashboardController.getActualVsStandardT
 // Query: ?periode=202601&lob=ALL (lob optional: ALL, ETHICAL, OTC, GENERIK)
 router.get('/actual-vs-standard/by-periode', DashboardController.getActualVsStandardByPeriode);
 
+// GET /api/dashboard/cost-management/trend - Get 13-month Cost Management COGS trend
+// Query: ?lob=ALL&year=2026&month=5
+router.get('/cost-management/trend', DashboardController.getCostManagementTrend);
+
 module.exports = router;

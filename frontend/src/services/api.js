@@ -811,6 +811,17 @@ export const dashboardAPI = {
     if (lob) params.append('lob', lob);
     return apiRequest(`/dashboard/actual-vs-standard/by-periode?${params.toString()}`);
   },
+
+  // Get Cost Management 13-month COGS trend
+  // Query: ?lob=ALL&year=2026&month=5 (optional: lob, year, month)
+  getCostManagementTrend: (lob = 'ALL', year = null, month = null) => {
+    const params = new URLSearchParams();
+    if (lob) params.append('lob', lob);
+    if (year) params.append('year', year);
+    if (month) params.append('month', month);
+    const query = params.toString();
+    return apiRequest(`/dashboard/cost-management/trend${query ? `?${query}` : ''}`);
+  },
 };
 
 // Health check

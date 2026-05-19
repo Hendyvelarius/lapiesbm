@@ -3363,8 +3363,28 @@
 
 .avs-data-view,
 .cost-data-view,
-.trend-view {
+.trend-view,
+.cost-trend-view {
   animation: fadeSlideIn 0.35s ease-out;
+}
+
+/* Cost Management Trend View - mirror trend-view layout */
+.cost-trend-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  align-self: stretch;
+}
+
+/* When the cost management card is showing the trend view, tighten the
+   card-body so the chart can actually fill the space (the default
+   align-items:center + larger padding/gap squishes the SVG). */
+.cost-management-card .card-body:has(.cost-trend-view) {
+  align-items: stretch;
+  gap: 12px;
+  padding: 16px 16px 16px;
 }
 
 /* Export Excel Button */
