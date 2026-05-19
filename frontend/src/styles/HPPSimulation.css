@@ -4892,10 +4892,15 @@ html {
 
 .landing-options {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 32px;
-  max-width: 1200px;
+  /* Bounded column widths so leftover horizontal space is left over (not
+     absorbed by the columns). Combined with justify-content: center below,
+     this guarantees equal gaps on both sides of the card row. */
+  grid-template-columns: repeat(4, minmax(260px, 320px));
+  gap: 24px;
+  justify-content: center;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .landing-option {
@@ -4946,6 +4951,16 @@ html {
 .landing-option.price-change:hover {
   border-color: #22c55e;
   box-shadow: 0 20px 40px rgba(34, 197, 94, 0.2);
+}
+
+.landing-option.currency-change {
+  border-color: #fcd34d;
+  background: linear-gradient(180deg, #ffffff 0%, #fffbeb 100%);
+}
+
+.landing-option.currency-change:hover {
+  border-color: #f59e0b;
+  box-shadow: 0 20px 40px rgba(245, 158, 11, 0.2);
 }
 
 .landing-option-icon {
@@ -5014,12 +5029,16 @@ html {
   background: linear-gradient(135deg, #22c55e, #16a34a);
 }
 
+.landing-option.currency-change .landing-option-btn {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
 .landing-option:hover .landing-option-btn {
   transform: scale(1.02);
 }
 
 /* Responsive for landing page */
-@media (max-width: 1024px) {
+@media (max-width: 1280px) {
   .landing-options {
     grid-template-columns: repeat(2, 1fr);
   }

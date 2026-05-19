@@ -1,0 +1,632 @@
+/* =====================================================================
+   Currency Simulation Page
+   ===================================================================== */
+
+.cs-page {
+  padding: 24px 32px 64px;
+  max-width: 1400px;
+  margin: 0 auto;
+  font-family: inherit;
+  color: #1e293b;
+}
+
+/* ---- Header / step indicator ---- */
+.cs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 32px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.cs-header-title {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.cs-header-title .cs-btn {
+  margin-top: 4px;
+}
+
+.cs-header-icon {
+  color: #3b82f6;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.cs-header-title h1 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cs-header-title p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  max-width: 640px;
+  line-height: 1.5;
+}
+
+.cs-step-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.cs-step-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  color: #94a3b8;
+  font-weight: 600;
+  font-size: 13px;
+  border: 2px solid #e2e8f0;
+  transition: all 0.2s;
+}
+
+.cs-step-dot.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+}
+
+.cs-step-dot.done {
+  background: #10b981;
+  border-color: #10b981;
+  color: #fff;
+}
+
+.cs-step-line {
+  width: 36px;
+  height: 2px;
+  background: #e2e8f0;
+}
+
+.cs-step-line.done {
+  background: #10b981;
+}
+
+/* ---- Content shell ---- */
+.cs-content {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 28px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.cs-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.cs-section-header h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.cs-section-header p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.cs-loading-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.cs-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 20px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  color: #64748b;
+  text-align: center;
+}
+
+.cs-empty-state p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 480px;
+}
+
+.cs-empty-cell {
+  text-align: center;
+  padding: 24px !important;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* ---- Errors / alerts ---- */
+.cs-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+/* ---- Buttons ---- */
+.cs-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+
+.cs-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cs-btn-primary {
+  background: #2563eb;
+  color: #fff;
+}
+.cs-btn-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.cs-btn-secondary {
+  background: #fff;
+  color: #374151;
+  border-color: #d1d5db;
+}
+.cs-btn-secondary:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.cs-btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.cs-step-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* ---- Step 1: currency grid ---- */
+.cs-currency-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.cs-currency-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: #fff;
+  transition: all 0.18s;
+}
+
+.cs-currency-card.selected {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  background: #fafbff;
+}
+
+.cs-currency-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.cs-currency-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.cs-currency-code {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.cs-currency-name {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.cs-currency-rates {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cs-rate-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cs-rate-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.cs-rate-current {
+  font-size: 13px;
+  color: #0f172a;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.cs-rate-input {
+  width: 140px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.cs-rate-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.cs-rate-input:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.cs-rate-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 6px;
+  align-self: flex-end;
+}
+
+.cs-rate-delta.up {
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.cs-rate-delta.down {
+  color: #047857;
+  background: #ecfdf5;
+}
+
+/* ---- Step 2: summary cards ---- */
+.cs-summary-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.cs-summary-card {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.cs-summary-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.cs-summary-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.1;
+}
+
+.cs-summary-sub {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* ---- Step 2: materials block ---- */
+.cs-materials-block h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.cs-materials-by-currency {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cs-currency-details {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.cs-currency-details > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  background: #f8fafc;
+  font-size: 13px;
+  user-select: none;
+}
+
+.cs-currency-details > summary:hover {
+  background: #f1f5f9;
+}
+
+.cs-curr-pill {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  background: #dbeafe;
+  color: #1e40af;
+  border-radius: 12px;
+}
+
+.cs-curr-count {
+  color: #64748b;
+}
+
+.cs-materials-list {
+  padding: 8px 16px 12px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.cs-material-item {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  gap: 16px;
+  padding: 6px 0;
+  font-size: 12.5px;
+  border-bottom: 1px solid #f1f5f9;
+  align-items: center;
+}
+
+.cs-material-item:last-child {
+  border-bottom: none;
+}
+
+.cs-material-id {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  color: #2563eb;
+}
+
+.cs-material-name {
+  color: #1f2937;
+}
+
+.cs-material-price {
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Step 2: product picker ---- */
+.cs-products-block h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.cs-products-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.cs-products-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cs-search-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: #fff;
+  color: #64748b;
+}
+
+.cs-search-wrapper:focus-within {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.cs-search-wrapper input {
+  border: none;
+  outline: none;
+  font-size: 13px;
+  min-width: 240px;
+  color: #0f172a;
+  background: transparent;
+}
+
+.cs-lob-select {
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.cs-products-table-wrap {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.cs-products-table,
+.cs-results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.cs-products-table thead th,
+.cs-results-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  color: #374151;
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  z-index: 1;
+}
+
+.cs-products-table thead th.num,
+.cs-results-table thead th.num {
+  text-align: right;
+}
+
+.cs-products-table tbody tr {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.cs-products-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.cs-products-table tbody tr.selected {
+  background: #eff6ff;
+}
+
+.cs-products-table tbody td,
+.cs-results-table tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.cs-products-table tbody td.mono,
+.cs-results-table tbody td.mono {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: #2563eb;
+  font-size: 12px;
+}
+
+.cs-products-table tbody td input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* ---- Step 3: results table ---- */
+.cs-results-table tbody td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.cs-results-table tbody td.pos {
+  color: #047857;
+  font-weight: 500;
+}
+
+.cs-results-table tbody td.neg {
+  color: #b91c1c;
+  font-weight: 500;
+}
+
+.cs-results-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+/* ---- Responsive tweaks ---- */
+@media (max-width: 900px) {
+  .cs-page {
+    padding: 16px;
+  }
+  .cs-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+  .cs-step-actions {
+    flex-direction: column-reverse;
+  }
+  .cs-step-actions .cs-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

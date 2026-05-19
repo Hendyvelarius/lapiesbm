@@ -109,6 +109,26 @@ router.post('/simulations-for-group', HPPController.getSimulationsForPriceChange
 router.put('/simulation/version-bulk', HPPController.updateSimulationVersionBulk);
 
 // =====================================================================
+// CURRENCY CHANGES SIMULATION
+// =====================================================================
+
+// GET /api/hpp/currency-simulation/currencies - List foreign currencies + current rates
+// Query: ?year=2026 (optional)
+router.get('/currency-simulation/currencies', HPPController.getForeignCurrencies);
+
+// POST /api/hpp/currency-simulation/scan - Preview impact (materials + products)
+// Body: { currencies: ['USD','EUR'] }
+router.post('/currency-simulation/scan', HPPController.scanCurrencyImpact);
+
+// POST /api/hpp/currency-simulation/generate - Generate currency change simulation
+// Body: { currencyChanges: [{ currCode:'USD', newKurs: 18000 }], productIds?: ['..'], userId?: '..' }
+router.post('/currency-simulation/generate', HPPController.generateCurrencyChangeSimulation);
+
+// POST /api/hpp/currency-simulation/affected-products - Get before/after rows for a group
+// Body: { description: 'Currency Changes : USD: 15000 -> 18000; ', simulasiDate: '2026-05-19T...' }
+router.post('/currency-simulation/affected-products', HPPController.getCurrencyChangeAffectedProducts);
+
+// =====================================================================
 // HPP ACTUAL ROUTES
 // =====================================================================
 

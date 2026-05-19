@@ -5,7 +5,7 @@ import { exportToExcel, COLORS } from "../utils/excelExport";
 import LoadingSpinner from "./LoadingSpinner";
 import "../styles/AffectedProductsModal.css";
 
-const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceChangeDate, priceUpdateMode = false }) => {
+const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceChangeDate, priceUpdateMode = false, currencyChangeMode = false }) => {
   const [loading, setLoading] = useState(false);
   const [affectedProducts, setAffectedProducts] = useState([]);
   const [error, setError] = useState("");
@@ -20,9 +20,14 @@ const AffectedProductsModal = ({ isOpen, onClose, priceChangeDescription, priceC
       setError("");
 
       // Both Price Change and Price Update use the same parameters: description and simulasiDate
-      const response = priceUpdateMode
-        ? await hppAPI.getPriceUpdateAffectedProducts(description, simulasiDate)
-        : await hppAPI.getPriceChangeAffectedProducts(description, simulasiDate);
+      let response;
+      if (currencyChangeMode) {
+        response = await hppAPI.getCurrencyChangeAffectedProducts(description, simulasiDate);
+      } else if (priceUpdateMode) {
+        response = await hppAPI.getPriceUpdateAffectedProducts(description, simulasiDate);
+      } else {
+        response = await hppAPI.getPriceChangeAffectedProducts(description, simulasiDate);
+      }
 
       if (response.success && response.data) {
         setAffectedProducts(response.data);

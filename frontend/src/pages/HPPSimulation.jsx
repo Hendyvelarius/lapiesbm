@@ -30,6 +30,7 @@ import {
   User,
 } from "lucide-react";
 import AffectedProductsModal from "../components/AffectedProductsModal";
+import CurrencySimulation from "./CurrencySimulation";
 
 
 // Initialize awesome-notifications
@@ -189,6 +190,8 @@ export default function HPPSimulation() {
   const [selectedPriceChangeDescription, setSelectedPriceChangeDescription] =
     useState("");
   const [selectedPriceChangeDate, setSelectedPriceChangeDate] = useState("");
+  // Tracks whether the open affected-products modal is for a Currency Changes group
+  const [affectedProductsCurrencyMode, setAffectedProductsCurrencyMode] = useState(false);
 
   // Material names cache for Price Changes groups
   const [groupMaterialNames, setGroupMaterialNames] = useState({}); // Cache material names by group key
@@ -534,8 +537,18 @@ export default function HPPSimulation() {
   // Reset to landing page (step -1) when user navigates to this page from sidebar
   // This detects both initial load and navigation from sidebar
   useEffect(() => {
-    // Reset to step -1 (landing page) whenever the location changes (including clicking sidebar link)
-    setStep(-1);
+    // If the caller (e.g. CurrencySimulation) requested a specific tab, jump
+    // straight to the simulation list step on that tab; otherwise reset to the
+    // landing page (step -1).
+    const requestedTab = location.state?.activeTab;
+    if (requestedTab) {
+      setStep(0);
+      setActiveTab(requestedTab);
+      setCurrentPage(1);
+      setSearchQuery("");
+    } else {
+      setStep(-1);
+    }
     setSimulationType("");
     setSelectedProduct(null);
     setError("");
@@ -628,13 +641,15 @@ export default function HPPSimulation() {
     // First filter by active tab
     let tabFiltered = simulationList.filter((simulation) => {
       const simType = simulation.Simulasi_Type;
-      
+
       if (activeTab === "existing") {
         return simType === "Product Existing";
       } else if (activeTab === "custom") {
         return simType === "Product Custom";
       } else if (activeTab === "price-change") {
         return simType === "Price Changes";
+      } else if (activeTab === "currency-change") {
+        return simType === "Currency Changes";
       }
       return false;
     });
@@ -681,12 +696,12 @@ export default function HPPSimulation() {
     setPaginatedSimulations(paginated);
   }, [filteredSimulationList, currentPage, itemsPerPage]);
 
-  // Group Price Change simulations by description AND date/time
+  // Group Price Change / Currency Change simulations by description AND date/time
   useEffect(() => {
     const grouped = {};
 
     filteredSimulationList.forEach((simulation) => {
-      if (simulation.Simulasi_Type === "Price Changes") {
+      if (simulation.Simulasi_Type === "Price Changes" || simulation.Simulasi_Type === "Currency Changes") {
         const description = simulation.Simulasi_Deskripsi || "No Description";
         const groupKey = createPriceChangeGroupKey(description, simulation.Simulasi_Date);
 
@@ -829,14 +844,14 @@ export default function HPPSimulation() {
     const processedPriceChangeGroups = new Set();
 
     filteredSimulationList.forEach((simulation) => {
-      if (simulation.Simulasi_Type === "Price Changes") {
+      if (simulation.Simulasi_Type === "Price Changes" || simulation.Simulasi_Type === "Currency Changes") {
         const description = simulation.Simulasi_Deskripsi || "No Description";
         const groupKey = createPriceChangeGroupKey(description, simulation.Simulasi_Date);
 
         // Only add the group header once per unique group key (description + date)
         if (!processedPriceChangeGroups.has(groupKey)) {
           processedPriceChangeGroups.add(groupKey);
-          
+
           // Add the group header as a paginatable item
           paginatableItems.push({
             type: "group",
@@ -898,11 +913,11 @@ export default function HPPSimulation() {
     let totalCount = 0;
 
     filteredSimulationList.forEach((simulation) => {
-      if (simulation.Simulasi_Type === "Price Changes") {
+      if (simulation.Simulasi_Type === "Price Changes" || simulation.Simulasi_Type === "Currency Changes") {
         const description = simulation.Simulasi_Deskripsi || "No Description";
         const groupKey = createPriceChangeGroupKey(description, simulation.Simulasi_Date);
 
-        // Count each unique price change group only once (description + date)
+        // Count each unique group only once (description + date)
         if (!processedPriceChangeGroups.has(groupKey)) {
           processedPriceChangeGroups.add(groupKey);
           totalCount++; // Add 1 for the group header (but NOT for expanded children)
@@ -963,11 +978,12 @@ export default function HPPSimulation() {
     };
   }, []);
 
-  // Open affected products modal for price changes
-  const handleShowAffectedProducts = (description, date, event) => {
-    event.stopPropagation(); // Prevent group toggle when clicking the button
+  // Open affected products modal for price changes / currency changes
+  const handleShowAffectedProducts = (description, date, event, isCurrency = false) => {
+    if (event) event.stopPropagation();
     setSelectedPriceChangeDescription(description);
     setSelectedPriceChangeDate(date);
+    setAffectedProductsCurrencyMode(!!isCurrency);
     setAffectedProductsModalOpen(true);
   };
 
@@ -976,6 +992,7 @@ export default function HPPSimulation() {
     setAffectedProductsModalOpen(false);
     setSelectedPriceChangeDescription("");
     setSelectedPriceChangeDate("");
+    setAffectedProductsCurrencyMode(false);
   };
 
   // Check if user can bulk delete a Price Change group
@@ -1866,6 +1883,9 @@ export default function HPPSimulation() {
       setStep(5); // Go directly to price change simulation
       // Initialize price change simulation (this loads materials)
       initializePriceChangeSimulation();
+    } else if (activeTab === "currency-change") {
+      setSimulationType("currency-change");
+      setStep(6); // Currency simulation workflow (embedded CurrencySimulation component)
     }
   };
 
@@ -4354,6 +4374,25 @@ export default function HPPSimulation() {
                 </div>
                 <button className="landing-option-btn">View Simulations →</button>
               </div>
+
+              <div
+                className="landing-option currency-change"
+                onClick={() => {
+                  setActiveTab("currency-change");
+                  setSimulationType("currency-change");
+                  setStep(0);
+                }}
+              >
+                <div className="landing-option-icon">💱</div>
+                <h3>Currency Simulation</h3>
+                <p>Simulate how foreign-exchange rate changes affect material costs and finished-product HPP. Automatically detects every product touched.</p>
+                <div className="landing-option-features">
+                  <span>✓ Multi-currency what-if</span>
+                  <span>✓ Auto material discovery</span>
+                  <span>✓ Multi-product simulation</span>
+                </div>
+                <button className="landing-option-btn">View Simulations →</button>
+              </div>
             </div>
           </div>
         )}
@@ -4392,6 +4431,16 @@ export default function HPPSimulation() {
                 }}
               >
                 Price Changes
+              </button>
+              <button
+                className={`simulation-tab ${activeTab === "currency-change" ? "active" : ""}`}
+                onClick={() => {
+                  setActiveTab("currency-change");
+                  setCurrentPage(1);
+                  setSearchQuery("");
+                }}
+              >
+                Currency Changes
               </button>
               <button
                 className={`simulation-tab ${activeTab === "marked-delete" ? "active" : ""} ${markedForDeleteList.length > 0 ? "has-items" : ""}`}
@@ -4581,14 +4630,15 @@ export default function HPPSimulation() {
                                       <div className="group-actions">
                                         <button
                                           className="select-products-btn"
-                                          onClick={(e) =>
+                                          onClick={(e) => {
+                                            const isCurr = item.simulations?.[0]?.Simulasi_Type === "Currency Changes";
                                             handleOpenSelectProducts(
                                               item.description,
                                               item.date,
-                                              "Price Changes",
+                                              isCurr ? "Currency Changes" : "Price Changes",
                                               e
-                                            )
-                                          }
+                                            );
+                                          }}
                                           title="Select which products to include in affected products report"
                                         >
                                           <Users size={16} />
@@ -4596,13 +4646,15 @@ export default function HPPSimulation() {
                                         </button>
                                         <button
                                           className="affected-products-btn"
-                                          onClick={(e) =>
+                                          onClick={(e) => {
+                                            const isCurr = item.simulations?.[0]?.Simulasi_Type === "Currency Changes";
                                             handleShowAffectedProducts(
                                               item.description,
                                               item.date,
-                                              e
-                                            )
-                                          }
+                                              e,
+                                              isCurr
+                                            );
+                                          }}
                                           title="View products affected by this price change"
                                         >
                                           <BarChart3 size={16} />
@@ -8651,6 +8703,18 @@ export default function HPPSimulation() {
         </div>
       )}
 
+      {/* Step 6: Currency Simulation (embedded component) */}
+      {step === 6 && simulationType === "currency-change" && (
+        <CurrencySimulation
+          onBack={handleBackToList}
+          onViewList={() => {
+            setActiveTab("currency-change");
+            setStep(0);
+            setSimulationType("");
+          }}
+        />
+      )}
+
       {/* Add Material Modal */}
       {showAddMaterialModal && (
         <div className="add-material-modal-overlay">
@@ -9033,6 +9097,7 @@ export default function HPPSimulation() {
         onClose={handleCloseAffectedProductsModal}
         priceChangeDescription={selectedPriceChangeDescription}
         priceChangeDate={selectedPriceChangeDate}
+        currencyChangeMode={affectedProductsCurrencyMode}
       />
 
       {/* Group Change Confirmation Modal */}

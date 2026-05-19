@@ -570,7 +570,7 @@ const CostTrendBarChart = ({ trendData, overallAvg, onPointClick }) => {
                   paintOrder="stroke"
                   fill={barColor}
                 >
-                  {bar.avgCogs.toFixed(1)}%
+                  {Math.round(bar.avgCogs)}%
                 </text>
               )}
               <text
@@ -580,7 +580,7 @@ const CostTrendBarChart = ({ trendData, overallAvg, onPointClick }) => {
                 className="trend-bar-label"
                 fill={barColor}
               >
-                {bar.avgCogs.toFixed(1)}%
+                {Math.round(bar.avgCogs)}%
               </text>
             </g>
           );

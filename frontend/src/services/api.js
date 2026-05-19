@@ -249,6 +249,32 @@ export const hppAPI = {
     body: JSON.stringify({ description, simulasiDate }),
   }),
 
+  // ==== Currency Changes Simulation ====
+
+  // List foreign currencies + current rates (excludes IDR)
+  getForeignCurrencies: (year = null) => {
+    const q = year ? `?year=${year}` : '';
+    return apiRequest(`/hpp/currency-simulation/currencies${q}`);
+  },
+
+  // Preview affected materials + products for the chosen currency codes
+  scanCurrencyImpact: (currencies) => apiRequest('/hpp/currency-simulation/scan', {
+    method: 'POST',
+    body: JSON.stringify({ currencies }),
+  }),
+
+  // Run the SP that generates the currency-changes simulation rows
+  generateCurrencyChangeSimulation: (currencyChanges, productIds, userId) => apiRequest('/hpp/currency-simulation/generate', {
+    method: 'POST',
+    body: JSON.stringify({ currencyChanges, productIds, userId }),
+  }),
+
+  // Get before/after HPP impact rows for a generated currency-changes group
+  getCurrencyChangeAffectedProducts: (description, simulasiDate) => apiRequest('/hpp/currency-simulation/affected-products', {
+    method: 'POST',
+    body: JSON.stringify({ description, simulasiDate }),
+  }),
+
   // Bulk delete price change group (all simulations with matching description and date) - PERMANENT (PL/PL only)
   bulkDeletePriceChangeGroup: (description, simulasiDate, empDeptID, empJobLevelID) => apiRequest('/hpp/simulation/bulk-delete-price-change-group', {
     method: 'DELETE',

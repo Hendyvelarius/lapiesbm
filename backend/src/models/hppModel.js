@@ -603,25 +603,31 @@ async function restoreSimulation(simulasiId, userId) {
 }
 
 // Bulk mark simulations for deletion in a price change group
-async function bulkMarkForDelete(description, formattedDate, simulationType = 'Price Changes') {
+async function bulkMarkForDelete(description, formattedDate, simulationType = null) {
   try {
     const db = await connect();
-    
+
+    // simulationType is now optional. When omitted, the bulk op matches any
+    // simulation-group type (Price Changes or Currency Changes) — safe because
+    // description + date uniquely identifies a group and the two types use
+    // distinct description prefixes.
+    const typeFilter = simulationType ? 'AND Simulasi_Type = @SimulationType' : '';
     const query = `
-      UPDATE t_COGS_HPP_Product_Header_Simulasi 
+      UPDATE t_COGS_HPP_Product_Header_Simulasi
       SET flag_delete = 1,
           process_date = GETDATE()
-      WHERE Simulasi_Deskripsi = @Description 
+      WHERE Simulasi_Deskripsi = @Description
       AND CONVERT(varchar, Simulasi_Date, 121) = @FormattedDate
-      AND Simulasi_Type = @SimulationType
+      ${typeFilter}
     `;
 
-    const result = await db
-      .request()
+    const request = db.request()
       .input('Description', sql.VarChar(4000), description)
-      .input('FormattedDate', sql.VarChar(50), formattedDate)
-      .input('SimulationType', sql.VarChar(50), simulationType)
-      .query(query);
+      .input('FormattedDate', sql.VarChar(50), formattedDate);
+    if (simulationType) {
+      request.input('SimulationType', sql.VarChar(50), simulationType);
+    }
+    const result = await request.query(query);
 
     return {
       success: true,
@@ -866,14 +872,16 @@ async function getPriceUpdateAffectedProducts(description, formattedDate) {
 async function bulkDeletePriceChangeGroup(description, formattedDate) {
   try {
     const db = await connect();
-    
-    // First, get the Simulasi_IDs that will be deleted (for deleting detail records)
+
+    // Matches both Price Changes and Currency Changes groups — the two share
+    // the same group-by-(description, date) shape and distinct description
+    // prefixes prevent collisions.
     const getIdsQuery = `
-      SELECT Simulasi_ID 
-      FROM t_COGS_HPP_Product_Header_Simulasi 
-      WHERE Simulasi_Deskripsi = @Description 
+      SELECT Simulasi_ID
+      FROM t_COGS_HPP_Product_Header_Simulasi
+      WHERE Simulasi_Deskripsi = @Description
       AND CONVERT(varchar, Simulasi_Date, 121) = @FormattedDate
-      AND Simulasi_Type = 'Price Changes'
+      AND Simulasi_Type IN ('Price Changes', 'Currency Changes')
     `;
 
     const simulasiIds = await db
@@ -891,10 +899,10 @@ async function bulkDeletePriceChangeGroup(description, formattedDate) {
 
     // Then delete header records
     const deleteHeaderQuery = `
-      DELETE FROM t_COGS_HPP_Product_Header_Simulasi 
-      WHERE Simulasi_Deskripsi = @Description 
+      DELETE FROM t_COGS_HPP_Product_Header_Simulasi
+      WHERE Simulasi_Deskripsi = @Description
       AND CONVERT(varchar, Simulasi_Date, 121) = @FormattedDate
-      AND Simulasi_Type = 'Price Changes'
+      AND Simulasi_Type IN ('Price Changes', 'Currency Changes')
     `;
 
     const result = await db
@@ -914,18 +922,18 @@ async function bulkDeletePriceChangeGroup(description, formattedDate) {
   }
 }
 
-// Bulk mark price change group for deletion (soft delete)
+// Bulk mark price change / currency change group for deletion (soft delete)
 async function bulkMarkPriceChangeGroupForDelete(description, formattedDate) {
   try {
     const db = await connect();
-    
+
     const query = `
-      UPDATE t_COGS_HPP_Product_Header_Simulasi 
+      UPDATE t_COGS_HPP_Product_Header_Simulasi
       SET flag_delete = 1,
           process_date = GETDATE()
-      WHERE Simulasi_Deskripsi = @Description 
+      WHERE Simulasi_Deskripsi = @Description
       AND CONVERT(varchar, Simulasi_Date, 121) = @FormattedDate
-      AND Simulasi_Type = 'Price Changes'
+      AND Simulasi_Type IN ('Price Changes', 'Currency Changes')
     `;
 
     const result = await db
@@ -1070,27 +1078,36 @@ async function commitPriceUpdate(parameterString, periode) {
 async function getSimulationsForPriceChangeGroup(description, formattedDate, simulationType = 'Price Changes') {
   try {
     const db = await connect();
-    
+
+    // When the caller passes 'ALL' (or null), match both Price Changes and
+    // Currency Changes — used by bulk-delete discovery where we don't know
+    // ahead of time which group type the user clicked.
+    const matchAny = !simulationType || simulationType === 'ALL';
+    const typeFilter = matchAny
+      ? `AND Simulasi_Type IN ('Price Changes', 'Currency Changes')`
+      : `AND Simulasi_Type = @SimulationType`;
+
     const query = `
-      SELECT 
+      SELECT
         Simulasi_ID,
         Product_ID,
         Product_Name,
         Versi,
         Simulasi_Type
-      FROM t_COGS_HPP_Product_Header_Simulasi 
-      WHERE Simulasi_Deskripsi = @Description 
+      FROM t_COGS_HPP_Product_Header_Simulasi
+      WHERE Simulasi_Deskripsi = @Description
       AND CONVERT(varchar, Simulasi_Date, 121) = @FormattedDate
-      AND Simulasi_Type = @SimulationType
+      ${typeFilter}
       ORDER BY Product_Name
     `;
 
-    const result = await db
-      .request()
+    const request = db.request()
       .input('Description', sql.VarChar(4000), description)
-      .input('FormattedDate', sql.VarChar(50), formattedDate)
-      .input('SimulationType', sql.VarChar(50), simulationType)
-      .query(query);
+      .input('FormattedDate', sql.VarChar(50), formattedDate);
+    if (!matchAny) {
+      request.input('SimulationType', sql.VarChar(50), simulationType);
+    }
+    const result = await request.query(query);
 
     console.log('Records found:', result.recordset?.length || 0);
 
@@ -1784,6 +1801,11 @@ module.exports = {
   commitPriceUpdate,
   getSimulationsForPriceChangeGroup,
   updateSimulationVersionBulk,
+  // Currency Changes simulation exports
+  getForeignCurrencies,
+  scanCurrencyImpact,
+  generateCurrencyChangeSimulation,
+  getCurrencyChangeAffectedProducts,
   // HPP Actual exports
   getHPPActualList,
   getHPPActualGranulateList,
@@ -1795,3 +1817,227 @@ module.exports = {
   calculateHPPActual,
   getErrorBatches,
 };
+
+// ============================================================================
+// Currency Changes Simulation
+// ============================================================================
+
+/**
+ * List foreign currencies (everything except IDR) with their current rate for
+ * the requested year, so the user can choose which to simulate.
+ */
+async function getForeignCurrencies(year = null) {
+  try {
+    const db = await connect();
+    const targetYear = year || new Date().getFullYear().toString();
+    const result = await db.request()
+      .input('year', sql.VarChar(4), targetYear)
+      .query(`
+        SELECT Curr_Code, Curr_Description AS Curr_Name, Kurs, Periode
+        FROM vw_COGS_Currency_List
+        WHERE Periode = @year
+          AND Curr_Code <> 'IDR'
+        ORDER BY Curr_Code
+      `);
+    return result.recordset || [];
+  } catch (error) {
+    console.error('Error in getForeignCurrencies:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Given a set of foreign currency codes, return:
+ *   - the materials that use those currencies (latest harga record per material)
+ *   - the products that use those materials in their current-period formula
+ * The frontend uses this to preview impact + drive product selection BEFORE
+ * the generation SP is run.
+ */
+async function scanCurrencyImpact(currencyCodes) {
+  try {
+    if (!Array.isArray(currencyCodes) || currencyCodes.length === 0) {
+      return { materials: [], products: [] };
+    }
+
+    const db = await connect();
+
+    // Build a VALUES list for the currency filter; the SP-side code is fine with
+    // simple interpolation because we validate inputs in the controller, but
+    // here we use a parameterized table-valued approach via STRING_SPLIT to be safe.
+    const cleanedCodes = currencyCodes
+      .map(c => String(c).trim().toUpperCase())
+      .filter(c => c && c !== 'IDR');
+
+    if (cleanedCodes.length === 0) {
+      return { materials: [], products: [] };
+    }
+
+    // Use the existing dbo.Split helper (STRING_SPLIT isn't available on this
+    // DB's compatibility level). Hash-separator matches what the SPs use.
+    const currencyList = cleanedCodes.join('#');
+    const currentYear = new Date().getFullYear().toString();
+
+    // Affected materials (latest periode per material in M_COGS_STD_HRG_BAHAN)
+    const materialsResult = await db.request()
+      .input('codes', sql.VarChar(4000), currencyList)
+      .input('year', sql.VarChar(4), currentYear)
+      .query(`
+        WITH latest AS (
+          SELECT b.ITEM_ID,
+                 b.ITEM_TYPE,
+                 b.ITEM_PURCHASE_UNIT,
+                 b.ITEM_PURCHASE_STD_PRICE,
+                 b.ITEM_CURRENCY,
+                 b.Periode,
+                 ROW_NUMBER() OVER (PARTITION BY b.ITEM_ID ORDER BY b.Periode DESC) AS rn
+          FROM M_COGS_STD_HRG_BAHAN b
+          WHERE b.ITEM_CURRENCY IN (SELECT LTRIM(RTRIM(items)) FROM dbo.Split(@codes, '#'))
+        )
+        SELECT l.ITEM_ID,
+               COALESCE(m.Item_Name, l.ITEM_ID)         AS Item_Name,
+               l.ITEM_TYPE,
+               l.ITEM_PURCHASE_UNIT,
+               l.ITEM_PURCHASE_STD_PRICE,
+               l.ITEM_CURRENCY,
+               c.Kurs                                   AS CurrentKurs,
+               COALESCE(m.Item_Unit, l.ITEM_PURCHASE_UNIT) AS Item_Unit
+        FROM latest l
+        LEFT JOIN m_item_manufacturing m ON m.Item_ID = l.ITEM_ID
+        LEFT JOIN vw_COGS_Currency_List c
+               ON c.Curr_Code = l.ITEM_CURRENCY
+              AND c.Periode = @year
+        WHERE l.rn = 1
+        ORDER BY l.ITEM_CURRENCY, l.ITEM_ID
+      `);
+    const materials = materialsResult.recordset || [];
+
+    if (materials.length === 0) {
+      return { materials: [], products: [] };
+    }
+
+    // Affected products (current periode in t_COGS_HPP_Product_Header).
+    // Use # as separator to be safe (some material IDs contain spaces / pipes).
+    const materialIdList = materials.map(m => m.ITEM_ID).join('#');
+    const productsResult = await db.request()
+      .input('mats', sql.VarChar(sql.MAX), materialIdList)
+      .query(`
+        DECLARE @currentPeriode AS varchar(4);
+        SELECT @currentPeriode = MAX(periode) FROM t_COGS_HPP_Product_Header;
+
+        SELECT DISTINCT a.Product_ID, p.Product_Name, a.LOB
+        FROM t_COGS_HPP_Product_Header a
+        JOIN t_COGS_HPP_Product_Detail_Formula b ON a.Product_ID = b.Product_ID
+        JOIN m_product p                         ON p.Product_ID = a.Product_ID
+        WHERE a.Periode = @currentPeriode
+          AND b.PPI_ItemID IN (SELECT LTRIM(RTRIM(items)) FROM dbo.Split(@mats, '#'))
+        ORDER BY p.Product_Name
+      `);
+    const products = productsResult.recordset || [];
+
+    return { materials, products };
+  } catch (error) {
+    console.error('Error in scanCurrencyImpact:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Run the currency-changes generation stored procedure. Accepts:
+ *   currencyChanges : [{ currCode, newKurs }, ...]
+ *   productIds      : optional array of Product_IDs to include (others skipped)
+ *   userId          : owner stamp written onto the newly created rows
+ * Returns the SP's recordsets (before/after impact rows in the last recordset).
+ */
+async function generateCurrencyChangeSimulation(currencyChanges, productIds = null, userId = null) {
+  try {
+    const db = await connect();
+
+    if (!Array.isArray(currencyChanges) || currencyChanges.length === 0) {
+      throw new Error('currencyChanges must be a non-empty array');
+    }
+
+    const parameterString = currencyChanges
+      .map(c => `${String(c.currCode).trim().toUpperCase()}:${Number(c.newKurs)}`)
+      .join('#');
+
+    // Product filter format expected by SP: '#PROD1#PROD2#' (or NULL)
+    let productFilter = null;
+    if (Array.isArray(productIds) && productIds.length > 0) {
+      productFilter = '#' + productIds.map(p => String(p).trim()).filter(Boolean).join('#') + '#';
+    }
+
+    // Capture max id beforehand so we can stamp user_id onto the new rows.
+    let maxIdBefore = 0;
+    if (userId) {
+      const maxIdResult = await db.request().query(
+        `SELECT ISNULL(MAX(Simulasi_ID), 0) AS MaxId FROM t_COGS_HPP_Product_Header_Simulasi`
+      );
+      maxIdBefore = maxIdResult.recordset[0].MaxId;
+    }
+
+    const request = db.request()
+      .input('var_data_perubahanCurrency', sql.NVarChar(4000), parameterString)
+      .input('var_product_filter', sql.NVarChar(sql.MAX), productFilter);
+
+    const result = await request.execute('sp_generate_simulasi_cogs_currency_changes');
+
+    if (userId && maxIdBefore >= 0) {
+      await db.request()
+        .input('userId', sql.VarChar(50), userId)
+        .input('maxIdBefore', sql.Int, maxIdBefore)
+        .query(`UPDATE t_COGS_HPP_Product_Header_Simulasi
+                SET user_id = @userId, process_date = GETDATE()
+                WHERE Simulasi_ID > @maxIdBefore`);
+    }
+
+    return {
+      recordsets: result.recordsets,
+      rowsAffected: result.rowsAffected,
+      returnValue: result.returnValue,
+    };
+  } catch (error) {
+    console.error('Error in generateCurrencyChangeSimulation:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Get before/after HPP impact rows for an already-generated Currency Changes
+ * simulation group. Mirrors getPriceChangeAffectedProducts but filtered to the
+ * 'Currency Changes' simulasi_type via the dedicated listing SP.
+ */
+async function getCurrencyChangeAffectedProducts(description, formattedDate) {
+  try {
+    const db = await connect();
+
+    // Honor the Versi=1 selection state (set by the SP at generation time;
+    // can later be edited via the existing select-products modal).
+    const selectedIds = await db.request()
+      .input('Description', sql.NVarChar(4000), description)
+      .input('FormattedDate', sql.VarChar(50), formattedDate)
+      .query(`
+        SELECT Simulasi_ID, Product_ID
+        FROM t_COGS_HPP_Product_Header_Simulasi
+        WHERE Simulasi_Deskripsi = @Description
+          AND CONVERT(varchar, Simulasi_Date, 121) = @FormattedDate
+          AND Simulasi_Type = 'Currency Changes'
+          AND Versi = '1'
+      `);
+
+    const selectedProductIds = new Set(selectedIds.recordset.map(r => r.Product_ID));
+
+    const result = await db.request()
+      .input('Simulasi_Deskripsi', sql.NVarChar(4000), description)
+      .input('Simulasi_Date',      sql.VarChar(50),    formattedDate)
+      .execute('sp_COGS_HPP_List_Simulasi_CurrencyChange');
+
+    let rows = result.recordset || [];
+    if (selectedProductIds.size > 0) {
+      rows = rows.filter(r => selectedProductIds.has(r.Product_ID));
+    }
+    return rows;
+  } catch (error) {
+    console.error('Error in getCurrencyChangeAffectedProducts:', error.message);
+    throw error;
+  }
+}

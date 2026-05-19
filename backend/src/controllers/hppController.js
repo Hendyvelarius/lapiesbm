@@ -1,4 +1,4 @@
-const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, getDistinctCustomMaterials, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, getMarkedForDeleteList, deleteSimulation, markSimulationForDelete, restoreSimulation, bulkMarkForDelete, permanentlyDeleteMarked, getSimulationOwner, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, getGeneratedProductIds, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk, bulkMarkPriceChangeGroupForDelete, bulkDeletePriceChangeGroup, getHPPActualList, getHPPActualGranulateList, getHPPActualPeriods, getHPPActualDetail, getHPPActualHeader, getHPPActualAllDetails, getHPPActualIntermediateUsage, calculateHPPActual } = require('../models/hppModel');
+const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, getDistinctCustomMaterials, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, getMarkedForDeleteList, deleteSimulation, markSimulationForDelete, restoreSimulation, bulkMarkForDelete, permanentlyDeleteMarked, getSimulationOwner, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, getGeneratedProductIds, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk, bulkMarkPriceChangeGroupForDelete, bulkDeletePriceChangeGroup, getForeignCurrencies, scanCurrencyImpact, generateCurrencyChangeSimulation, getCurrencyChangeAffectedProducts, getHPPActualList, getHPPActualGranulateList, getHPPActualPeriods, getHPPActualDetail, getHPPActualHeader, getHPPActualAllDetails, getHPPActualIntermediateUsage, calculateHPPActual } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
@@ -974,10 +974,11 @@ class HPPController {
       const date = new Date(simulasiDate);
       const formattedDate = date.toISOString().replace('T', ' ').replace('Z', '').slice(0, 23);
 
-      // Get first simulation in the group to check ownership
+      // Get first simulation in the group to check ownership. Pass 'ALL' so
+      // both Price Changes and Currency Changes groups are matched.
       const { getSimulationsForPriceChangeGroup } = require('../models/hppModel');
-      const simulations = await getSimulationsForPriceChangeGroup(description, formattedDate);
-      
+      const simulations = await getSimulationsForPriceChangeGroup(description, formattedDate, 'ALL');
+
       if (!simulations || simulations.length === 0) {
         return res.status(404).json({
           success: false,
@@ -989,7 +990,7 @@ class HPPController {
       const groupOwnerId = simulations[0]?.user_id;
       const isPLAdmin = empDeptID === 'PL' && empJobLevelID === 'PL';
       const isOwner = groupOwnerId === userId || !groupOwnerId; // Allow if owner or if no owner set (legacy)
-      
+
       if (!isPLAdmin && !isOwner) {
         return res.status(403).json({
           success: false,
@@ -997,7 +998,9 @@ class HPPController {
         });
       }
 
-      const result = await bulkMarkForDelete(description, formattedDate, 'Price Changes');
+      // Use the detected simulation type so we only mark rows of the same kind.
+      const detectedType = simulations[0]?.Simulasi_Type || null;
+      const result = await bulkMarkForDelete(description, formattedDate, detectedType);
 
       res.status(200).json({
         success: true,
@@ -1333,6 +1336,122 @@ class HPPController {
       res.status(500).json({
         success: false,
         message: 'Error calculating HPP Actual',
+        error: error.message
+      });
+    }
+  }
+
+  // ========================================================================
+  // Currency Changes Simulation
+  // ========================================================================
+
+  // GET /api/hpp/currency-simulation/currencies?year=2026
+  static async getForeignCurrencies(req, res) {
+    try {
+      const { year } = req.query;
+      const data = await getForeignCurrencies(year || null);
+      res.status(200).json({ success: true, data });
+    } catch (error) {
+      console.error('Get Foreign Currencies Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving foreign currencies',
+        error: error.message
+      });
+    }
+  }
+
+  // POST /api/hpp/currency-simulation/scan
+  // body: { currencies: ['USD','EUR'] }
+  static async scanCurrencyImpact(req, res) {
+    try {
+      const { currencies } = req.body;
+      if (!Array.isArray(currencies) || currencies.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'currencies array is required and must contain at least one code'
+        });
+      }
+      const data = await scanCurrencyImpact(currencies);
+      res.status(200).json({ success: true, data });
+    } catch (error) {
+      console.error('Scan Currency Impact Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error scanning currency impact',
+        error: error.message
+      });
+    }
+  }
+
+  // POST /api/hpp/currency-simulation/generate
+  // body: { currencyChanges: [{currCode,newKurs}], productIds: ['..'], userId }
+  static async generateCurrencyChangeSimulation(req, res) {
+    try {
+      const { currencyChanges, productIds, userId } = req.body;
+
+      if (!Array.isArray(currencyChanges) || currencyChanges.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'currencyChanges array is required'
+        });
+      }
+
+      for (const c of currencyChanges) {
+        if (!c.currCode || c.newKurs === undefined || c.newKurs === null || isNaN(Number(c.newKurs))) {
+          return res.status(400).json({
+            success: false,
+            message: 'Each currencyChanges entry must have currCode and numeric newKurs'
+          });
+        }
+        if (Number(c.newKurs) <= 0) {
+          return res.status(400).json({
+            success: false,
+            message: `New rate for ${c.currCode} must be positive`
+          });
+        }
+      }
+
+      const result = await generateCurrencyChangeSimulation(
+        currencyChanges,
+        Array.isArray(productIds) ? productIds : null,
+        userId || null
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Currency change simulation generated successfully',
+        data: result
+      });
+    } catch (error) {
+      console.error('Generate Currency Simulation Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error generating currency change simulation',
+        error: error.message
+      });
+    }
+  }
+
+  // POST /api/hpp/currency-simulation/affected-products
+  // body: { description, simulasiDate }
+  static async getCurrencyChangeAffectedProducts(req, res) {
+    try {
+      const { description, simulasiDate } = req.body;
+      if (!description || !simulasiDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'Both description and simulasiDate are required'
+        });
+      }
+      const formattedDate = simulasiDate.replace('T', ' ').replace('Z', '');
+      const data = await getCurrencyChangeAffectedProducts(description, formattedDate);
+      res.status(200).json({ success: true, data });
+    } catch (error) {
+      console.error('Get Currency Change Affected Products Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving affected products',
         error: error.message
       });
     }
