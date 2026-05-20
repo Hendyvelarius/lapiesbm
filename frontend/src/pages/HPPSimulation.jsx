@@ -4302,7 +4302,8 @@ export default function HPPSimulation() {
     <div className="hpp-simulation-container">
       <div
         className={`hpp-simulation-card ${
-          step === 5 && simulationType === "price-change"
+          (step === 5 && simulationType === "price-change") ||
+          (step === 6 && simulationType === "currency-change")
             ? "price-change-no-card"
             : ""
         }`}
@@ -8707,10 +8708,13 @@ export default function HPPSimulation() {
       {step === 6 && simulationType === "currency-change" && (
         <CurrencySimulation
           onBack={handleBackToList}
-          onViewList={() => {
+          onViewList={async () => {
             setActiveTab("currency-change");
             setStep(0);
             setSimulationType("");
+            // Refresh the simulation list so the just-generated rows appear
+            // without forcing the user to reload the page.
+            await loadSimulationList();
           }}
         />
       )}

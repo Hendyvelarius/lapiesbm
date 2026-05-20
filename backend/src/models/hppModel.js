@@ -1877,7 +1877,12 @@ async function scanCurrencyImpact(currencyCodes) {
     const currencyList = cleanedCodes.join('#');
     const currentYear = new Date().getFullYear().toString();
 
-    // Affected materials (latest periode per material in M_COGS_STD_HRG_BAHAN)
+    // Affected materials — the CURRENT (latest periode) row of each material
+    // must be in one of the selected currencies. We pick the latest row per
+    // material FIRST and only then filter by currency, so a material that
+    // used to be in a foreign currency but has since switched to IDR is
+    // correctly excluded (otherwise the old row would resurface and look
+    // like it's still that currency).
     const materialsResult = await db.request()
       .input('codes', sql.VarChar(4000), currencyList)
       .input('year', sql.VarChar(4), currentYear)
@@ -1891,7 +1896,6 @@ async function scanCurrencyImpact(currencyCodes) {
                  b.Periode,
                  ROW_NUMBER() OVER (PARTITION BY b.ITEM_ID ORDER BY b.Periode DESC) AS rn
           FROM M_COGS_STD_HRG_BAHAN b
-          WHERE b.ITEM_CURRENCY IN (SELECT LTRIM(RTRIM(items)) FROM dbo.Split(@codes, '#'))
         )
         SELECT l.ITEM_ID,
                COALESCE(m.Item_Name, l.ITEM_ID)         AS Item_Name,
@@ -1907,6 +1911,7 @@ async function scanCurrencyImpact(currencyCodes) {
                ON c.Curr_Code = l.ITEM_CURRENCY
               AND c.Periode = @year
         WHERE l.rn = 1
+          AND l.ITEM_CURRENCY IN (SELECT LTRIM(RTRIM(items)) FROM dbo.Split(@codes, '#'))
         ORDER BY l.ITEM_CURRENCY, l.ITEM_ID
       `);
     const materials = materialsResult.recordset || [];

@@ -76,14 +76,15 @@ SELECT @ringkasan_perubahan =
         FROM #tmp_currency_changes
         FOR XML PATH(''), TYPE).value('.', 'NVARCHAR(MAX)'), 1, 1, '');
 
--- 4. Collect every material that uses one of the affected currencies.
---    Only one (latest) row per material is kept to avoid duplication when
---    M_COGS_STD_HRG_BAHAN holds multiple periods.
+-- 4. Collect every material whose CURRENT (latest periode) entry is in one
+--    of the affected currencies. IMPORTANT: pick the latest row per material
+--    FIRST, then filter on currency — otherwise a material that USED to be
+--    in a foreign currency but has since switched to IDR would resurface its
+--    old row and be incorrectly treated as affected.
 WITH latest_harga AS (
     SELECT b.*,
            ROW_NUMBER() OVER (PARTITION BY b.ITEM_ID ORDER BY b.Periode DESC) AS rn
     FROM M_COGS_STD_HRG_BAHAN b
-    WHERE b.ITEM_CURRENCY IN (SELECT curr_code FROM #tmp_currency_changes)
 )
 SELECT
     b.ITEM_ID                       AS kode_bahan,
