@@ -164,20 +164,26 @@ JOIN m_product c                   ON c.Product_ID = a.Product_ID
 WHERE a.Periode = @currentPeriode;
 
 -- 8. Stage the simulation detail (every material line for the affected products).
+--    Item_Name is COALESCEd across m_item_manufacturing, m_product, and the
+--    item code itself so it is NEVER stored as NULL — some materials (BK
+--    packaging items, intermediate products, etc.) only exist in one of
+--    those tables, and the bare LEFT JOIN to m_item_manufacturing would
+--    leave the name blank in the simulation detail.
 SELECT d.Periode,
        d.Simulasi_id,
        a.PPI_SeqID,
        a.product_id,
        a.item_type,
        a.PPI_ItemID,
-       c.Item_Name,
+       COALESCE(c.Item_Name, p.Product_Name, a.PPI_ItemID) AS Item_Name,
        a.PPI_QTY,
        a.PPI_UnitID,
        CAST(a.total / NULLIF(a.PPI_QTY, 0) AS decimal(18,2)) AS Unit_Price
 INTO #t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan
 FROM t_COGS_HPP_Product_Detail_Formula a
 JOIN #tmp_list_product_terdampak b           ON a.Product_ID = b.Product_ID
-LEFT JOIN m_item_manufacturing c             ON c.ITEM_ID = a.PPI_ItemID
+LEFT JOIN m_item_manufacturing c             ON c.ITEM_ID  = a.PPI_ItemID
+LEFT JOIN m_product p                        ON p.Product_ID = a.PPI_ItemID
 JOIN #t_COGS_HPP_Product_Header_Simulasi d   ON d.Product_ID = a.Product_ID
 WHERE a.Periode = @currentPeriode;
 

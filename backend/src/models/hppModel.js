@@ -202,7 +202,17 @@ async function getDistinctCustomMaterials() {
 async function getSimulationDetailBahan(simulasiId) {
   try {
     const db = await connect();
-    const query = `SELECT * FROM dbo.t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan WHERE Simulasi_ID = @simulasiId`;
+    // Without an ORDER BY, SQL Server returns rows in arbitrary order which
+    // can change between calls and makes the materials grid "scramble"
+    // every time the user reopens the simulation. Sort by the same key the
+    // SP populates from PPI_SeqID + ITEM_TYPE so the order matches the
+    // standard formula view.
+    const query = `
+      SELECT *
+      FROM dbo.t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan
+      WHERE Simulasi_ID = @simulasiId
+      ORDER BY Tipe_Bahan, Seq_ID, Item_ID
+    `;
 
     const result = await db
       .request()

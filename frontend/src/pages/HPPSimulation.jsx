@@ -5824,7 +5824,7 @@ export default function HPPSimulation() {
                                           placeholder="Material name..."
                                         />
                                       ) : (
-                                        item.Item_Name
+                                        item.Item_Name || item.Item_ID
                                       )}
                                     </td>
                                     <td className="number">
@@ -5993,7 +5993,7 @@ export default function HPPSimulation() {
                                           placeholder="Material name..."
                                         />
                                       ) : (
-                                        item.Item_Name
+                                        item.Item_Name || item.Item_ID
                                       )}
                                     </td>
                                     <td className="number">
