@@ -644,6 +644,39 @@
   color: #7c3aed;
 }
 
+.item-type-badge.unknown {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.formula-price-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 10px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #b91c1c;
+}
+
+.formula-price-warning svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.formula-price-warning strong {
+  display: block;
+  font-size: 13px;
+}
+
+.formula-price-warning p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #7f1d1d;
+}
+
 .total-row {
   background: #f9fafb;
   font-weight: 600;

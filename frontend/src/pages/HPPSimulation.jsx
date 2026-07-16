@@ -28,6 +28,7 @@ import {
   X,
   RotateCcw,
   User,
+  AlertTriangle,
 } from "lucide-react";
 import AffectedProductsModal from "../components/AffectedProductsModal";
 import CurrencySimulation from "./CurrencySimulation";
@@ -2822,6 +2823,15 @@ export default function HPPSimulation() {
     return groups;
   };
 
+  // Materials with no standard price for the active period. The view LEFT JOINs
+  // M_COGS_STD_HRG_BAHAN, so a missing record yields a null UnitPrice that is then
+  // counted as Rp 0 — silently understating the formula total.
+  const getUnpricedMaterials = (formula) =>
+    formula.materials.filter(
+      (material) =>
+        material.unitPrice === null || material.unitPrice === undefined
+    );
+
   const getDefaultFormulas = (groups) => {
     const defaults = {};
 
@@ -5311,6 +5321,9 @@ export default function HPPSimulation() {
                   )
                     ? typeFormulas[selectedSubId]
                     : null;
+                  const unpricedMaterials = selectedFormula
+                    ? getUnpricedMaterials(selectedFormula)
+                    : [];
 
                   return (
                     <div key={typeCode} className="formula-type-section">
@@ -5395,6 +5408,27 @@ export default function HPPSimulation() {
                             </div>
                           </div>
 
+                          {unpricedMaterials.length > 0 && (
+                            <div className="formula-price-warning">
+                              <AlertTriangle size={16} />
+                              <div>
+                                <strong>
+                                  {unpricedMaterials.length} material
+                                  {unpricedMaterials.length > 1 ? "s" : ""} have
+                                  no standard price for the active period and are
+                                  being counted as Rp 0.
+                                </strong>
+                                <p>
+                                  The total cost below is understated. Affected:{" "}
+                                  {unpricedMaterials
+                                    .map((material) => material.itemId)
+                                    .join(", ")}
+                                  .
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
                           <div className="materials-table">
                             <h4>Materials Used:</h4>
                             <div className="table-container">
@@ -5436,9 +5470,17 @@ export default function HPPSimulation() {
                                           </td>
                                           <td>
                                             <span
-                                              className={`item-type-badge ${material.itemType.toLowerCase()}`}
+                                              className={`item-type-badge ${
+                                                material.itemType?.toLowerCase() ||
+                                                "unknown"
+                                              }`}
+                                              title={
+                                                material.itemType
+                                                  ? undefined
+                                                  : "No standard price record for this material in the active period"
+                                              }
                                             >
-                                              {material.itemType}
+                                              {material.itemType || "N/A"}
                                             </span>
                                           </td>
                                           <td className="qty-cell">

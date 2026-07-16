@@ -164,27 +164,43 @@ JOIN m_product c                   ON c.Product_ID = a.Product_ID
 WHERE a.Periode = @currentPeriode;
 
 -- 8. Stage the simulation detail (every material line for the affected products).
---    Item_Name is COALESCEd across m_item_manufacturing, m_product, and the
---    item code itself so it is NEVER stored as NULL — some materials (BK
---    packaging items, intermediate products, etc.) only exist in one of
---    those tables, and the bare LEFT JOIN to m_item_manufacturing would
---    leave the name blank in the simulation detail.
+--    Item_Name is resolved with the same suffix-stripping trick used by
+--    getMaterialUsage: materials live in m_item_manufacturing under suffixed
+--    IDs like 'E 180.000' / 'E 180.001', but the formula references them as
+--    'E 180'. We collapse the suffix variants into a single base ID and pick
+--    any name (MAX) for each. m_product is used as a secondary fallback for
+--    intermediates; the ITEM_ID itself is the last resort so Item_Name is
+--    never NULL.
 SELECT d.Periode,
        d.Simulasi_id,
        a.PPI_SeqID,
        a.product_id,
        a.item_type,
        a.PPI_ItemID,
-       COALESCE(c.Item_Name, p.Product_Name, a.PPI_ItemID) AS Item_Name,
+       COALESCE(mim.Item_Name, p.Product_Name, a.PPI_ItemID) AS Item_Name,
        a.PPI_QTY,
        a.PPI_UnitID,
        CAST(a.total / NULLIF(a.PPI_QTY, 0) AS decimal(18,2)) AS Unit_Price
 INTO #t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan
 FROM t_COGS_HPP_Product_Detail_Formula a
-JOIN #tmp_list_product_terdampak b           ON a.Product_ID = b.Product_ID
-LEFT JOIN m_item_manufacturing c             ON c.ITEM_ID  = a.PPI_ItemID
-LEFT JOIN m_product p                        ON p.Product_ID = a.PPI_ItemID
-JOIN #t_COGS_HPP_Product_Header_Simulasi d   ON d.Product_ID = a.Product_ID
+JOIN #tmp_list_product_terdampak b ON a.Product_ID = b.Product_ID
+LEFT JOIN (
+    SELECT
+        CASE WHEN Item_ID LIKE '%.%'
+             THEN LEFT(Item_ID, LEN(Item_ID) - 4)
+             ELSE Item_ID
+        END AS base_id,
+        MAX(Item_Name) AS Item_Name
+    FROM m_item_manufacturing
+    WHERE isActive = 1
+    GROUP BY
+        CASE WHEN Item_ID LIKE '%.%'
+             THEN LEFT(Item_ID, LEN(Item_ID) - 4)
+             ELSE Item_ID
+        END
+) mim ON mim.base_id = a.PPI_ItemID
+LEFT JOIN m_product p ON p.Product_ID = a.PPI_ItemID
+JOIN #t_COGS_HPP_Product_Header_Simulasi d ON d.Product_ID = a.Product_ID
 WHERE a.Periode = @currentPeriode;
 
 -- 9. Recompute Unit_Price for every detail row whose material is in an affected
