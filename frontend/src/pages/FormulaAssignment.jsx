@@ -803,18 +803,18 @@ const FormulaAssignment = ({ user }) => {
       
       // Show confirmation dialog
       notifier.confirm(
-        `Generate HPP calculation for product ${productId}?\n\nThis will run the HPP calculation process using the current formula assignments for this product.`,
+        `Generate HPP starting from product ${productId}?\n\nThis runs the HPP calculation using the current formula assignments. Note it regenerates every unlocked product for the year, not just ${productId}. Locked products are left untouched.`,
         async () => {
           try {
-            notifier.info(`Starting HPP generation for product ${productId}...`, {
+            notifier.info(`Starting HPP generation...`, {
               durations: { info: 3000 }
             });
-            
+
             // Call the API to generate HPP
             const result = await api.products.generateHPP(productId);
-            
+
             if (result.success) {
-              notifier.success(`HPP generation completed successfully for product ${productId}!`, {
+              notifier.success(result.message || `HPP generation completed successfully.`, {
                 durations: { success: 5000 }
               });
             } else {

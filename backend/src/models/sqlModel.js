@@ -1261,37 +1261,83 @@ async function getMaterialByPeriode(periode) {
   }
 }
 
-async function getMaterialUsage() {
-  try {
-    const db = await connect();
-    const query = `
-      SELECT 
-    d.product_id, d.item_type, d.PPI_ItemID, m.Item_Name, d.PPI_QTY, 
+// Resolves the display name for a formula line's item.
+//
+// PPI_ItemID may be any of three things, so the name is resolved in fallback
+// order and each step only fills in what the previous one left blank:
+//   m   - the original lookup: master ids stripped of their .xxx suffix, keyed
+//         off an already-base-form PPI_ItemID (e.g. 'BR 258').
+//   mb  - same lookup, but with PPI_ItemID stripped too, so suffixed ids
+//         (e.g. 'BR 258.000') match the stripped master key as well.
+//   ma  - inactive master rows, which the isActive = 1 filter above excludes.
+//   p   - half-manufactured products (e.g. FW "Pelarut Anfurox"), which are used
+//         as formula components but live in m_product, not m_item_manufacturing.
+const MATERIAL_USAGE_SELECT = `
+      SELECT
+    d.product_id, d.item_type, d.PPI_ItemID,
+    COALESCE(m.Item_Name, mb.Item_Name, ma.Item_Name, p.Product_Name) AS Item_Name,
+    d.PPI_QTY,
     d.PPI_UnitID, ROUND(d.total * 1.0 / d.PPI_QTY, 3) AS Item_unit, d.total
     FROM t_COGS_HPP_Product_Detail_Formula d
 	LEFT JOIN (
-	    
-		SELECT 
-			CASE 
-				WHEN item_id LIKE '%.%' 
-				THEN LEFT(item_id, LEN(item_id) - 4) 
-				ELSE item_id 
+
+		SELECT
+			CASE
+				WHEN item_id LIKE '%.%'
+				THEN LEFT(item_id, LEN(item_id) - 4)
+				ELSE item_id
 			END AS Item_ID,
 			MAX(item_name) AS item_name
 		FROM m_item_manufacturing
-		WHERE isActive = 1 
+		WHERE isActive = 1
 		  --AND item_id LIKE 'K 145%'
-		GROUP BY 
-		CASE 
-			WHEN item_id LIKE '%.%' 
-			THEN LEFT(item_id, LEN(item_id) - 4) 
-			ELSE item_id 
+		GROUP BY
+		CASE
+			WHEN item_id LIKE '%.%'
+			THEN LEFT(item_id, LEN(item_id) - 4)
+			ELSE item_id
 		END
-	) m 
+	) m
     ON d.PPI_ItemID = m.Item_ID
-	ORDER BY 
-    d.product_id, 
-    d.item_type, d.PPI_ItemID;`;
+	LEFT JOIN (
+		SELECT
+			CASE
+				WHEN item_id LIKE '%.%'
+				THEN LEFT(item_id, LEN(item_id) - 4)
+				ELSE item_id
+			END AS Item_ID,
+			MAX(item_name) AS Item_Name
+		FROM m_item_manufacturing
+		WHERE isActive = 1
+		GROUP BY
+		CASE
+			WHEN item_id LIKE '%.%'
+			THEN LEFT(item_id, LEN(item_id) - 4)
+			ELSE item_id
+		END
+	) mb
+	ON mb.Item_ID = CASE
+			WHEN d.PPI_ItemID LIKE '%.%'
+			THEN LEFT(d.PPI_ItemID, LEN(d.PPI_ItemID) - 4)
+			ELSE d.PPI_ItemID
+		END
+	LEFT JOIN (
+		SELECT Item_ID, MAX(Item_Name) AS Item_Name
+		FROM m_item_manufacturing
+		GROUP BY Item_ID
+	) ma ON ma.Item_ID = d.PPI_ItemID
+	LEFT JOIN m_product p ON p.Product_ID = d.PPI_ItemID`;
+
+const MATERIAL_USAGE_ORDER = `
+	ORDER BY
+    d.product_id,
+    d.item_type,
+    d.PPI_ItemID;`;
+
+async function getMaterialUsage() {
+  try {
+    const db = await connect();
+    const query = `${MATERIAL_USAGE_SELECT}${MATERIAL_USAGE_ORDER}`;
     const result = await db.request().query(query);
     return result.recordset;
   } catch (error) {
@@ -1303,37 +1349,9 @@ async function getMaterialUsage() {
 async function getMaterialUsageByYear(year) {
   try {
     const db = await connect();
-    const query = `
-      SELECT 
-    d.product_id, d.item_type, d.PPI_ItemID, m.Item_Name, d.PPI_QTY, 
-    d.PPI_UnitID, ROUND(d.total * 1.0 / d.PPI_QTY, 3) AS Item_unit, d.total
-    FROM t_COGS_HPP_Product_Detail_Formula d
-	LEFT JOIN (
-	    
-		SELECT 
-			CASE 
-				WHEN item_id LIKE '%.%' 
-				THEN LEFT(item_id, LEN(item_id) - 4) 
-				ELSE item_id 
-			END AS Item_ID,
-			MAX(item_name) AS item_name
-		FROM m_item_manufacturing
-		WHERE isActive = 1 
-		  --AND item_id LIKE 'K 145%'
-		GROUP BY 
-		CASE 
-			WHEN item_id LIKE '%.%' 
-			THEN LEFT(item_id, LEN(item_id) - 4) 
-			ELSE item_id 
-		END
-	) m 
-    ON d.PPI_ItemID = m.Item_ID
-WHERE d.Periode = @year
-ORDER BY 
-    d.product_id, 
-    d.item_type, 
-    d.PPI_ItemID;`;
-    
+    const query = `${MATERIAL_USAGE_SELECT}
+WHERE d.Periode = @year${MATERIAL_USAGE_ORDER}`;
+
     const result = await db.request()
       .input('year', sql.VarChar(4), year)
       .query(query);

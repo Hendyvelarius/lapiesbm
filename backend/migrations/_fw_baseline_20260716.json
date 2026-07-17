@@ -1,0 +1,3035 @@
+[
+ {
+  "Product_ID": "ä0",
+  "Product_Name": "GRANULAT DASAR",
+  "Batch_Size": 163360,
+  "Group_Rendemen": 95,
+  "totalBB": 9050702.4,
+  "totalBK": 0,
+  "HPP": 107
+ },
+ {
+  "Product_ID": "DI",
+  "Product_Name": "ETORICOXIB - 90 TABLET SALUT SELAPUT (GENERIK)",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 96,
+  "totalBB": 190810111.32,
+  "totalBK": 12660125,
+  "HPP": 44389
+ },
+ {
+  "Product_ID": "DK",
+  "Product_Name": "ARZOLA 1 MG/ML ORAL SOLUTION",
+  "Batch_Size": 1500,
+  "Group_Rendemen": 76.17,
+  "totalBB": 6502013.1,
+  "totalBK": 11331497.5,
+  "HPP": 43411
+ },
+ {
+  "Product_ID": "DO",
+  "Product_Name": "CEFOPERAZONE + SULBACTAM SERBUK INJEKSI STERIL (GENERIK)",
+  "Batch_Size": 8438,
+  "Group_Rendemen": 97,
+  "totalBB": 40392000,
+  "totalBK": 64264670.08,
+  "HPP": 13795
+ },
+ {
+  "Product_ID": "DR",
+  "Product_Name": "KINGVIT KAPLET SALUT SELAPUT",
+  "Batch_Size": 1360,
+  "Group_Rendemen": 95,
+  "totalBB": 28698649.370138,
+  "totalBK": 7665231,
+  "HPP": 57118
+ },
+ {
+  "Product_ID": "X9",
+  "Product_Name": "MUCOVY SIRUP",
+  "Batch_Size": 3000,
+  "Group_Rendemen": 99,
+  "totalBB": 16725803.25,
+  "totalBK": 11785510,
+  "HPP": 16378
+ },
+ {
+  "Product_ID": "V8",
+  "Product_Name": "OBESLIM kapsul",
+  "Batch_Size": 3387,
+  "Group_Rendemen": 96,
+  "totalBB": 311261178.2,
+  "totalBK": 16007046,
+  "HPP": 114955
+ },
+ {
+  "Product_ID": "W2",
+  "Product_Name": "L-ZINC SIRUP",
+  "Batch_Size": 25000,
+  "Group_Rendemen": 98,
+  "totalBB": 61489698,
+  "totalBK": 81188763.25,
+  "HPP": 8461
+ },
+ {
+  "Product_ID": "T9",
+  "Product_Name": "ESOLA - 20 TABLET SALUT ENTERIK",
+  "Batch_Size": 20000,
+  "Group_Rendemen": 95,
+  "totalBB": 247626822.84,
+  "totalBK": 27664550,
+  "HPP": 26907
+ },
+ {
+  "Product_ID": "U0",
+  "Product_Name": "ESOLA - 40 TABLET SALUT ENTERIK",
+  "Batch_Size": 10000,
+  "Group_Rendemen": 95,
+  "totalBB": 247128356.04,
+  "totalBK": 19107600,
+  "HPP": 42275
+ },
+ {
+  "Product_ID": "U5",
+  "Product_Name": "TOFEDEX TABLET SALUT SELAPUT",
+  "Batch_Size": 8333,
+  "Group_Rendemen": 97,
+  "totalBB": 71477526.6,
+  "totalBK": 21888648,
+  "HPP": 20891
+ },
+ {
+  "Product_ID": "U6",
+  "Product_Name": "TOFEDEX INJEKSI",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 87.96,
+  "totalBB": 14598948.329114,
+  "totalBK": 27104561.52,
+  "HPP": 37404
+ },
+ {
+  "Product_ID": "U9",
+  "Product_Name": "KETOS KAPLET SALUT SELAPUT",
+  "Batch_Size": 1500,
+  "Group_Rendemen": 95,
+  "totalBB": 0,
+  "totalBK": 14876793.2,
+  "HPP": 10440
+ },
+ {
+  "Product_ID": "V0",
+  "Product_Name": "NATTO-10 KAPLET SALUT SELAPUT",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 96,
+  "totalBB": 421436856.327,
+  "totalBK": 15748925,
+  "HPP": 105442
+ },
+ {
+  "Product_ID": "V2",
+  "Product_Name": "ROSTIN-10 TABLET SALUT SELAPUT",
+  "Batch_Size": 1525,
+  "Group_Rendemen": 89.89,
+  "totalBB": 43255087.8876,
+  "totalBK": 6361163,
+  "HPP": 70783
+ },
+ {
+  "Product_ID": "DS",
+  "Product_Name": "QUEENVIT KAPLET SALUT SELAPUT",
+  "Batch_Size": 1500,
+  "Group_Rendemen": 95,
+  "totalBB": 24314104.1664,
+  "totalBK": 8133582.5,
+  "HPP": 49230
+ },
+ {
+  "Product_ID": "DW",
+  "Product_Name": "BROMEX INJEKSI",
+  "Batch_Size": 3500,
+  "Group_Rendemen": 81.67,
+  "totalBB": 2067581.67,
+  "totalBK": 55345556.65,
+  "HPP": 60769
+ },
+ {
+  "Product_ID": "DY",
+  "Product_Name": "TELSTAN-40 KAPLET",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 93,
+  "totalBB": 69641875,
+  "totalBK": 15692273.5,
+  "HPP": 67440
+ },
+ {
+  "Product_ID": "DZ",
+  "Product_Name": "TELSTAN-80 KAPLET",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 94,
+  "totalBB": 139283750,
+  "totalBK": 14929831,
+  "HPP": 75493
+ },
+ {
+  "Product_ID": "F6",
+  "Product_Name": "BIOSTRUM SIRUP",
+  "Batch_Size": 10000,
+  "Group_Rendemen": 97,
+  "totalBB": 236539083.608,
+  "totalBK": 34792744.72,
+  "HPP": 31791
+ },
+ {
+  "Product_ID": "CX",
+  "Product_Name": "HYDROCORTISONE SERBUK INJEKSI STERIL (GENERIK)",
+  "Batch_Size": 7462,
+  "Group_Rendemen": 88.85,
+  "totalBB": 16821000,
+  "totalBK": 48448563.36,
+  "HPP": 10921
+ },
+ {
+  "Product_ID": "EB",
+  "Product_Name": "CONBIS - 2.5 TABLET SALUT SELAPUT",
+  "Batch_Size": 16000,
+  "Group_Rendemen": 96,
+  "totalBB": 55692324,
+  "totalBK": 33181525,
+  "HPP": 17318
+ },
+ {
+  "Product_ID": "EC",
+  "Product_Name": "CONBIS - 5 TABLET SALUT SELAPUT",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 93,
+  "totalBB": 14974622.28,
+  "totalBK": 10056961,
+  "HPP": 40945
+ },
+ {
+  "Product_ID": "ED",
+  "Product_Name": "CONBIS - 10 TABLET SALUT SELAPUT",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 93,
+  "totalBB": 21514592.772,
+  "totalBK": 9982682,
+  "HPP": 38019
+ },
+ {
+  "Product_ID": "EE",
+  "Product_Name": "ESPRAM - 10 MG KAPLET SALUT SELAPUT",
+  "Batch_Size": 1266,
+  "Group_Rendemen": 89.19,
+  "totalBB": 9979361.1612,
+  "totalBK": 5327274.5,
+  "HPP": 63464
+ },
+ {
+  "Product_ID": "F1",
+  "Product_Name": "MG-40 SUSPENSI",
+  "Batch_Size": 1500,
+  "Group_Rendemen": 95,
+  "totalBB": 425885729.1,
+  "totalBK": 60629610,
+  "HPP": 380028
+ },
+ {
+  "Product_ID": "J7",
+  "Product_Name": "CEFIM-1 GRAM SERBUK INJEKSI STERIL",
+  "Batch_Size": 8510,
+  "Group_Rendemen": 95,
+  "totalBB": 155430000,
+  "totalBK": 60137781.34,
+  "HPP": 36530
+ },
+ {
+  "Product_ID": "J8",
+  "Product_Name": "CEPRAZ SERBUK INJEKSI STERIL",
+  "Batch_Size": 8810,
+  "Group_Rendemen": 97,
+  "totalBB": 66150000,
+  "totalBK": 72544855.62,
+  "HPP": 25564
+ },
+ {
+  "Product_ID": "G5",
+  "Product_Name": "LAMESON-125 mg/2 mL injeksi",
+  "Batch_Size": 5586,
+  "Group_Rendemen": 87.14,
+  "totalBB": 42570000,
+  "totalBK": 70318216.66,
+  "HPP": 36542
+ },
+ {
+  "Product_ID": "G6",
+  "Product_Name": "LAPIBAL-500 µG INJEKSI",
+  "Batch_Size": 8000,
+  "Group_Rendemen": 91,
+  "totalBB": 9560137.135692,
+  "totalBK": 57454733.24,
+  "HPP": 28158
+ },
+ {
+  "Product_ID": "H3",
+  "Product_Name": "CRAVOX 500 mg/100 mL infus",
+  "Batch_Size": 4950,
+  "Group_Rendemen": 99,
+  "totalBB": 19052188.65,
+  "totalBK": 79346898.88,
+  "HPP": 20079
+ },
+ {
+  "Product_ID": "02SMRB",
+  "Product_Name": "PELARUT SIMDROL-125 SERBUK INJEKSI STERIL",
+  "Batch_Size": 20000,
+  "Group_Rendemen": 84,
+  "totalBB": 553846.153846,
+  "totalBK": 13706580,
+  "HPP": 4770
+ },
+ {
+  "Product_ID": "02SPMA",
+  "Product_Name": "SIMPENEM-1 G SERBUK INJEKSI STERIL",
+  "Batch_Size": 3747,
+  "Group_Rendemen": 93,
+  "totalBB": 147420000,
+  "totalBK": 35290130.18,
+  "HPP": 66063
+ },
+ {
+  "Product_ID": "02SPNA",
+  "Product_Name": "SIMPROFEN TABLET SALUT SELAPUT",
+  "Batch_Size": 8333,
+  "Group_Rendemen": 97,
+  "totalBB": 71477526.6,
+  "totalBK": 5249750,
+  "HPP": 26223
+ },
+ {
+  "Product_ID": "02STNA",
+  "Product_Name": "SIMTIN KAPSUL",
+  "Batch_Size": 1666,
+  "Group_Rendemen": 86.65,
+  "totalBB": 14899579.2,
+  "totalBK": 1567500,
+  "HPP": 62248
+ },
+ {
+  "Product_ID": "02CFXA",
+  "Product_Name": "CEFOMAX SERBUK INJEKSI STERIL",
+  "Batch_Size": 8810,
+  "Group_Rendemen": 97,
+  "totalBB": 66150000,
+  "totalBK": 60362769.03,
+  "HPP": 24166
+ },
+ {
+  "Product_ID": "02RVSA",
+  "Product_Name": "SIMROVAS-10 TABLET SALUT SELAPUT",
+  "Batch_Size": 1525,
+  "Group_Rendemen": 90,
+  "totalBB": 43255087.8876,
+  "totalBK": 0,
+  "HPP": 72809
+ },
+ {
+  "Product_ID": "02RVSB",
+  "Product_Name": "SIMROVAS-20 TABLET SALUT SELAPUT",
+  "Batch_Size": 8000,
+  "Group_Rendemen": 97,
+  "totalBB": 453577710.168,
+  "totalBK": 0,
+  "HPP": 75710
+ },
+ {
+  "Product_ID": "02SFLA",
+  "Product_Name": "SIMFLOX-500 KAPLET SALUT SELAPUT",
+  "Batch_Size": 4444,
+  "Group_Rendemen": 93,
+  "totalBB": 39170954.4444,
+  "totalBK": 17250,
+  "HPP": 39679
+ },
+ {
+  "Product_ID": "CT",
+  "Product_Name": "INFERTREAT INJEKSI",
+  "Batch_Size": 10000,
+  "Group_Rendemen": 98,
+  "totalBB": 1977520000,
+  "totalBK": 19914481.25,
+  "HPP": 208412
+ },
+ {
+  "Product_ID": "DG",
+  "Product_Name": "VITAMIN D3 1000 IU TABLET SALUT SELAPUT (GENERIK)",
+  "Batch_Size": 11000,
+  "Group_Rendemen": 95,
+  "totalBB": 10334217.305202,
+  "totalBK": 20040900,
+  "HPP": 3979
+ },
+ {
+  "Product_ID": "DH",
+  "Product_Name": "ETORICOXIB - 60 TABLET SALUT SELAPUT (GENERIK)",
+  "Batch_Size": 6666,
+  "Group_Rendemen": 96,
+  "totalBB": 169908213.24,
+  "totalBK": 14374481.75,
+  "HPP": 30320
+ },
+ {
+  "Product_ID": "F9",
+  "Product_Name": "VITACUR SIRUP",
+  "Batch_Size": 15000,
+  "Group_Rendemen": 98,
+  "totalBB": 104205422.946,
+  "totalBK": 50690539.67,
+  "HPP": 13498
+ },
+ {
+  "Product_ID": "EU",
+  "Product_Name": "ARZOLA - 10 MG ODT",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 88.53,
+  "totalBB": 12226159.98,
+  "totalBK": 13362850,
+  "HPP": 19089
+ },
+ {
+  "Product_ID": "EV",
+  "Product_Name": "ARZOLA - 15 MG ODT",
+  "Batch_Size": 3000,
+  "Group_Rendemen": 88.26,
+  "totalBB": 11002562.19,
+  "totalBK": 7517450,
+  "HPP": 26986
+ },
+ {
+  "Product_ID": "BQ",
+  "Product_Name": "CAL-95 KIDS sirup",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 97,
+  "totalBB": 33183300.51,
+  "totalBK": 12699052.5,
+  "HPP": 14818
+ },
+ {
+  "Product_ID": "ä8",
+  "Product_Name": "GRANULAT LAPICEF-250 DS",
+  "Batch_Size": 138000,
+  "Group_Rendemen": 97,
+  "totalBB": 5799513.504,
+  "totalBK": 0,
+  "HPP": 81
+ },
+ {
+  "Product_ID": "AG",
+  "Product_Name": "LAPIVA - 5/160 KAPLET SALUT SELAPUT",
+  "Batch_Size": 1,
+  "Group_Rendemen": 100,
+  "totalBB": 0,
+  "totalBK": 0,
+  "HPP": 0
+ },
+ {
+  "Product_ID": "AH",
+  "Product_Name": "LAPIVA - 10/160 KAPLET SALUT SELAPUT",
+  "Batch_Size": 1,
+  "Group_Rendemen": 100,
+  "totalBB": 0,
+  "totalBK": 0,
+  "HPP": 0
+ },
+ {
+  "Product_ID": "AI",
+  "Product_Name": "APETIC DROPS",
+  "Batch_Size": 20000,
+  "Group_Rendemen": 97,
+  "totalBB": 14830529.67,
+  "totalBK": 129803377.3,
+  "HPP": 10388
+ },
+ {
+  "Product_ID": "AJ",
+  "Product_Name": "APETIC SUSPENSI",
+  "Batch_Size": 41666,
+  "Group_Rendemen": 98,
+  "totalBB": 49976462.5,
+  "totalBK": 119952309.85,
+  "HPP": 6992
+ },
+ {
+  "Product_ID": "AK",
+  "Product_Name": "APETIC FORTE SUSPENSI",
+  "Batch_Size": 41666,
+  "Group_Rendemen": 98,
+  "totalBB": 89706647.5,
+  "totalBK": 116284330.45,
+  "HPP": 7867
+ },
+ {
+  "Product_ID": "A4",
+  "Product_Name": "GENOCLOM TABLET",
+  "Batch_Size": 6000,
+  "Group_Rendemen": 90,
+  "totalBB": 84045706.2,
+  "totalBK": 14864505,
+  "HPP": 30368
+ },
+ {
+  "Product_ID": "A5",
+  "Product_Name": "AMADIAB-1 KAPLET",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 97,
+  "totalBB": 11604477.29544,
+  "totalBK": 17188500,
+  "HPP": 40303
+ },
+ {
+  "Product_ID": "FE",
+  "Product_Name": "CLOZAPINE - 25 KAPLET (GENERIK)",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 90,
+  "totalBB": 23512996.8,
+  "totalBK": 2476375,
+  "HPP": 7797
+ },
+ {
+  "Product_ID": "FF",
+  "Product_Name": "CLOZAPINE - 100 KAPLET (GENERIK)",
+  "Batch_Size": 1250,
+  "Group_Rendemen": 89,
+  "totalBB": 23512996.8,
+  "totalBK": 1722187.5,
+  "HPP": 28456
+ },
+ {
+  "Product_ID": "DM",
+  "Product_Name": "GABAPENTIN KAPSUL (GENERIK)",
+  "Batch_Size": 1666,
+  "Group_Rendemen": 87,
+  "totalBB": 16934579.2,
+  "totalBK": 5545205.75,
+  "HPP": 19213
+ },
+ {
+  "Product_ID": "FI",
+  "Product_Name": "ESOMEPRAZOLE - 20 MG TABLET SALUT ENTERIK (GENERIK)",
+  "Batch_Size": 20000,
+  "Group_Rendemen": 93,
+  "totalBB": 247626822.84,
+  "totalBK": 44022925,
+  "HPP": 16659
+ },
+ {
+  "Product_ID": "FJ",
+  "Product_Name": "ESOMEPRAZOLE - 40 MG TABLET SALUT ENTERIK (GENERIK)",
+  "Batch_Size": 10000,
+  "Group_Rendemen": 93,
+  "totalBB": 247128356.04,
+  "totalBK": 18130000,
+  "HPP": 29603
+ },
+ {
+  "Product_ID": "FT",
+  "Product_Name": "EYEVIT GUMMY",
+  "Batch_Size": 1,
+  "Group_Rendemen": 100,
+  "totalBB": 0,
+  "totalBK": 0,
+  "HPP": 0
+ },
+ {
+  "Product_ID": "B5",
+  "Product_Name": "CRAVOX-500 TABLET SALUT SELAPUT",
+  "Batch_Size": 15000,
+  "Group_Rendemen": 93,
+  "totalBB": 68677137.63,
+  "totalBK": 29361525,
+  "HPP": 16439
+ },
+ {
+  "Product_ID": "62",
+  "Product_Name": "LESIPAR-300 KAPSUL LUNAK",
+  "Batch_Size": 3000,
+  "Group_Rendemen": 93,
+  "totalBB": 52761727,
+  "totalBK": 53169690,
+  "HPP": 37968
+ },
+ {
+  "Product_ID": "64",
+  "Product_Name": "LAPISIV-T TABLET",
+  "Batch_Size": 1500,
+  "Group_Rendemen": 96,
+  "totalBB": 11188663.2,
+  "totalBK": 20082007.5,
+  "HPP": 58573
+ },
+ {
+  "Product_ID": "66",
+  "Product_Name": "DOM KAPLET SALUT SELAPUT",
+  "Batch_Size": 10000,
+  "Group_Rendemen": 95,
+  "totalBB": 11258404.1802,
+  "totalBK": 17849150,
+  "HPP": 13472
+ },
+ {
+  "Product_ID": "67",
+  "Product_Name": "TAMSULOSIN HYDROCHLORIDE 0.4 mg SR TABLET SALUT SELAPUT LEPAS LAMBAT (GENERIK)",
+  "Batch_Size": 1950,
+  "Group_Rendemen": 94,
+  "totalBB": 117753900.516,
+  "totalBK": 10220200,
+  "HPP": 74430
+ },
+ {
+  "Product_ID": "BZ",
+  "Product_Name": "METZOL 500 MG/ML INJEKSI",
+  "Batch_Size": 14000,
+  "Group_Rendemen": 90,
+  "totalBB": 58837338,
+  "totalBK": 96636408.32,
+  "HPP": 31963
+ },
+ {
+  "Product_ID": "E8",
+  "Product_Name": "CEFILA-100 KAPSUL",
+  "Batch_Size": 6666,
+  "Group_Rendemen": 98,
+  "totalBB": 115277998,
+  "totalBK": 19279562.01,
+  "HPP": 32505
+ },
+ {
+  "Product_ID": "F0",
+  "Product_Name": "IMUNOS KAPLET SALUT SELAPUT",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 98,
+  "totalBB": 201442608.618,
+  "totalBK": 20322262.5,
+  "HPP": 57498
+ },
+ {
+  "Product_ID": "R7",
+  "Product_Name": "LAPIMUC DROPS",
+  "Batch_Size": 20000,
+  "Group_Rendemen": 98,
+  "totalBB": 25426040.79,
+  "totalBK": 129628441.2,
+  "HPP": 11271
+ },
+ {
+  "Product_ID": "O8",
+  "Product_Name": "LACTOPAIN-30 mg INJEKSI",
+  "Batch_Size": 8000,
+  "Group_Rendemen": 84.75,
+  "totalBB": 23104061.264557,
+  "totalBK": 53414136.24,
+  "HPP": 30771
+ },
+ {
+  "Product_ID": "P0",
+  "Product_Name": "PROMEL - 20 TABLET SALUT SELAPUT",
+  "Batch_Size": 3250,
+  "Group_Rendemen": 88,
+  "totalBB": 14888097.7908,
+  "totalBK": 6909757,
+  "HPP": 31342
+ },
+ {
+  "Product_ID": "P1",
+  "Product_Name": "NEUCITI-500 mg/4 mL injeksi",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 89,
+  "totalBB": 45853080.064,
+  "totalBK": 21005302,
+  "HPP": 81054
+ },
+ {
+  "Product_ID": "P7",
+  "Product_Name": "TINEURON KAPSUL",
+  "Batch_Size": 1666,
+  "Group_Rendemen": 87,
+  "totalBB": 16934579.2,
+  "totalBK": 13892041.26,
+  "HPP": 68356
+ },
+ {
+  "Product_ID": "P8",
+  "Product_Name": "PIDOVIX TABLET SALUT SELAPUT",
+  "Batch_Size": 5102,
+  "Group_Rendemen": 93,
+  "totalBB": 71351289.75096,
+  "totalBK": 17768899,
+  "HPP": 38490
+ },
+ {
+  "Product_ID": "CQ",
+  "Product_Name": "WATER FOR INJECTION",
+  "Batch_Size": 7000,
+  "Group_Rendemen": 92.45,
+  "totalBB": 7623,
+  "totalBK": 5960565,
+  "HPP": 7752
+ },
+ {
+  "Product_ID": "Q1",
+  "Product_Name": "LAMESON - 8 KAPLET (BLISTER)",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 97,
+  "totalBB": 272482520.8,
+  "totalBK": 15698825,
+  "HPP": 105466
+ },
+ {
+  "Product_ID": "V3",
+  "Product_Name": "ROSTIN-20 TABLET SALUT SELAPUT",
+  "Batch_Size": 8000,
+  "Group_Rendemen": 93.99,
+  "totalBB": 453577710.168,
+  "totalBK": 17067850,
+  "HPP": 76341
+ },
+ {
+  "Product_ID": "S6",
+  "Product_Name": "TOPAZOL SERBUK INJEKSI STERIL",
+  "Batch_Size": 7980,
+  "Group_Rendemen": 82.33,
+  "totalBB": 10395000,
+  "totalBK": 56056103.06,
+  "HPP": 21001
+ },
+ {
+  "Product_ID": "S8",
+  "Product_Name": "CEBACTAM serbuk injeksi steril",
+  "Batch_Size": 8438,
+  "Group_Rendemen": 97,
+  "totalBB": 40392000,
+  "totalBK": 68911321.58,
+  "HPP": 24350
+ },
+ {
+  "Product_ID": "T1",
+  "Product_Name": "FASTOR-10 KAPLET SALUT SELAPUT",
+  "Batch_Size": 9000,
+  "Group_Rendemen": 96,
+  "totalBB": 51230983.8148,
+  "totalBK": 27256925,
+  "HPP": 32182
+ },
+ {
+  "Product_ID": "N4",
+  "Product_Name": "EYEVIT TABLET SALUT SELAPUT",
+  "Batch_Size": 9000,
+  "Group_Rendemen": 99,
+  "totalBB": 419889735.858,
+  "totalBK": 61099085,
+  "HPP": 65398
+ },
+ {
+  "Product_ID": "AN",
+  "Product_Name": "L-LAX",
+  "Batch_Size": 10000,
+  "Group_Rendemen": 96,
+  "totalBB": 0,
+  "totalBK": 21188783,
+  "HPP": 2207
+ },
+ {
+  "Product_ID": "BK",
+  "Product_Name": "ENOXRIN 6000 IU",
+  "Batch_Size": 1,
+  "Group_Rendemen": 100,
+  "totalBB": 0,
+  "totalBK": 0,
+  "HPP": 0
+ },
+ {
+  "Product_ID": "EH",
+  "Product_Name": "ETIRO-N TABLET",
+  "Batch_Size": 4666,
+  "Group_Rendemen": 96,
+  "totalBB": 0,
+  "totalBK": 12668228.26,
+  "HPP": 2828
+ },
+ {
+  "Product_ID": "CI",
+  "Product_Name": "LANOS DROPS",
+  "Batch_Size": 20000,
+  "Group_Rendemen": 98,
+  "totalBB": 10927981.92,
+  "totalBK": 130196803.5,
+  "HPP": 9913
+ },
+ {
+  "Product_ID": "EG",
+  "Product_Name": "L-VIT D3 DROPS",
+  "Batch_Size": 20000,
+  "Group_Rendemen": 96,
+  "totalBB": 15594896.4,
+  "totalBK": 95998781.5,
+  "HPP": 8625
+ },
+ {
+  "Product_ID": "Z0",
+  "Product_Name": "CLOPIDOGREL-75 TABLET SALUT SELAPUT (GENERIK)",
+  "Batch_Size": 5102,
+  "Group_Rendemen": 93,
+  "totalBB": 71351289.75096,
+  "totalBK": 12865826.5,
+  "HPP": 19386
+ },
+ {
+  "Product_ID": "Z2",
+  "Product_Name": "ATORVASTATIN-10 KAPLET SALUT SELAPUT (GENERIK)",
+  "Batch_Size": 9000,
+  "Group_Rendemen": 96,
+  "totalBB": 51230983.8148,
+  "totalBK": 20473600,
+  "HPP": 10084
+ },
+ {
+  "Product_ID": "EY",
+  "Product_Name": "BROMHEXINE INJEKSI (GENERIK)",
+  "Batch_Size": 3500,
+  "Group_Rendemen": 78.49,
+  "totalBB": 2067581.67,
+  "totalBK": 47181762.9,
+  "HPP": 22866
+ },
+ {
+  "Product_ID": "BI",
+  "Product_Name": "FERVIT DROPS",
+  "Batch_Size": 20000,
+  "Group_Rendemen": 97,
+  "totalBB": 69913536.4182,
+  "totalBK": 126246285.6,
+  "HPP": 12476
+ },
+ {
+  "Product_ID": "AB",
+  "Product_Name": "LAGESIL TABLET KUNYAH",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 94,
+  "totalBB": 44326905.6,
+  "totalBK": 25486685,
+  "HPP": 77426
+ },
+ {
+  "Product_ID": "AD",
+  "Product_Name": "LAPIGIM - 1/250 KAPLET SALUT SELAPUT",
+  "Batch_Size": 1,
+  "Group_Rendemen": 100,
+  "totalBB": 0,
+  "totalBK": 0,
+  "HPP": 0
+ },
+ {
+  "Product_ID": "AL",
+  "Product_Name": "ROSUVASTATIN-10 TABLET SALUT SELAPUT (GENERIK)",
+  "Batch_Size": 305,
+  "Group_Rendemen": 84,
+  "totalBB": 43255087.8876,
+  "totalBK": 5594687.9,
+  "HPP": 206217
+ },
+ {
+  "Product_ID": "AM",
+  "Product_Name": "ROSUVASTATIN-20 TABLET SALUT SELAPUT (GENERIK)",
+  "Batch_Size": 1600,
+  "Group_Rendemen": 95,
+  "totalBB": 453577710.168,
+  "totalBK": 10098418,
+  "HPP": 311837
+ },
+ {
+  "Product_ID": "ZJ",
+  "Product_Name": "GLUTIN TABLET SALUT SELAPUT",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 92,
+  "totalBB": 202496607.8532,
+  "totalBK": 7899837.52,
+  "HPP": 103104
+ },
+ {
+  "Product_ID": "ZL",
+  "Product_Name": "OPTALVIT SIRUP",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 99,
+  "totalBB": 59244000.168,
+  "totalBK": 15557854.02,
+  "HPP": 20109
+ },
+ {
+  "Product_ID": "ZM",
+  "Product_Name": "OPTALVIT PLUS tablet salut selaput",
+  "Batch_Size": 9000,
+  "Group_Rendemen": 98.5,
+  "totalBB": 426234054.972,
+  "totalBK": 27142695,
+  "HPP": 57989
+ },
+ {
+  "Product_ID": "FK",
+  "Product_Name": "BISOPROLOL FUMARATE - 10 MG TABLET SALUT SELAPUT (GENERIK)",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 93,
+  "totalBB": 21514592.772,
+  "totalBK": 6403653.5,
+  "HPP": 11245
+ },
+ {
+  "Product_ID": "FM",
+  "Product_Name": "ZYGOUT 80 MG KAPLET SALUT SELAPUT",
+  "Batch_Size": 2666,
+  "Group_Rendemen": 93,
+  "totalBB": 78980292,
+  "totalBK": 12688781,
+  "HPP": 80889
+ },
+ {
+  "Product_ID": "AP",
+  "Product_Name": "CEFIXIME-200 KAPSUL (GENERIK)",
+  "Batch_Size": 1000,
+  "Group_Rendemen": 98,
+  "totalBB": 111207998,
+  "totalBK": 7226305,
+  "HPP": 124864
+ },
+ {
+  "Product_ID": "FN",
+  "Product_Name": "SUSBY KAPLET SALUT SELAPUT",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 95,
+  "totalBB": 65857166.88,
+  "totalBK": 20609920,
+  "HPP": 36176
+ },
+ {
+  "Product_ID": "FR",
+  "Product_Name": "SOBERUP KAPLET SALUT SELAPUT (EKSPOR)",
+  "Batch_Size": 6250,
+  "Group_Rendemen": 97,
+  "totalBB": 113164295.61,
+  "totalBK": 16980000,
+  "HPP": 39710
+ },
+ {
+  "Product_ID": "FS",
+  "Product_Name": "SOBERUP KAPLET SALUT SELAPUT",
+  "Batch_Size": 6250,
+  "Group_Rendemen": 97,
+  "totalBB": 113164295.61,
+  "totalBK": 30075625,
+  "HPP": 41871
+ },
+ {
+  "Product_ID": "FO",
+  "Product_Name": "AZIBAC - 500 MG KAPLET SALUT SELAPUT",
+  "Batch_Size": 8333,
+  "Group_Rendemen": 90.81,
+  "totalBB": 97690518,
+  "totalBK": 13305903.75,
+  "HPP": 28610
+ },
+ {
+  "Product_ID": "FP",
+  "Product_Name": "ANFUROX INJEKSI",
+  "Batch_Size": 9174,
+  "Group_Rendemen": 95,
+  "totalBB": 55192500,
+  "totalBK": 58434532.05,
+  "HPP": 25167
+ },
+ {
+  "Product_ID": "02",
+  "Product_Name": "LAPISIV SIRUP (botol kaca)",
+  "Batch_Size": 25000,
+  "Group_Rendemen": 98,
+  "totalBB": 85140024.974857,
+  "totalBK": 79497457.46,
+  "HPP": 9489
+ },
+ {
+  "Product_ID": "43",
+  "Product_Name": "LAPIMOX-500 KAPLET",
+  "Batch_Size": 1200,
+  "Group_Rendemen": 98,
+  "totalBB": 61354878.48,
+  "totalBK": 13254546,
+  "HPP": 63443
+ },
+ {
+  "Product_ID": "FG",
+  "Product_Name": "APIBAN DROPS",
+  "Batch_Size": 20000,
+  "Group_Rendemen": 97,
+  "totalBB": 289910671.242,
+  "totalBK": 205103521.6,
+  "HPP": 30824
+ },
+ {
+  "Product_ID": "BM",
+  "Product_Name": "METSIT 1000/50 mg KAPLET SALUT SELAPUT",
+  "Batch_Size": 1200,
+  "Group_Rendemen": 91.33,
+  "totalBB": 43680104.28,
+  "totalBK": 8618336,
+  "HPP": 112900
+ },
+ {
+  "Product_ID": "BN",
+  "Product_Name": "METSIT 500/50 mg KAPLET SALUT SELAPUT",
+  "Batch_Size": 2250,
+  "Group_Rendemen": 90.8,
+  "totalBB": 71072146.728,
+  "totalBK": 13762757.5,
+  "HPP": 89367
+ },
+ {
+  "Product_ID": "BY",
+  "Product_Name": "LAVIT-C 1000 MG/5 ML INJEKSI",
+  "Batch_Size": 4800,
+  "Group_Rendemen": 75.31,
+  "totalBB": 16689278.88,
+  "totalBK": 55181147.79,
+  "HPP": 48022
+ },
+ {
+  "Product_ID": "B6",
+  "Product_Name": "LAPIFED SIRUP",
+  "Batch_Size": 41666,
+  "Group_Rendemen": 98,
+  "totalBB": 99454549.25,
+  "totalBK": 96744945.75,
+  "HPP": 7319
+ },
+ {
+  "Product_ID": "B7",
+  "Product_Name": "LAPIFED EKSPEKTORAN SIRUP",
+  "Batch_Size": 41666,
+  "Group_Rendemen": 98,
+  "totalBB": 107599911.25,
+  "totalBK": 99051823.35,
+  "HPP": 7550
+ },
+ {
+  "Product_ID": "GG",
+  "Product_Name": "L-TROL - 0.25 KAPSUL LUNAK",
+  "Batch_Size": 7500,
+  "Group_Rendemen": 100,
+  "totalBB": 0,
+  "totalBK": 10537690.89,
+  "HPP": 1405
+ },
+ {
+  "Product_ID": "GH",
+  "Product_Name": "L-TROL - 0.5 KAPSUL LUNAK",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 100,
+  "totalBB": 0,
+  "totalBK": 5091285.15,
+  "HPP": 1528
+ },
+ {
+  "Product_ID": "K1",
+  "Product_Name": "CEFILA SIRUP KERING",
+  "Batch_Size": 10000,
+  "Group_Rendemen": 99,
+  "totalBB": 38970798.32,
+  "totalBK": 44298575,
+  "HPP": 13260
+ },
+ {
+  "Product_ID": "L2",
+  "Product_Name": "LACOSIB - 60 TABLET SALUT SELAPUT",
+  "Batch_Size": 6666,
+  "Group_Rendemen": 96,
+  "totalBB": 169908213.24,
+  "totalBK": 17772197,
+  "HPP": 48456
+ },
+ {
+  "Product_ID": "D6",
+  "Product_Name": "LASAL NEBU",
+  "Batch_Size": 1,
+  "Group_Rendemen": 100,
+  "totalBB": 0,
+  "totalBK": 0,
+  "HPP": 0
+ },
+ {
+  "Product_ID": "D7",
+  "Product_Name": "LAMESON SUSPENSI",
+  "Batch_Size": 10000,
+  "Group_Rendemen": 98,
+  "totalBB": 37186463.1,
+  "totalBK": 23889112.69,
+  "HPP": 13045
+ },
+ {
+  "Product_ID": "EZ",
+  "Product_Name": "PSEUDOEPHEDRINE DROPS (GENERIK)",
+  "Batch_Size": 20000,
+  "Group_Rendemen": 98,
+  "totalBB": 10927981.92,
+  "totalBK": 116745997.5,
+  "HPP": 7021
+ },
+ {
+  "Product_ID": "FA",
+  "Product_Name": "PARACETAMOL DROPS (GENERIK)",
+  "Batch_Size": 20000,
+  "Group_Rendemen": 97,
+  "totalBB": 14830529.67,
+  "totalBK": 243818246.5,
+  "HPP": 13851
+ },
+ {
+  "Product_ID": "92",
+  "Product_Name": "LAPICEF-125 SIRUP KERING",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 98.3,
+  "totalBB": 24011172.96,
+  "totalBK": 18303687.5,
+  "HPP": 14937
+ },
+ {
+  "Product_ID": "I5",
+  "Product_Name": "LAGESIL SUSPENSI (BOTOL 100 ML)",
+  "Batch_Size": 15000,
+  "Group_Rendemen": 98,
+  "totalBB": 61793982.648,
+  "totalBK": 38693250,
+  "HPP": 9751
+ },
+ {
+  "Product_ID": "54",
+  "Product_Name": "LACOPHEN SIRUP KERING",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 97,
+  "totalBB": 21835280.48144,
+  "totalBK": 22482705,
+  "HPP": 17540
+ },
+ {
+  "Product_ID": "Q2",
+  "Product_Name": "MEROPENEM-1 GRAM INJEKSI (GENERIK)",
+  "Batch_Size": 4496,
+  "Group_Rendemen": 93,
+  "totalBB": 176904000,
+  "totalBK": 73832132.17,
+  "HPP": 61162
+ },
+ {
+  "Product_ID": "Q3",
+  "Product_Name": "LAMESON - 16 TABLET (BLISTER)",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 97,
+  "totalBB": 270826748,
+  "totalBK": 8646150,
+  "HPP": 183099
+ },
+ {
+  "Product_ID": "N3",
+  "Product_Name": "LAPIROM SERBUK INJEKSI STERIL",
+  "Batch_Size": 3486,
+  "Group_Rendemen": 90,
+  "totalBB": 94500000,
+  "totalBK": 38513452.51,
+  "HPP": 70285
+ },
+ {
+  "Product_ID": "L7",
+  "Product_Name": "CIFLON KAPLET SALUT SELAPUT",
+  "Batch_Size": 6666,
+  "Group_Rendemen": 98.5,
+  "totalBB": 178869182.4,
+  "totalBK": 22041723.76,
+  "HPP": 39489
+ },
+ {
+  "Product_ID": "M4",
+  "Product_Name": "GLIMEPIRIDE-2 KAPLET (GENERIK)",
+  "Batch_Size": 8000,
+  "Group_Rendemen": 97,
+  "totalBB": 37036080.46116,
+  "totalBK": 18410295,
+  "HPP": 8948
+ },
+ {
+  "Product_ID": "06",
+  "Product_Name": "LAPIFED TABLET",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 97,
+  "totalBB": 32088111.2,
+  "totalBK": 13107975,
+  "HPP": 43613
+ },
+ {
+  "Product_ID": "02CRXA",
+  "Product_Name": "CEFTRIMAX 1 G INJEKSI",
+  "Batch_Size": 8196,
+  "Group_Rendemen": 97,
+  "totalBB": 50094000,
+  "totalBK": 48743279.8,
+  "HPP": 22149
+ },
+ {
+  "Product_ID": "02CTXA",
+  "Product_Name": "CEFTAMAX SERBUK INJEKSI STERIL",
+  "Batch_Size": 7272,
+  "Group_Rendemen": 96,
+  "totalBB": 135432000,
+  "totalBK": 49827981.08,
+  "HPP": 37460
+ },
+ {
+  "Product_ID": "02EDXB",
+  "Product_Name": "ERDOMEX DRY SYRUP",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 96,
+  "totalBB": 1465695,
+  "totalBK": 0,
+  "HPP": 8951
+ },
+ {
+  "Product_ID": "02MXBA",
+  "Product_Name": "MAXBIOTIK SACHET",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 96,
+  "totalBB": 0,
+  "totalBK": 0,
+  "HPP": 8251
+ },
+ {
+  "Product_ID": "02MXFA",
+  "Product_Name": "MAXCEF-500 MG KAPSUL",
+  "Batch_Size": 1905,
+  "Group_Rendemen": 98,
+  "totalBB": 185469262.896,
+  "totalBK": 0,
+  "HPP": 134424
+ },
+ {
+  "Product_ID": "07",
+  "Product_Name": "LASAL-2 KAPSUL",
+  "Batch_Size": 3000,
+  "Group_Rendemen": 94,
+  "totalBB": 18341784.78,
+  "totalBK": 20673640,
+  "HPP": 54521
+ },
+ {
+  "Product_ID": "G3",
+  "Product_Name": "ACLAM SIRUP KERING",
+  "Batch_Size": 6500,
+  "Group_Rendemen": 97,
+  "totalBB": 56858020.32,
+  "totalBK": 27350230,
+  "HPP": 13356
+ },
+ {
+  "Product_ID": "G4",
+  "Product_Name": "ACLAM FORTE SIRUP KERING",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 97,
+  "totalBB": 83067966.6,
+  "totalBK": 21943025,
+  "HPP": 21652
+ },
+ {
+  "Product_ID": "H4",
+  "Product_Name": "PELARUT LAMESON-125 mg/2 mL injeksi",
+  "Batch_Size": 20000,
+  "Group_Rendemen": 93.35,
+  "totalBB": 553846.153846,
+  "totalBK": 14911422,
+  "HPP": 4544
+ },
+ {
+  "Product_ID": "40",
+  "Product_Name": "CLINMAS-150 KAPSUL",
+  "Batch_Size": 3000,
+  "Group_Rendemen": 84,
+  "totalBB": 41164879.32,
+  "totalBK": 11747765,
+  "HPP": 42727
+ },
+ {
+  "Product_ID": "ZV",
+  "Product_Name": "LAFLANAC TABLET SALUT SELAPUT",
+  "Batch_Size": 3000,
+  "Group_Rendemen": 93.84,
+  "totalBB": 15632076.546,
+  "totalBK": 14460327.5,
+  "HPP": 42454
+ },
+ {
+  "Product_ID": "ZQ",
+  "Product_Name": "OSKOM kaplet salut selaput",
+  "Batch_Size": 2500,
+  "Group_Rendemen": 99,
+  "totalBB": 87073371.149789,
+  "totalBK": 17971050,
+  "HPP": 54563
+ },
+ {
+  "Product_ID": "W3",
+  "Product_Name": "PROMAVIT KAPSUL LUNAK (STRIP)",
+  "Batch_Size": 6703,
+  "Group_Rendemen": 98,
+  "totalBB": 70483319.75634,
+  "totalBK": 40099098.09,
+  "HPP": 16834
+ },
+ {
+  "Product_ID": "W5",
+  "Product_Name": "LAPICEF OD",
+  "Batch_Size": 9000,
+  "Group_Rendemen": 99,
+  "totalBB": 41110925.4,
+  "totalBK": 50416912.5,
+  "HPP": 16022
+ },
+ {
+  "Product_ID": "W6",
+  "Product_Name": "NONEMI TABLET SALUT SELAPUT",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 97,
+  "totalBB": 56082555.49264,
+  "totalBK": 25933745,
+  "HPP": 48181
+ },
+ {
+  "Product_ID": "W7",
+  "Product_Name": "LAPIBION TABLET SALUT SELAPUT",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 95,
+  "totalBB": 64705135.08,
+  "totalBK": 58837485,
+  "HPP": 110578
+ },
+ {
+  "Product_ID": "W8",
+  "Product_Name": "L-BIO KAPSUL",
+  "Batch_Size": 1000,
+  "Group_Rendemen": 98.5,
+  "totalBB": 43425900,
+  "totalBK": 5589930,
+  "HPP": 65663
+ },
+ {
+  "Product_ID": "W9",
+  "Product_Name": "LAPROSIN SIRUP",
+  "Batch_Size": 16666,
+  "Group_Rendemen": 98,
+  "totalBB": 115055178,
+  "totalBK": 44939364.85,
+  "HPP": 12903
+ },
+ {
+  "Product_ID": "T8",
+  "Product_Name": "ESOLA serbuk injeksi steril",
+  "Batch_Size": 7810,
+  "Group_Rendemen": 85.76,
+  "totalBB": 21735000,
+  "totalBK": 52132341.49,
+  "HPP": 21987
+ },
+ {
+  "Product_ID": "EJ",
+  "Product_Name": "FULAZ TABLET SALUT SELAPUT",
+  "Batch_Size": 6900,
+  "Group_Rendemen": 97,
+  "totalBB": 62368590.288,
+  "totalBK": 46656906,
+  "HPP": 28661
+ },
+ {
+  "Product_ID": "EK",
+  "Product_Name": "CLOZAX - 25 KAPLET",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 90,
+  "totalBB": 23512996.8,
+  "totalBK": 11046800,
+  "HPP": 30588
+ },
+ {
+  "Product_ID": "EL",
+  "Product_Name": "CLOZAX - 100 KAPLET",
+  "Batch_Size": 1250,
+  "Group_Rendemen": 89,
+  "totalBB": 23512996.8,
+  "totalBK": 5653639,
+  "HPP": 96783
+ },
+ {
+  "Product_ID": "EM",
+  "Product_Name": "SIVERGO - 10 TABLET",
+  "Batch_Size": 1666,
+  "Group_Rendemen": 88.72,
+  "totalBB": 5150246.4,
+  "totalBK": 5185316.5,
+  "HPP": 57116
+ },
+ {
+  "Product_ID": "EN",
+  "Product_Name": "SIVERGO - 5 TABLET",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 90,
+  "totalBB": 5150246.4,
+  "totalBK": 6895611,
+  "HPP": 34485
+ },
+ {
+  "Product_ID": "EP",
+  "Product_Name": "TELMISARTAN-40 KAPLET (GENERIK)",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 93,
+  "totalBB": 69641875,
+  "totalBK": 13174597.5,
+  "HPP": 28699
+ },
+ {
+  "Product_ID": "EQ",
+  "Product_Name": "TELMISARTAN-80 KAPLET (GENERIK)",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 94,
+  "totalBB": 139283750,
+  "totalBK": 12739482.5,
+  "HPP": 50902
+ },
+ {
+  "Product_ID": "02STRA",
+  "Product_Name": "SIMTOR 10 KAPLET SALUT SELAPUT",
+  "Batch_Size": 9000,
+  "Group_Rendemen": 97,
+  "totalBB": 51230983.8148,
+  "totalBK": 0,
+  "HPP": 33920
+ },
+ {
+  "Product_ID": "02STRB",
+  "Product_Name": "SIMTOR 20 KAPLET SALUT SELAPUT",
+  "Batch_Size": 8000,
+  "Group_Rendemen": 95,
+  "totalBB": 91073795.362,
+  "totalBK": 0,
+  "HPP": 34238
+ },
+ {
+  "Product_ID": "02SCLA",
+  "Product_Name": "SIMCOBAL-500 MCG KAPSUL",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 94.37,
+  "totalBB": 70339992,
+  "totalBK": 4083800,
+  "HPP": 40578
+ },
+ {
+  "Product_ID": "02SCXA",
+  "Product_Name": "SIMCLOVIX 75 MG TABLET SALUT SELAPUT",
+  "Batch_Size": 5102,
+  "Group_Rendemen": 93,
+  "totalBB": 71351289.75096,
+  "totalBK": 3354550,
+  "HPP": 37305
+ },
+ {
+  "Product_ID": "02SCLB",
+  "Product_Name": "SIMCOBAL INJEKSI",
+  "Batch_Size": 8000,
+  "Group_Rendemen": 88.45,
+  "totalBB": 9560137.135692,
+  "totalBK": 32501700,
+  "HPP": 23936
+ },
+ {
+  "Product_ID": "02MXFC",
+  "Product_Name": "MAXCEF-250 MG/5 ML DRY SYRUP",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 98.3,
+  "totalBB": 36176460,
+  "totalBK": 8362800,
+  "HPP": 15898
+ },
+ {
+  "Product_ID": "02SPZA",
+  "Product_Name": "SIMPRAZOL INJEKSI",
+  "Batch_Size": 7810,
+  "Group_Rendemen": 90,
+  "totalBB": 21735000,
+  "totalBK": 45480115,
+  "HPP": 19510
+ },
+ {
+  "Product_ID": "02SMRA",
+  "Product_Name": "SIMDROL-125 SERBUK INJEKSI STERIL",
+  "Batch_Size": 5586,
+  "Group_Rendemen": 90,
+  "totalBB": 42570000,
+  "totalBK": 35369268.75,
+  "HPP": 26886
+ },
+ {
+  "Product_ID": "HP",
+  "Product_Name": "LANOS PLUS SIRUP (BOTOL PLASTIK)",
+  "Batch_Size": 16667,
+  "Group_Rendemen": 98,
+  "totalBB": 23676100,
+  "totalBK": 44647292.75,
+  "HPP": 8514
+ },
+ {
+  "Product_ID": "HQ",
+  "Product_Name": "DC2 KAPLET SALUT SELAPUT (BLISTER)",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 94.44,
+  "totalBB": 228399154.152,
+  "totalBK": 13989307.5,
+  "HPP": 99125
+ },
+ {
+  "Product_ID": "HR",
+  "Product_Name": "NATTO - 10 KAPLET SALUT SELAPUT (BLISTER)",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 96,
+  "totalBB": 421436856.327,
+  "totalBK": 10661825,
+  "HPP": 102580
+ },
+ {
+  "Product_ID": "ER",
+  "Product_Name": "ESCITALOPRAM - 10 MG KAPLET SALUT SELAPUT (GENERIK)",
+  "Batch_Size": 1266,
+  "Group_Rendemen": 89.04,
+  "totalBB": 9979361.1612,
+  "totalBK": 3825593.75,
+  "HPP": 16482
+ },
+ {
+  "Product_ID": "T2",
+  "Product_Name": "FASTOR-20 KAPLET SALUT SELAPUT",
+  "Batch_Size": 8000,
+  "Group_Rendemen": 96,
+  "totalBB": 91073795.362,
+  "totalBK": 32509600,
+  "HPP": 36419
+ },
+ {
+  "Product_ID": "T5",
+  "Product_Name": "ANALTRAM KAPLET SALUT SELAPUT",
+  "Batch_Size": 11250,
+  "Group_Rendemen": 96,
+  "totalBB": 68834055.852,
+  "totalBK": 27812789,
+  "HPP": 20471
+ },
+ {
+  "Product_ID": "T6",
+  "Product_Name": "FLORAGYN KAPSUL",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 98.5,
+  "totalBB": 130599000,
+  "totalBK": 9505660,
+  "HPP": 81028
+ },
+ {
+  "Product_ID": "T7",
+  "Product_Name": "CRAVOX 750 mg/150 mL infus",
+  "Batch_Size": 3311,
+  "Group_Rendemen": 95,
+  "totalBB": 19052188.65,
+  "totalBK": 74421520.77,
+  "HPP": 29717
+ },
+ {
+  "Product_ID": "Q8",
+  "Product_Name": "ODR 4 mg/2 mL injeksi",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 79.4,
+  "totalBB": 4835983.55,
+  "totalBK": 32770218,
+  "HPP": 35700
+ },
+ {
+  "Product_ID": "Q9",
+  "Product_Name": "ODR 8 mg/4 mL injeksi",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 85.8,
+  "totalBB": 3867722.4,
+  "totalBK": 22685630.76,
+  "HPP": 56656
+ },
+ {
+  "Product_ID": "R2",
+  "Product_Name": "FOURCEF-1 G SERBUK INJEKSI STERIL",
+  "Batch_Size": 5036,
+  "Group_Rendemen": 91,
+  "totalBB": 179550000,
+  "totalBK": 43011393.92,
+  "HPP": 62169
+ },
+ {
+  "Product_ID": "DF",
+  "Product_Name": "DEXKETOPROFEN INJEKSI (GENERIK)",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 86.64,
+  "totalBB": 14598948.329114,
+  "totalBK": 35218939.52,
+  "HPP": 17190
+ },
+ {
+  "Product_ID": "G0",
+  "Product_Name": "LABUMIN KAPSUL",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 93,
+  "totalBB": 35898667.2,
+  "totalBK": 7451610,
+  "HPP": 40488
+ },
+ {
+  "Product_ID": "02SBNA",
+  "Product_Name": "SIMBUMIN KAPSUL",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 93,
+  "totalBB": 33456667.2,
+  "totalBK": 0,
+  "HPP": 35192
+ },
+ {
+  "Product_ID": "02SFXC",
+  "Product_Name": "SIMFIX 100 MG/5 ML DRY SYRUP",
+  "Batch_Size": 10000,
+  "Group_Rendemen": 99,
+  "totalBB": 38970798.32,
+  "totalBK": 27610925,
+  "HPP": 11826
+ },
+ {
+  "Product_ID": "02SLVA",
+  "Product_Name": "SIMLEV-500 TABLET SALUT SELAPUT",
+  "Batch_Size": 15000,
+  "Group_Rendemen": 93,
+  "totalBB": 68677137.63,
+  "totalBK": 37950,
+  "HPP": 15575
+ },
+ {
+  "Product_ID": "02SNLA",
+  "Product_Name": "SIMNAL TABLET SALUT SELAPUT",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 95,
+  "totalBB": 84516724.62,
+  "totalBK": 0,
+  "HPP": 45522
+ },
+ {
+  "Product_ID": "02MTRA",
+  "Product_Name": "MAXTRON INJEKSI 8 MG/4 ML",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 84.58,
+  "totalBB": 3907322.4,
+  "totalBK": 15823762,
+  "HPP": 53045
+ },
+ {
+  "Product_ID": "02MNSA",
+  "Product_Name": "MYCONYS DROPS",
+  "Batch_Size": 8333,
+  "Group_Rendemen": 98,
+  "totalBB": 15018560.51,
+  "totalBK": 37937986.15,
+  "HPP": 12797
+ },
+ {
+  "Product_ID": "02SPNB",
+  "Product_Name": "SIMPROFEN INJEKSI",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 90,
+  "totalBB": 14638548.329114,
+  "totalBK": 17653180,
+  "HPP": 33623
+ },
+ {
+  "Product_ID": "L3",
+  "Product_Name": "LACOSIB - 90 TABLET SALUT SELAPUT",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 96,
+  "totalBB": 190810111.32,
+  "totalBK": 14689300,
+  "HPP": 69731
+ },
+ {
+  "Product_ID": "02SVSA",
+  "Product_Name": "SIMVASK-5 TABLET",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 96,
+  "totalBB": 12078765,
+  "totalBK": 2149850,
+  "HPP": 29289
+ },
+ {
+  "Product_ID": "L5",
+  "Product_Name": "MELOXICAM-7.5 TABLET (GENERIK)",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 94.66,
+  "totalBB": 5584636.8,
+  "totalBK": 7666284,
+  "HPP": 9669
+ },
+ {
+  "Product_ID": "BA",
+  "Product_Name": "EPERISON TABLET SALUT SELAPUT (GENERIK)",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 95,
+  "totalBB": 84516724.62,
+  "totalBK": 17971525,
+  "HPP": 29991
+ },
+ {
+  "Product_ID": "01",
+  "Product_Name": "LAMESON-4 TABLET",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 97,
+  "totalBB": 172509545.88,
+  "totalBK": 37084475,
+  "HPP": 72381
+ },
+ {
+  "Product_ID": "72",
+  "Product_Name": "DIADIUM TABLET",
+  "Batch_Size": 2800,
+  "Group_Rendemen": 97,
+  "totalBB": 4810142.394,
+  "totalBK": 11320504,
+  "HPP": 32173
+ },
+ {
+  "Product_ID": "75",
+  "Product_Name": "MEGAZING KAPLET SALUT SELAPUT",
+  "Batch_Size": 2850,
+  "Group_Rendemen": 97,
+  "totalBB": 63716703.7824,
+  "totalBK": 17277161.5,
+  "HPP": 60459
+ },
+ {
+  "Product_ID": "76",
+  "Product_Name": "ACLAM-500 KAPLET SALUT SELAPUT",
+  "Batch_Size": 1250,
+  "Group_Rendemen": 98,
+  "totalBB": 0,
+  "totalBK": 9997625,
+  "HPP": 8161
+ },
+ {
+  "Product_ID": "02SVSB",
+  "Product_Name": "SIMVASK-10 MG TABLET",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 95,
+  "totalBB": 24153727.5,
+  "totalBK": 4279000,
+  "HPP": 31609
+ },
+ {
+  "Product_ID": "AR",
+  "Product_Name": "DEXKETOPROFEN TROMETAMOL-25 TABLET SALUT SELAPUT (GENERIK)",
+  "Batch_Size": 2500,
+  "Group_Rendemen": 97,
+  "totalBB": 71474433.225,
+  "totalBK": 14073775,
+  "HPP": 38545
+ },
+ {
+  "Product_ID": "GF",
+  "Product_Name": "ZOLTIN OVULA",
+  "Batch_Size": 2500,
+  "Group_Rendemen": 100,
+  "totalBB": 0,
+  "totalBK": 28515875.75,
+  "HPP": 11406
+ },
+ {
+  "Product_ID": "AS",
+  "Product_Name": "NYSTATIN DROPS (GENERIK)",
+  "Batch_Size": 8333,
+  "Group_Rendemen": 97,
+  "totalBB": 19295231.5,
+  "totalBK": 62711616.65,
+  "HPP": 11000
+ },
+ {
+  "Product_ID": "AO",
+  "Product_Name": "NU HEALTH L-CAL GROW SIRUP",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 99,
+  "totalBB": 19002044.91,
+  "totalBK": 15154786,
+  "HPP": 11961
+ },
+ {
+  "Product_ID": "N5",
+  "Product_Name": "CEFILA-200 KAPSUL",
+  "Batch_Size": 10000,
+  "Group_Rendemen": 98,
+  "totalBB": 111207998,
+  "totalBK": 14067900,
+  "HPP": 19748
+ },
+ {
+  "Product_ID": "N6",
+  "Product_Name": "LACTRIN KAPSUL",
+  "Batch_Size": 11250,
+  "Group_Rendemen": 90,
+  "totalBB": 244824255.45,
+  "totalBK": 26985065.25,
+  "HPP": 35925
+ },
+ {
+  "Product_ID": "N8",
+  "Product_Name": "PROMEL - 5 TABLET SALUT SELAPUT",
+  "Batch_Size": 1733,
+  "Group_Rendemen": 84.2,
+  "totalBB": 14838311.52384,
+  "totalBK": 6516111.02,
+  "HPP": 72723
+ },
+ {
+  "Product_ID": "N9",
+  "Product_Name": "PROMEL - 10 TABLET SALUT SELAPUT",
+  "Batch_Size": 3250,
+  "Group_Rendemen": 80,
+  "totalBB": 14833287.61044,
+  "totalBK": 6992560,
+  "HPP": 34841
+ },
+ {
+  "Product_ID": "O0",
+  "Product_Name": "L-BIO SACHET",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 98,
+  "totalBB": 125979000,
+  "totalBK": 13653012.12,
+  "HPP": 50152
+ },
+ {
+  "Product_ID": "69",
+  "Product_Name": "LAPIMOX-125 SIRUP KERING",
+  "Batch_Size": 3500,
+  "Group_Rendemen": 97,
+  "totalBB": 11735107.95,
+  "totalBK": 9996917.5,
+  "HPP": 6401
+ },
+ {
+  "Product_ID": "70",
+  "Product_Name": "LAPIMOX-250 SIRUP KERING",
+  "Batch_Size": 3000,
+  "Group_Rendemen": 97,
+  "totalBB": 17576784,
+  "totalBK": 9030150,
+  "HPP": 9143
+ },
+ {
+  "Product_ID": "C0",
+  "Product_Name": "CEFXON SERBUK INJEKSI STERIL",
+  "Batch_Size": 8196,
+  "Group_Rendemen": 97,
+  "totalBB": 50094000,
+  "totalBK": 53699113.14,
+  "HPP": 22778
+ },
+ {
+  "Product_ID": "CR",
+  "Product_Name": "OSTEOKOM GCM KAPLET SALUT SELAPUT (60`S)",
+  "Batch_Size": 833,
+  "Group_Rendemen": 99,
+  "totalBB": 57878856.5309,
+  "totalBK": 27333645.37,
+  "HPP": 147632
+ },
+ {
+  "Product_ID": "CP",
+  "Product_Name": "NU HEALTH VITAMIN D3 1000 IU TABLET SALUT SELAPUT",
+  "Batch_Size": 5500,
+  "Group_Rendemen": 98,
+  "totalBB": 10334217.305202,
+  "totalBK": 24803555,
+  "HPP": 15796
+ },
+ {
+  "Product_ID": "CE",
+  "Product_Name": "L-VIT D3 1000 IU TABLET SALUT SELAPUT",
+  "Batch_Size": 11000,
+  "Group_Rendemen": 95,
+  "totalBB": 10334217.305202,
+  "totalBK": 20632850,
+  "HPP": 11285
+ },
+ {
+  "Product_ID": "CJ",
+  "Product_Name": "LANOS PLUS SIRUP",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 98,
+  "totalBB": 8922846,
+  "totalBK": 15627675,
+  "HPP": 10895
+ },
+ {
+  "Product_ID": "A0",
+  "Product_Name": "APIALYS DROPS",
+  "Batch_Size": 21000,
+  "Group_Rendemen": 98,
+  "totalBB": 23670550.2672,
+  "totalBK": 129029096.3,
+  "HPP": 9495
+ },
+ {
+  "Product_ID": "02SXMA",
+  "Product_Name": "SIMEXIM-1 G SERBUK INJEKSI STERIL",
+  "Batch_Size": 9090,
+  "Group_Rendemen": 96,
+  "totalBB": 49302000,
+  "totalBK": 54062753.5,
+  "HPP": 21586
+ },
+ {
+  "Product_ID": "02TRPS",
+  "Product_Name": "TURPAS DROPS",
+  "Batch_Size": 20000,
+  "Group_Rendemen": 97,
+  "totalBB": 14830529.67,
+  "totalBK": 91050950,
+  "HPP": 8846
+ },
+ {
+  "Product_ID": "02ATXA",
+  "Product_Name": "ATROCOX-7.5 MG TABLET",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 93,
+  "totalBB": 5676691.5,
+  "totalBK": 0,
+  "HPP": 24984
+ },
+ {
+  "Product_ID": "02ATXB",
+  "Product_Name": "ATROCOX-15 MG TABLET",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 95,
+  "totalBB": 10431930.6,
+  "totalBK": 0,
+  "HPP": 16996
+ },
+ {
+  "Product_ID": "02SRTA",
+  "Product_Name": "SIMSARTAN-40 KAPLET",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 94,
+  "totalBB": 69641875,
+  "totalBK": 0,
+  "HPP": 57839
+ },
+ {
+  "Product_ID": "02SRTB",
+  "Product_Name": "SIMSARTAN-80 KAPLET",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 94,
+  "totalBB": 139283750,
+  "totalBK": 0,
+  "HPP": 77847
+ },
+ {
+  "Product_ID": "02SRLB",
+  "Product_Name": "SIMRYL-2 KAPLET",
+  "Batch_Size": 8000,
+  "Group_Rendemen": 96,
+  "totalBB": 37036080.46116,
+  "totalBK": 6489450,
+  "HPP": 31390
+ },
+ {
+  "Product_ID": "02STMA",
+  "Product_Name": "SIMTRAM KAPLET SALUT SELAPUT",
+  "Batch_Size": 11250,
+  "Group_Rendemen": 96,
+  "totalBB": 40015660.752,
+  "totalBK": 0,
+  "HPP": 14029
+ },
+ {
+  "Product_ID": "CD",
+  "Product_Name": "MICROGEST 200 MG KAPSUL LUNAK",
+  "Batch_Size": 16000,
+  "Group_Rendemen": 99,
+  "totalBB": 1260000000,
+  "totalBK": 27736866.75,
+  "HPP": 85132
+ },
+ {
+  "Product_ID": "D4",
+  "Product_Name": "TIRIZ KAPLET SALUT SELAPUT",
+  "Batch_Size": 12000,
+  "Group_Rendemen": 95,
+  "totalBB": 14985075.0528,
+  "totalBK": 20001325,
+  "HPP": 13218
+ },
+ {
+  "Product_ID": "D5",
+  "Product_Name": "TIRIZ DROPS",
+  "Batch_Size": 13333,
+  "Group_Rendemen": 98,
+  "totalBB": 13396367.36,
+  "totalBK": 87288724.4,
+  "HPP": 11936
+ },
+ {
+  "Product_ID": "BJ",
+  "Product_Name": "ENOXRIN 4000 IU",
+  "Batch_Size": 1,
+  "Group_Rendemen": 100,
+  "totalBB": 0,
+  "totalBK": 0,
+  "HPP": 0
+ },
+ {
+  "Product_ID": "X2",
+  "Product_Name": "IMUNOS PLUS SIRUP",
+  "Batch_Size": 16666,
+  "Group_Rendemen": 98,
+  "totalBB": 414405759.205714,
+  "totalBK": 41679498.68,
+  "HPP": 30668
+ },
+ {
+  "Product_ID": "X3",
+  "Product_Name": "L-CORE SACHET",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 95,
+  "totalBB": 72196929,
+  "totalBK": 7688360,
+  "HPP": 42045
+ },
+ {
+  "Product_ID": "X5",
+  "Product_Name": "REBAMID TABLET SALUT SELAPUT",
+  "Batch_Size": 8333,
+  "Group_Rendemen": 92.46,
+  "totalBB": 121224672.9,
+  "totalBK": 21328491.5,
+  "HPP": 29932
+ },
+ {
+  "Product_ID": "X6",
+  "Product_Name": "DESDIN sirup",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 98,
+  "totalBB": 13387550.4,
+  "totalBK": 15088817.5,
+  "HPP": 12310
+ },
+ {
+  "Product_ID": "AE",
+  "Product_Name": "LAPIGIM - 2/500 KAPLET SALUT SELAPUT",
+  "Batch_Size": 1,
+  "Group_Rendemen": 100,
+  "totalBB": 0,
+  "totalBK": 0,
+  "HPP": 0
+ },
+ {
+  "Product_ID": "AF",
+  "Product_Name": "LAPIVA - 5/80 TABLET SALUT SELAPUT",
+  "Batch_Size": 1,
+  "Group_Rendemen": 100,
+  "totalBB": 0,
+  "totalBK": 0,
+  "HPP": 0
+ },
+ {
+  "Product_ID": "Z3",
+  "Product_Name": "ATORVASTATIN-20 KAPLET SALUT SELAPUT (GENERIK)",
+  "Batch_Size": 8000,
+  "Group_Rendemen": 96,
+  "totalBB": 91073795.362,
+  "totalBK": 20503625,
+  "HPP": 16176
+ },
+ {
+  "Product_ID": "Z8",
+  "Product_Name": "CEFIXIME-100 KAPSUL (GENERIK)",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 98,
+  "totalBB": 115277998,
+  "totalBK": 12201095,
+  "HPP": 33477
+ },
+ {
+  "Product_ID": "ZA",
+  "Product_Name": "CEFOTAXIME 1 GRAM SERBUK INJEKSI STERIL (GENERIK)",
+  "Batch_Size": 4545,
+  "Group_Rendemen": 96,
+  "totalBB": 49302000,
+  "totalBK": 54892321.53,
+  "HPP": 25542
+ },
+ {
+  "Product_ID": "X0",
+  "Product_Name": "LAPROSIN TABLET",
+  "Batch_Size": 9375,
+  "Group_Rendemen": 94.7,
+  "totalBB": 65957067,
+  "totalBK": 15803756.25,
+  "HPP": 17384
+ },
+ {
+  "Product_ID": "X1",
+  "Product_Name": "IMUNOS PLUS KAPLET SALUT SELAPUT",
+  "Batch_Size": 2500,
+  "Group_Rendemen": 96,
+  "totalBB": 147798372.41,
+  "totalBK": 14535631.25,
+  "HPP": 85925
+ },
+ {
+  "Product_ID": "DQ",
+  "Product_Name": "ULFAT SUSPENSI",
+  "Batch_Size": 25000,
+  "Group_Rendemen": 97,
+  "totalBB": 232151765,
+  "totalBK": 75624202.5,
+  "HPP": 15575
+ },
+ {
+  "Product_ID": "DD",
+  "Product_Name": "ALERHIS KAPLET",
+  "Batch_Size": 3750,
+  "Group_Rendemen": 95,
+  "totalBB": 16157034.6,
+  "totalBK": 25500592,
+  "HPP": 37683
+ },
+ {
+  "Product_ID": "DN",
+  "Product_Name": "CEFTIZOXIME SODIUM SERBUK INJEKSI STERIL (GENERIK)",
+  "Batch_Size": 8510,
+  "Group_Rendemen": 95,
+  "totalBB": 155430000,
+  "totalBK": 59123593.69,
+  "HPP": 27491
+ },
+ {
+  "Product_ID": "ZN",
+  "Product_Name": "TAMSIN - 0.4 MG SR TABLET SALUT SELAPUT LEPAS LAMBAT",
+  "Batch_Size": 6500,
+  "Group_Rendemen": 95.04,
+  "totalBB": 117753900.516,
+  "totalBK": 15717825,
+  "HPP": 39750
+ },
+ {
+  "Product_ID": "ZP",
+  "Product_Name": "MYONEP TABLET SALUT SELAPUT",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 95,
+  "totalBB": 84516724.62,
+  "totalBK": 15951045,
+  "HPP": 50159
+ },
+ {
+  "Product_ID": "Y8",
+  "Product_Name": "L-CAL KAPLET SALUT SELAPUT",
+  "Batch_Size": 4800,
+  "Group_Rendemen": 99,
+  "totalBB": 92907272.064,
+  "totalBK": 24504959,
+  "HPP": 34418
+ },
+ {
+  "Product_ID": "A6",
+  "Product_Name": "AMADIAB-2 KAPLET",
+  "Batch_Size": 8000,
+  "Group_Rendemen": 97,
+  "totalBB": 37036080.46116,
+  "totalBK": 22129500,
+  "HPP": 31398
+ },
+ {
+  "Product_ID": "A7",
+  "Product_Name": "AMADIAB-3 KAPLET",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 96,
+  "totalBB": 25428506.454,
+  "totalBK": 11763500,
+  "HPP": 41385
+ },
+ {
+  "Product_ID": "ä7",
+  "Product_Name": "GRANULAT LAPICEF-125 DS",
+  "Batch_Size": 138000,
+  "Group_Rendemen": 97,
+  "totalBB": 5889861.90624,
+  "totalBK": 0,
+  "HPP": 81
+ },
+ {
+  "Product_ID": "83",
+  "Product_Name": "LATROPIL-800 KAPLET SALUT SELAPUT",
+  "Batch_Size": 1200,
+  "Group_Rendemen": 96,
+  "totalBB": 29118270.411,
+  "totalBK": 10111536,
+  "HPP": 74418
+ },
+ {
+  "Product_ID": "84",
+  "Product_Name": "ALEGI KAPLET",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 94,
+  "totalBB": 9304111.26,
+  "totalBK": 12922725,
+  "HPP": 41978
+ },
+ {
+  "Product_ID": "91",
+  "Product_Name": "LAPICEF-500 KAPSUL",
+  "Batch_Size": 2858,
+  "Group_Rendemen": 99,
+  "totalBB": 289836586.5756,
+  "totalBK": 26829367.74,
+  "HPP": 146025
+ },
+ {
+  "Product_ID": "A1",
+  "Product_Name": "NYSTIN DROPS",
+  "Batch_Size": 8333,
+  "Group_Rendemen": 97,
+  "totalBB": 19295231.5,
+  "totalBK": 57319560.65,
+  "HPP": 13877
+ },
+ {
+  "Product_ID": "ZB",
+  "Product_Name": "CEFTAZIDIME 1 GRAM SERBUK INJEKSI STERIL (GENERIK)",
+  "Batch_Size": 3636,
+  "Group_Rendemen": 96,
+  "totalBB": 135432000,
+  "totalBK": 50198552.03,
+  "HPP": 54971
+ },
+ {
+  "Product_ID": "ZC",
+  "Product_Name": "CEFTRIAXONE 1 GRAM SERBUK INJEKSI STERIL (GENERIK)",
+  "Batch_Size": 4098,
+  "Group_Rendemen": 97,
+  "totalBB": 50094000,
+  "totalBK": 49495167.25,
+  "HPP": 26903
+ },
+ {
+  "Product_ID": "ZG",
+  "Product_Name": "LABALIN - 75 KAPSUL",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 79.29,
+  "totalBB": 72052557.5,
+  "totalBK": 8835659.02,
+  "HPP": 60034
+ },
+ {
+  "Product_ID": "ZH",
+  "Product_Name": "LABALIN - 150 KAPSUL",
+  "Batch_Size": 1666,
+  "Group_Rendemen": 85,
+  "totalBB": 70017557.5,
+  "totalBK": 7416530.26,
+  "HPP": 98534
+ },
+ {
+  "Product_ID": "I7",
+  "Product_Name": "A-B VASK 5 TABLET",
+  "Batch_Size": 6666,
+  "Group_Rendemen": 96,
+  "totalBB": 24157530,
+  "totalBK": 20454438,
+  "HPP": 23452
+ },
+ {
+  "Product_ID": "I8",
+  "Product_Name": "A-B VASK 10 TABLET",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 95,
+  "totalBB": 24153727.5,
+  "totalBK": 14086928.5,
+  "HPP": 36296
+ },
+ {
+  "Product_ID": "J0",
+  "Product_Name": "MECOLA KAPLET SALUT SELAPUT",
+  "Batch_Size": 3000,
+  "Group_Rendemen": 97,
+  "totalBB": 41752613.916,
+  "totalBK": 15920100,
+  "HPP": 35943
+ },
+ {
+  "Product_ID": "J4",
+  "Product_Name": "NEUCITI-250 mg/2 mL injeksi",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 90,
+  "totalBB": 45853080.064,
+  "totalBK": 24768949.52,
+  "HPP": 44652
+ },
+ {
+  "Product_ID": "57",
+  "Product_Name": "RHELAFEN SUSPENSI",
+  "Batch_Size": 25000,
+  "Group_Rendemen": 98,
+  "totalBB": 48961977.9,
+  "totalBK": 63231689.46,
+  "HPP": 6830
+ },
+ {
+  "Product_ID": "58",
+  "Product_Name": "RHELAFEN FORTE SUSPENSI",
+  "Batch_Size": 25000,
+  "Group_Rendemen": 98,
+  "totalBB": 56974181.544,
+  "totalBK": 63812439.46,
+  "HPP": 7418
+ },
+ {
+  "Product_ID": "DE",
+  "Product_Name": "CEFADROXIL OD (GENERIK)",
+  "Batch_Size": 9000,
+  "Group_Rendemen": 99,
+  "totalBB": 41110925.4,
+  "totalBK": 46098030,
+  "HPP": 10509
+ },
+ {
+  "Product_ID": "CW",
+  "Product_Name": "ESOMEPRAZOLE SERBUK INJEKSI STERIL (GENERIK)",
+  "Batch_Size": 7810,
+  "Group_Rendemen": 93,
+  "totalBB": 21735000,
+  "totalBK": 51837011.99,
+  "HPP": 11127
+ },
+ {
+  "Product_ID": "CF",
+  "Product_Name": "L-VIT D3 5000 IU TABLET SALUT SELAPUT",
+  "Batch_Size": 11000,
+  "Group_Rendemen": 95,
+  "totalBB": 28529861.36601,
+  "totalBK": 27331637.5,
+  "HPP": 13956
+ },
+ {
+  "Product_ID": "CM",
+  "Product_Name": "HYSON SERBUK INJEKSI STERIL",
+  "Batch_Size": 7462,
+  "Group_Rendemen": 87.78,
+  "totalBB": 16821000,
+  "totalBK": 49803222.81,
+  "HPP": 20086
+ },
+ {
+  "Product_ID": "CO",
+  "Product_Name": "NU HEALTH VITAMIN C 1000 MG SUSTAINED RELEASE KAPLET SALUT SELAPUT",
+  "Batch_Size": 1350,
+  "Group_Rendemen": 94.3,
+  "totalBB": 14786494.578,
+  "totalBK": 12619568.5,
+  "HPP": 44314
+ },
+ {
+  "Product_ID": "BW",
+  "Product_Name": "OSTEOKOM FORTE SERBUK EFFERVESCENT",
+  "Batch_Size": 1600,
+  "Group_Rendemen": 97,
+  "totalBB": 0,
+  "totalBK": 24072024,
+  "HPP": 15510
+ },
+ {
+  "Product_ID": "BB",
+  "Product_Name": "PREGABALIN 75 kapsul (generik)",
+  "Batch_Size": 1000,
+  "Group_Rendemen": 89.87,
+  "totalBB": 72052557.5,
+  "totalBK": 6225800,
+  "HPP": 93695
+ },
+ {
+  "Product_ID": "BD",
+  "Product_Name": "L-ACYS TABLET EFFERVESCENT",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 94,
+  "totalBB": 0,
+  "totalBK": 41904554.5,
+  "HPP": 8916
+ },
+ {
+  "Product_ID": "CY",
+  "Product_Name": "L-ACYS KAPSUL (AMPLOP)",
+  "Batch_Size": 6666,
+  "Group_Rendemen": 90,
+  "totalBB": 24219472,
+  "totalBK": 32612573.98,
+  "HPP": 24173
+ },
+ {
+  "Product_ID": "G1",
+  "Product_Name": "LAPIBAL-500 KAPSUL",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 94,
+  "totalBB": 86619992,
+  "totalBK": 13936800,
+  "HPP": 48273
+ },
+ {
+  "Product_ID": "G2",
+  "Product_Name": "LAPIBAL-250 KAPSUL",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 93.65,
+  "totalBB": 55676792,
+  "totalBK": 14869800,
+  "HPP": 37266
+ },
+ {
+  "Product_ID": "E3",
+  "Product_Name": "MOVIX-7.5 TABLET",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 96,
+  "totalBB": 5584636.8,
+  "totalBK": 10498325,
+  "HPP": 16624
+ },
+ {
+  "Product_ID": "E4",
+  "Product_Name": "MOVIX-15 TABLET",
+  "Batch_Size": 10000,
+  "Group_Rendemen": 95.36,
+  "totalBB": 22338547.2,
+  "totalBK": 22507650,
+  "HPP": 15556
+ },
+ {
+  "Product_ID": "E5",
+  "Product_Name": "IMUNOS SIRUP",
+  "Batch_Size": 41666,
+  "Group_Rendemen": 97,
+  "totalBB": 744719462.8,
+  "totalBK": 109605504.2,
+  "HPP": 23649
+ },
+ {
+  "Product_ID": "32",
+  "Product_Name": "MECOLA FORTE KAPLET SALUT SELAPUT",
+  "Batch_Size": 3000,
+  "Group_Rendemen": 94,
+  "totalBB": 55003371.636,
+  "totalBK": 14269627.5,
+  "HPP": 43030
+ },
+ {
+  "Product_ID": "34",
+  "Product_Name": "LAPIFLOX-500 KAPLET SALUT SELAPUT",
+  "Batch_Size": 4444,
+  "Group_Rendemen": 93,
+  "totalBB": 39170954.4444,
+  "totalBK": 23402045.32,
+  "HPP": 40821
+ },
+ {
+  "Product_ID": "H6",
+  "Product_Name": "L-CISIN tablet",
+  "Batch_Size": 6666,
+  "Group_Rendemen": 94,
+  "totalBB": 22688028,
+  "totalBK": 16747392.5,
+  "HPP": 19141
+ },
+ {
+  "Product_ID": "I1",
+  "Product_Name": "CAL-95 KAPLET SALUT SELAPUT",
+  "Batch_Size": 6000,
+  "Group_Rendemen": 97,
+  "totalBB": 72857733.684,
+  "totalBK": 18318150,
+  "HPP": 27523
+ },
+ {
+  "Product_ID": "F2",
+  "Product_Name": "HEPATIN KAPLET SALUT SELAPUT",
+  "Batch_Size": 4666,
+  "Group_Rendemen": 96,
+  "totalBB": 130657150.412,
+  "totalBK": 21309243.26,
+  "HPP": 41181
+ },
+ {
+  "Product_ID": "C3",
+  "Product_Name": "AMADIAB-4 KAPLET",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 96,
+  "totalBB": 32349370.08528,
+  "totalBK": 11807250,
+  "HPP": 42745
+ },
+ {
+  "Product_ID": "FV",
+  "Product_Name": "FLUOXETINE 20 MG TABLET (GENERIK)",
+  "Batch_Size": 8333,
+  "Group_Rendemen": 93,
+  "totalBB": 18761454,
+  "totalBK": 23599399.8,
+  "HPP": 6900
+ },
+ {
+  "Product_ID": "FX",
+  "Product_Name": "FEBUXOSTAT 80 MG KAPLET SALUT SELAPUT (GENERIK)",
+  "Batch_Size": 2666,
+  "Group_Rendemen": 93,
+  "totalBB": 78980292,
+  "totalBK": 3254040,
+  "HPP": 35386
+ },
+ {
+  "Product_ID": "FY",
+  "Product_Name": "AZITHROMYCIN 500 MG KAPLET SALUT SELAPUT (GENERIK)",
+  "Batch_Size": 1666,
+  "Group_Rendemen": 93,
+  "totalBB": 97690518,
+  "totalBK": 1771110,
+  "HPP": 69293
+ },
+ {
+  "Product_ID": "FW",
+  "Product_Name": "PELARUT ANFUROX INJEKSI",
+  "Batch_Size": 9174,
+  "Group_Rendemen": 90.5,
+  "totalBB": 119889,
+  "totalBK": 17999220.8,
+  "HPP": 10553
+ },
+ {
+  "Product_ID": "77",
+  "Product_Name": "LAPIFED DM SIRUP",
+  "Batch_Size": 25000,
+  "Group_Rendemen": 98,
+  "totalBB": 91359876.55,
+  "totalBK": 84221484.2,
+  "HPP": 9627
+ },
+ {
+  "Product_ID": "CV",
+  "Product_Name": "PANTOPRAZOLE SERBUK INJEKSI STERIL (GENERIK)",
+  "Batch_Size": 7980,
+  "Group_Rendemen": 90,
+  "totalBB": 10395000,
+  "totalBK": 52079340.31,
+  "HPP": 9650
+ },
+ {
+  "Product_ID": "25",
+  "Product_Name": "LATROPIL-1200 KAPLET SALUT SELAPUT",
+  "Batch_Size": 1000,
+  "Group_Rendemen": 96,
+  "totalBB": 29993449.464,
+  "totalBK": 7256280,
+  "HPP": 81250
+ },
+ {
+  "Product_ID": "26",
+  "Product_Name": "ZEGREN-50 TABLET SALUT ENTERIK",
+  "Batch_Size": 3000,
+  "Group_Rendemen": 96,
+  "totalBB": 33409296.4272,
+  "totalBK": 20169165,
+  "HPP": 55794
+ },
+ {
+  "Product_ID": "28",
+  "Product_Name": "NEUCITI-500 TABLET SALUT SELAPUT",
+  "Batch_Size": 6666,
+  "Group_Rendemen": 98,
+  "totalBB": 486733042.5228,
+  "totalBK": 17281847.76,
+  "HPP": 90431
+ },
+ {
+  "Product_ID": "08",
+  "Product_Name": "LASAL-4 KAPSUL",
+  "Batch_Size": 3000,
+  "Group_Rendemen": 94,
+  "totalBB": 20109596.82,
+  "totalBK": 21779515,
+  "HPP": 53259
+ },
+ {
+  "Product_ID": "10",
+  "Product_Name": "LAPISTAN-500 KAPLET SALUT SELAPUT",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 97,
+  "totalBB": 46902417.48,
+  "totalBK": 11037150,
+  "HPP": 62797
+ },
+ {
+  "Product_ID": "A8",
+  "Product_Name": "LAPIXIME SERBUK INJEKSI STERIL",
+  "Batch_Size": 9090,
+  "Group_Rendemen": 96,
+  "totalBB": 49302000,
+  "totalBK": 64962758.57,
+  "HPP": 22835
+ },
+ {
+  "Product_ID": "A9",
+  "Product_Name": "LACEDIM SERBUK INJEKSI STERIL",
+  "Batch_Size": 7272,
+  "Group_Rendemen": 96,
+  "totalBB": 135432000,
+  "totalBK": 60408563.47,
+  "HPP": 38975
+ },
+ {
+  "Product_ID": "AU",
+  "Product_Name": "ERDOSTEINE-300 KAPSUL (GENERIK)",
+  "Batch_Size": 2250,
+  "Group_Rendemen": 92.71,
+  "totalBB": 244824255.45,
+  "totalBK": 13153112.5,
+  "HPP": 128133
+ },
+ {
+  "Product_ID": "AX",
+  "Product_Name": "MECOBALAMIN-500 KAPSUL (GENERIK)",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 94,
+  "totalBB": 86619992,
+  "totalBK": 9232225,
+  "HPP": 28166
+ },
+ {
+  "Product_ID": "AY",
+  "Product_Name": "COLCHICINE TABLET (GENERIK)",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 96,
+  "totalBB": 22688028,
+  "totalBK": 12402410,
+  "HPP": 21307
+ },
+ {
+  "Product_ID": "AZ",
+  "Product_Name": "ONDANSETRON SIRUP 4 MG/5 ML (GENERIK)",
+  "Batch_Size": 16666,
+  "Group_Rendemen": 98,
+  "totalBB": 70341513.4,
+  "totalBK": 39556934,
+  "HPP": 7269
+ },
+ {
+  "Product_ID": "B2",
+  "Product_Name": "LASALCOM",
+  "Batch_Size": 1,
+  "Group_Rendemen": 100,
+  "totalBB": 0,
+  "totalBK": 0,
+  "HPP": 0
+ },
+ {
+  "Product_ID": "CC",
+  "Product_Name": "MICROGEST 100 MG KAPSUL LUNAK",
+  "Batch_Size": 13333,
+  "Group_Rendemen": 99,
+  "totalBB": 1092000000,
+  "totalBK": 23390815.75,
+  "HPP": 88009
+ },
+ {
+  "Product_ID": "02SCIA",
+  "Product_Name": "SIMCITI-500 INJEKSI",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 88.21,
+  "totalBB": 45892680.064,
+  "totalBK": 14423200,
+  "HPP": 73867
+ },
+ {
+  "Product_ID": "02MXSA",
+  "Product_Name": "MAXLIS 5 TABLET SALUT SELAPUT",
+  "Batch_Size": 1733,
+  "Group_Rendemen": 88,
+  "totalBB": 14896773.8052,
+  "totalBK": 0,
+  "HPP": 70094
+ },
+ {
+  "Product_ID": "02SMXA",
+  "Product_Name": "SIMCOX 60 TABLET SALUT SELAPUT",
+  "Batch_Size": 6666,
+  "Group_Rendemen": 96,
+  "totalBB": 169908213.24,
+  "totalBK": 0,
+  "HPP": 46504
+ },
+ {
+  "Product_ID": "02SMXB",
+  "Product_Name": "SIMCOX 90 TABLET SALUT SELAPUT",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 96,
+  "totalBB": 190810111.32,
+  "totalBK": 0,
+  "HPP": 70716
+ },
+ {
+  "Product_ID": "02PTXA",
+  "Product_Name": "PANTOMEX INJEKSI",
+  "Batch_Size": 7980,
+  "Group_Rendemen": 90,
+  "totalBB": 10395000,
+  "totalBK": 46471250.7,
+  "HPP": 16794
+ },
+ {
+  "Product_ID": "02MXFB",
+  "Product_Name": "MAXCEF-125 MG/5 ML DRY SYRUP",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 98.3,
+  "totalBB": 24011172.96,
+  "totalBK": 8362800,
+  "HPP": 13423
+ },
+ {
+  "Product_ID": "02SPZB",
+  "Product_Name": "SIMPRAZOL-20 TABLET SALUT ENTERIK",
+  "Batch_Size": 20000,
+  "Group_Rendemen": 95,
+  "totalBB": 247626822.84,
+  "totalBK": 0,
+  "HPP": 24617
+ },
+ {
+  "Product_ID": "02MXSB",
+  "Product_Name": "MAXLIS 20 TABLET SALUT SELAPUT",
+  "Batch_Size": 3250,
+  "Group_Rendemen": 88,
+  "totalBB": 14888097.7908,
+  "totalBK": 0,
+  "HPP": 24524
+ },
+ {
+  "Product_ID": "02SFXA",
+  "Product_Name": "SIMFIX-100 KAPSUL",
+  "Batch_Size": 6666,
+  "Group_Rendemen": 97,
+  "totalBB": 109006884,
+  "totalBK": 18975,
+  "HPP": 30250
+ },
+ {
+  "Product_ID": "02SFXB",
+  "Product_Name": "SIMFIX-200 KAPSUL",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 93,
+  "totalBB": 53568999,
+  "totalBK": 13800,
+  "HPP": 20663
+ },
+ {
+  "Product_ID": "02PGMA",
+  "Product_Name": "PREGAMAX 75 MG KAPSUL",
+  "Batch_Size": 3333,
+  "Group_Rendemen": 90.72,
+  "totalBB": 67982557.5,
+  "totalBK": 0,
+  "HPP": 45667
+ },
+ {
+  "Product_ID": "02PGMB",
+  "Product_Name": "PREGAMAX 150 MG KAPSUL",
+  "Batch_Size": 1666,
+  "Group_Rendemen": 83.38,
+  "totalBB": 67982557.5,
+  "totalBK": 0,
+  "HPP": 127191
+ },
+ {
+  "Product_ID": "01LFXB",
+  "Product_Name": "LANFIX 200 MG KAPSUL",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 93,
+  "totalBB": 53568999,
+  "totalBK": 0,
+  "HPP": 19389
+ },
+ {
+  "Product_ID": "HB",
+  "Product_Name": "SULBIOTIC SERBUK INJEKSI STERIL",
+  "Batch_Size": 5980,
+  "Group_Rendemen": 99,
+  "totalBB": 0,
+  "totalBK": 6743444.45,
+  "HPP": 1139
+ },
+ {
+  "Product_ID": "HC",
+  "Product_Name": "LAMBELIT SIRUP",
+  "Batch_Size": 33333,
+  "Group_Rendemen": 96,
+  "totalBB": 317724660,
+  "totalBK": 75122739.75,
+  "HPP": 15031
+ },
+ {
+  "Product_ID": "HF",
+  "Product_Name": "LAPIFED EKSPEKTORAN SIRUP (BOTOL PLASTIK)",
+  "Batch_Size": 41666,
+  "Group_Rendemen": 98,
+  "totalBB": 93789411.25,
+  "totalBK": 80461216.35,
+  "HPP": 6893
+ },
+ {
+  "Product_ID": "GW",
+  "Product_Name": "LASAL EKSPEKTORAN SIRUP (BOTOL PLASTIK)",
+  "Batch_Size": 25000,
+  "Group_Rendemen": 98,
+  "totalBB": 38681902.443,
+  "totalBK": 65971145.93,
+  "HPP": 7255
+ },
+ {
+  "Product_ID": "02SPZC",
+  "Product_Name": "SIMPRAZOL-40 TABLET SALUT ENTERIK",
+  "Batch_Size": 10000,
+  "Group_Rendemen": 95,
+  "totalBB": 247128356.04,
+  "totalBK": 0,
+  "HPP": 40277
+ },
+ {
+  "Product_ID": "12",
+  "Product_Name": "LASMALIN TABLET",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 96,
+  "totalBB": 10253174,
+  "totalBK": 12818475,
+  "HPP": 32983
+ },
+ {
+  "Product_ID": "13",
+  "Product_Name": "LASMALIN SIRUP",
+  "Batch_Size": 10000,
+  "Group_Rendemen": 98,
+  "totalBB": 17354443.86,
+  "totalBK": 36486975.73,
+  "HPP": 9507
+ },
+ {
+  "Product_ID": "05",
+  "Product_Name": "LASAL SIRUP",
+  "Batch_Size": 25000,
+  "Group_Rendemen": 98,
+  "totalBB": 101679398.95,
+  "totalBK": 86378297.96,
+  "HPP": 10319
+ },
+ {
+  "Product_ID": "93",
+  "Product_Name": "LAPICEF-250 SIRUP KERING",
+  "Batch_Size": 5000,
+  "Group_Rendemen": 98.3,
+  "totalBB": 36176460,
+  "totalBK": 17275875,
+  "HPP": 17203
+ },
+ {
+  "Product_ID": "81",
+  "Product_Name": "LATROPIL SIRUP",
+  "Batch_Size": 10000,
+  "Group_Rendemen": 98,
+  "totalBB": 47893981.2,
+  "totalBK": 80507825.73,
+  "HPP": 17470
+ },
+ {
+  "Product_ID": "59",
+  "Product_Name": "LASGAN KAPSUL LEPAS TUNDA",
+  "Batch_Size": 13477,
+  "Group_Rendemen": 97,
+  "totalBB": 80900278,
+  "totalBK": 40898456.06,
+  "HPP": 21229
+ },
+ {
+  "Product_ID": "47",
+  "Product_Name": "LACOLDIN TABLET",
+  "Batch_Size": 1300,
+  "Group_Rendemen": 96,
+  "totalBB": 14591050.0632,
+  "totalBK": 20655376.5,
+  "HPP": 73477
+ },
+ {
+  "Product_ID": "48",
+  "Product_Name": "LACOLDIN SIRUP",
+  "Batch_Size": 41666,
+  "Group_Rendemen": 98,
+  "totalBB": 131934369,
+  "totalBK": 99536007.85,
+  "HPP": 8227
+ },
+ {
+  "Product_ID": "53",
+  "Product_Name": "LACOPHEN-500 KAPSUL",
+  "Batch_Size": 1000,
+  "Group_Rendemen": 85,
+  "totalBB": 106635997.46,
+  "totalBK": 13808955,
+  "HPP": 196085
+ },
+ {
+  "Product_ID": "02SLNA",
+  "Product_Name": "SIMLOSIN-0.4 MG TABLET SALUT SELAPUT LEPAS LAMBAT",
+  "Batch_Size": 6500,
+  "Group_Rendemen": 93,
+  "totalBB": 117753900.516,
+  "totalBK": 0,
+  "HPP": 39961
+ },
+ {
+  "Product_ID": "02SMTA",
+  "Product_Name": "SIMEXTAM 1 G INJEKSI",
+  "Batch_Size": 8438,
+  "Group_Rendemen": 97,
+  "totalBB": 40392000,
+  "totalBK": 57808802.8,
+  "HPP": 22994
+ },
+ {
+  "Product_ID": "02SMZA",
+  "Product_Name": "SIMZEN DROPS",
+  "Batch_Size": 13000,
+  "Group_Rendemen": 95,
+  "totalBB": 13396367.36,
+  "totalBK": 60698323.9,
+  "HPP": 13207
+ },
+ {
+  "Product_ID": "02SMZB",
+  "Product_Name": "SIMZEN KAPLET SALUT SELAPUT",
+  "Batch_Size": 9000,
+  "Group_Rendemen": 95,
+  "totalBB": 11238808.0176,
+  "totalBK": 0,
+  "HPP": 15453
+ },
+ {
+  "Product_ID": "CS",
+  "Product_Name": "OSTEOKOM GCM KAPLET SALUT SELAPUT (30`S)",
+  "Batch_Size": 1666,
+  "Group_Rendemen": 99,
+  "totalBB": 57878856.5309,
+  "totalBK": 12433738.98,
+  "HPP": 57841
+ },
+ {
+  "Product_ID": "30",
+  "Product_Name": "APIALYS SIRUP",
+  "Batch_Size": 25000,
+  "Group_Rendemen": 98,
+  "totalBB": 106945646.242857,
+  "totalBK": 65955299.5,
+  "HPP": 9377
+ },
+ {
+  "Product_ID": "31",
+  "Product_Name": "LAPIMUC TABLET",
+  "Batch_Size": 3000,
+  "Group_Rendemen": 97,
+  "totalBB": 35343793.8,
+  "totalBK": 30302250,
+  "HPP": 41458
+ },
+ {
+  "Product_ID": "41",
+  "Product_Name": "CLINMAS-300 KAPSUL",
+  "Batch_Size": 3750,
+  "Group_Rendemen": 89,
+  "totalBB": 97851360.2,
+  "totalBK": 15292530,
+  "HPP": 54897
+ },
+ {
+  "Product_ID": "15",
+  "Product_Name": "BESTALIN TABLET SALUT SELAPUT",
+  "Batch_Size": 2000,
+  "Group_Rendemen": 93.47,
+  "totalBB": 45560741.4,
+  "totalBK": 13153975,
+  "HPP": 62055
+ },
+ {
+  "Product_ID": "O3",
+  "Product_Name": "MEROTIK-0.5 GRAM SERBUK INJEKSI STERIL",
+  "Batch_Size": 1487,
+  "Group_Rendemen": 91,
+  "totalBB": 29484000,
+  "totalBK": 14961945.97,
+  "HPP": 55385
+ },
+ {
+  "Product_ID": "O4",
+  "Product_Name": "MEROTIK-1 GRAM SERBUK INJEKSI STERIL",
+  "Batch_Size": 4496,
+  "Group_Rendemen": 93,
+  "totalBB": 176904000,
+  "totalBK": 52339040.92,
+  "HPP": 66186
+ },
+ {
+  "Product_ID": "O6",
+  "Product_Name": "EYEVIT SIRUP",
+  "Batch_Size": 16666,
+  "Group_Rendemen": 99,
+  "totalBB": 195024800.56,
+  "totalBK": 45259488.77,
+  "HPP": 18464
+ },
+ {
+  "Product_ID": "L6",
+  "Product_Name": "MELOXICAM-15 TABLET (GENERIK)",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 96,
+  "totalBB": 22338547.2,
+  "totalBK": 23325710.5,
+  "HPP": 13760
+ },
+ {
+  "Product_ID": "M5",
+  "Product_Name": "GLIMEPIRIDE-3 KAPLET (GENERIK)",
+  "Batch_Size": 4000,
+  "Group_Rendemen": 96,
+  "totalBB": 25428506.454,
+  "totalBK": 11029005,
+  "HPP": 10656
+ },
+ {
+  "Product_ID": "X8",
+  "Product_Name": "ODR SIRUP 4mg/5ml",
+  "Batch_Size": 16666,
+  "Group_Rendemen": 98,
+  "totalBB": 70341513.4,
+  "totalBK": 40336188.4,
+  "HPP": 9832
+ }
+]

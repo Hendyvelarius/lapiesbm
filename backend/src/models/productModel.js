@@ -449,22 +449,58 @@ async function bulkImportFormulas(importData) {
     }
 }
 
-// Generate HPP for a specific product using stored procedure
+// Trigger an HPP generation from a single product's row.
+//
+// This used to call sp_COGS_GenerateHPP_perProduct, which has been dropped: its
+// header INSERT cross-joined M_COGS_STD_HRG_PARAMETER, a table with no rows past
+// 2025, so for any later period the INSERT returned nothing while the preceding
+// DELETE still ran - silently destroying the product's header row. There is now
+// one generator, sp_COGS_GenerateHPP, which regenerates every UNLOCKED product
+// for the period and leaves locked ones untouched.
+//
+// Note this is no longer scoped to productId: it regenerates all unlocked
+// products. productId only decides what we report back to the caller.
 async function generateHPP(productId) {
     try {
         const pool = await connect();
         const currentYear = new Date().getFullYear().toString();
-        
-        // Execute the stored procedure directly with positional parameters
-        // exec [sp_COGS_GenerateHPP_perProduct] '2025','0','1','ProductID'
-        const query = `exec [sp_COGS_GenerateHPP_perProduct] '${currentYear}','0','1','${productId}'`;
-        const result = await pool.request().query(query);
-        
+
+        // A locked product is skipped by the generator, so say so rather than
+        // reporting a success that changed nothing for the product they clicked.
+        const lockCheck = await pool.request()
+            .input('periode', sql.VarChar(4), currentYear)
+            .input('productId', sql.VarChar(50), productId)
+            .query(`SELECT ISNULL(isLock, 0) AS isLock
+                    FROM M_COGS_PRODUCT_FORMULA_FIX
+                    WHERE product_id = @productId AND Periode = @periode`);
+
+        if (lockCheck.recordset.length === 0) {
+            return {
+                success: false,
+                message: `Product ${productId} has no formula assignment for ${currentYear}, so it cannot be generated.`,
+                periode: currentYear,
+                productId
+            };
+        }
+
+        if (lockCheck.recordset[0].isLock) {
+            return {
+                success: false,
+                message: `Product ${productId} is locked for ${currentYear} and was not regenerated. Unlock it first.`,
+                periode: currentYear,
+                productId
+            };
+        }
+
+        await pool.request()
+            .input('periode', sql.VarChar(4), currentYear)
+            .query(`exec sp_COGS_GenerateHPP @periode, '0', '1'`);
+
         return {
             success: true,
-            message: `HPP generation completed successfully for product ${productId}`,
+            message: `HPP regenerated for all unlocked products in ${currentYear}, including ${productId}.`,
             periode: currentYear,
-            productId: productId
+            productId
         };
     } catch (error) {
         console.error('Error generating HPP:', error);
