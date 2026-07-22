@@ -3515,7 +3515,8 @@
     max-width: 200px;
   }
 
-  .selection-actions {
+  .selection-actions,
+  .selection-actions-group {
     flex-direction: column;
   }
 
@@ -3637,6 +3638,17 @@
 .action-button.primary-button:not(:disabled):hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+
+.action-button.secondary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.selection-actions-group {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
 }
 
 /* Mobile responsiveness for new material selection */

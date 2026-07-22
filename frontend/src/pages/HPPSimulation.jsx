@@ -2101,6 +2101,37 @@ export default function HPPSimulation() {
     }
   };
 
+  // Select every material currently matching the search filter.
+  // Deliberately requires an active search term so users can't select the entire catalog in one click.
+  const handleSelectAllFiltered = () => {
+    if (!materialSearchTerm.trim()) return;
+
+    const alreadySelected = new Set(selectedMaterials.map((m) => m.ITEM_ID));
+    const newlySelected = filteredMaterials
+      .filter((material) => !alreadySelected.has(material.ITEM_ID))
+      .map((material) => ({
+        ...material,
+        originalPrice: material.ITEM_PURCHASE_STD_PRICE,
+        originalCurrency: material.CURRENCY || 'IDR',
+        selectedCurrency: material.CURRENCY || 'IDR',
+        newPrice: material.ITEM_PURCHASE_STD_PRICE,
+        displayCurrentPrice: material.ITEM_PURCHASE_STD_PRICE,
+        priceChange: 0,
+        priceChangePercent: 0,
+      }));
+
+    if (newlySelected.length === 0) {
+      notifier.info("All filtered materials are already selected.");
+      return;
+    }
+
+    setSelectedMaterials((prev) => [...prev, ...newlySelected]);
+    setError("");
+    notifier.success(
+      `Selected ${newlySelected.length} material${newlySelected.length > 1 ? "s" : ""} matching "${materialSearchTerm.trim()}".`
+    );
+  };
+
   // Convert price between currencies
   const convertPrice = (price, fromCurrency, toCurrency) => {
     if (!price || fromCurrency === toCurrency) return price;
@@ -2161,10 +2192,18 @@ export default function HPPSimulation() {
       prev.map((material) => {
         if (material.ITEM_ID === materialId) {
           const displayCurrentPrice = material.displayCurrentPrice;
-          const parsedPrice = parseFloat(newPrice) || 0;
-          const priceChange = parsedPrice - displayCurrentPrice;
+          // Keep the field empty when cleared instead of coercing to 0, so that
+          // an explicit 0 (material becomes free) stays distinguishable from "not filled in yet"
+          const isEmpty = newPrice === "" || newPrice === null || newPrice === undefined;
+          const parsedPrice = isEmpty ? "" : parseFloat(newPrice);
+
+          if (!isEmpty && isNaN(parsedPrice)) return material;
+
+          const priceChange = isEmpty ? 0 : parsedPrice - displayCurrentPrice;
           const priceChangePercent =
-            displayCurrentPrice !== 0 ? (priceChange / displayCurrentPrice) * 100 : 0;
+            !isEmpty && displayCurrentPrice !== 0
+              ? (priceChange / displayCurrentPrice) * 100
+              : 0;
 
           return {
             ...material,
@@ -2194,14 +2233,19 @@ export default function HPPSimulation() {
       return;
     }
 
-    // Validate that all selected materials have new prices
+    // Validate that all selected materials have new prices.
+    // 0 is a valid new price (the material becomes free), only blank/negative/non-numeric are rejected.
     const missingPrices = selectedMaterials.filter((material) => {
       const newPrice = material.newPrice;
-      return !newPrice || newPrice <= 0;
+      if (newPrice === "" || newPrice === null || newPrice === undefined) return true;
+      const parsedPrice = parseFloat(newPrice);
+      return isNaN(parsedPrice) || parsedPrice < 0;
     });
 
     if (missingPrices.length > 0) {
-      setError("Please enter valid new prices for all selected materials.");
+      setError(
+        "Please enter valid new prices (0 or greater) for all selected materials."
+      );
       return;
     }
 
@@ -2336,9 +2380,7 @@ export default function HPPSimulation() {
         (material) =>
           material.ITEM_NAME?.toLowerCase().includes(searchLower) ||
           material.ITEM_ID?.toLowerCase().includes(searchLower) ||
-          material.ITEM_TYP?.toLowerCase().includes(searchLower) ||
-          material.UNIT?.toLowerCase().includes(searchLower) ||
-          material.CURRENCY?.toLowerCase().includes(searchLower)
+          material.ITEM_TYP?.toLowerCase().includes(searchLower)
       );
       setFilteredMaterials(filtered);
     }
@@ -8555,7 +8597,8 @@ export default function HPPSimulation() {
                               <input
                                 type="number"
                                 step="0.01"
-                                value={material.newPrice || ""}
+                                value={material.newPrice ?? ""}
+                                min="0"
                                 onChange={(e) => handlePriceChange(material.ITEM_ID, e.target.value)}
                                 placeholder={`Enter new price`}
                                 className="price-input"
@@ -8590,7 +8633,7 @@ export default function HPPSimulation() {
                   <div className="search-controls">
                     <input
                       type="text"
-                      placeholder="Search materials by name, code, type, unit, or currency..."
+                      placeholder="Search materials by name, code, or type..."
                       value={materialSearchTerm}
                       onChange={(e) => handleMaterialSearch(e.target.value)}
                       className="material-search-input"
@@ -8700,15 +8743,31 @@ export default function HPPSimulation() {
                     )}
 
                     <div className="selection-actions">
-                      <button
-                        className="action-button secondary-button"
-                        onClick={() => {
-                          setSelectedMaterials([]);
-                          setError("");
-                        }}
-                      >
-                        Clear All
-                      </button>
+                      <div className="selection-actions-group">
+                        <button
+                          className="action-button secondary-button"
+                          onClick={handleSelectAllFiltered}
+                          disabled={!materialSearchTerm.trim()}
+                          title={
+                            materialSearchTerm.trim()
+                              ? `Select all ${filteredMaterials.length} materials matching your search`
+                              : "Search for materials first — select all is only available on a filtered list"
+                          }
+                        >
+                          Select All Filtered
+                          {materialSearchTerm.trim() &&
+                            ` (${filteredMaterials.length})`}
+                        </button>
+                        <button
+                          className="action-button secondary-button"
+                          onClick={() => {
+                            setSelectedMaterials([]);
+                            setError("");
+                          }}
+                        >
+                          Clear All
+                        </button>
+                      </div>
                       <button
                         className="action-button primary-button"
                         onClick={handleGenerateSimulation}
