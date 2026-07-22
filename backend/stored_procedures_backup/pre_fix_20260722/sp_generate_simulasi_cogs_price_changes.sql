@@ -1,10 +1,11 @@
+
 --exec sp_generate_simulasi_cogs_product_existing '01','GLC#-#B#A'
 ----select * from vw_COGS_Product_Group where Group_ProductID='01'
 --select * from t_COGS_HPP_Product_Header_Simulasi order by simulasi_id desc
 --select * from dbo.t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan
 --exec sp_generate_simulasi_cogs_price_changes 'AC 009C:6#AC 015B:25'
 --select * from 
-CREATE PROCEDURE [dbo].[sp_generate_simulasi_cogs_price_changes] 
+CREATE procedure [dbo].[sp_generate_simulasi_cogs_price_changes] 
 (@var_data_perubahanBahan as nvarchar(4000))
 as
 set nocount on
@@ -45,7 +46,6 @@ from	t_COGS_HPP_Product_Header a join
 		t_COGS_HPP_Product_Detail_Formula b 
 	on a.Product_ID = b.Product_ID
 	join #tmp_list_material_changes c on c.kode_bahan = b.PPI_ItemID
-	where a.Periode = @currentPeriode and b.Periode = @currentPeriode
 
 
 declare @ringkasan_perubahan as nvarchar(max);

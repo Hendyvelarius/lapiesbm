@@ -1,10 +1,12 @@
+
+
 --select ITEM_TYPE, SUM(unitprice)  from vw_COGS_FORMULA_List_detail where Product_ID='48' and DefaultCOGS='Aktif' group by ITEM_TYPE
 --select *  from vw_COGS_FORMULA_List_detail where Product_ID='48' and DefaultCOGS='Aktif' group by ITEM_TYPE
 --exec [sp_COGS_HPP_List_Simulasi_PriceChange] 'Price Changes : IN 003: 22000 -> 32000; ','2025-09-30 10:18:58.340'
 
 
 
-CREATE PROCEDURE [dbo].[sp_COGS_HPP_List_Simulasi_PriceChange] 
+CREATE procedure [dbo].[sp_COGS_HPP_List_Simulasi_PriceChange] 
 @Simulasi_Deskripsi as nvarchar(4000)='%', @Simulasi_Date as datetime=null
 as
 declare @currentPeriode as varchar(4);
@@ -35,7 +37,7 @@ where a.Periode = @currentPeriode
 
 select a.*, isnull(bb.total,0) totalBB,  isnull(bk.total,0) totalBK
 into #tmp
-from t_COGS_HPP_Product_Header_Simulasi a left join
+from t_COGS_HPP_Product_Header_Simulasi a join
 (select periode, simulasi_id, sum(item_qty*item_unit_price) total 
 from t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan where Tipe_Bahan='BB'
 group by  simulasi_id, periode) bb on a.Periode=bb.periode and a.simulasi_id=bb.simulasi_id

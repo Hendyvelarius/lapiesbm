@@ -3458,6 +3458,11 @@
   color: #16a34a;
 }
 
+.price-change-indicator.unchanged {
+  background: #fffbeb;
+  color: #b45309;
+}
+
 .price-change-amount {
   display: block;
   font-size: 0.75rem;

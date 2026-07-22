@@ -2101,6 +2101,19 @@ export default function HPPSimulation() {
     }
   };
 
+  // A material still sitting at its current price contributes nothing to the simulation
+  // except products that report a 0% change, so it gets flagged before generating.
+  // Easy to hit via "Select All Filtered", which pre-fills the new price with the current one.
+  const isPriceUnchanged = (material) => {
+    const newPrice = material.newPrice;
+    if (newPrice === "" || newPrice === null || newPrice === undefined) return false;
+    const parsed = parseFloat(newPrice);
+    const current = parseFloat(material.displayCurrentPrice);
+    if (isNaN(parsed) || isNaN(current)) return false;
+    // Tolerate the float drift a currency round-trip can introduce
+    return Math.abs(parsed - current) < Math.max(Math.abs(current), 1) * 1e-9;
+  };
+
   // Select every material currently matching the search filter.
   // Deliberately requires an active search term so users can't select the entire catalog in one click.
   const handleSelectAllFiltered = () => {
@@ -2245,6 +2258,19 @@ export default function HPPSimulation() {
     if (missingPrices.length > 0) {
       setError(
         "Please enter valid new prices (0 or greater) for all selected materials."
+      );
+      return;
+    }
+
+    // Block materials that are still at their current price — they only add products
+    // that report a 0% change, which reads as a broken simulation.
+    const unchangedMaterials = selectedMaterials.filter(isPriceUnchanged);
+
+    if (unchangedMaterials.length > 0) {
+      const names = unchangedMaterials.map((m) => m.ITEM_ID).join(", ");
+      setError(
+        `${unchangedMaterials.length} selected material${unchangedMaterials.length > 1 ? "s are" : " is"} still at the current price (${names}). ` +
+        "Enter a different price or remove them before generating."
       );
       return;
     }
@@ -8604,14 +8630,23 @@ export default function HPPSimulation() {
                                 className="price-input"
                               />
                             </div>
-                            {material.priceChangePercent !== 0 && (
-                              <div className={`price-change-indicator ${material.priceChange > 0 ? "increase" : "decrease"}`}>
-                                {material.priceChange > 0 ? "+" : ""}
-                                {material.priceChangePercent?.toFixed(2)}%
+                            {isPriceUnchanged(material) ? (
+                              <div className="price-change-indicator unchanged">
+                                No change yet
                                 <span className="price-change-amount">
-                                  ({formatPriceWithCurrency(material.priceChange, material.selectedCurrency)})
+                                  Set a new price or remove this material
                                 </span>
                               </div>
+                            ) : (
+                              material.priceChangePercent !== 0 && (
+                                <div className={`price-change-indicator ${material.priceChange > 0 ? "increase" : "decrease"}`}>
+                                  {material.priceChange > 0 ? "+" : ""}
+                                  {material.priceChangePercent?.toFixed(2)}%
+                                  <span className="price-change-amount">
+                                    ({formatPriceWithCurrency(material.priceChange, material.selectedCurrency)})
+                                  </span>
+                                </div>
+                              )
                             )}
                           </div>
                           <div className="selected-material-actions">
