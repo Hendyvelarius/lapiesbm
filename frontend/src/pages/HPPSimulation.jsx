@@ -3724,9 +3724,23 @@ export default function HPPSimulation() {
   // Get rounded value from simulation summary or hpp results data
   const getRoundedValue = () => {
     // Try to get rounded from various sources
-    const rounded = simulationSummary?.Rounded || simulationSummary?.rounded || 
+    const rounded = simulationSummary?.Rounded || simulationSummary?.rounded ||
                     hppResultsData?.rounded || hppResultsData?.Rounded || 0;
     return parseFloat(rounded) || 0;
+  };
+
+  // Effective per-unit toll fee, mirroring sp_COGS_HPP_List / the simulation SP:
+  //   Margin > 0  -> margin-derived (percent x HPP, or the direct margin value)
+  //   Margin == 0 -> the fixed stored Toll_Fee (e.g. SULBIOTIC/HB = 30000)
+  // Without this, fixed-toll products (Margin 0) showed no toll at all in the preview.
+  const getEffectiveTollFee = () => {
+    const marginInput = parseFloat(editableOverheadData.Margin || 0) || 0;
+    if (marginInput > 0) {
+      return calculateMarginValue();
+    }
+    return parseFloat(
+      editableOverheadData.Toll_Fee ?? simulationResults?.[0]?.Toll_Fee ?? 0
+    ) || 0;
   };
 
   const calculateGrandTotal = () => {
@@ -7627,6 +7641,21 @@ export default function HPPSimulation() {
                             <span style={{ color: '#666', fontSize: '12px' }}>{isTollOutProduct() ? "Applied to HPP" : "Applied to Toll Fee"}</span>
                           </td>
                         </tr>
+                        {parseFloat(editableOverheadData.Margin || 0) === 0 && getEffectiveTollFee() > 0 && (
+                          <tr>
+                            <td style={{ width: "20%" }}>
+                              <strong>Toll Fee</strong>
+                            </td>
+                            <td style={{ width: "60%" }}>
+                              Fixed toll fee (per unit)
+                            </td>
+                            <td style={{ width: "20%" }} className="number">
+                              <strong>
+                                Rp {formatNumber(getEffectiveTollFee(), 2)}
+                              </strong>
+                            </td>
+                          </tr>
+                        )}
                         {getRoundedValue() > 0 && (
                           <tr>
                             <td style={{ width: "20%" }}>
@@ -7790,6 +7819,21 @@ export default function HPPSimulation() {
                             <span style={{ color: '#666', fontSize: '12px' }}>{isTollOutProduct() ? "Applied to HPP" : "Applied to Toll Fee"}</span>
                           </td>
                         </tr>
+                        {parseFloat(editableOverheadData.Margin || 0) === 0 && getEffectiveTollFee() > 0 && (
+                          <tr>
+                            <td style={{ width: "20%" }}>
+                              <strong>Toll Fee</strong>
+                            </td>
+                            <td style={{ width: "60%" }}>
+                              Fixed toll fee (per unit)
+                            </td>
+                            <td style={{ width: "20%" }} className="number">
+                              <strong>
+                                Rp {formatNumber(getEffectiveTollFee(), 2)}
+                              </strong>
+                            </td>
+                          </tr>
+                        )}
                         {getRoundedValue() > 0 && (
                           <tr>
                             <td style={{ width: "20%" }}>
@@ -8341,9 +8385,9 @@ export default function HPPSimulation() {
                           <strong>
                             {(() => {
                               const unitCost = calculateGrandTotal() / getActualBatchSize();
-                              const marginValue = calculateMarginValue() || 0;
+                              const tollValue = getEffectiveTollFee() || 0;
                               const roundedValue = getRoundedValue() || 0;
-                              const trueHPP = unitCost + marginValue + roundedValue;
+                              const trueHPP = unitCost + tollValue + roundedValue;
                               const hna = isCustomFormula ? editableHNA : (simulationSummary?.HNA || hppResultsData?.Product_SalesHNA);
                               
                               if (hna && hna > 0) {
@@ -8356,8 +8400,9 @@ export default function HPPSimulation() {
                           </strong>
                         </td>
                       </tr>
-                      {/* Show Margin + Rounded and Toll Fee/HPP for ETHICAL/OTC products with margin */}
-                      {(getCurrentLOB() === "ETHICAL" || getCurrentLOB() === "OTC") && (editableOverheadData.Margin > 0 || getRoundedValue() > 0) && (
+                      {/* Show Margin/Toll + Rounded and the toll-inclusive HPP for ETHICAL/OTC
+                          products that carry any toll (margin-derived OR a fixed Toll_Fee) or a rounded adjustment */}
+                      {(getCurrentLOB() === "ETHICAL" || getCurrentLOB() === "OTC") && (getEffectiveTollFee() > 0 || getRoundedValue() > 0) && (
                         <tr className="final-total">
                           <td>
                             <strong>Margin + Rounded</strong>
@@ -8370,7 +8415,7 @@ export default function HPPSimulation() {
                             <strong>
                               Rp{" "}
                               {formatNumber(
-                                calculateMarginValue() + getRoundedValue(),
+                                getEffectiveTollFee() + getRoundedValue(),
                                 2
                               )}
                             </strong>
@@ -8379,8 +8424,8 @@ export default function HPPSimulation() {
                             <strong>
                               Rp{" "}
                               {formatNumber(
-                                (calculateGrandTotal() / getActualBatchSize()) + 
-                                calculateMarginValue() + getRoundedValue(),
+                                (calculateGrandTotal() / getActualBatchSize()) +
+                                getEffectiveTollFee() + getRoundedValue(),
                                 2
                               )}
                             </strong>
