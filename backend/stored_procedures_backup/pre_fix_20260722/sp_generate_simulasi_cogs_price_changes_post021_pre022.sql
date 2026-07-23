@@ -24,8 +24,7 @@ ITEM_PURCHASE_STD_PRICE --dbo.fnConvertBJ(b.ITEM_ID,ITEM_PURCHASE_STD_PRICE,
 --item_purchase_unit, c.Item_Unit) 
 harga_sebelum,
 ITEM_PURCHASE_STD_PRICE harga_beli,
-c.item_unit, item_purchase_unit, b.ITEM_CURRENCY, d.Kurs,
-case when x.kode_bahan like '%.[0-9][0-9][0-9]' then left(rtrim(x.kode_bahan), len(rtrim(x.kode_bahan)) - 4) else rtrim(x.kode_bahan) end base_bahan
+c.item_unit, item_purchase_unit, b.ITEM_CURRENCY, d.Kurs
 into #tmp_list_material_changes
  from 
 	(select   LEFT(items, CHARINDEX(':', items) - 1) AS kode_bahan,
@@ -34,7 +33,7 @@ into #tmp_list_material_changes
 	RIGHT(items, LEN(items) - CHARINDEX(':', items)) AS harga_sesudah
 	from dbo.Split(@var_data_perubahanBahan,'#') a) x 
 	join M_COGS_STD_HRG_BAHAN b on kode_bahan=b.ITEM_ID
-	left join m_item_manufacturing c on c.Item_ID = b.ITEM_ID
+	join m_item_manufacturing c on c.Item_ID = b.ITEM_ID
 	join vw_COGS_Currency_List d on d.Curr_Code=b.ITEM_CURRENCY 
 		and b.Periode=d.Periode
 		and d.Periode = year(GETDATE())
@@ -45,7 +44,7 @@ select distinct a.Product_ID into #tmp_list_product_terdampak
 from	t_COGS_HPP_Product_Header a join 
 		t_COGS_HPP_Product_Detail_Formula b 
 	on a.Product_ID = b.Product_ID
-	join #tmp_list_material_changes c on c.base_bahan = case when b.PPI_ItemID like '%.[0-9][0-9][0-9]' then left(rtrim(b.PPI_ItemID), len(rtrim(b.PPI_ItemID)) - 4) else rtrim(b.PPI_ItemID) end
+	join #tmp_list_material_changes c on c.kode_bahan = b.PPI_ItemID
 	where a.Periode = @currentPeriode and b.Periode = @currentPeriode
 
 
@@ -137,7 +136,7 @@ where a.Periode=@currentPeriode
 update #t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan set Unit_Price=
 	dbo.fnConvertBJ(a.kode_bahan,1,item_purchase_unit, ppi_unitid) * harga_sesudah * kurs
 from #tmp_list_material_changes a join #t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan b
-on a.base_bahan = case when b.PPI_ItemID like '%.[0-9][0-9][0-9]' then left(rtrim(b.PPI_ItemID), len(rtrim(b.PPI_ItemID)) - 4) else rtrim(b.PPI_ItemID) end 
+on a.kode_bahan=b.PPI_ItemID 
 
 --select * from #tmp_list_product_terdampak
 

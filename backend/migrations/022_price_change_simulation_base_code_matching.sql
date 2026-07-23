@@ -1,10 +1,31 @@
+-- 022: Match price-change simulation materials to formula lines by BASE code.
+--
+-- The HPP standard (t_COGS_HPP_Product_Detail_Formula) may reference a base code
+-- (e.g. "BR 254") while the item master and formula assignment use a suffixed variant
+-- (e.g. "BR 254.000"). Exact-code matching meant neither input could reach the product:
+--   - simulating "BR 254"     was dropped at material resolution (no item-master row)
+--   - simulating "BR 254.000" found no product (formula line is "BR 254")
+--
+-- This makes sp_generate_simulasi_cogs_price_changes compare by base code (a trailing
+-- ".NNN" is stripped) at (1) affected-product discovery and (2) the price update, and
+-- makes the item-master join lenient so a base code is not dropped. Non-suffixed codes
+-- reduce to themselves, so ordinary simulations are unaffected.
+--
+-- Prices are NOT resolved by base: the new price is the user's input and the "Before"
+-- total comes from the frozen HPP standard, so same-base variants priced differently
+-- remain unambiguous.
+--
+-- Pre-change definition archived in
+-- backend/stored_procedures_backup/pre_fix_20260722/ (as updated by migration 021).
+
+GO
 --exec sp_generate_simulasi_cogs_product_existing '01','GLC#-#B#A'
 ----select * from vw_COGS_Product_Group where Group_ProductID='01'
 --select * from t_COGS_HPP_Product_Header_Simulasi order by simulasi_id desc
 --select * from dbo.t_COGS_HPP_Product_Header_Simulasi_Detail_Bahan
 --exec sp_generate_simulasi_cogs_price_changes 'AC 009C:6#AC 015B:25'
 --select * from 
-CREATE PROCEDURE [dbo].[sp_generate_simulasi_cogs_price_changes] 
+ALTER PROCEDURE [dbo].[sp_generate_simulasi_cogs_price_changes] 
 (@var_data_perubahanBahan as nvarchar(4000))
 as
 set nocount on
@@ -536,3 +557,4 @@ drop table #tmpDataBefore
 
 --select * from #tmpCurrentHPP where isnull(Group_Rendemen  ,0)=0 
 --select * from m_product where Product_ID='GF'
+GO

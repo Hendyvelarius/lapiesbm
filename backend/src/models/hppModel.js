@@ -717,28 +717,41 @@ async function generatePriceChangeSimulation(parameterString, userId = null) {
   try {
     const db = await connect();
 
-    // Get max Simulasi_ID before running the stored procedure
-    let maxIdBefore = 0;
-    if (userId) {
-      const maxIdResult = await db.request().query(`SELECT ISNULL(MAX(Simulasi_ID), 0) as MaxId FROM t_COGS_HPP_Product_Header_Simulasi`);
-      maxIdBefore = maxIdResult.recordset[0].MaxId;
-    }
+    // Always capture max Simulasi_ID before running the SP so we can identify exactly
+    // which simulation rows this run created (the SP writes one row per affected product,
+    // or none at all when no product uses the changed material).
+    const maxIdResult = await db.request().query(`SELECT ISNULL(MAX(Simulasi_ID), 0) as MaxId FROM t_COGS_HPP_Product_Header_Simulasi`);
+    const maxIdBefore = maxIdResult.recordset[0].MaxId;
 
     const directQuery = `exec sp_generate_simulasi_cogs_price_changes '${parameterString}'`;
     const result = await db.request().query(directQuery);
 
     // If userId is provided, update only the newly created simulations (ID > maxIdBefore)
-    if (userId && maxIdBefore >= 0) {
+    if (userId) {
       await db.request()
         .input("userId", sql.VarChar(50), userId)
         .input("maxIdBefore", sql.Int, maxIdBefore)
         .query(`UPDATE t_COGS_HPP_Product_Header_Simulasi SET user_id = @userId, process_date = GETDATE() WHERE Simulasi_ID > @maxIdBefore`);
     }
 
+    // Return the exact rows this run created. The frontend relies on this instead of
+    // fuzzy-matching descriptions, which previously let a single-material run with no
+    // affected products "snap" onto an older simulation that shared the material.
+    const newSimsResult = await db.request()
+      .input("maxIdBefore", sql.Int, maxIdBefore)
+      .query(`
+        SELECT Simulasi_ID, Simulasi_Deskripsi, Simulasi_Date, Product_ID, Product_Name
+        FROM t_COGS_HPP_Product_Header_Simulasi
+        WHERE Simulasi_ID > @maxIdBefore
+        ORDER BY Simulasi_ID`);
+    const newSimulations = newSimsResult.recordset;
+
     return {
       recordsets: result.recordsets,
       rowsAffected: result.rowsAffected,
       returnValue: result.returnValue,
+      newSimulations,
+      affectedProductCount: newSimulations.length,
     };
   } catch (error) {
     console.error("Error in generatePriceChangeSimulation:", error.message);
