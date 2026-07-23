@@ -48,11 +48,11 @@ where a.Simulasi_Type='Price Changes'
 
 select * into #tmpDataAfter from (
 select a.Simulasi_Deskripsi, Simulasi_Date, a.Product_ID, Product_Name, totalBB+totalBK totalBahanSesudah, 
-case when isnull(Batch_Size,0)=0 or isnull(Group_Rendemen,0)=0 then 0 else
-round(((isnull(totalBB,0)+isnull(totalBK,0)+isnull(Beban_Sisa_Bahan_Exp,0))+(isnull(a.MH_Proses_Std,0)*isnull(Biaya_Proses,0))+(isnull(a.MH_Kemas_Std,0)*isnull(Biaya_Kemas,0)))/(Batch_Size*Group_Rendemen/100),0)
- + (case when isnull(a.Margin,0)>0 then round(round(((isnull(totalBB,0)+isnull(totalBK,0)+isnull(Beban_Sisa_Bahan_Exp,0))+(isnull(a.MH_Proses_Std,0)*isnull(Biaya_Proses,0))+(isnull(a.MH_Kemas_Std,0)*isnull(Biaya_Kemas,0)))/(Batch_Size*Group_Rendemen/100),0)*isnull(a.Margin,0),0) else isnull(a.Toll_Fee,0) end)
- + isnull(a.Rounded,0)
-end HPPSesudah, 0 HPP2Sebelum
+((isnull(totalBB,0)+isnull(totalBK,0))+
+ (isnull(a.MH_Proses_Std,0)*isnull(Biaya_Proses,0))+
+ (isnull(a.MH_Kemas_Std,0)*isnull(Biaya_Kemas,0))+
+ isnull(Beban_Sisa_Bahan_Exp,0) 
+)/(Batch_Size*Group_Rendemen/100) HPPSesudah, 0 HPP2Sebelum
 from #tmp a --join m_product b on a.product_id=b.product_id
 where lob in ('Ethical','OTC','EXPORT')
 union all
@@ -85,10 +85,11 @@ where Lob='GENERIK' ) dataAfter
 select * into #tmpDataBefore from (
 select a.Product_ID, Product_Name, totalBB+totalBK totalBahanSebelum,
 case when isnull(Batch_Size,0)=0 or isnull(Group_Rendemen,0)=0 then 0 else
-round(((isnull(totalBB,0)+isnull(totalBK,0)+isnull(Beban_Sisa_Bahan_Exp,0))+(isnull(a.MH_Proses_Std,0)*isnull(Biaya_Proses,0))+(isnull(a.MH_Kemas_Std,0)*isnull(Biaya_Kemas,0)))/(Batch_Size*Group_Rendemen/100),0)
- + (case when isnull(a.Margin,0)>0 then round(round(((isnull(totalBB,0)+isnull(totalBK,0)+isnull(Beban_Sisa_Bahan_Exp,0))+(isnull(a.MH_Proses_Std,0)*isnull(Biaya_Proses,0))+(isnull(a.MH_Kemas_Std,0)*isnull(Biaya_Kemas,0)))/(Batch_Size*Group_Rendemen/100),0)*isnull(a.Margin,0),0) else isnull(a.Toll_Fee,0) end)
- + isnull(a.Rounded,0)
-end HPPSebelum, 0 HPP2Sebelum
+((isnull(totalBB,0)+isnull(totalBK,0))+
+ (isnull(a.MH_Proses_Std,0)*isnull(Biaya_Proses,0))+
+ (isnull(a.MH_Kemas_Std,0)*isnull(Biaya_Kemas,0))+
+ isnull(Beban_Sisa_Bahan_Exp,0) 
+)/(Batch_Size*Group_Rendemen/100) end HPPSebelum, 0 HPP2Sebelum
 from #tmpCurrentHPP a join m_product b on a.Product_ID=b.Product_ID
 where lob in ('Ethical','OTC')
 union all

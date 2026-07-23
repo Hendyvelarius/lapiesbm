@@ -1,10 +1,28 @@
+-- 023: Include Toll_Fee / Margin / Rounded in price-change simulation HPP.
+--
+-- sp_COGS_HPP_List_Simulasi_PriceChange computed HPPSebelum/HPPSesudah as only
+-- (material + overhead) / (batch x rendemen), omitting the toll fee that the real HPP
+-- (sp_COGS_HPP_List, column HPP2) adds on top. For products with a toll fee this made the
+-- simulation wildly understate HPP -- e.g. SULBIOTIC (HB): real HPP ~31,139/unit vs
+-- simulated ~1,139, because its 30,000 fixed Toll_Fee was dropped from both sides.
+--
+-- Both HPPSebelum and HPPSesudah now mirror HPP2 exactly for ETHICAL/OTC:
+--     round(base,0) + effective_toll + rounded
+-- where effective_toll = (Margin>0) ? round(round(base,0)*Margin,0) : Toll_Fee.
+-- Non-toll / non-margin products reduce to round(base,0), matching the dashboard's HPP.
+-- GENERIK branches are unchanged (no GENERIK product carries toll/margin/rounded).
+--
+-- Pre-change definition archived in
+-- backend/stored_procedures_backup/pre_fix_20260722/.
+
+GO
 --select ITEM_TYPE, SUM(unitprice)  from vw_COGS_FORMULA_List_detail where Product_ID='48' and DefaultCOGS='Aktif' group by ITEM_TYPE
 --select *  from vw_COGS_FORMULA_List_detail where Product_ID='48' and DefaultCOGS='Aktif' group by ITEM_TYPE
 --exec [sp_COGS_HPP_List_Simulasi_PriceChange] 'Price Changes : IN 003: 22000 -> 32000; ','2025-09-30 10:18:58.340'
 
 
 
-CREATE PROCEDURE [dbo].[sp_COGS_HPP_List_Simulasi_PriceChange] 
+ALTER PROCEDURE [dbo].[sp_COGS_HPP_List_Simulasi_PriceChange] 
 @Simulasi_Deskripsi as nvarchar(4000)='%', @Simulasi_Date as datetime=null
 as
 declare @currentPeriode as varchar(4);
@@ -139,3 +157,4 @@ drop table #tmp
 drop table #tmpCurrentHPP
 drop table #tmpDataAfter
 drop table #tmpDataBefore
+GO
