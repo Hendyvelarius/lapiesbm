@@ -886,6 +886,41 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+/* Free-text note fields (Kemasan / Forecast) - wider and left aligned
+   since they hold words rather than numbers */
+.summary-text-input {
+  flex: 1;
+  min-width: 0;
+  margin-left: 12px;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  font-family: "Inter", sans-serif;
+  background: #f9fafb;
+  transition: all 0.2s ease;
+}
+
+.summary-text-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.summary-text-input::placeholder {
+  color: #9ca3af;
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* Spacing between stacked full-width note fields in the description block */
+.summary-item.full-width.summary-note-field {
+  margin-top: 16px;
+}
+
 .summary-select-input {
   width: 120px;
   padding: 6px 8px;

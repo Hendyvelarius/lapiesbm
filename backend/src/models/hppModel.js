@@ -262,6 +262,9 @@ async function updateSimulationHeader(simulasiId, headerData) {
         Beban_Sisa_Bahan_Exp = @BebanSisaBahanExp,
         Margin = @Margin,
         HNA = @HNA,
+        Kemasan = @Kemasan,
+        Komposisi = @Komposisi,
+        Forecast = @Forecast,
         process_date = GETDATE()
       WHERE Simulasi_ID = @SimulasiId
     `;
@@ -317,6 +320,10 @@ async function updateSimulationHeader(simulasiId, headerData) {
       )
       .input("Margin", sql.Decimal(18, 6), headerData.Margin || null)
       .input("HNA", sql.Decimal(18, 4), headerData.HNA || null)
+      // Informational note fields - not used by any HPP calculation
+      .input("Kemasan", sql.VarChar(255), headerData.Kemasan || null)
+      .input("Komposisi", sql.VarChar(2000), headerData.Komposisi || null)
+      .input("Forecast", sql.VarChar(255), headerData.Forecast || null)
       .query(query);
 
     return result.rowsAffected[0];
@@ -343,14 +350,16 @@ async function createSimulationHeader(headerData) {
         MH_Proses_Std, MH_Kemas_Std, MH_Analisa_Std, MH_Timbang_BB, MH_Timbang_BK, MH_Mesin_Std,
         Biaya_Proses, Biaya_Kemas, Biaya_Analisa, Biaya_Generik, Biaya_Reagen, Toll_Fee, Rate_PLN,
         Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp, Margin, HNA,
+        Kemasan, Komposisi, Forecast,
         user_id, process_date, flag_delete
-      ) 
+      )
       VALUES (
         @SimulasiID, @ProductID, @ProductName, @Formula, @GroupPNCategory, @GroupPNCategoryDept, @Periode,
         @SimulasiDeskripsi, @SimulasiDate, @SimulasiType, @GroupRendemen, @BatchSize, @LOB, @Versi,
         @MHProsesStd, @MHKemasStd, @MHAnalisaStd, @MHTimbangBB, @MHTimbangBK, @MHMesinStd,
         @BiayaProses, @BiayaKemas, @BiayaAnalisa, @BiayaGenerik, @BiayaReagen, @TollFee, @RatePLN,
         @DirectLabor, @FactoryOverHead, @Depresiasi, @BebanSisaBahanExp, @Margin, @HNA,
+        @Kemasan, @Komposisi, @Forecast,
         @UserId, GETDATE(), 0
       )
     `;
@@ -418,6 +427,10 @@ async function createSimulationHeader(headerData) {
       )
       .input("Margin", sql.Decimal(18, 6), headerData.Margin || null)
       .input("HNA", sql.Decimal(18, 4), headerData.HNA || null)
+      // Informational note fields - not used by any HPP calculation
+      .input("Kemasan", sql.VarChar(255), headerData.Kemasan || null)
+      .input("Komposisi", sql.VarChar(2000), headerData.Komposisi || null)
+      .input("Forecast", sql.VarChar(255), headerData.Forecast || null)
       .input("UserId", sql.VarChar(50), headerData.user_id || null)
       .query(query);
 
@@ -1019,15 +1032,17 @@ async function cloneSimulation(originalSimulasiId, cloneDescription, userId = nu
           Simulasi_Deskripsi, Simulasi_Date, Simulasi_Type, Group_Rendemen, Batch_Size, LOB, Versi,
           MH_Proses_Std, MH_Kemas_Std, MH_Analisa_Std, MH_Timbang_BB, MH_Timbang_BK, MH_Mesin_Std,
           Biaya_Proses, Biaya_Kemas, Biaya_Analisa, Biaya_Generik, Biaya_Reagen, Toll_Fee, Rate_PLN,
-          Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp,
+          Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp, Margin, HNA,
+          Kemasan, Komposisi, Forecast,
           user_id, process_date, flag_delete
         )
-        SELECT 
+        SELECT
           @NewSimulasiId, Product_ID, Product_Name, Formula, Group_PNCategory, Group_PNCategory_Dept, Periode,
           @CloneDescription, GETDATE(), Simulasi_Type, Group_Rendemen, Batch_Size, LOB, Versi,
           MH_Proses_Std, MH_Kemas_Std, MH_Analisa_Std, MH_Timbang_BB, MH_Timbang_BK, MH_Mesin_Std,
           Biaya_Proses, Biaya_Kemas, Biaya_Analisa, Biaya_Generik, Biaya_Reagen, Toll_Fee, Rate_PLN,
-          Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp,
+          Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp, Margin, HNA,
+          Kemasan, Komposisi, Forecast,
           @UserId, GETDATE(), 0
         FROM t_COGS_HPP_Product_Header_Simulasi 
         WHERE Simulasi_ID = @OriginalSimulasiId

@@ -269,6 +269,11 @@ export default function HPPSimulation() {
   const [editableHNA, setEditableHNA] = useState(0);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
+  // Informational note fields - user-entered, never used in any HPP calculation
+  const [editableKemasan, setEditableKemasan] = useState("");
+  const [editableKomposisi, setEditableKomposisi] = useState("");
+  const [editableForecast, setEditableForecast] = useState("");
+
   // Editable simulation parameters
   const [editableBatchSize, setEditableBatchSize] = useState(null);
   const [editableRendemen, setEditableRendemen] = useState(null);
@@ -1754,8 +1759,19 @@ export default function HPPSimulation() {
       setEditableBatchSize(headerData.Batch_Size || 0);
       setEditableRendemen(headerData.Group_Rendemen || 0);
       setEditableDescription(headerData.Simulasi_Deskripsi || "");
+      setEditableKemasan(headerData.Kemasan || "");
+      setEditableKomposisi(headerData.Komposisi || "");
+      setEditableForecast(headerData.Forecast || "");
       
       // Set up editable overhead data
+      // Detect margin type the same way handleEditSimulation does: a value < 1
+      // is a stored percentage (0.1 => 10%), anything else is a direct value.
+      // Without this the cloned Margin would be blank in the editor and get
+      // zeroed on the first save.
+      const clonedMargin = headerData.Margin || 0;
+      const clonedMarginIsPercent = clonedMargin < 1 && clonedMargin > 0;
+      setMarginType(clonedMarginIsPercent ? "percent" : "value");
+
       setEditableOverheadData({
         MH_Proses_Std: headerData.MH_Proses_Std || 0,
         MH_Kemas_Std: headerData.MH_Kemas_Std || 0,
@@ -1774,6 +1790,7 @@ export default function HPPSimulation() {
         Factory_Over_Head: headerData.Factory_Over_Head || 0,
         Depresiasi: headerData.Depresiasi || 0,
         Beban_Sisa_Bahan_Exp: headerData.Beban_Sisa_Bahan_Exp || 0,
+        Margin: clonedMarginIsPercent ? clonedMargin * 100 : clonedMargin,
       });
 
       // Set up materials data with proper mapping
@@ -1868,6 +1885,9 @@ export default function HPPSimulation() {
     setIsEditMode(false); // New simulation mode
     setCanEditCurrentSimulation(true); // New simulations are always editable
     setEditableDescription(null); // Reset description for new simulation
+    setEditableKemasan(""); // Reset note fields for new simulation
+    setEditableKomposisi("");
+    setEditableForecast("");
     setIsCustomFormula(false); // Reset custom formula flag
 
     // Set simulation type based on current active tab and go to appropriate step
@@ -1905,6 +1925,9 @@ export default function HPPSimulation() {
     setEditableBatchSize(0);
     setEditableRendemen(0);
     setEditableDescription(""); // Reset description
+    setEditableKemasan(""); // Reset note fields
+    setEditableKomposisi("");
+    setEditableForecast("");
     setEditableOverheadData({});
     setEditableMaterialData([]);
     setSimulationDetailBahan([]); // Clear materials display data
@@ -1973,6 +1996,9 @@ export default function HPPSimulation() {
     setEditableBatchSize(1000);
     setEditableRendemen(100);
     setEditableDescription("");
+    setEditableKemasan("");
+    setEditableKomposisi("");
+    setEditableForecast("");
     setEditableOverheadData({
       MH_Proses_Std: 0,
       MH_Kemas_Std: 0,
@@ -2510,6 +2536,9 @@ export default function HPPSimulation() {
       setEditableBatchSize(headerData.Batch_Size || 0);
       setEditableRendemen(headerData.Group_Rendemen || 0);
       setEditableDescription(headerData.Simulasi_Deskripsi || "");
+      setEditableKemasan(headerData.Kemasan || "");
+      setEditableKomposisi(headerData.Komposisi || "");
+      setEditableForecast(headerData.Forecast || "");
 
       // Detect margin type: if < 1, it's percent; otherwise it's direct value
       const marginValue = headerData.Margin || 0;
@@ -2990,6 +3019,12 @@ export default function HPPSimulation() {
           setSimulationDetailBahan(detailResponse.data || []);
           setSimulationSummary(summaryResponse.data?.[0] || null);
 
+          // Note fields start empty on a freshly generated simulation
+          const generatedHeader = headerResponse.data?.[0] || {};
+          setEditableKemasan(generatedHeader.Kemasan || "");
+          setEditableKomposisi(generatedHeader.Komposisi || "");
+          setEditableForecast(generatedHeader.Forecast || "");
+
           // Initialize editable values with current data
           if (results && results.length > 0) {
             const normalizedLOB = normalizeLOB(results[0].LOB);
@@ -3165,6 +3200,10 @@ export default function HPPSimulation() {
             ? (editableOverheadData.Margin || 0) / 100 
             : (editableOverheadData.Margin || 0),
           HNA: editableHNA || 0,
+          // Note-only fields
+          Kemasan: editableKemasan || null,
+          Komposisi: editableKomposisi || null,
+          Forecast: editableForecast || null,
           user_id: currentUser?.logNIK || null,
         };
 
@@ -3287,9 +3326,13 @@ export default function HPPSimulation() {
             editableOverheadData.Beban_Sisa_Bahan_Exp ||
             simulationResults[0].Beban_Sisa_Bahan_Exp,
           // Margin: convert from display value back to stored value
-          Margin: marginType === "percent" 
+          Margin: marginType === "percent"
             ? (editableOverheadData.Margin || 0) / 100  // Convert percent (e.g., 10) to decimal (0.1)
             : (editableOverheadData.Margin || 0),       // Keep as direct value
+          // Note-only fields
+          Kemasan: editableKemasan || null,
+          Komposisi: editableKomposisi || null,
+          Forecast: editableForecast || null,
         };
 
         // Prepare materials data from current editable state
@@ -5764,6 +5807,19 @@ export default function HPPSimulation() {
                         maxLength={4000}
                       />
                     </div>
+
+                    {/* Komposisi - informational only, does not affect the simulation */}
+                    <div className="summary-item full-width summary-note-field">
+                      <span className="summary-label">Komposisi:</span>
+                      <textarea
+                        value={editableKomposisi}
+                        onChange={(e) => setEditableKomposisi(e.target.value)}
+                        className="summary-textarea-input"
+                        placeholder="Composition notes (optional)"
+                        rows="2"
+                        maxLength={2000}
+                      />
+                    </div>
                   </div>
 
                   <div className="summary-grid">
@@ -5840,6 +5896,29 @@ export default function HPPSimulation() {
                         />
                         <span className="summary-unit">%</span>
                       </div>
+                    </div>
+                    {/* Kemasan & Forecast - informational only, do not affect the simulation */}
+                    <div className="summary-item">
+                      <span className="summary-label">Kemasan:</span>
+                      <input
+                        type="text"
+                        value={editableKemasan}
+                        onChange={(e) => setEditableKemasan(e.target.value)}
+                        className="summary-text-input"
+                        placeholder="e.g. Dus @ 10 strip"
+                        maxLength={255}
+                      />
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-label">Forecast:</span>
+                      <input
+                        type="text"
+                        value={editableForecast}
+                        onChange={(e) => setEditableForecast(e.target.value)}
+                        className="summary-text-input"
+                        placeholder="e.g. 120.000 pcs / bulan"
+                        maxLength={255}
+                      />
                     </div>
                   </div>
                 </div>
@@ -7300,6 +7379,16 @@ export default function HPPSimulation() {
                           %
                         </span>
                       </div>
+                      <div className="info-line">
+                        <span className="label">Kemasan</span>
+                        <span className="separator">:</span>
+                        <span className="value">{editableKemasan || "-"}</span>
+                      </div>
+                      <div className="info-line">
+                        <span className="label">Komposisi</span>
+                        <span className="separator">:</span>
+                        <span className="value">{editableKomposisi || "-"}</span>
+                      </div>
                     </div>
                     <div className="info-right">
                       <div className="info-line">
@@ -7345,6 +7434,11 @@ export default function HPPSimulation() {
                                 : "") ||
                               "-"}
                         </span>
+                      </div>
+                      <div className="info-line">
+                        <span className="label">Forecast</span>
+                        <span className="separator">:</span>
+                        <span className="value">{editableForecast || "-"}</span>
                       </div>
                     </div>
                   </div>
