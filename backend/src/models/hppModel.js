@@ -265,6 +265,7 @@ async function updateSimulationHeader(simulasiId, headerData) {
         Kemasan = @Kemasan,
         Komposisi = @Komposisi,
         Forecast = @Forecast,
+        Batch_Size_In_Unit = @BatchSizeInUnit,
         process_date = GETDATE()
       WHERE Simulasi_ID = @SimulasiId
     `;
@@ -324,6 +325,7 @@ async function updateSimulationHeader(simulasiId, headerData) {
       .input("Kemasan", sql.VarChar(255), headerData.Kemasan || null)
       .input("Komposisi", sql.VarChar(2000), headerData.Komposisi || null)
       .input("Forecast", sql.VarChar(255), headerData.Forecast || null)
+      .input("BatchSizeInUnit", sql.Decimal(18, 2), headerData.Batch_Size_In_Unit || null)
       .query(query);
 
     return result.rowsAffected[0];
@@ -350,7 +352,7 @@ async function createSimulationHeader(headerData) {
         MH_Proses_Std, MH_Kemas_Std, MH_Analisa_Std, MH_Timbang_BB, MH_Timbang_BK, MH_Mesin_Std,
         Biaya_Proses, Biaya_Kemas, Biaya_Analisa, Biaya_Generik, Biaya_Reagen, Toll_Fee, Rate_PLN,
         Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp, Margin, HNA,
-        Kemasan, Komposisi, Forecast,
+        Kemasan, Komposisi, Forecast, Batch_Size_In_Unit,
         user_id, process_date, flag_delete
       )
       VALUES (
@@ -359,7 +361,7 @@ async function createSimulationHeader(headerData) {
         @MHProsesStd, @MHKemasStd, @MHAnalisaStd, @MHTimbangBB, @MHTimbangBK, @MHMesinStd,
         @BiayaProses, @BiayaKemas, @BiayaAnalisa, @BiayaGenerik, @BiayaReagen, @TollFee, @RatePLN,
         @DirectLabor, @FactoryOverHead, @Depresiasi, @BebanSisaBahanExp, @Margin, @HNA,
-        @Kemasan, @Komposisi, @Forecast,
+        @Kemasan, @Komposisi, @Forecast, @BatchSizeInUnit,
         @UserId, GETDATE(), 0
       )
     `;
@@ -431,6 +433,7 @@ async function createSimulationHeader(headerData) {
       .input("Kemasan", sql.VarChar(255), headerData.Kemasan || null)
       .input("Komposisi", sql.VarChar(2000), headerData.Komposisi || null)
       .input("Forecast", sql.VarChar(255), headerData.Forecast || null)
+      .input("BatchSizeInUnit", sql.Decimal(18, 2), headerData.Batch_Size_In_Unit || null)
       .input("UserId", sql.VarChar(50), headerData.user_id || null)
       .query(query);
 
@@ -1033,7 +1036,7 @@ async function cloneSimulation(originalSimulasiId, cloneDescription, userId = nu
           MH_Proses_Std, MH_Kemas_Std, MH_Analisa_Std, MH_Timbang_BB, MH_Timbang_BK, MH_Mesin_Std,
           Biaya_Proses, Biaya_Kemas, Biaya_Analisa, Biaya_Generik, Biaya_Reagen, Toll_Fee, Rate_PLN,
           Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp, Margin, HNA,
-          Kemasan, Komposisi, Forecast,
+          Kemasan, Komposisi, Forecast, Batch_Size_In_Unit,
           user_id, process_date, flag_delete
         )
         SELECT
@@ -1042,7 +1045,7 @@ async function cloneSimulation(originalSimulasiId, cloneDescription, userId = nu
           MH_Proses_Std, MH_Kemas_Std, MH_Analisa_Std, MH_Timbang_BB, MH_Timbang_BK, MH_Mesin_Std,
           Biaya_Proses, Biaya_Kemas, Biaya_Analisa, Biaya_Generik, Biaya_Reagen, Toll_Fee, Rate_PLN,
           Direct_Labor, Factory_Over_Head, Depresiasi, Beban_Sisa_Bahan_Exp, Margin, HNA,
-          Kemasan, Komposisi, Forecast,
+          Kemasan, Komposisi, Forecast, Batch_Size_In_Unit,
           @UserId, GETDATE(), 0
         FROM t_COGS_HPP_Product_Header_Simulasi 
         WHERE Simulasi_ID = @OriginalSimulasiId

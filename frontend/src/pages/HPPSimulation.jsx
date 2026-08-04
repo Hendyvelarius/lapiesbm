@@ -273,6 +273,9 @@ export default function HPPSimulation() {
   const [editableKemasan, setEditableKemasan] = useState("");
   const [editableKomposisi, setEditableKomposisi] = useState("");
   const [editableForecast, setEditableForecast] = useState("");
+  // Batch size expanded to individual dosage units (tablets/capsules) rather
+  // than packs. Display only - no cost calculation reads it.
+  const [editableBatchSizeInUnit, setEditableBatchSizeInUnit] = useState("");
 
   // Editable simulation parameters
   const [editableBatchSize, setEditableBatchSize] = useState(null);
@@ -1762,6 +1765,7 @@ export default function HPPSimulation() {
       setEditableKemasan(headerData.Kemasan || "");
       setEditableKomposisi(headerData.Komposisi || "");
       setEditableForecast(headerData.Forecast || "");
+      setEditableBatchSizeInUnit(headerData.Batch_Size_In_Unit ?? "");
       
       // Set up editable overhead data
       // Detect margin type the same way handleEditSimulation does: a value < 1
@@ -1888,6 +1892,7 @@ export default function HPPSimulation() {
     setEditableKemasan(""); // Reset note fields for new simulation
     setEditableKomposisi("");
     setEditableForecast("");
+    setEditableBatchSizeInUnit("");
     setIsCustomFormula(false); // Reset custom formula flag
 
     // Set simulation type based on current active tab and go to appropriate step
@@ -1928,6 +1933,7 @@ export default function HPPSimulation() {
     setEditableKemasan(""); // Reset note fields
     setEditableKomposisi("");
     setEditableForecast("");
+    setEditableBatchSizeInUnit("");
     setEditableOverheadData({});
     setEditableMaterialData([]);
     setSimulationDetailBahan([]); // Clear materials display data
@@ -1999,6 +2005,7 @@ export default function HPPSimulation() {
     setEditableKemasan("");
     setEditableKomposisi("");
     setEditableForecast("");
+    setEditableBatchSizeInUnit("");
     setEditableOverheadData({
       MH_Proses_Std: 0,
       MH_Kemas_Std: 0,
@@ -2539,6 +2546,7 @@ export default function HPPSimulation() {
       setEditableKemasan(headerData.Kemasan || "");
       setEditableKomposisi(headerData.Komposisi || "");
       setEditableForecast(headerData.Forecast || "");
+      setEditableBatchSizeInUnit(headerData.Batch_Size_In_Unit ?? "");
 
       // Detect margin type: if < 1, it's percent; otherwise it's direct value
       const marginValue = headerData.Margin || 0;
@@ -3024,6 +3032,7 @@ export default function HPPSimulation() {
           setEditableKemasan(generatedHeader.Kemasan || "");
           setEditableKomposisi(generatedHeader.Komposisi || "");
           setEditableForecast(generatedHeader.Forecast || "");
+          setEditableBatchSizeInUnit(generatedHeader.Batch_Size_In_Unit ?? "");
 
           // Initialize editable values with current data
           if (results && results.length > 0) {
@@ -3204,6 +3213,7 @@ export default function HPPSimulation() {
           Kemasan: editableKemasan || null,
           Komposisi: editableKomposisi || null,
           Forecast: editableForecast || null,
+          Batch_Size_In_Unit: parseFloat(editableBatchSizeInUnit) || null,
           user_id: currentUser?.logNIK || null,
         };
 
@@ -3333,6 +3343,7 @@ export default function HPPSimulation() {
           Kemasan: editableKemasan || null,
           Komposisi: editableKomposisi || null,
           Forecast: editableForecast || null,
+          Batch_Size_In_Unit: parseFloat(editableBatchSizeInUnit) || null,
         };
 
         // Prepare materials data from current editable state
@@ -5868,6 +5879,19 @@ export default function HPPSimulation() {
                         min="1"
                       />
                     </div>
+                    {/* Batch size expanded to individual units - informational only */}
+                    <div className="summary-item">
+                      <span className="summary-label">Batch Size (unit):</span>
+                      <input
+                        type="number"
+                        value={editableBatchSizeInUnit}
+                        onChange={(e) => setEditableBatchSizeInUnit(e.target.value)}
+                        className="summary-edit-input"
+                        placeholder="tablets / capsules"
+                        min="0"
+                        step="1"
+                      />
+                    </div>
                     <div className="summary-item">
                       <span className="summary-label">Line:</span>
                       <span className="summary-value">
@@ -7364,6 +7388,15 @@ export default function HPPSimulation() {
                           {simulationResults && simulationResults[0]
                             ? simulationResults[0].Batch_Unit || "KOTAK"
                             : "KOTAK"}
+                        </span>
+                      </div>
+                      <div className="info-line">
+                        <span className="label">Batch Size (unit)</span>
+                        <span className="separator">:</span>
+                        <span className="value">
+                          {editableBatchSizeInUnit
+                            ? Number(editableBatchSizeInUnit).toLocaleString("id-ID")
+                            : "-"}
                         </span>
                       </div>
                       <div className="info-line">
