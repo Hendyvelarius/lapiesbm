@@ -1501,17 +1501,41 @@ BEGIN
                     WHERE DNc_BatchNo = @GranulateMRDNcNo AND DNc_ProductID = @GranulateItemID;
                     
                     -- Lookup cost from FG's HPP Actual header (calculated in Pass 1A)
+                    -- v18: An intermediate released in an earlier run than its parent was already
+                    -- calculated in PASS 2 as a regular product (LOB from its group, Cost_Per_Unit NULL),
+                    -- so PASS 1A skips it and no LOB='FG' header ever exists. Accept any COMPLETED header,
+                    -- preferring LOB='FG', and derive cost per unit with the same formula as the
+                    -- HPP Actual list (Total HPP per batch / Output_Actual).
                     IF @GranulateDNCBatchNo IS NOT NULL
                     BEGIN
-                        SELECT TOP 1 
+                        SELECT TOP 1
                             @GranulateHPPActualID = HPP_Actual_ID,
-                            @GranulateCostPerGram = Cost_Per_Unit
+                            @GranulateCostPerGram = COALESCE(Cost_Per_Unit,
+                                CASE WHEN ISNULL(Output_Actual, 0) > 0 THEN
+                                    (
+                                        ISNULL(Total_Cost_BB, 0)
+                                        + ISNULL(Total_Cost_BK, 0)
+                                        + ISNULL(ISNULL(MH_Proses_Actual, MH_Proses_Std), 0) * ISNULL(Rate_MH_Proses, 0)
+                                        + ISNULL(ISNULL(MH_Kemas_Actual, MH_Kemas_Std), 0) * ISNULL(Rate_MH_Kemas, 0)
+                                        + ISNULL(MH_Timbang_BB, 0) * ISNULL(Rate_MH_Timbang, 0)
+                                        + ISNULL(MH_Timbang_BK, 0) * ISNULL(Rate_MH_Timbang, 0)
+                                        + CASE WHEN LOB != 'ETHICAL' THEN ISNULL(ISNULL(MH_Proses_Actual, MH_Proses_Std), 0) * ISNULL(Factory_Overhead, 0) ELSE 0 END
+                                        + CASE WHEN LOB != 'ETHICAL' THEN ISNULL(ISNULL(MH_Kemas_Actual, MH_Kemas_Std), 0) * ISNULL(Factory_Overhead, 0) ELSE 0 END
+                                        + CASE WHEN LOB != 'ETHICAL' THEN ISNULL(ISNULL(MH_Proses_Actual, MH_Proses_Std), 0) * ISNULL(Depresiasi, 0) ELSE 0 END
+                                        + CASE WHEN LOB != 'ETHICAL' THEN ISNULL(ISNULL(MH_Kemas_Actual, MH_Kemas_Std), 0) * ISNULL(Depresiasi, 0) ELSE 0 END
+                                        + ISNULL(Biaya_Analisa, 0)
+                                        + ISNULL(Biaya_Reagen, 0)
+                                        + ISNULL(Cost_Utility, 0)
+                                        + ISNULL(Toll_Fee, 0)
+                                        + ISNULL(Beban_Sisa_Bahan_Exp, 0)
+                                        + ISNULL(Biaya_Lain, 0)
+                                    ) / Output_Actual
+                                ELSE 0 END)
                         FROM t_COGS_HPP_Actual_Header
                         WHERE BatchNo = @GranulateDNCBatchNo
                           AND DNc_ProductID = @GranulateItemID
-                          AND LOB = 'FG'
                           AND Calculation_Status = 'COMPLETED'
-                        ORDER BY Created_Date DESC;
+                        ORDER BY CASE WHEN LOB = 'FG' THEN 0 ELSE 1 END, Created_Date DESC;
                     END
                 END
                 
