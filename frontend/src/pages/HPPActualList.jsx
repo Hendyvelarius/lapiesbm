@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Download, FileText, Loader2, ChevronLeft, ChevronRight, Search, RefreshCw, X, Calculator, AlertCircle, CheckCircle2, ArrowUp, ArrowDown, ArrowUpDown, FlaskConical, Beaker, PackageCheck } from 'lucide-react';
+import { Download, FileText, Loader2, ChevronLeft, ChevronRight, Search, RefreshCw, X, Calculator, AlertCircle, CheckCircle2, ArrowUp, ArrowDown, ArrowUpDown, FlaskConical, Beaker, PackageCheck, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { hppAPI } from '../services/api';
+import HPPPeriodReportModal from '../components/HPPPeriodReportModal';
 import '../styles/HPPActualList.css';
 
 // Utility functions
@@ -903,6 +904,9 @@ const HPPActualList = ({ user }) => {
   const [calculateResult, setCalculateResult] = useState(null);
   const [calculateError, setCalculateError] = useState(null);
 
+  // Period Report Modal state
+  const [showPeriodReportModal, setShowPeriodReportModal] = useState(false);
+
   // Sort state for each tab
   const [sortConfigs, setSortConfigs] = useState({
     ethical: { key: null, direction: 'asc' },
@@ -1544,6 +1548,10 @@ const HPPActualList = ({ user }) => {
             {exporting ? <Loader2 className="spin" size={16} /> : <Download size={16} />}
             Export to Excel
           </button>
+          <button className="hpp-actual-report-btn" onClick={() => setShowPeriodReportModal(true)} disabled={periods.length === 0}>
+            <FileSpreadsheet size={16} />
+            Generate Period Report
+          </button>
           <button className="hpp-actual-calculate-btn" onClick={handleOpenCalculateModal} disabled={calculating}>
             {calculating ? <Loader2 className="spin" size={16} /> : <Calculator size={16} />}
             Calculate HPP
@@ -1782,6 +1790,15 @@ const HPPActualList = ({ user }) => {
           </div>
         </div>
       )}
+
+      <HPPPeriodReportModal
+        isOpen={showPeriodReportModal}
+        onClose={() => setShowPeriodReportModal(false)}
+        periods={periods}
+        defaultPeriod={selectedPeriod}
+        testMode={testMode}
+        user={user}
+      />
     </div>
   );
 };

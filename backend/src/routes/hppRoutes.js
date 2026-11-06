@@ -152,6 +152,10 @@ router.get('/actual/periods', HPPController.getHPPActualPeriodsData);
 // Query: ?periode=202601&testMode=true
 router.get('/actual/all-details', HPPController.getHPPActualAllDetailsData);
 
+// GET /api/hpp/actual/period-report - Get batches and standards for the period report
+// Query params: from, to (YYYYMM, inclusive), testMode (optional)
+router.get('/actual/period-report', HPPController.getHPPActualPeriodReportData);
+
 // GET /api/hpp/actual/:hppActualId - Get HPP Actual detail (header + materials)
 router.get('/actual/:hppActualId', HPPController.getHPPActualDetailData);
 

@@ -1,4 +1,4 @@
-const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, getDistinctCustomMaterials, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, getMarkedForDeleteList, deleteSimulation, markSimulationForDelete, restoreSimulation, bulkMarkForDelete, permanentlyDeleteMarked, getSimulationOwner, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, getGeneratedProductIds, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk, bulkMarkPriceChangeGroupForDelete, bulkDeletePriceChangeGroup, getForeignCurrencies, scanCurrencyImpact, generateCurrencyChangeSimulation, getCurrencyChangeAffectedProducts, getHPPActualList, getHPPActualGranulateList, getHPPActualPeriods, getHPPActualDetail, getHPPActualHeader, getHPPActualAllDetails, getHPPActualIntermediateUsage, calculateHPPActual } = require('../models/hppModel');
+const { getHPP, generateHPPCalculation, generateHPPSimulation, getSimulationHeader, getSimulationDetailBahan, getDistinctCustomMaterials, updateSimulationHeader, deleteSimulationMaterials, insertSimulationMaterials, getSimulationList, getMarkedForDeleteList, deleteSimulation, markSimulationForDelete, restoreSimulation, bulkMarkForDelete, permanentlyDeleteMarked, getSimulationOwner, createSimulationHeader, generatePriceChangeSimulation, generatePriceUpdateSimulation, checkHPPDataExists, getGeneratedProductIds, commitPriceUpdate, getSimulationsForPriceChangeGroup, updateSimulationVersionBulk, bulkMarkPriceChangeGroupForDelete, bulkDeletePriceChangeGroup, getForeignCurrencies, scanCurrencyImpact, generateCurrencyChangeSimulation, getCurrencyChangeAffectedProducts, getHPPActualList, getHPPActualPeriodReport, getHPPActualGranulateList, getHPPActualPeriods, getHPPActualDetail, getHPPActualHeader, getHPPActualAllDetails, getHPPActualIntermediateUsage, calculateHPPActual } = require('../models/hppModel');
 
 class HPPController {
   // Get all HPP records
@@ -1217,6 +1217,38 @@ class HPPController {
       res.status(500).json({
         success: false,
         message: 'Error retrieving HPP Actual periods',
+        error: error.message
+      });
+    }
+  }
+
+  // Get batches and standards for the HPP Actual vs Standard period report
+  static async getHPPActualPeriodReportData(req, res) {
+    try {
+      const { from, to, testMode } = req.query;
+      const isValidPeriode = (value) => /^\d{4}(0[1-9]|1[0-2])$/.test(value || '');
+
+      if (!isValidPeriode(from) || !isValidPeriode(to) || from > to) {
+        return res.status(400).json({
+          success: false,
+          message: 'from and to are required in YYYYMM format, with from not after to'
+        });
+      }
+
+      const useTestTable = testMode === 'true' || testMode === '1';
+      const data = await getHPPActualPeriodReport(from, to, useTestTable);
+
+      res.status(200).json({
+        success: true,
+        data,
+        count: data.batches.length,
+        testMode: useTestTable
+      });
+    } catch (error) {
+      console.error('Get HPP Actual Period Report Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error retrieving HPP Actual period report',
         error: error.message
       });
     }

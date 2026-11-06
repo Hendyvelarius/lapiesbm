@@ -1211,8 +1211,9 @@ async function updateSimulationVersionBulk(simulationVersions) {
  * Returns calculated HPP values for each batch
  * @param {string} periode - Period filter (optional)
  * @param {boolean} useTestTable - If true, reads from _TEST tables
+ * @param {{from: string, to: string}} periodRange - Inclusive YYYYMM range filter (optional)
  */
-async function getHPPActualList(periode = null, useTestTable = false) {
+async function getHPPActualList(periode = null, useTestTable = false, periodRange = null) {
   try {
     const db = await connect();
     
@@ -1273,10 +1274,11 @@ async function getHPPActualList(periode = null, useTestTable = false) {
         h.Total_Cost_Returned,
         -- HNA from m_Product
         p.Product_SalesHNA as HNA,
+        -- A batch with no manhours counts as 0: one NULL here would blank the whole HPP total
         -- Calculate component costs
         -- For Ethical: Use Rate_MH_Proses/Rate_MH_Kemas (which is Biaya_Proses/Biaya_Kemas from standard HPP)
-        ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Rate_MH_Proses, 0) as Biaya_Proses,
-        ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Rate_MH_Kemas, 0) as Biaya_Kemas,
+        ISNULL(h.MH_Proses_Actual, ISNULL(h.MH_Proses_Std, 0)) * ISNULL(h.Rate_MH_Proses, 0) as Biaya_Proses,
+        ISNULL(h.MH_Kemas_Actual, ISNULL(h.MH_Kemas_Std, 0)) * ISNULL(h.Rate_MH_Kemas, 0) as Biaya_Kemas,
         ISNULL(h.MH_Timbang_BB, 0) * ISNULL(h.Rate_MH_Timbang, 0) as Biaya_Timbang_BB,
         ISNULL(h.MH_Timbang_BK, 0) * ISNULL(h.Rate_MH_Timbang, 0) as Biaya_Timbang_BK,
         -- Calculate Total HPP per Batch
@@ -1285,14 +1287,14 @@ async function getHPPActualList(periode = null, useTestTable = false) {
         (
           ISNULL(h.Total_Cost_BB, 0) +
           ISNULL(h.Total_Cost_BK, 0) +
-          (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Rate_MH_Proses, 0)) +
-          (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Rate_MH_Kemas, 0)) +
+          (ISNULL(h.MH_Proses_Actual, ISNULL(h.MH_Proses_Std, 0)) * ISNULL(h.Rate_MH_Proses, 0)) +
+          (ISNULL(h.MH_Kemas_Actual, ISNULL(h.MH_Kemas_Std, 0)) * ISNULL(h.Rate_MH_Kemas, 0)) +
           (ISNULL(h.MH_Timbang_BB, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
           (ISNULL(h.MH_Timbang_BK, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
-          CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
-          CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
-          CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
-          CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
+          CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, ISNULL(h.MH_Proses_Std, 0)) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
+          CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, ISNULL(h.MH_Kemas_Std, 0)) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
+          CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, ISNULL(h.MH_Proses_Std, 0)) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
+          CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, ISNULL(h.MH_Kemas_Std, 0)) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
           ISNULL(h.Biaya_Analisa, 0) +
           ISNULL(h.Biaya_Reagen, 0) +
           ISNULL(h.Cost_Utility, 0) +
@@ -1306,14 +1308,14 @@ async function getHPPActualList(periode = null, useTestTable = false) {
             (
               ISNULL(h.Total_Cost_BB, 0) +
               ISNULL(h.Total_Cost_BK, 0) +
-              (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Rate_MH_Proses, 0)) +
-              (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Rate_MH_Kemas, 0)) +
+              (ISNULL(h.MH_Proses_Actual, ISNULL(h.MH_Proses_Std, 0)) * ISNULL(h.Rate_MH_Proses, 0)) +
+              (ISNULL(h.MH_Kemas_Actual, ISNULL(h.MH_Kemas_Std, 0)) * ISNULL(h.Rate_MH_Kemas, 0)) +
               (ISNULL(h.MH_Timbang_BB, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
               (ISNULL(h.MH_Timbang_BK, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
-              CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
-              CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
-              CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
-              CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
+              CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, ISNULL(h.MH_Proses_Std, 0)) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
+              CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, ISNULL(h.MH_Kemas_Std, 0)) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
+              CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, ISNULL(h.MH_Proses_Std, 0)) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
+              CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, ISNULL(h.MH_Kemas_Std, 0)) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
               ISNULL(h.Biaya_Analisa, 0) +
               ISNULL(h.Biaya_Reagen, 0) +
               ISNULL(h.Cost_Utility, 0) +
@@ -1330,14 +1332,14 @@ async function getHPPActualList(periode = null, useTestTable = false) {
               (
                 ISNULL(h.Total_Cost_BB, 0) +
                 ISNULL(h.Total_Cost_BK, 0) +
-                (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Rate_MH_Proses, 0)) +
-                (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Rate_MH_Kemas, 0)) +
+                (ISNULL(h.MH_Proses_Actual, ISNULL(h.MH_Proses_Std, 0)) * ISNULL(h.Rate_MH_Proses, 0)) +
+                (ISNULL(h.MH_Kemas_Actual, ISNULL(h.MH_Kemas_Std, 0)) * ISNULL(h.Rate_MH_Kemas, 0)) +
                 (ISNULL(h.MH_Timbang_BB, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
                 (ISNULL(h.MH_Timbang_BK, 0) * ISNULL(h.Rate_MH_Timbang, 0)) +
-                CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
-                CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
-                CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, h.MH_Proses_Std) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
-                CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, h.MH_Kemas_Std) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
+                CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, ISNULL(h.MH_Proses_Std, 0)) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
+                CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, ISNULL(h.MH_Kemas_Std, 0)) * ISNULL(h.Factory_Overhead, 0)) ELSE 0 END +
+                CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Proses_Actual, ISNULL(h.MH_Proses_Std, 0)) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
+                CASE WHEN h.LOB != 'ETHICAL' THEN (ISNULL(h.MH_Kemas_Actual, ISNULL(h.MH_Kemas_Std, 0)) * ISNULL(h.Depresiasi, 0)) ELSE 0 END +
                 ISNULL(h.Biaya_Analisa, 0) +
                 ISNULL(h.Biaya_Reagen, 0) +
                 ISNULL(h.Cost_Utility, 0) +
@@ -1361,6 +1363,13 @@ async function getHPPActualList(periode = null, useTestTable = false) {
       request = request.input('periode', sql.VarChar(6), periode);
     }
     
+    if (periodRange) {
+      query += ` AND h.Periode BETWEEN @fromPeriode AND @toPeriode`;
+      request = request
+        .input('fromPeriode', sql.VarChar(6), periodRange.from)
+        .input('toPeriode', sql.VarChar(6), periodRange.to);
+    }
+    
     query += ` ORDER BY h.Periode DESC, h.DNc_ProductID, h.BatchNo`;
     
     const result = await request.query(query);
@@ -1368,6 +1377,56 @@ async function getHPPActualList(periode = null, useTestTable = false) {
     
   } catch (error) {
     console.error("Error in getHPPActualList:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get the batches and standards behind the HPP Actual vs Standard period report.
+ * Standards are keyed by year then Product_ID, so a range crossing a year boundary
+ * compares each batch against the standard of its own year.
+ * @param {string} fromPeriode - First period, YYYYMM (inclusive)
+ * @param {string} toPeriode - Last period, YYYYMM (inclusive)
+ * @param {boolean} useTestTable - If true, reads batches from _TEST tables
+ */
+async function getHPPActualPeriodReport(fromPeriode, toPeriode, useTestTable = false) {
+  try {
+    const batches = await getHPPActualList(null, useTestTable, { from: fromPeriode, to: toPeriode });
+    const years = [...new Set(batches.map(b => b.Periode.substring(0, 4)))];
+    const toNumber = (value) => parseFloat(value) || 0;
+
+    const standards = {};
+    for (const year of years) {
+      // generik2 is an alternative calculation method and must be ignored
+      const { ethical, generik1 } = await getHPP(year);
+      standards[year] = {};
+      [...ethical, ...generik1].forEach(p => {
+        const rendemen = parseFloat(p.Group_Rendemen) || 100;
+        standards[year][p.Product_ID] = {
+          expectedOutput: toNumber(p.Batch_Size) * rendemen / 100,
+          rendemen,
+          totalBB: toNumber(p.totalBB),
+          totalBK: toNumber(p.totalBK),
+          mhProses: toNumber(p.MH_Proses_Std),
+          mhKemas: toNumber(p.MH_Kemas_Std),
+          mhTimbangBB: toNumber(p.MH_Timbang_BB),
+          mhTimbangBK: toNumber(p.MH_Timbang_BK),
+          mhAnalisa: toNumber(p.MH_Analisa_Std),
+          mhMesin: toNumber(p.MH_Mesin_Std),
+          rateProses: toNumber(p.Biaya_Proses),
+          rateKemas: toNumber(p.Biaya_Kemas),
+          rateAnalisa: toNumber(p.Biaya_Analisa),
+          ratePLN: toNumber(p.Rate_PLN),
+          biayaReagen: toNumber(p.Biaya_Reagen),
+          expiry: toNumber(p.Beban_Sisa_Bahan_Exp),
+          hppPerUnit: toNumber(p.HPP),
+        };
+      });
+    }
+
+    return { batches, standards };
+  } catch (error) {
+    console.error("Error in getHPPActualPeriodReport:", error);
     throw error;
   }
 }
@@ -1849,6 +1908,7 @@ module.exports = {
   getCurrencyChangeAffectedProducts,
   // HPP Actual exports
   getHPPActualList,
+  getHPPActualPeriodReport,
   getHPPActualGranulateList,
   getHPPActualPeriods,
   getHPPActualDetail,

@@ -226,6 +226,32 @@ These endpoints provide access to HPP Actual data - the actual manufacturing cos
 }
 ```
 
+#### Get HPP Actual Period Report
+- **GET** `/api/hpp/actual/period-report`
+- **Query Parameters:**
+  - `from` (string, required): First period in YYYYMM format (e.g., '202601')
+  - `to` (string, required): Last period in YYYYMM format, inclusive (e.g., '202610')
+  - `testMode` (boolean, optional): Reads batches from the _TEST tables
+- **Description:** Get product batches for a period range, with HPP Standard values keyed by year then product. Used by the Generate Period Report feature.
+- **Response Example:**
+```json
+{
+  "success": true,
+  "count": 1,
+  "testMode": false,
+  "data": {
+    "batches": [
+      { "Product_ID": "01", "BatchNo": "01186", "Periode": "202610", "Output_Actual": 7867, "Total_HPP_Batch": 447790000, "HPP_Per_Unit": 56920 }
+    ],
+    "standards": {
+      "2026": {
+        "01": { "expectedOutput": 4850, "rendemen": 97, "totalBB": 172509546, "totalBK": 30000000, "mhProses": 120, "mhKemas": 80, "hppPerUnit": 72381 }
+      }
+    }
+  }
+}
+```
+
 #### Get HPP Actual Detail
 - **GET** `/api/hpp/actual/:hppActualId`
 - **Description:** Get detailed breakdown of a specific batch's actual costs including all materials used

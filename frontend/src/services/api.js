@@ -378,6 +378,13 @@ export const hppAPI = {
     return apiRequest(`/hpp/actual/${hppActualId}${queryString}`);
   },
   
+  // Get batches and standards for the HPP Actual vs Standard period report
+  getActualPeriodReport: (from, to, testMode = false) => {
+    const params = new URLSearchParams({ from, to });
+    if (testMode) params.append('testMode', 'true');
+    return apiRequest(`/hpp/actual/period-report?${params.toString()}`);
+  },
+
   // Get all HPP Actual details for export
   getActualAllDetails: (periode, testMode = false) => {
     const params = new URLSearchParams({ periode });

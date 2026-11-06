@@ -77,10 +77,13 @@
 
 .hpp-actual-header-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 10px;
 }
 
 .hpp-actual-refresh-btn,
+.hpp-actual-report-btn,
 .hpp-actual-export-btn {
   display: flex;
   align-items: center;
@@ -115,7 +118,18 @@
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
+.hpp-actual-report-btn {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+}
+
+.hpp-actual-report-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
 .hpp-actual-refresh-btn:disabled,
+.hpp-actual-report-btn:disabled,
 .hpp-actual-export-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -1264,6 +1278,65 @@
 
 .calculate-success .detail-row.warning .value {
   color: #b45309;
+}
+
+/* Period Report Modal */
+.period-report-modes {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 16px;
+  background: #f3f4f6;
+  border-radius: 10px;
+}
+
+.period-report-mode {
+  padding: 8px 6px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #4b5563;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.period-report-mode:hover:not(:disabled):not(.active) {
+  color: #111827;
+}
+
+.period-report-mode.active {
+  background: white;
+  color: #2563eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.period-report-mode:disabled {
+  cursor: not-allowed;
+}
+
+.period-report-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  color: #1e40af;
+  font-size: 13px;
+}
+
+.period-report-preview svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.period-report-preview p {
+  margin: 2px 0 0;
+  color: #3b82f6;
 }
 
 /* Modal Footer */
