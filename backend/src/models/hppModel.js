@@ -1352,12 +1352,13 @@ async function getHPPActualList(periode = null, useTestTable = false, periodRang
         END as HPP_Ratio
       FROM ${headerTable} h
       LEFT JOIN m_Product p ON p.Product_ID = h.DNc_ProductID
-      WHERE h.LOB NOT IN ('GRANULATE', 'FG')
+      -- LOB is NULL when the product had no group at calculation time; those are still finished products
+      WHERE ISNULL(h.LOB, '') NOT IN ('GRANULATE', 'FG')
         AND h.Calculation_Status = 'COMPLETED'
     `;
-    
+
     let request = db.request();
-    
+
     if (periode) {
       query += ` AND h.Periode = @periode`;
       request = request.input('periode', sql.VarChar(6), periode);
@@ -1449,7 +1450,7 @@ const HPP_ACTUAL_MANHOUR_CHANGES = `
        AND src.Periode = h.Periode
        AND src.Group_productid = h.DNc_ProductID
   WHERE h.Calculation_Status = 'COMPLETED'
-    AND h.LOB NOT IN ('GRANULATE', 'FG')
+    AND ISNULL(h.LOB, '') NOT IN ('GRANULATE', 'FG')
     AND h.Periode BETWEEN @fromPeriode AND @toPeriode
     AND (
       h.MH_Proses_Actual IS NULL OR h.MH_Kemas_Actual IS NULL
@@ -1753,7 +1754,7 @@ async function getHPPActualAllDetails(periode, useTestTable = false) {
       FROM ${detailTable} d
       JOIN ${headerTable} h ON d.HPP_Actual_ID = h.HPP_Actual_ID
       WHERE h.Periode = @periode
-        AND h.LOB NOT IN ('GRANULATE', 'FG')
+        AND ISNULL(h.LOB, '') NOT IN ('GRANULATE', 'FG')
         AND h.Calculation_Status = 'COMPLETED'
       ORDER BY h.Product_Name, h.BatchNo, d.Item_Type, d.Item_ID
     `;
@@ -1818,7 +1819,7 @@ async function getHPPActualIntermediateUsage(periode = null, useTestTable = fals
             AND d2.Item_ID = d.Item_ID
             AND d2.Granulate_Batch = d.Granulate_Batch
             AND h2.Periode = @periode
-            AND h2.LOB NOT IN ('GRANULATE', 'FG')
+            AND ISNULL(h2.LOB, '') NOT IN ('GRANULATE', 'FG')
             AND h2.Calculation_Status = 'COMPLETED'
           FOR XML PATH('')
         ), 1, 2, '') as Used_By_Batches
@@ -1829,7 +1830,7 @@ async function getHPPActualIntermediateUsage(periode = null, useTestTable = fals
                                   AND ih.LOB IN ('GRANULATE', 'FG')
                                   AND ih.Calculation_Status = 'COMPLETED'
       WHERE d.Is_Granulate = 1
-        AND h.LOB NOT IN ('GRANULATE', 'FG')
+        AND ISNULL(h.LOB, '') NOT IN ('GRANULATE', 'FG')
         AND h.Calculation_Status = 'COMPLETED'
     `;
 

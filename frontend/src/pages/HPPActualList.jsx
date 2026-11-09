@@ -5,6 +5,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { hppAPI } from '../services/api';
 import HPPPeriodReportModal from '../components/HPPPeriodReportModal';
+import { isEthicalGroup } from '../utils/hppPeriodReport';
 import '../styles/HPPActualList.css';
 
 // Utility functions
@@ -443,7 +444,7 @@ const BatchDetailModal = ({ batch, materials, isOpen, onClose, isLoading }) => {
   const isGranulate = batch.LOB === 'GRANULATE' || batch.LOB === 'FG';
 
   // Determine product type based on LOB and available data
-  const isEthical = batch.LOB === 'ETHICAL' || batch.LOB === 'ETH' || batch.LOB === 'OTC';
+  const isEthical = isEthicalGroup(batch);
   
   // Detect Generic1 vs Generic2 based on available fields
   // Generic1 has MH_Timbang_BB, MH_Analisa_Std, Biaya_Reagen, etc.
@@ -1092,8 +1093,8 @@ const HPPActualList = ({ user }) => {
 
   // Split batches by LOB
   const splitBatches = useMemo(() => {
-    const ethical = batches.filter(b => b.LOB === 'ETHICAL' || b.LOB === 'ETH' || b.LOB === 'OTC');
-    const generic = batches.filter(b => b.LOB !== 'ETHICAL' && b.LOB !== 'ETH' && b.LOB !== 'OTC');
+    const ethical = batches.filter(isEthicalGroup);
+    const generic = batches.filter(b => !isEthicalGroup(b));
     return { ethical, generic };
   }, [batches]);
 

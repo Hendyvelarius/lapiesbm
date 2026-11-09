@@ -87,7 +87,10 @@ const fraction = (percent) => {
   return number === null ? null : number / 100;
 };
 
-const isEthicalGroup = (lob) => lob === 'ETHICAL' || lob === 'ETH' || lob === 'OTC';
+// A batch has no LOB when its product had no group at calculation time; the name still marks generics
+export const isEthicalGroup = ({ LOB, Product_Name }) => (
+  LOB ? ['ETHICAL', 'ETH', 'OTC'].includes(LOB) : !/generik/i.test(Product_Name || '')
+);
 
 const manhours = (batch) => (toNumber(batch.MH_Proses_Actual ?? batch.MH_Proses_Std) || 0)
   + (toNumber(batch.MH_Kemas_Actual ?? batch.MH_Kemas_Std) || 0);
@@ -249,8 +252,10 @@ const buildRow = (batch, standards) => {
   const output = toNumber(batch.Output_Actual);
   // A batch missing a cost the standard expects would otherwise look far better than standard.
   // A null actual manhour with a standard on the batch is fine: the standard is used instead.
+  // No LOB also means no manhour rates were loaded, so the batch only carries its material cost.
   const missingCost = standard && (
-    (standard.totalBB > 0 && !(toNumber(batch.Total_Cost_BB) > 0))
+    !batch.LOB
+    || (standard.totalBB > 0 && !(toNumber(batch.Total_Cost_BB) > 0))
     || (standard.totalBK > 0 && !(toNumber(batch.Total_Cost_BK) > 0))
     || (standard.mhProses > 0 && !(toNumber(batch.MH_Proses_Actual ?? batch.MH_Proses_Std) > 0))
     || (standard.mhKemas > 0 && !(toNumber(batch.MH_Kemas_Actual ?? batch.MH_Kemas_Std) > 0))
@@ -723,7 +728,7 @@ const buildNotes = ({ rows, standardYears }) => {
     'Grey italic values have no recorded actual, so the standard is shown and not coloured. Zero or missing values are also not coloured.',
     'Standard Cost at Actual Output is Standard HPP / Unit x Actual Output, so batches larger or smaller than a standard batch do not distort the verdict.',
     'Parameter Comparison sums standard batches, so its cost totals also reflect output differences. Use HPP / Unit and Standard Cost at Actual Output for the like-for-like view.',
-    'Not Compared batches have no usable standard (Status: No Standard), or no output, material cost or manhours where the standard expects them (Status: Incomplete Actual). They are left out of Summary totals but stay listed in the batch sheets.',
+    'Not Compared batches have no usable standard (Status: No Standard), or no output, material cost or manhours where the standard expects them, or no product group when calculated (Status: Incomplete Actual). They are left out of Summary totals but stay listed in the batch sheets.',
     'Only finished product batches are included. Intermediates (Granulate and FG) have no HPP Standard to compare against.',
   ];
 
@@ -775,8 +780,8 @@ const applySheetViews = (bytes, views) => {
  */
 export const buildPeriodReport = ({ batches, standards, period, testMode = false, generatedBy = 'User', generatedAt = new Date() }) => {
   const rows = batches.map((batch) => buildRow(batch, standards)).sort(byProductThenPeriod);
-  const ethicalRows = rows.filter((row) => isEthicalGroup(row.batch.LOB));
-  const genericRows = rows.filter((row) => !isEthicalGroup(row.batch.LOB));
+  const ethicalRows = rows.filter((row) => isEthicalGroup(row.batch));
+  const genericRows = rows.filter((row) => !isEthicalGroup(row.batch));
 
   const monthsInRange = listPeriodsBetween(period.from, period.to);
   const monthsWithData = monthsInRange.filter((month) => rows.some((row) => row.batch.Periode === month));

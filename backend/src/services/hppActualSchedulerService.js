@@ -67,7 +67,8 @@ function isPastMidnight() {
 }
 
 /**
- * Main function to calculate HPP Actual for the current period
+ * Main function to calculate HPP Actual for the current period.
+ * The previous period is included so batches labelled after the last run of a month are not missed.
  */
 async function calculateHPPActualDaily() {
   if (isRunning) {
@@ -77,13 +78,27 @@ async function calculateHPPActualDaily() {
 
   isRunning = true;
   const startTime = new Date();
-  const periode = getCurrentPeriode();
+  const periodes = [getPreviousPeriode(), getCurrentPeriode()];
+  const periode = periodes.join('-');
 
-  console.log(`[HPP Actual Scheduler] Starting HPP Actual calculation for period ${periode} at ${startTime.toISOString()}`);
+  console.log(`[HPP Actual Scheduler] Starting HPP Actual calculation for periods ${periode} at ${startTime.toISOString()}`);
 
   try {
-    // Calculate HPP Actual for uncalculated batches only (recalculateExisting = false)
-    const result = await hppModel.calculateHPPActual(periode, false);
+    // Calculate HPP Actual for uncalculated batches only (recalculateExisting = false),
+    // so a retry after a partial failure does not repeat finished work
+    const results = [];
+    for (const period of periodes) {
+      results.push(await hppModel.calculateHPPActual(period, false));
+    }
+    const total = (field) => results.reduce((sum, item) => sum + (item[field] || 0), 0);
+    const result = {
+      productsProcessed: total('productsProcessed'),
+      totalProductBatches: total('totalProductBatches'),
+      granulatesProcessed: total('granulatesProcessed'),
+      errors: total('errors'),
+      durationSeconds: total('durationSeconds'),
+      errorBatches: results.flatMap((item) => item.errorBatches || []),
+    };
 
     const endTime = new Date();
     const durationMs = endTime - startTime;
