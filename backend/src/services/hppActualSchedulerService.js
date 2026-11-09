@@ -30,6 +30,33 @@ function getCurrentPeriode() {
 }
 
 /**
+ * Get the previous period in YYYYMM format
+ */
+function getPreviousPeriode() {
+  const now = new Date();
+  const previous = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return `${previous.getFullYear()}${String(previous.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Pick up actual manhours reported after a batch was calculated.
+ * Covers the previous month too, since month-end batches get their hours in the next month.
+ * A failure here is only logged: the calculation succeeded and tomorrow's run will catch up.
+ */
+async function refreshRecentManhours() {
+  const from = getPreviousPeriode();
+  const to = getCurrentPeriode();
+  try {
+    const updated = await hppModel.refreshHPPActualManhours(from, to);
+    console.log(`[HPP Actual Scheduler] Manhours refreshed for ${from}-${to}: ${updated} batches updated`);
+    return updated;
+  } catch (error) {
+    console.error(`[HPP Actual Scheduler] Manhour refresh failed: ${error.message}`);
+    return null;
+  }
+}
+
+/**
  * Check if current time is past midnight (retry window expired)
  */
 function isPastMidnight() {
@@ -64,6 +91,8 @@ async function calculateHPPActualDaily() {
     console.log(`[HPP Actual Scheduler] Calculation completed in ${(durationMs / 1000).toFixed(1)}s`);
     console.log(`[HPP Actual Scheduler] Results: ${result.productsProcessed} products processed, ${result.totalProductBatches} batches, ${result.granulatesProcessed} granulates, ${result.errors} errors`);
 
+    const manhoursRefreshed = await refreshRecentManhours();
+
     // Clear retries on success
     clearRetryTimeout();
     isRunning = false;
@@ -77,7 +106,8 @@ async function calculateHPPActualDaily() {
       granulatesProcessed: result.granulatesProcessed,
       errors: result.errors,
       durationSeconds: result.durationSeconds,
-      errorBatches: result.errorBatches || []
+      errorBatches: result.errorBatches || [],
+      manhoursRefreshed
     };
 
     return lastRunResult;

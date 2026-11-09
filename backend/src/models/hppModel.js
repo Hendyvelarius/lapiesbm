@@ -1431,6 +1431,72 @@ async function getHPPActualPeriodReport(fromPeriode, toPeriode, useTestTable = f
   }
 }
 
+// Finished-product batches whose actual manhours differ from the production report.
+// Matches on product as well as batch, because batch numbers repeat across products,
+// and skips any batch where the report's own rows disagree.
+const HPP_ACTUAL_MANHOUR_CHANGES = `
+  FROM t_COGS_HPP_Actual_Header h
+  JOIN (
+    SELECT Reg_BatchNo, REPLACE(Periode, ' ', '') AS Periode, Group_productid,
+           CAST(MIN(MH_NyataProses) AS DECIMAL(18,4)) AS MH_Proses,
+           CAST(MIN(MH_NyataKemas) AS DECIMAL(18,4)) AS MH_Kemas
+    FROM tmp_spLapProduksi_GWN_ReleaseQA
+    WHERE REPLACE(Periode, ' ', '') BETWEEN @fromPeriode AND @toPeriode
+    GROUP BY Reg_BatchNo, REPLACE(Periode, ' ', ''), Group_productid
+    HAVING MIN(MH_NyataProses) = MAX(MH_NyataProses)
+       AND MIN(MH_NyataKemas) = MAX(MH_NyataKemas)
+  ) src ON src.Reg_BatchNo = h.BatchNo
+       AND src.Periode = h.Periode
+       AND src.Group_productid = h.DNc_ProductID
+  WHERE h.Calculation_Status = 'COMPLETED'
+    AND h.LOB NOT IN ('GRANULATE', 'FG')
+    AND h.Periode BETWEEN @fromPeriode AND @toPeriode
+    AND (
+      h.MH_Proses_Actual IS NULL OR h.MH_Kemas_Actual IS NULL
+      OR h.MH_Proses_Actual <> src.MH_Proses OR h.MH_Kemas_Actual <> src.MH_Kemas
+    )
+`;
+
+const withPeriodRange = (request, fromPeriode, toPeriode) => request
+  .input('fromPeriode', sql.VarChar(6), fromPeriode)
+  .input('toPeriode', sql.VarChar(6), toPeriode);
+
+/**
+ * List batches whose actual manhours would change on refresh, with old and new values.
+ * @param {string} fromPeriode - First period, YYYYMM (inclusive)
+ * @param {string} toPeriode - Last period, YYYYMM (inclusive)
+ */
+async function getHPPActualManhourChanges(fromPeriode, toPeriode) {
+  const db = await connect();
+  const result = await withPeriodRange(db.request(), fromPeriode, toPeriode).query(`
+    SELECT h.HPP_Actual_ID, h.DNc_ProductID, h.BatchNo, h.Periode,
+           h.MH_Proses_Actual, h.MH_Kemas_Actual, h.Modified_Date, h.Modified_By,
+           src.MH_Proses AS New_MH_Proses, src.MH_Kemas AS New_MH_Kemas
+    ${HPP_ACTUAL_MANHOUR_CHANGES}
+    ORDER BY h.Periode, h.BatchNo
+  `);
+  return result.recordset || [];
+}
+
+/**
+ * Copy actual manhours from the production report onto calculated batches.
+ * A batch is calculated once, usually before its hours are reported, so this picks them up
+ * afterwards. Only the manhour columns change; material costs are left alone.
+ * @returns {Promise<number>} Number of batches updated
+ */
+async function refreshHPPActualManhours(fromPeriode, toPeriode) {
+  const db = await connect();
+  const result = await withPeriodRange(db.request(), fromPeriode, toPeriode).query(`
+    UPDATE h
+    SET MH_Proses_Actual = src.MH_Proses,
+        MH_Kemas_Actual = src.MH_Kemas,
+        Modified_Date = GETDATE(),
+        Modified_By = 'MH_REFRESH'
+    ${HPP_ACTUAL_MANHOUR_CHANGES}
+  `);
+  return result.rowsAffected[0] || 0;
+}
+
 /**
  * Get available periods for HPP Actual
  * @param {boolean} useTestTable - If true, reads from _TEST tables
@@ -1916,6 +1982,8 @@ module.exports = {
   getHPPActualAllDetails,
   getHPPActualIntermediateUsage,
   calculateHPPActual,
+  getHPPActualManhourChanges,
+  refreshHPPActualManhours,
   getErrorBatches,
 };
 
