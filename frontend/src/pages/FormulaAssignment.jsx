@@ -42,6 +42,9 @@ const FormulaAssignment = ({ user }) => {
   };
   
   const importYearRange = useMemo(() => getImportYearRange(), []);
+
+  // Product IDs already assigned in the year chosen in the Add dialog (which may differ from the viewed year)
+  const [addYearAssignedIds, setAddYearAssignedIds] = useState([]);
   
   // Permission checks
   const canLock = () => {
@@ -285,11 +288,41 @@ const FormulaAssignment = ({ user }) => {
     }
   }, [isHelpTourOpen, helpTourStepIndex, helpTourSteps]);
 
+  // Year dropdown: years that already have assignments, plus current year -2..+2 so a new year
+  // (e.g. next year's planning) can be opened before anything has been assigned to it
+  const yearOptions = useMemo(() => (
+    [...new Set([...availableYears.map(String), ...importYearRange, String(selectedYear)])]
+      .sort((a, b) => Number(b) - Number(a))
+  ), [availableYears, importYearRange, selectedYear]);
+
+  // Keep the Add dialog's "already assigned" list in sync with the year chosen in that dialog
+  useEffect(() => {
+    if (!showAddModal) return;
+    if (String(addYear) === String(selectedYear)) {
+      setAddYearAssignedIds(chosenFormulas.map(formula => formula.Product_ID));
+      return;
+    }
+    let cancelled = false;
+    api.products.getChosenFormula(addYear)
+      .then(res => {
+        if (!cancelled) setAddYearAssignedIds((Array.isArray(res) ? res : []).map(formula => formula.Product_ID));
+      })
+      .catch(err => {
+        console.error(`Failed to load assignments for ${addYear}:`, err);
+        if (!cancelled) setAddYearAssignedIds([]);
+      });
+    return () => { cancelled = true; };
+  }, [showAddModal, addYear, selectedYear, chosenFormulas]);
+
+  const availableToAssignCount = productList.filter(
+    product => !addYearAssignedIds.includes(product.Product_ID)
+  ).length;
+
   // Filter products based on search term
   useEffect(() => {
-    // Get list of product IDs that already have formula assignments
-    const assignedProductIds = chosenFormulas.map(formula => formula.Product_ID);
-    
+    // Product IDs that already have formula assignments in the year being added to
+    const assignedProductIds = addYearAssignedIds;
+
     if (!showProductDropdown) {
       // If dropdown is not shown, don't show any products
       setFilteredProducts([]);
@@ -313,7 +346,7 @@ const FormulaAssignment = ({ user }) => {
       });
       setFilteredProducts(filtered);
     }
-  }, [searchTerm, productList, chosenFormulas, showProductDropdown]);
+  }, [searchTerm, productList, addYearAssignedIds, showProductDropdown]);
 
   const loadData = useCallback(async () => {
     if (!yearLoaded) return; // Don't fetch until default year is loaded
@@ -501,6 +534,7 @@ const FormulaAssignment = ({ user }) => {
     setProductFormulas({ PI: [], PS: [], KP: [], KS: [] });
     setSearchTerm('');
     setFilteredProducts([]);
+    setAddYear(selectedYear); // Default to the year being viewed
     // Don't set dropdown to false initially, let the focus event handle it
     setShowAddModal(true);
   };
@@ -1090,6 +1124,7 @@ const FormulaAssignment = ({ user }) => {
 
   // Handle import Excel
   const handleImportExcel = () => {
+    setImportYear(selectedYear); // Default to the year being viewed
     setShowImportModal(true);
     setImportStep('upload');
     setImportFile(null);
@@ -1340,16 +1375,18 @@ const FormulaAssignment = ({ user }) => {
       return;
     }
 
-    // Check if the import year is locked
-    const isImportYearLocked = chosenFormulas.some(f => f.Periode === parseInt(importYear) && f.isLock === 1);
-    if (isImportYearLocked) {
-      notifier.warning(`Year ${importYear} is locked. Cannot import formula assignments.`);
-      return;
-    }
-
     try {
       setLoadingImport(true);
-      
+
+      // Check the TARGET year's locks (it can differ from the year being viewed).
+      // Import replaces the whole year, so any locked product blocks it. The backend enforces this too.
+      const lockedResponse = await productsAPI.getLockedProducts(importYear);
+      const lockedIds = lockedResponse?.success && Array.isArray(lockedResponse.data) ? lockedResponse.data : [];
+      if (lockedIds.length > 0) {
+        notifier.warning(`Year ${importYear} has ${lockedIds.length} locked product(s). Unlock them before importing formula assignments for this year.`);
+        return;
+      }
+
       // Transform import data to the format expected by backend
       const transformedData = transformImportData(importData, availableFormulas);
       
@@ -1364,7 +1401,7 @@ const FormulaAssignment = ({ user }) => {
       
     } catch (error) {
       console.error('Error importing formulas:', error);
-      notifier.alert('Failed to import formulas. Please try again.');
+      notifier.alert('Failed to import formulas: ' + (error.message || 'Please try again.'));
     } finally {
       setLoadingImport(false);
     }
@@ -1673,7 +1710,7 @@ const FormulaAssignment = ({ user }) => {
               onChange={(e) => setSelectedYear(e.target.value)}
               className="year-selector"
             >
-              {availableYears.map(year => (
+              {yearOptions.map(year => (
                 <option key={year} value={year}>{year}</option>
               ))}
             </select>
@@ -1739,8 +1776,8 @@ const FormulaAssignment = ({ user }) => {
             <button 
               onClick={handleImportExcel}
               className="btn-secondary import-btn"
-              disabled={loading || chosenFormulas.some(f => f.isLock === 1)}
-              title="Import formula assignments from Excel file"
+              disabled={loading}
+              title="Import formula assignments from Excel file (years with locked products cannot be imported into)"
               data-tour="formula-import-btn"
             >
               <FileUp size={16} />
@@ -1979,14 +2016,14 @@ const FormulaAssignment = ({ user }) => {
               <div className="form-section">
                 <h4>2. Select Product</h4>
                 <div className="product-stats">
-                  {productList.length - chosenFormulas.length > 0 ? (
+                  {availableToAssignCount > 0 ? (
                     <small>
-                      {productList.length - chosenFormulas.length} products available for assignment 
-                      ({chosenFormulas.length} already assigned)
+                      {availableToAssignCount} products available for assignment in {addYear}
+                      ({productList.length - availableToAssignCount} already assigned)
                     </small>
                   ) : (
                     <small style={{color: '#dc2626'}}>
-                      All products ({productList.length}) already have formula assignments. 
+                      All products ({productList.length}) already have formula assignments for {addYear}.
                       Edit existing assignments instead.
                     </small>
                   )}
@@ -2001,12 +2038,12 @@ const FormulaAssignment = ({ user }) => {
                       // Delay hiding to allow clicking on products
                       setTimeout(() => setShowProductDropdown(false), 200);
                     }}
-                    placeholder={productList.length - chosenFormulas.length > 0 
+                    placeholder={availableToAssignCount > 0
                       ? "Click here to see all available products, or type to search..."
                       : "No products available - all are assigned"
                     }
                     className="search-input"
-                    disabled={productList.length - chosenFormulas.length === 0}
+                    disabled={availableToAssignCount === 0}
                   />
 
                   {/* Show search results when dropdown is open */}

@@ -31,6 +31,14 @@ const TollFee = ({ user }) => {
   const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear().toString());
   const [periodeLoaded, setPeriodeLoaded] = useState(false); // Prevent race condition with default year
   const availableKategori = ['Toll In', 'Toll Out', 'Import', 'Lapi'];
+
+  // Year options: current year -2..+2, plus the selected year if it falls outside that window
+  // (e.g. a default year from the backend), so the dropdown never shows a year other than the one loaded
+  const currentYear = new Date().getFullYear();
+  const yearOptions = [...new Set([
+    ...Array.from({ length: 5 }, (_, i) => (currentYear - 2 + i).toString()),
+    String(selectedPeriode)
+  ])].sort();
   
   // Lock state - products that are locked in Formula Assignment
   const [lockedProductIds, setLockedProductIds] = useState([]);
@@ -986,9 +994,9 @@ const TollFee = ({ user }) => {
               }}
               className="periode-select"
             >
-              <option value="2024">2024</option>
-              <option value="2025">2025</option>
-              <option value="2026">2026</option>
+              {yearOptions.map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -1198,14 +1206,9 @@ const TollFee = ({ user }) => {
                   }}
                   className="toll-fee-periode-select"
                 >
-                  {[...Array(5)].map((_, i) => {
-                    const year = new Date().getFullYear() - 2 + i;
-                    return (
-                      <option key={year} value={year.toString()}>
-                        {year}
-                      </option>
-                    );
-                  })}
+                  {yearOptions.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
                 </select>
               </div>
               
@@ -1332,10 +1335,9 @@ const TollFee = ({ user }) => {
                   className="periode-select"
                   style={{ width: '150px', padding: '8px', marginTop: '10px', fontSize: '14px' }}
                 >
-                  {[...Array(5)].map((_, i) => {
-                    const year = new Date().getFullYear() - 2 + i;
-                    return <option key={year} value={year.toString()}>{year}</option>;
-                  })}
+                  {yearOptions.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
                 </select>
                 <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
                   All imported entries will be assigned to year <strong>{selectedPeriode}</strong>

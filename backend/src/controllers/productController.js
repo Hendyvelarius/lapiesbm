@@ -279,6 +279,12 @@ class ProductController {
         data: result
       });
     } catch (error) {
+      if (error.code === 'PERIOD_LOCKED') {
+        return res.status(409).json({
+          success: false,
+          message: error.message
+        });
+      }
       console.error('Error bulk importing formulas:', error);
       res.status(500).json({
         success: false,

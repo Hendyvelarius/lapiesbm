@@ -488,6 +488,20 @@
   background-color: #f8f9fa;
 }
 
+.no-material-prices-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background-color: #fff8e1;
+  color: #7a5a00;
+  border: 1px solid #f5d77a;
+  border-radius: 4px;
+  padding: 12px 15px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 .no-materials {
   padding: 12px;
   color: #999;

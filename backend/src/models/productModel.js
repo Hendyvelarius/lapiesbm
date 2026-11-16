@@ -399,7 +399,23 @@ async function bulkImportFormulas(importData) {
         // Determine the target periode from the import data
         // All records in importData should have the same Periode
         const targetPeriode = importData.length > 0 ? importData[0].Periode : new Date().getFullYear().toString();
-        
+
+        // Guard: the delete below would also wipe locked rows, so refuse to import into a year
+        // that has any locked product. The UI checks this too; this is the authoritative check.
+        const lockCheck = await pool.request()
+            .input('periode', sql.VarChar, targetPeriode)
+            .query(`
+                SELECT COUNT(*) AS LockedCount
+                FROM M_COGS_PRODUCT_FORMULA_FIX
+                WHERE Periode = @periode AND isLock = 1
+            `);
+        const lockedCount = lockCheck.recordset[0]?.LockedCount || 0;
+        if (lockedCount > 0) {
+            const lockError = new Error(`Year ${targetPeriode} has ${lockedCount} locked product(s). Unlock them before importing formula assignments for this year.`);
+            lockError.code = 'PERIOD_LOCKED';
+            throw lockError;
+        }
+
         // Step 1: Clear existing assignments for the TARGET period only
         // IMPORTANT: Only delete products that have at least one non-NULL formula
         // This preserves products with entirely NULL assignments (PI=NULL, PS=NULL, KP=NULL, KS=NULL)

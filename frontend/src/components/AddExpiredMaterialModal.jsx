@@ -214,6 +214,16 @@ const AddExpiredMaterialModal = ({ materials, onClose, onSave, currentYear }) =>
               </div>
             )}
 
+            {materials.length === 0 && (
+              <div className="no-material-prices-notice">
+                <strong>No material prices found for {currentYear}.</strong>
+                <span>
+                  Expiry cost is calculated from the standard material prices of the selected year.
+                  Load the {currentYear} prices in <em>Material Prices</em> first, then come back here to add expired materials.
+                </span>
+              </div>
+            )}
+
             <div className="form-group">
               <label htmlFor="itemId">Material *</label>
               <div className="material-search-container">
@@ -224,9 +234,9 @@ const AddExpiredMaterialModal = ({ materials, onClose, onSave, currentYear }) =>
                   onChange={handleMaterialSearchChange}
                   onFocus={() => setShowMaterialDropdown(true)}
                   className="form-control"
-                  placeholder="Search materials..."
+                  placeholder={materials.length === 0 ? `No materials available for ${currentYear}` : 'Search materials...'}
                   required
-                  disabled={loading}
+                  disabled={loading || materials.length === 0}
                   autoComplete="off"
                 />
                 {showMaterialDropdown && filteredMaterials.length > 0 && (
