@@ -2,7 +2,7 @@
  * Currency Scraper Service
  * Fetches daily exchange rates from Frankfurter API and prepares them for database storage
  * 
- * API Documentation: https://www.frankfurter.app/docs/
+ * API Documentation: https://frankfurter.dev/
  * 
  * Supported currencies (converted to IDR):
  * - USD (US Dollar)
@@ -35,8 +35,12 @@ const CURRENCY_MAPPING = {
 // List of currencies to fetch
 const CURRENCIES = Object.keys(CURRENCY_MAPPING);
 
-// Base URL for Frankfurter API
-const API_BASE_URL = 'api.frankfurter.app';
+// Base URL for Frankfurter API.
+// api.frankfurter.app now answers every request with a 301 to api.frankfurter.dev/v1, so call the new host directly.
+const API_BASE_URL = 'https://api.frankfurter.dev/v1';
+
+// Follow a few redirects so a future domain move doesn't silently break fetching again
+const MAX_REDIRECTS = 3;
 
 // Delay between API calls (in ms) to be respectful to the API
 const API_DELAY = 500;
@@ -52,11 +56,14 @@ function sleep(ms) {
  * Make an HTTP GET request to the Frankfurter API
  */
 function fetchFromAPI(path) {
+  return requestJSON(`${API_BASE_URL}${path}`, 0);
+}
+
+function requestJSON(url, redirectCount) {
   return new Promise((resolve, reject) => {
+    const target = new URL(url);
+    const client = target.protocol === 'http:' ? http : https;
     const options = {
-      hostname: API_BASE_URL,
-      port: 443,
-      path: path,
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -64,7 +71,20 @@ function fetchFromAPI(path) {
       }
     };
 
-    const req = https.request(options, (res) => {
+    const req = client.request(target, options, (res) => {
+      // Follow redirects (301/302/307/308) up to MAX_REDIRECTS
+      if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+        res.resume(); // discard body
+        if (redirectCount >= MAX_REDIRECTS) {
+          reject(new Error(`API redirected too many times (last: ${res.headers.location})`));
+          return;
+        }
+        const nextUrl = new URL(res.headers.location, target).toString();
+        console.warn(`  Currency API redirected (${res.statusCode}) to ${nextUrl} - consider updating API_BASE_URL`);
+        requestJSON(nextUrl, redirectCount + 1).then(resolve, reject);
+        return;
+      }
+
       let data = '';
 
       res.on('data', (chunk) => {
@@ -319,7 +339,7 @@ function getSupportedCurrencies() {
 
 /**
  * Fetch the latest currency rate for a single currency to IDR
- * Uses: https://api.frankfurter.app/latest?from=USD&to=IDR
+ * Uses: https://api.frankfurter.dev/v1/latest?from=USD&to=IDR
  */
 async function fetchLatestCurrencyRate(currencyCode) {
   const path = `/latest?from=${currencyCode}&to=IDR`;
