@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 import { hppAPI, masterAPI, productsAPI, tollFeeAPI } from '../services/api';
 import ProductHPPReport from '../components/ProductHPPReport';
 import GuidedTour from '../components/GuidedTour';
+import YearReadinessNotice from '../components/YearReadinessNotice';
 import '../styles/HPPResults.css';
 
 // Utility functions
@@ -912,6 +913,12 @@ const HPPResults = () => {
           </button>
         </div>
       </div>
+
+      <YearReadinessNotice
+        periode={String(selectedYear)}
+        requires={['hppResults']}
+        purpose="There are no HPP results to show for this year"
+      />
 
       <div className="hpp-results-content">
         {/* Tab Navigation */}

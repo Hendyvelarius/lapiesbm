@@ -6,6 +6,11 @@ import * as XLSX from 'xlsx';
 import { FileDown, FileUp, Filter, X } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import GuidedTour from '../components/GuidedTour';
+import YearReadinessNotice from '../components/YearReadinessNotice';
+import { checkMissingForYear } from '../utils/yearReadiness';
+
+// Data the formula-cost view prices formulas with, for the latest year that has unlocked assignments
+const FORMULA_PRICING_DATASETS = ['materialPrices', 'exchangeRates'];
 import '../styles/FormulaAssignment.css';
 
 const FormulaAssignment = ({ user }) => {
@@ -1397,7 +1402,16 @@ const FormulaAssignment = ({ user }) => {
       await loadData();
       setShowImportModal(false);
       
-      notifier.success(`Successfully imported ${transformedData.length} formula assignments!`);
+      const missingPricing = await checkMissingForYear(importYear, FORMULA_PRICING_DATASETS);
+      if (missingPricing) {
+        notifier.warning(
+          `Imported ${transformedData.length} formula assignments for ${importYear}, but ${missingPricing} ` +
+          `Formula costs are now priced with ${importYear}'s prices and rates, so they'll be zero or missing until those are loaded.`,
+          { durations: { warning: 15000 } }
+        );
+      } else {
+        notifier.success(`Successfully imported ${transformedData.length} formula assignments!`);
+      }
       
     } catch (error) {
       console.error('Error importing formulas:', error);
@@ -1802,6 +1816,15 @@ const FormulaAssignment = ({ user }) => {
             </button>
           </div>
         </div>
+
+        {/* Formula costs are priced with the latest year that has unlocked assignments (vw_COGS_FORMULA_List_detail),
+            so a new year without prices/rates makes formula costs zero or missing for every HPP generation */}
+        <YearReadinessNotice
+          periode={String(selectedYear)}
+          requires={FORMULA_PRICING_DATASETS}
+          purpose="Once this year has unlocked formula assignments, all formula costs (including HPP generated for earlier years) are priced with this year's material prices and exchange rates, so they will come out as zero or missing"
+          refreshKey={chosenFormulas.length}
+        />
 
         {/* Advanced Filters Panel */}
         {showAdvancedFilters && (

@@ -399,6 +399,21 @@ class ProductController {
     }
   }
 
+  // Row counts of every year-scoped dataset for a periode, so pages can explain empty results
+  static async getYearReadiness(req, res) {
+    try {
+      const { periode } = req.query;
+      if (!periode || !/^\d{4}$/.test(String(periode))) {
+        return res.status(400).json({ success: false, message: 'periode (YYYY) is required' });
+      }
+      const counts = await productModel.getYearReadiness(periode);
+      res.status(200).json({ success: true, data: { periode: String(periode), counts } });
+    } catch (error) {
+      console.error('Error getting year readiness:', error);
+      res.status(500).json({ success: false, message: 'Error getting year readiness', error: error.message });
+    }
+  }
+
   // Get locked products for a specific period (lightweight endpoint)
   static async getLockedProducts(req, res) {
     try {

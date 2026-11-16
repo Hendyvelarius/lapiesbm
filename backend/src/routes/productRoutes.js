@@ -32,6 +32,8 @@ router.get('/chosenformula', ProductController.getChosenFormula);
 router.get('/available-years', ProductController.getAvailableYears);
 router.get('/default-year', ProductController.getDefaultYear);
 router.get('/locked-products', ProductController.getLockedProducts);
+// GET /api/products/year-readiness?periode=2027 - Row counts of each year-scoped dataset
+router.get('/year-readiness', ProductController.getYearReadiness);
 router.post('/chosenformula', ProductController.addChosenFormula);
 router.put('/chosenformula/:productId', ProductController.updateChosenFormula);
 router.delete('/chosenformula/:productId', ProductController.deleteChosenFormula);

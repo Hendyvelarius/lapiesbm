@@ -82,6 +82,9 @@ export const productsAPI = {
   
   // Get locked products for a specific period (lightweight endpoint for checking lock status)
   getLockedProducts: (periode) => apiRequest(`/products/locked-products?periode=${periode}`),
+
+  // Row counts of each year-scoped dataset (Manhour & Yield, material prices, rates, ...) for a year
+  getYearReadiness: (periode) => apiRequest(`/products/year-readiness?periode=${encodeURIComponent(periode)}`),
   
   // Add chosen formula
   addChosenFormula: (data) => apiRequest('/products/chosenformula', {

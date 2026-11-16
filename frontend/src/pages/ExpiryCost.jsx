@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { masterAPI, productsAPI } from '../services/api';
 import { Edit, Trash2, Lock, Download } from 'lucide-react';
 import AddExpiredMaterialModal from '../components/AddExpiredMaterialModal';
+import YearReadinessNotice from '../components/YearReadinessNotice';
+import { checkMissingForYear } from '../utils/yearReadiness';
 import EditExpiredMaterialModal from '../components/EditExpiredMaterialModal';
 import { exportToExcel } from '../utils/excelExport';
 import '../styles/ExpiryCost.css';
@@ -193,6 +195,14 @@ const ExpiryCost = () => {
   };
 
   const handleGenerateExpiryCost = async () => {
+    // Allocation spreads expired materials over products via their formulas and the year's material prices;
+    // without those it "succeeds" but allocates nothing, so stop and say why
+    const missingSetup = await checkMissingForYear(selectedPeriode, ['formulaAssignments', 'materialPrices']);
+    if (missingSetup) {
+      notifier.warning(`Cannot generate expiry cost allocation for ${selectedPeriode}: ${missingSetup}`, { durations: { warning: 12000 } });
+      return;
+    }
+
     notifier.confirm(
       `Are you sure you want to generate expiry cost allocation for year ${selectedPeriode}? This will process all expired materials for the selected year.`,
       async () => {
@@ -336,6 +346,12 @@ const ExpiryCost = () => {
             )}
           </div>
         </div>
+
+        <YearReadinessNotice
+          periode={selectedPeriode}
+          requires={['materialPrices', 'formulaAssignments']}
+          purpose="Expired materials can't be added (no materials to pick) and expiry cost can't be allocated to products"
+        />
 
         <div className="table-container">
           <table className="expiry-table">

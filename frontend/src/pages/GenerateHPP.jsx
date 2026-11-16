@@ -5,6 +5,12 @@ import '../styles/GenerateHPP.css';
 import { CheckCircle, Calculator, Eye, AlertTriangle, Clock, ChevronRight } from 'lucide-react';
 import ValidationModal from '../components/ValidationModal';
 import GuidedTour from '../components/GuidedTour';
+import YearReadinessNotice from '../components/YearReadinessNotice';
+import { checkMissingForYear } from '../utils/yearReadiness';
+
+// Year-scoped data sp_COGS_GenerateHPP needs for the year being generated.
+// (Margin, Reagen and Expiry are optional: not every product has them.)
+const HPP_REQUIRED_DATASETS = ['manhourYield', 'materialPrices', 'exchangeRates', 'formulaAssignments', 'rates', 'generalCosts'];
 
 // API base configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
@@ -267,6 +273,13 @@ export default function GenerateHPP() {
   };
 
   const handleHPPCalculation = async () => {
+    // Stop before running the SP if the year isn't set up: it would "succeed" with zero/missing costs
+    const missingSetup = await checkMissingForYear(String(selectedYear), HPP_REQUIRED_DATASETS);
+    if (missingSetup) {
+      alert(`Cannot generate HPP for ${selectedYear} yet.\n\n${missingSetup}\n\nSet these up for ${selectedYear} first, then generate again.`);
+      return;
+    }
+
     try {
       setLoading(true);
       setStepStatus(prev => ({ ...prev, calculation: 'running' }));
@@ -364,6 +377,13 @@ export default function GenerateHPP() {
             Reset Process
           </button>
         </div>
+
+        {/* HPP generation reads all of these for the selected year; missing ones yield zero or missing costs */}
+        <YearReadinessNotice
+          periode={String(selectedYear)}
+          requires={HPP_REQUIRED_DATASETS}
+          purpose="HPP for this year can't be calculated correctly"
+        />
 
         <div className="steps-container">
           {steps.map((step, index) => {

@@ -4,6 +4,8 @@ import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
 import * as XLSX from 'xlsx';
 import LoadingSpinner from '../components/LoadingSpinner';
+import YearReadinessNotice from '../components/YearReadinessNotice';
+import { checkMissingForYear } from '../utils/yearReadiness';
 import { tollFeeAPI, masterAPI, productsAPI } from '../services/api';
 import { getCurrentUser } from '../utils/auth';
 import '../styles/TollFee.css';
@@ -30,6 +32,7 @@ const TollFee = ({ user }) => {
   const [selectedKategori, setSelectedKategori] = useState('Toll In');
   const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear().toString());
   const [periodeLoaded, setPeriodeLoaded] = useState(false); // Prevent race condition with default year
+  const [readinessRefreshKey, setReadinessRefreshKey] = useState(0); // Re-check year setup after imports
   const availableKategori = ['Toll In', 'Toll Out', 'Import', 'Lapi'];
 
   // Year options: current year -2..+2, plus the selected year if it falls outside that window
@@ -890,7 +893,19 @@ const TollFee = ({ user }) => {
       if (skippedCount > 0) {
         successMessage += ` (${skippedCount} locked product entries skipped)`;
       }
-      notifier.success(successMessage);
+
+      // The list is built from Manhour & Yield's years, so a successful import can still show nothing
+      const missingSetup = await checkMissingForYear(selectedPeriode, ['manhourYield']);
+      if (missingSetup) {
+        notifier.warning(
+          `${successMessage} They won't appear in this list yet: ${missingSetup} ` +
+          `The margin list only shows years that have Manhour & Yield data.`,
+          { durations: { warning: 15000 } }
+        );
+      } else {
+        notifier.success(successMessage);
+      }
+      setReadinessRefreshKey(key => key + 1);
 
     } catch (error) {
       console.error('Error performing bulk import:', error);
@@ -1000,6 +1015,14 @@ const TollFee = ({ user }) => {
             </select>
           </div>
         </div>
+
+        {/* The margin list only covers years that exist in Manhour & Yield, so explain an empty year */}
+        <YearReadinessNotice
+          periode={selectedPeriode}
+          requires={['manhourYield']}
+          purpose="Margins for this year are saved but won't be listed here (or exported)"
+          refreshKey={readinessRefreshKey}
+        />
 
         {/* Search and Filters */}
         <div className="toll-fee-search-section">

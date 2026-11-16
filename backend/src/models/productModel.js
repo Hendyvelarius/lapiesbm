@@ -672,7 +672,37 @@ async function getLockedProducts(periode) {
     }
 }
 
+// Year readiness: row counts of every year-scoped dataset for one periode.
+// Pages use this to explain WHY something is empty for a year (e.g. 2027 margins are saved
+// but the Margin view only lists years that exist in Manhour & Yield).
+// Keys must match YEAR_DATASETS in frontend/src/utils/yearReadiness.js.
+async function getYearReadiness(periode) {
+    try {
+        const pool = await connect();
+        const result = await pool.request()
+            .input('periode', sql.VarChar(10), String(periode))
+            .query(`
+                SELECT
+                    (SELECT COUNT(*) FROM vw_COGS_Product_Group           WHERE Periode = @periode)       AS manhourYield,
+                    (SELECT COUNT(*) FROM M_COGS_STD_HRG_BAHAN            WHERE Periode = @periode)       AS materialPrices,
+                    (SELECT COUNT(*) FROM vw_COGS_Currency_List           WHERE Periode = @periode)       AS exchangeRates,
+                    (SELECT COUNT(*) FROM M_COGS_PRODUCT_FORMULA_FIX      WHERE Periode = @periode)       AS formulaAssignments,
+                    (SELECT COUNT(*) FROM M_COGS_PEMBEBANAN               WHERE Group_Periode = @periode) AS rates,
+                    (SELECT COUNT(*) FROM M_COGS_RATE_GENERAL_per_SEDIAAN WHERE Periode = @periode)       AS generalCosts,
+                    (SELECT COUNT(*) FROM M_COGS_PEMBEBANAN_TollFee       WHERE Periode = @periode)       AS margins,
+                    (SELECT COUNT(*) FROM M_COGS_PEMBEBANAN_Reagen        WHERE periode = @periode)       AS reagen,
+                    (SELECT COUNT(*) FROM M_COGS_BEBAN_SISA_BAHAN_EXP     WHERE PERIODE = @periode)       AS expiredMaterials,
+                    (SELECT COUNT(*) FROM t_COGS_HPP_Product_Header       WHERE Periode = @periode)       AS hppResults
+            `);
+        return result.recordset[0];
+    } catch (error) {
+        console.error('Error getting year readiness:', error);
+        throw error;
+    }
+}
+
 module.exports = {
+    getYearReadiness,
     getFormula,
     getChosenFormula,
     getAvailableYears,

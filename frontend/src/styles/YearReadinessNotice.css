@@ -1,0 +1,38 @@
+.year-readiness-notice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background-color: #fff8e1;
+  color: #7a5a00;
+  border: 1px solid #f5d77a;
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.year-readiness-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #c48a00;
+}
+
+.year-readiness-body ul {
+  margin: 6px 0 0 0;
+  padding-left: 18px;
+}
+
+.year-readiness-body li {
+  margin: 2px 0;
+}
+
+.year-readiness-body a {
+  color: #7a4d00;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.year-readiness-where {
+  color: #8a6d1f;
+}

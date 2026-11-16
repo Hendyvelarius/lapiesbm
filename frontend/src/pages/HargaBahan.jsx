@@ -8,6 +8,7 @@ import { Plus, Search, Filter, Edit, Trash2, Package, ChevronLeft, ChevronRight,
 import * as XLSX from 'xlsx';
 import LoadingSpinner from '../components/LoadingSpinner';
 import AffectedProductsModal from '../components/AffectedProductsModal';
+import YearReadinessNotice from '../components/YearReadinessNotice';
 
 // Initialize awesome-notifications
 const notifier = new AWN({
@@ -2234,6 +2235,13 @@ const HargaBahan = () => {
           </div>
         </div>
       </div>
+
+      {/* Prices are stored in their own currency and converted with the year's standard rate at HPP time */}
+      <YearReadinessNotice
+        periode={selectedPeriode}
+        requires={['exchangeRates']}
+        purpose="Prices in foreign currencies (USD, EUR, ...) can't be converted to rupiah when HPP is calculated"
+      />
 
       <div className="table-container">
         <table className="materials-table">
