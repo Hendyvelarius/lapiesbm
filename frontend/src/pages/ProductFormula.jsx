@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import api from '../services/api';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
@@ -37,6 +37,34 @@ const ProductFormula = () => {
   const [unitsData, setUnitsData] = useState([]);
   const [groupedRecipes, setGroupedRecipes] = useState({});
   const [expandedSubIds, setExpandedSubIds] = useState(new Set());
+
+  // Year whose material prices (and Formula Assignment "HPP" flag) the page shows
+  const [selectedPeriode, setSelectedPeriode] = useState(new Date().getFullYear().toString());
+
+  // getMaterial() returns one row per material per year. Keep one row per material, priced at the
+  // selected year; a material with no price that year stays listed with Unit_Price = null ("Not Set").
+  const materialsForYear = useMemo(() => {
+    const byId = new Map();
+    materialData.forEach(m => {
+      const isYear = String(m.Periode) === String(selectedPeriode);
+      const existing = byId.get(m.ITEM_ID);
+      if (isYear) {
+        byId.set(m.ITEM_ID, m);
+      } else if (!existing) {
+        byId.set(m.ITEM_ID, { ...m, Unit_Price: null, Periode: null });
+      }
+    });
+    return Array.from(byId.values());
+  }, [materialData, selectedPeriode]);
+
+  // Current year -2..+2, plus the selected year and any year that has material prices
+  const periodeOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const years = new Set(Array.from({ length: 5 }, (_, i) => String(currentYear - 2 + i)));
+    years.add(String(selectedPeriode));
+    materialData.forEach(m => { if (m.Periode) years.add(String(m.Periode)); });
+    return Array.from(years).sort();
+  }, [materialData, selectedPeriode]);
 
   // Add Formula Modal states
   const [showAddFormulaModal, setShowAddFormulaModal] = useState(false);
@@ -102,6 +130,16 @@ const ProductFormula = () => {
       setProductList(productsRes?.data || []);
       setMaterialData(materialsRes || []);
       setUnitsData(unitsRes || []);
+
+      // Default to the same working year as Formula Assignment (oldest year with unlocked products)
+      try {
+        const yearRes = await api.products.getDefaultYear();
+        if (yearRes?.success && yearRes.data?.defaultYear) {
+          setSelectedPeriode(String(yearRes.data.defaultYear));
+        }
+      } catch (yearErr) {
+        console.error('Failed to fetch default year, keeping current year:', yearErr);
+      }
     } catch (err) {
       console.error('Error loading initial data:', err);
       setError('Failed to load data. Please try again.');
@@ -110,12 +148,12 @@ const ProductFormula = () => {
     }
   };
 
-  const loadRecipeData = async (productId) => {
+  const loadRecipeData = async (productId, periode = selectedPeriode) => {
     try {
       setLoading(true);
       setError('');
 
-      const recipeRes = await api.products.getRecipe(productId);
+      const recipeRes = await api.products.getRecipe(productId, periode);
       setRecipeData(recipeRes || []);
       
       // Group recipes by Type and SubID
@@ -271,7 +309,7 @@ const ProductFormula = () => {
       batchSize: formulaData.batchSize || 1, // Default to 1 if no batch size
       ingredients: formulaData.ingredients.map((ingredient, index) => {
         // Find material data to get unit price
-        const materialInfo = materialData.find(m => m.ITEM_ID === ingredient.itemId);
+        const materialInfo = materialsForYear.find(m => m.ITEM_ID === ingredient.itemId);
         return {
           seqId: ingredient.seqId,
           itemId: ingredient.itemId,
@@ -587,16 +625,16 @@ const ProductFormula = () => {
     const searchTerm = materialSearchTerms[index] || '';
     
     // Filter by ITEM_TYPE based on formula type
-    let filteredByType = materialData;
+    let filteredByType = materialsForYear;
     if (newFormulaData.type) {
       const formulaType = getTypeDisplayName(newFormulaData.type);
-      
+
       if (formulaType === '1. PENGOLAHAN INTI' || formulaType === '1. PENGOLAHAN SALUT') {
         // For PENGOLAHAN types, only show BB materials
-        filteredByType = materialData.filter(material => material.ITEM_TYPE === 'BB');
+        filteredByType = materialsForYear.filter(material => material.ITEM_TYPE === 'BB');
       } else if (formulaType === '2. KEMAS PRIMER' || formulaType === '2. KEMAS SEKUNDER') {
         // For KEMAS types, only show BK materials
-        filteredByType = materialData.filter(material => material.ITEM_TYPE === 'BK');
+        filteredByType = materialsForYear.filter(material => material.ITEM_TYPE === 'BK');
       }
     }
     
@@ -662,10 +700,10 @@ const ProductFormula = () => {
       setExportLoading(true);
       notifier.info('Starting export process...');
       
-      // Call both APIs to get data from stored procedures
+      // Call both APIs to get data from stored procedures, priced at the selected year
       const [response1, response2] = await Promise.all([
-        api.master.exportAllFormulaDetail(),
-        api.master.exportAllFormulaDetailSumPerSubID()
+        api.master.exportAllFormulaDetail(selectedPeriode),
+        api.master.exportAllFormulaDetailSumPerSubID(selectedPeriode)
       ]);
       
       // Validate first dataset
@@ -697,7 +735,7 @@ const ProductFormula = () => {
       // Generate filename with current date
       const currentDate = new Date();
       const dateString = currentDate.toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '_');
-      const filename = `All_Formula_Export_${dateString}.xlsx`;
+      const filename = `All_Formula_Export_${selectedPeriode}_prices_${dateString}.xlsx`;
       
       // Save file
       XLSX.writeFile(workbook, filename);
@@ -805,7 +843,7 @@ const ProductFormula = () => {
   };
 
   const getItemName = (itemId) => {
-    const material = materialData.find(m => m.ITEM_ID === itemId);
+    const material = materialsForYear.find(m => m.ITEM_ID === itemId);
     return material ? material.Item_Name : itemId;
   };
 
@@ -820,6 +858,13 @@ const ProductFormula = () => {
     const quantity = parseFloat(ingredient.qty) || 0;
     const unitPrice = parseFloat(ingredient.unitPrice) || 0;
     return quantity * unitPrice;
+  };
+
+  const handlePeriodeChange = async (periode) => {
+    setSelectedPeriode(periode);
+    if (selectedProduct) {
+      await loadRecipeData(selectedProduct.Product_ID, periode);
+    }
   };
 
   const handleProductSelect = async (product) => {
@@ -880,7 +925,23 @@ const ProductFormula = () => {
             <h2>Product Formula Management</h2>
           </div>
           <div className="header-actions">
-            <button 
+            <div
+              className="price-year-selector"
+              title="Material prices and the HPP formula flag are shown for this year"
+            >
+              <label htmlFor="formula-price-year">Price year:</label>
+              <select
+                id="formula-price-year"
+                value={selectedPeriode}
+                onChange={(e) => handlePeriodeChange(e.target.value)}
+                disabled={loading}
+              >
+                {periodeOptions.map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
+            <button
               onClick={handleExportAllFormula}
               className="btn-export"
               disabled={exportLoading}

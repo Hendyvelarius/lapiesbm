@@ -45,6 +45,33 @@
   align-items: center;
 }
 
+.price-year-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.price-year-selector label {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.price-year-selector select {
+  padding: 9px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  background-color: white;
+  cursor: pointer;
+}
+
+.price-year-selector select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .btn-primary {
   background-color: #3b82f6;
   color: white;

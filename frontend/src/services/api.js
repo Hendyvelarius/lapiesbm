@@ -107,7 +107,10 @@ export const productsAPI = {
   },
   
   // Get recipe by product ID
-  getRecipe: (productId) => apiRequest(`/products/recipe/${productId}`),
+  // periode (YYYY): price the recipe at that year; omitted = the formula view's own year
+  getRecipe: (productId, periode = null) => apiRequest(
+    `/products/recipe/${productId}${periode ? `?periode=${encodeURIComponent(periode)}` : ''}`
+  ),
   
   // Get formula product cost for auto assignment
   getFormulaProductCost: () => apiRequest('/products/formula-cost'),
@@ -640,14 +643,17 @@ export const masterAPI = {
   }),
   
   // Export all formula detail using stored procedure
-  exportAllFormulaDetail: () => apiRequest('/master/export-all-formula', {
-    method: 'GET',
-  }),
-  
+  // periode (YYYY): price the export at that year; omitted = the formula view's own year
+  exportAllFormulaDetail: (periode = null) => apiRequest(
+    `/master/export-all-formula${periode ? `?periode=${encodeURIComponent(periode)}` : ''}`,
+    { method: 'GET' }
+  ),
+
   // Export all formula detail sum per sub ID using stored procedure
-  exportAllFormulaDetailSumPerSubID: () => apiRequest('/master/export-all-formula-sum-per-subid', {
-    method: 'GET',
-  }),
+  exportAllFormulaDetailSumPerSubID: (periode = null) => apiRequest(
+    `/master/export-all-formula-sum-per-subid${periode ? `?periode=${encodeURIComponent(periode)}` : ''}`,
+    { method: 'GET' }
+  ),
 };
 
 // Reagen API

@@ -166,15 +166,17 @@ async function deleteChosenFormula(productId, periode = null) {
     }
 }
 
-async function findRecipe(productId) {
+// periode (YYYY) prices the recipe at that year's material prices and marks the HPP formula from
+// that year's Formula Assignment. Without it, the view's own year is used (latest unlocked periode).
+async function findRecipe(productId, periode = null) {
     try {
         const pool = await connect();
-        const query = `
-            SELECT * FROM vw_COGS_FORMULA_List_detail WHERE Product_ID = @productId
-        `;
-        const result = await pool.request()
-            .input('productId', sql.VarChar, productId)
-            .query(query);
+        const query = periode
+            ? `SELECT * FROM dbo.fn_COGS_FORMULA_List_detail_ByPeriode(@periode) WHERE Product_ID = @productId`
+            : `SELECT * FROM vw_COGS_FORMULA_List_detail WHERE Product_ID = @productId`;
+        const request = pool.request().input('productId', sql.VarChar, productId);
+        if (periode) request.input('periode', sql.VarChar(4), String(periode));
+        const result = await request.query(query);
         return result.recordset;
     } catch (error) {
         console.error('Error retrieving recipe:', error);

@@ -1363,10 +1363,13 @@ WHERE d.Periode = @year${MATERIAL_USAGE_ORDER}`;
   }
 }
 
-async function exportAllFormulaDetail() {
+// periode (YYYY) prices the export at that year; NULL keeps the view's own year (see migration 029)
+async function exportAllFormulaDetail(periode = null) {
   try {
     const db = await connect();
-    const result = await db.request().query('EXEC sp_COGS_generate_all_formula_detail');
+    const result = await db.request()
+      .input('periode', sql.VarChar(4), periode ? String(periode) : null)
+      .query("EXEC sp_COGS_generate_all_formula_detail '', @periode");
     return result.recordset;
   } catch (error) {
     console.error('Error executing exportAllFormulaDetail query:', error);
@@ -1374,10 +1377,12 @@ async function exportAllFormulaDetail() {
   }
 }
 
-async function exportAllFormulaDetailSumPerSubID() {
+async function exportAllFormulaDetailSumPerSubID(periode = null) {
   try {
     const db = await connect();
-    const result = await db.request().query("EXEC sp_COGS_generate_all_formula_detail 'SumPerSubID'");
+    const result = await db.request()
+      .input('periode', sql.VarChar(4), periode ? String(periode) : null)
+      .query("EXEC sp_COGS_generate_all_formula_detail 'SumPerSubID', @periode");
     return result.recordset;
   } catch (error) {
     console.error('Error executing exportAllFormulaDetailSumPerSubID query:', error);

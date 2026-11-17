@@ -407,14 +407,15 @@ const FormulaAssignment = ({ user }) => {
     }
   }, [formulaPrices, editingFormula]);
 
-  const loadProductFormulas = async (productId) => {
+  // periode: the year whose material prices / HPP formula to show (the year being assigned)
+  const loadProductFormulas = async (productId, periode) => {
     try {
       setLoading(true);
-      
+
       // Load both formula list and recipe data
       const [formulas, recipe] = await Promise.all([
         api.products.getFormulaById(productId),
-        api.products.getRecipe(productId)
+        api.products.getRecipe(productId, periode)
       ]);
       
       // Check if we got any formulas
@@ -505,7 +506,7 @@ const FormulaAssignment = ({ user }) => {
       
       // Load available formulas and recommendations for this product
       await Promise.all([
-        loadProductFormulas(formula.Product_ID),
+        loadProductFormulas(formula.Product_ID, selectedYear),
         loadRecommendations(formula.Product_ID)
       ]);
     } finally {
@@ -559,8 +560,8 @@ const FormulaAssignment = ({ user }) => {
     // Reset formula state before loading new ones
     setProductFormulas({ PI: [], PS: [], KP: [], KS: [] });
     
-    // Load formulas for selected product
-    await loadProductFormulas(product.Product_ID);
+    // Load formulas for selected product, priced at the year being added
+    await loadProductFormulas(product.Product_ID, addYear);
   };
 
   // Handle recommendation selection
@@ -2025,7 +2026,11 @@ const FormulaAssignment = ({ user }) => {
                   <select
                     id="add-year-selector"
                     value={addYear}
-                    onChange={(e) => setAddYear(e.target.value)}
+                    onChange={(e) => {
+                      setAddYear(e.target.value);
+                      // Re-price the picked product's formulas for the new year
+                      if (selectedProduct) loadProductFormulas(selectedProduct.Product_ID, e.target.value);
+                    }}
                     className="year-selector-import"
                   >
                     {importYearRange.map(year => (

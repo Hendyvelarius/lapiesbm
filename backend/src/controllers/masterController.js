@@ -1587,7 +1587,11 @@ class MasterController {
 
     static async exportAllFormulaDetail(req, res) {
         try {
-            const result = await exportAllFormulaDetail();
+            const { periode } = req.query;
+            if (periode && !/^\d{4}$/.test(String(periode))) {
+                return res.status(400).json({ success: false, message: 'periode must be a 4-digit year' });
+            }
+            const result = await exportAllFormulaDetail(periode || null);
             res.status(200).json({
                 success: true,
                 message: 'Export all formula detail completed successfully',
@@ -1605,7 +1609,11 @@ class MasterController {
 
     static async exportAllFormulaDetailSumPerSubID(req, res) {
         try {
-            const result = await exportAllFormulaDetailSumPerSubID();
+            const { periode } = req.query;
+            if (periode && !/^\d{4}$/.test(String(periode))) {
+                return res.status(400).json({ success: false, message: 'periode must be a 4-digit year' });
+            }
+            const result = await exportAllFormulaDetailSumPerSubID(periode || null);
             res.status(200).json({
                 success: true,
                 message: 'Export all formula detail sum per sub ID completed successfully',

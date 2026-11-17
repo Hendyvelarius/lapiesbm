@@ -1,4 +1,4 @@
-CREATE procedure [dbo].[sp_COGS_GenerateHPP] @Periode as varchar(4),@View as varchar=1, @generate as varchar(1)
+CREATE PROCEDURE [dbo].[sp_COGS_GenerateHPP] @Periode as varchar(4),@View as varchar=1, @generate as varchar(1)
 as 
 --select * from t_COGS_HPP_Product_Header where Periode='2026'
 --dbcc opentran
@@ -147,10 +147,11 @@ BEGIN
            [Default],[PPI_SeqID],[PPI_ItemID],[PPI_UnitID],[PPI_QTY],[DefaultCOGS],
             b.ITEM_CURRENCY, b.ITEM_PURCHASE_UNIT, b.ITEM_PURCHASE_STD_PRICE,
 			--dbo.fnConvertBJ(b.ITEM_ID,ppi_qty,item_purchase_unit, ppi_unitid)*ITEM_PURCHASE_STD_PRICE total, 
-			a.UnitPrice,
+			-- 028: line cost priced at @Periode (was a.UnitPrice = the view's own year)
+			dbo.fnConvertBJ(b.ITEM_ID, a.PPI_QTY, b.ITEM_PURCHASE_UNIT, a.PPI_UnitID) * b.ITEM_PURCHASE_STD_PRICE * kurs.Kurs total,
 			b.ITEM_TYPE from vw_COGS_FORMULA_List_detail a join 
 			(select * from M_COGS_STD_HRG_BAHAN where periode=@Periode)
-			b on a.ppi_itemid=b.ITEM_ID where product_id=@product_id and ppi_subid=@pi and typecode='PI' order by ppi_seqid
+			b on a.ppi_itemid=b.ITEM_ID left join vw_COGS_Currency_List kurs on kurs.Curr_Code = b.ITEM_CURRENCY and kurs.Periode = @Periode where product_id=@product_id and ppi_subid=@pi and typecode='PI' order by ppi_seqid
     --select * from vw_COGS_FORMULA_List_detail
     insert into #t_COGS_HPP_Product_Detail_Formula
     (periode, [Product_ID],[Product_Name],[PPI_SubID],[TypeName],[TypeCode],[Source],
@@ -160,10 +161,11 @@ BEGIN
            [Default],[PPI_SeqID],[PPI_ItemID],[PPI_UnitID],[PPI_QTY],[DefaultCOGS],
 			b.ITEM_CURRENCY, b.ITEM_PURCHASE_UNIT, b.ITEM_PURCHASE_STD_PRICE,
 			--dbo.fnConvertBJ(b.ITEM_ID,ppi_qty,item_purchase_unit, ppi_unitid)*ITEM_PURCHASE_STD_PRICE total, 
-			a.UnitPrice,
+			-- 028: line cost priced at @Periode (was a.UnitPrice = the view's own year)
+			dbo.fnConvertBJ(b.ITEM_ID, a.PPI_QTY, b.ITEM_PURCHASE_UNIT, a.PPI_UnitID) * b.ITEM_PURCHASE_STD_PRICE * kurs.Kurs total,
 			b.ITEM_TYPE from vw_COGS_FORMULA_List_detail a join 
 			(select * from M_COGS_STD_HRG_BAHAN where periode=@Periode)
-			 b on a.ppi_itemid=b.ITEM_ID where product_id=@product_id and ppi_subid=@ps and typecode='PS' order by ppi_seqid
+			 b on a.ppi_itemid=b.ITEM_ID left join vw_COGS_Currency_List kurs on kurs.Curr_Code = b.ITEM_CURRENCY and kurs.Periode = @Periode where product_id=@product_id and ppi_subid=@ps and typecode='PS' order by ppi_seqid
     
     insert into #t_COGS_HPP_Product_Detail_Formula
     (periode, [Product_ID],[Product_Name],[PPI_SubID],[TypeName],[TypeCode],[Source],
@@ -173,10 +175,11 @@ BEGIN
            [Default],[PPI_SeqID],[PPI_ItemID],[PPI_UnitID],[PPI_QTY],[DefaultCOGS],
 			b.ITEM_CURRENCY, b.ITEM_PURCHASE_UNIT, b.ITEM_PURCHASE_STD_PRICE,
 			--dbo.fnConvertBJ(b.ITEM_ID,ppi_qty,item_purchase_unit, ppi_unitid)*ITEM_PURCHASE_STD_PRICE total,
-			a.UnitPrice,
+			-- 028: line cost priced at @Periode (was a.UnitPrice = the view's own year)
+			dbo.fnConvertBJ(b.ITEM_ID, a.PPI_QTY, b.ITEM_PURCHASE_UNIT, a.PPI_UnitID) * b.ITEM_PURCHASE_STD_PRICE * kurs.Kurs total,
 			b.ITEM_TYPE from vw_COGS_FORMULA_List_detail a join 
 			(select * from M_COGS_STD_HRG_BAHAN where periode=@Periode)
-			 b on a.ppi_itemid=b.ITEM_ID where product_id=@product_id and ppi_subid=@kp and typecode='KP' order by ppi_seqid
+			 b on a.ppi_itemid=b.ITEM_ID left join vw_COGS_Currency_List kurs on kurs.Curr_Code = b.ITEM_CURRENCY and kurs.Periode = @Periode where product_id=@product_id and ppi_subid=@kp and typecode='KP' order by ppi_seqid
     
     insert into #t_COGS_HPP_Product_Detail_Formula
     (periode, [Product_ID],[Product_Name],[PPI_SubID],[TypeName],[TypeCode],[Source],
@@ -186,9 +189,10 @@ BEGIN
            [Default],[PPI_SeqID],[PPI_ItemID],[PPI_UnitID],[PPI_QTY],[DefaultCOGS],
 			b.ITEM_CURRENCY, b.ITEM_PURCHASE_UNIT, b.ITEM_PURCHASE_STD_PRICE,
 			--dbo.fnConvertBJ(b.ITEM_ID,ppi_qty,item_purchase_unit, ppi_unitid)*ITEM_PURCHASE_STD_PRICE total, 
-			a.UnitPrice,
+			-- 028: line cost priced at @Periode (was a.UnitPrice = the view's own year)
+			dbo.fnConvertBJ(b.ITEM_ID, a.PPI_QTY, b.ITEM_PURCHASE_UNIT, a.PPI_UnitID) * b.ITEM_PURCHASE_STD_PRICE * kurs.Kurs total,
 			b.ITEM_TYPE from vw_COGS_FORMULA_List_detail a join 
-			(select * from M_COGS_STD_HRG_BAHAN where periode=@Periode) b on a.ppi_itemid=b.ITEM_ID where product_id=@product_id and ppi_subid=@ks and typecode='KS' order by ppi_seqid
+			(select * from M_COGS_STD_HRG_BAHAN where periode=@Periode) b on a.ppi_itemid=b.ITEM_ID left join vw_COGS_Currency_List kurs on kurs.Curr_Code = b.ITEM_CURRENCY and kurs.Periode = @Periode where product_id=@product_id and ppi_subid=@ks and typecode='KS' order by ppi_seqid
 
 	update #t_COGS_HPP_Product_Header set 
 		Formula='PI:'+isnull(@pi,'-')+', PS:'+isnull(@ps,'-')+', KP:'+isnull(@kp,'-')+', KS:'+isnull(@ks,'-')
@@ -351,7 +355,7 @@ Biaya_Proses, Biaya_Kemas, Group_Rendemen, Batch_Size,
 round(((isnull(totalBB,0)+isnull(totalBK,0))+ISNULL(Beban_Sisa_Bahan_Exp,0)+ (isnull(a.MH_Proses_Std,0)*isnull(Biaya_Proses,0))+ (isnull(a.MH_Kemas_Std,0)*isnull(Biaya_Kemas,0)))/(Batch_Size*Group_Rendemen/100),0) HPP
 into #tmp_utk_granul
 from #tmp a join m_product b on a.product_id=b.product_id 
-where Product_Name like '%granulat%' or b.Product_ID in ('H4','CQ')
+where Product_Name like '%granulat%' or Product_Name like '%pelarut%' or b.Product_ID in ('H4','CQ')
 --or a.Product_ID in (select item_id from M_COGS_STD_HRG_BAHAN where len(ITEM_ID)=2)
 
 ---select * from M_COGS_STD_HRG_BAHAN where len(ITEM_ID) = '2'

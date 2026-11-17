@@ -170,7 +170,11 @@ class ProductController {
   static async findRecipe(req, res) {
     try {
       const { productId } = req.params;
-      const recipe = await findRecipe(productId);
+      const { periode } = req.query;
+      if (periode && !/^\d{4}$/.test(String(periode))) {
+        return res.status(400).json({ success: false, message: 'periode must be a 4-digit year' });
+      }
+      const recipe = await findRecipe(productId, periode || null);
       if (!recipe) {
         return res.status(404).json('Recipe not found');
       }
