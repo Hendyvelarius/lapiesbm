@@ -125,6 +125,7 @@ class ReagenModel {
       const pool = await connect();
       const query = `
         INSERT INTO M_COGS_PEMBEBANAN_REAGEN (
+          Periode,
           ProductID,
           Reagen_Rate,
           user_id,
@@ -135,6 +136,7 @@ class ReagenModel {
         )
         OUTPUT INSERTED.pk_id
         VALUES (
+          @periode,
           @productId,
           @reagenRate,
           @userId,
@@ -146,6 +148,7 @@ class ReagenModel {
       `;
       
       const result = await pool.request()
+        .input('periode', sql.VarChar(50), reagenData.periode || new Date().getFullYear().toString())
         .input('productId', sql.NVarChar, reagenData.productId)
         .input('reagenRate', sql.Decimal(18,2), reagenData.reagenRate)
         .input('userId', sql.NVarChar, reagenData.userId)

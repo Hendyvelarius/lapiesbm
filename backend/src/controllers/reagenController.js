@@ -91,7 +91,7 @@ class ReagenController {
   // Create new reagen entry
   static async createReagen(req, res) {
     try {
-      const { productId, reagenRate, userId, delegatedTo, processDate } = req.body;
+      const { productId, reagenRate, userId, delegatedTo, processDate, periode } = req.body;
       
       // Validation
       if (!productId || productId.trim() === '') {
@@ -117,6 +117,7 @@ class ReagenController {
       
       // Prepare data
       const reagenData = {
+        periode: periode ? String(periode).trim() : null, // model falls back to the current year
         productId: productId.trim(),
         reagenRate: parseFloat(reagenRate),
         userId: userId || 'SYSTEM',

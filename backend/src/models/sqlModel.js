@@ -919,10 +919,11 @@ async function getPembebanan() {
   }
 }
 
-async function addPembebanan(groupPNCategoryID, groupPNCategoryName, groupProductID, groupProsesRate, groupKemasRate, groupPLNRate, groupAnalisaRate, userId, groupPNCategoryRateAs = null, delegatedTo = null) {
+async function addPembebanan(groupPNCategoryID, groupPNCategoryName, groupProductID, groupProsesRate, groupKemasRate, groupPLNRate, groupAnalisaRate, userId, groupPNCategoryRateAs = null, delegatedTo = null, periode = null) {
   try {
     const db = await connect();
-    const currentYear = new Date().getFullYear().toString();
+    // Save into the year the user is viewing; fall back to the current year for older callers
+    const currentYear = periode ? String(periode) : new Date().getFullYear().toString();
     const currentDateTime = getWIBDateTime();
     
     // Ensure all string parameters are actually strings

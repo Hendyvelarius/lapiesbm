@@ -982,7 +982,8 @@ class MasterController {
                 groupAnalisaRate,
                 groupPNCategoryRateAs,
                 userId,
-                delegatedTo
+                delegatedTo,
+                periode
             } = req.body;
 
             // Validate required fields
@@ -1004,7 +1005,8 @@ class MasterController {
                 groupAnalisaRate || null,
                 userId || 'GWN',
                 groupPNCategoryRateAs || null,
-                delegatedTo || null
+                delegatedTo || null,
+                periode || null
             );
 
             res.status(201).json({

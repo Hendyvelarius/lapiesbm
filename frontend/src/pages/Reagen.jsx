@@ -460,6 +460,7 @@ const Reagen = ({ user }) => {
       const newEntry = {
         productId: addFormData.selectedProduct.Product_ID,
         reagenRate: parseFloat(addFormData.reagenRate),
+        periode: selectedPeriode, // save into the year being viewed
         userId: user?.logNIK || 'SYSTEM',
         delegatedTo: user?.delegatedToNIK || null
         // Note: processDate is handled by the backend to ensure correct local timezone

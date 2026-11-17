@@ -619,7 +619,8 @@ const Pembebanan = () => {
         groupKemasRate: rateInputMode === 'manual' ? parseFloat(addFormData.groupKemasRate) : 0,
         groupPLNRate: rateInputMode === 'manual' ? (addFormData.groupGenerikRate ? parseFloat(addFormData.groupGenerikRate) : 0) : 0,
         groupAnalisaRate: rateInputMode === 'manual' ? (addFormData.groupAnalisaRate ? parseFloat(addFormData.groupAnalisaRate) : 0) : 0,
-        groupPNCategoryRateAs: rateInputMode === 'rateAs' ? String(addFormData.rateAsGroupID) : null
+        groupPNCategoryRateAs: rateInputMode === 'rateAs' ? String(addFormData.rateAsGroupID) : null,
+        periode: selectedPeriode // save into the year being viewed, not always the current year
       };
       
       await masterAPI.addPembebanan(newEntry);

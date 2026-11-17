@@ -333,7 +333,7 @@ const AddExpiredMaterialModal = ({ materials, onClose, onSave, currentYear }) =>
                 disabled
               />
               <small style={{ color: '#666', fontSize: '12px' }}>
-                The material will be recorded for the current year ({currentYear})
+                The material will be recorded for the selected year ({currentYear})
               </small>
             </div>
           </div>

@@ -106,6 +106,7 @@ const BiayaLain = () => {
       }
     }
     setLockedPeriods(locked);
+    return locked;
   }, []);
 
   // Check lock status when selected period changes
@@ -497,21 +498,22 @@ const BiayaLain = () => {
   };
 
   // Import function - opens modal for periode selection
-  const handleImportGeneralCosts = () => {
-    // Check if import is disabled due to "All Periods" selection
-    if (selectedPeriode === 'All Periods') {
-      notifier.info('Import must be done on a year-by-year basis. Please select a specific period first.');
-      return;
-    }
-    
-    // Check if import is disabled due to lock
-    if (isLocked) {
-      notifier.warning('Import disabled - products are locked for the selected period.');
-      return;
-    }
-    
-    // Set the import periode to the currently selected periode (not 'all')
-    setImportPeriode(selectedPeriode);
+  // The import year is chosen inside the modal (which offers years that have no data yet,
+  // e.g. next year), so the button does not depend on the table's Periode filter.
+  const handleImportGeneralCosts = async () => {
+    const importYears = getAvailableImportPeriodes();
+    const locked = await fetchAllLockedPeriods(importYears);
+
+    // Preselect the filtered year if a specific one is chosen, otherwise the current year;
+    // fall back to the first unlocked year. The modal blocks importing into a locked year.
+    const preferred = selectedPeriode !== 'All Periods'
+      ? selectedPeriode
+      : new Date().getFullYear().toString();
+    const initialPeriode = !locked.includes(preferred)
+      ? preferred
+      : (importYears.find(y => !locked.includes(y)) || preferred);
+
+    setImportPeriode(initialPeriode);
     setImportPreviewData([]);
     setImportFilePeriodesDetected([]);
     setShowImportWarning(true);
@@ -823,12 +825,7 @@ const BiayaLain = () => {
           <button 
             className="import-btn" 
             onClick={handleImportGeneralCosts}
-            disabled={isLocked || selectedPeriode === 'All Periods'}
-            title={selectedPeriode === 'All Periods' 
-              ? 'Import must be done year by year - please select a specific period' 
-              : isLocked 
-                ? 'Import disabled - products are locked for the selected period' 
-                : 'Import data'}
+            title="Import data (choose the year in the next step)"
           >
             <Upload size={20} />
             Import
