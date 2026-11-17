@@ -596,6 +596,10 @@ const BiayaLain = () => {
         
         setImportPreviewData(filteredForPeriode);
 
+        // Close the periode/warning modal and show the preview to confirm
+        setShowImportWarning(false);
+        setShowImportPreview(true);
+
       } catch (error) {
         console.error('Error processing import file:', error);
         notifier.alert(`Failed to process file: ${error.message}`);
