@@ -32,6 +32,8 @@ router.get('/chosenformula', ProductController.getChosenFormula);
 router.get('/available-years', ProductController.getAvailableYears);
 router.get('/default-year', ProductController.getDefaultYear);
 router.get('/locked-products', ProductController.getLockedProducts);
+// GET /api/products/intermediates?periode=2027 - intermediates (granulat/pelarut/WFI) used that year
+router.get('/intermediates', ProductController.getIntermediates);
 // GET /api/products/year-readiness?periode=2027 - Row counts of each year-scoped dataset
 router.get('/year-readiness', ProductController.getYearReadiness);
 router.post('/chosenformula', ProductController.addChosenFormula);

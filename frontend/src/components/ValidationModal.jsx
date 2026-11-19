@@ -391,7 +391,14 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
     try {
       // Materials of the formulas assigned for this year, priced at this year's material prices
       // (without a year the view uses its own: the latest one with unlocked assignments)
-      const activeFormulaDetails = await api.products.getActiveFormulaDetails(year);
+      const [activeFormulaDetails, intermediatesRes] = await Promise.all([
+        api.products.getActiveFormulaDetails(year),
+        api.products.getIntermediates(year)
+      ]);
+      // Intermediates (granulat/pelarut/WFI, e.g. FW, HO) are made in-house: generation prices them
+      // at their own HPP, so they need a Formula Assignment for the year, not a purchase price.
+      const intermediates = new Map((intermediatesRes?.data || []).map(i => [i.itemId, i]));
+      const computedIntermediates = [];
       
       // Only check materials for unlocked products
       const { chosenFormulas } = validationData;
@@ -418,6 +425,32 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
           return;
         }
         checkedMaterials.add(materialKey);
+
+        const intermediate = intermediates.get(formula.PPI_ItemID);
+        if (intermediate && !intermediate.locked) {
+          if (intermediate.assigned) {
+            computedIntermediates.push(formula.PPI_ItemID);
+          } else {
+            missingPriceMaterials.push({
+              itemId: formula.PPI_ItemID,
+              productName: formula.Product_Name,
+              productId: formula.Product_ID,
+              formulaType: formula.TypeCode,
+              issue: `Intermediate (${intermediate.productName}) has no ${year} Formula Assignment, so its HPP cannot be calculated. Assign a formula for ${intermediate.productId} in ${year}.`
+            });
+          }
+          return;
+        }
+        if (intermediate && intermediate.locked && !intermediate.hasPrice) {
+          missingPriceMaterials.push({
+            itemId: formula.PPI_ItemID,
+            productName: formula.Product_Name,
+            productId: formula.Product_ID,
+            formulaType: formula.TypeCode,
+            issue: `Intermediate (${intermediate.productName}) is locked for ${year} and has no ${year} price. Unlock ${intermediate.productId} so it is recalculated.`
+          });
+          return;
+        }
         
         const { UnitPrice, PurchaseQTYUnit, PurchaseUnit } = formula;
         
@@ -469,9 +502,12 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
         summary: lockedCount > 0
           ? `All ${checkedMaterials.size} formula materials have valid ${year} pricing (${lockedCount} locked skipped)`
           : `All ${checkedMaterials.size} formula materials have valid ${year} pricing`,
-        details: lockedCount > 0
+        details: (lockedCount > 0
           ? `Checked materials from ${relevantFormulaDetails.length} active formula entries (${lockedCount} locked products skipped)`
-          : `Checked materials from ${relevantFormulaDetails.length} active formula entries`
+          : `Checked materials from ${relevantFormulaDetails.length} active formula entries`)
+          + (computedIntermediates.length > 0
+            ? `. Intermediates priced at their own ${year} HPP during generation: ${computedIntermediates.join(', ')}`
+            : '')
       });
       
       return true;

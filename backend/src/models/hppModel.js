@@ -38,6 +38,12 @@ async function getHPP(year = null) {
 async function generateHPPCalculation(periode = "2025") {
   try {
     const db = await connect();
+
+    // Intermediates (granulat/pelarut/WFI) with no price row for the year would be dropped from
+    // their consumers' cost; give them a placeholder the SP overwrites with their computed HPP.
+    const { ensureIntermediatePriceRows } = require("./productModel");
+    const placeholderPrices = await ensureIntermediatePriceRows(periode);
+
     // Generate for ALL product types: '0' and '1' is the hardcoded password to execute the procedure.
     const query = `exec sp_COGS_GenerateHPP @periode, '0', '1'`;
 
@@ -46,6 +52,7 @@ async function generateHPPCalculation(periode = "2025") {
     return {
       success: true,
       message: `HPP calculation completed for period ${periode}`,
+      placeholderPrices,
     };
   } catch (error) {
     console.error("Error executing HPP calculation:", error);

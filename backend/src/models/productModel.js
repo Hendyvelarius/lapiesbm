@@ -518,6 +518,9 @@ async function generateHPP(productId) {
             };
         }
 
+        // Intermediates without a price row would be dropped from their consumers' cost
+        await ensureIntermediatePriceRows(currentYear);
+
         await pool.request()
             .input('periode', sql.VarChar(4), currentYear)
             .query(`exec sp_COGS_GenerateHPP @periode, '0', '1'`);
@@ -682,6 +685,107 @@ async function getLockedProducts(periode) {
     }
 }
 
+// ---- Intermediates (granulat / pelarut / WFI) -------------------------------------------------
+// Some materials are themselves products made in-house: e.g. FW "PELARUT ANFUROX INJEKSI" is a
+// KS line of FP. sp_COGS_GenerateHPP costs them in the same run: after every unlocked product is
+// costed, it writes each intermediate's HPP into (a) its M_COGS_STD_HRG_BAHAN row for the year and
+// (b) the consuming products' t_COGS_HPP_Product_Detail_Formula lines (#tmp_utk_granul).
+//
+// Both writes are UPDATEs, and the line costing before them INNER JOINs the year's price table.
+// So an intermediate with no price row for the year is silently DROPPED from its consumers'
+// cost, and nobody can enter a "price" for it because its price is its own HPP.
+// Fix: before generating, give such intermediates a 0-price placeholder row for the year, which
+// the SP then overwrites with the computed HPP (what HO/FW had for 2026).
+//
+// INTERMEDIATE_RULE must stay identical to the #tmp_utk_granul filter in sp_COGS_GenerateHPP.
+const INTERMEDIATE_RULE = `(p.Product_Name LIKE '%granulat%' OR p.Product_Name LIKE '%pelarut%' OR p.Product_ID IN ('H4','CQ'))`;
+
+// Intermediates used by the year's UNLOCKED Formula Assignment (the products a generate recosts).
+// One entry per intermediate material: itemId (as written in formulas), productId/Name,
+// consumers, unit (the consumers' formula unit), itemType, assigned/locked (its own Formula
+// Assignment for the year - it can only be costed when assigned and unlocked), hasPrice.
+async function getIntermediatesInUse(periode) {
+    try {
+        const pool = await connect();
+        const result = await pool.request()
+            .input('periode', sql.VarChar(4), String(periode))
+            .query(`
+                SELECT d.PPI_ItemID AS Item_ID, p.Product_ID, p.Product_Name,
+                       d.Product_ID AS Consumer_ID, d.TypeCode, d.PPI_UnitID,
+                       CASE WHEN own.Product_ID IS NULL THEN 0 ELSE 1 END AS Assigned,
+                       ISNULL(own.isLock, 0) AS Own_IsLock,
+                       CASE WHEN price.ITEM_ID IS NULL THEN 0 ELSE 1 END AS Has_Price,
+                       prev.ITEM_TYPE AS Prev_Item_Type
+                FROM vw_COGS_FORMULA_List_detail d
+                JOIN M_COGS_PRODUCT_FORMULA_FIX f
+                  ON f.Product_ID = d.Product_ID AND f.Periode = @periode AND ISNULL(f.isLock, 0) = 0
+                 AND (   (d.TypeCode = 'PI' AND d.PPI_SubID = f.PI) OR (d.TypeCode = 'PS' AND d.PPI_SubID = f.PS)
+                      OR (d.TypeCode = 'KP' AND d.PPI_SubID = f.KP) OR (d.TypeCode = 'KS' AND d.PPI_SubID = f.KS))
+                JOIN m_product p ON p.Product_ID = REPLACE(d.PPI_ItemID, ' ', '')
+                LEFT JOIN M_COGS_PRODUCT_FORMULA_FIX own ON own.Product_ID = p.Product_ID AND own.Periode = @periode
+                OUTER APPLY (SELECT TOP 1 h.ITEM_ID FROM M_COGS_STD_HRG_BAHAN h
+                             WHERE h.ITEM_ID = d.PPI_ItemID AND h.Periode = @periode) price
+                OUTER APPLY (SELECT TOP 1 h.ITEM_TYPE FROM M_COGS_STD_HRG_BAHAN h
+                             WHERE h.ITEM_ID = d.PPI_ItemID AND h.Periode < @periode ORDER BY h.Periode DESC) prev
+                WHERE ${INTERMEDIATE_RULE}
+            `);
+
+        const byItem = new Map();
+        for (const r of result.recordset) {
+            if (!byItem.has(r.Item_ID)) {
+                byItem.set(r.Item_ID, {
+                    itemId: r.Item_ID,
+                    productId: r.Product_ID,
+                    productName: r.Product_Name,
+                    consumers: [],
+                    unit: r.PPI_UnitID,
+                    itemType: r.Prev_Item_Type || (['PI', 'PS'].includes(r.TypeCode) ? 'BB' : 'BK'),
+                    assigned: r.Assigned === 1,
+                    locked: r.Own_IsLock === 1 || r.Own_IsLock === true,
+                    hasPrice: r.Has_Price === 1
+                });
+            }
+            const entry = byItem.get(r.Item_ID);
+            if (!entry.consumers.includes(r.Consumer_ID)) entry.consumers.push(r.Consumer_ID);
+        }
+        return [...byItem.values()];
+    } catch (error) {
+        console.error('Error getting intermediates in use:', error);
+        throw error;
+    }
+}
+
+// Create the 0-price placeholder rows described above, for intermediates that will be costed in
+// this generate (assigned + unlocked) but have no price row for the year. Returns the item IDs created.
+async function ensureIntermediatePriceRows(periode) {
+    const pool = await connect();
+    const missing = (await getIntermediatesInUse(periode))
+        .filter(i => !i.hasPrice && i.assigned && !i.locked);
+    const created = [];
+    for (const i of missing) {
+        const now = getWIBDateTime();
+        const r = await pool.request()
+            .input('itemId', sql.VarChar(50), i.itemId)
+            .input('itemType', sql.VarChar(10), i.itemType)
+            .input('unit', sql.VarChar(50), i.unit)
+            .input('periode', sql.VarChar(4), String(periode))
+            .input('now', sql.DateTime, now)
+            .query(`
+                IF NOT EXISTS (SELECT 1 FROM M_COGS_STD_HRG_BAHAN WHERE ITEM_ID = @itemId AND Periode = @periode)
+                INSERT INTO M_COGS_STD_HRG_BAHAN
+                    (ITEM_ID, ITEM_TYPE, ITEM_PURCHASE_UNIT, ITEM_PURCHASE_STD_PRICE, ITEM_CURRENCY, Periode,
+                     user_id, delegated_to, process_date, flag_update, from_update, createdAt, updatedAt)
+                VALUES (@itemId, @itemType, @unit, 0, 'IDR', @periode,
+                        'SYSTEM', 'AUTO_INTERMEDIATE', @now, NULL, NULL, @now, @now)
+            `);
+        if (r.rowsAffected[0] > 0) created.push(i.itemId);
+    }
+    if (created.length) {
+        console.log(`[HPP ${periode}] created placeholder price rows for intermediates: ${created.join(', ')}`);
+    }
+    return created;
+}
+
 // Year readiness: row counts of every year-scoped dataset for one periode.
 // Pages use this to explain WHY something is empty for a year (e.g. 2027 margins are saved
 // but the Margin view only lists years that exist in Manhour & Yield).
@@ -713,6 +817,8 @@ async function getYearReadiness(periode) {
 
 module.exports = {
     getYearReadiness,
+    getIntermediatesInUse,
+    ensureIntermediatePriceRows,
     getFormula,
     getChosenFormula,
     getAvailableYears,

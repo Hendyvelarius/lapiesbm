@@ -408,6 +408,21 @@ class ProductController {
     }
   }
 
+  // Intermediate materials used by the year's unlocked formulas; priced by their own HPP on generate
+  static async getIntermediates(req, res) {
+    try {
+      const { periode } = req.query;
+      if (!periode || !/^\d{4}$/.test(String(periode))) {
+        return res.status(400).json({ success: false, message: 'periode (YYYY) is required' });
+      }
+      const data = await productModel.getIntermediatesInUse(periode);
+      res.status(200).json({ success: true, data });
+    } catch (error) {
+      console.error('Error getting intermediates:', error);
+      res.status(500).json({ success: false, message: 'Error getting intermediates', error: error.message });
+    }
+  }
+
   // Row counts of every year-scoped dataset for a periode, so pages can explain empty results
   static async getYearReadiness(req, res) {
     try {

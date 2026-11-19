@@ -39,7 +39,9 @@ class HPPController {
         message: `HPP calculation completed successfully for period ${calculationPeriode}`,
         data: {
           periode: calculationPeriode,
-          processedAt: new Date().toISOString()
+          processedAt: new Date().toISOString(),
+          // intermediates that got a placeholder price row, then their computed HPP
+          placeholderPrices: result.placeholderPrices || []
         }
       });
     } catch (error) {
