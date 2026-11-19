@@ -195,11 +195,19 @@ async function getAllFormulaDetails() {
     }
 }
 
-async function getActiveFormulaDetails() {
+// periode (YYYY): the formulas assigned in that year's Formula Assignment, priced at that year's
+// material prices. Without it, the view's own year is used (latest periode with an unlocked row),
+// which is not necessarily the year being validated or generated.
+async function getActiveFormulaDetails(periode = null) {
     try {
         const pool = await connect();
-        const result = await pool.request()
-            .query("SELECT * FROM vw_COGS_FORMULA_List_detail WHERE DefaultCOGS = 'Aktif'");
+        const request = pool.request();
+        let query = "SELECT * FROM vw_COGS_FORMULA_List_detail WHERE DefaultCOGS = 'Aktif'";
+        if (periode) {
+            query = "SELECT * FROM dbo.fn_COGS_FORMULA_List_detail_ByPeriode(@periode) WHERE DefaultCOGS = 'Aktif'";
+            request.input('periode', sql.VarChar(4), String(periode));
+        }
+        const result = await request.query(query);
         return result.recordset;
     } catch (error) {
         console.error('Error fetching active formula details:', error);

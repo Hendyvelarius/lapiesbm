@@ -66,7 +66,10 @@ export const productsAPI = {
   getAllFormulaDetails: () => apiRequest('/products/formula-details'),
   
   // Get active formula details only (DefaultCOGS = 'Aktif')
-  getActiveFormulaDetails: () => apiRequest('/products/formula-details/active'),
+  // periode (YYYY) uses that year's Formula Assignment and material prices
+  getActiveFormulaDetails: (periode = null) => apiRequest(
+    periode ? `/products/formula-details/active?periode=${encodeURIComponent(periode)}` : '/products/formula-details/active'
+  ),
   
   // Get chosen formula data (current product-formula assignments)
   getChosenFormula: (periode = null) => {

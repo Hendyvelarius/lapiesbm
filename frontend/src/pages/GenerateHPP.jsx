@@ -203,7 +203,10 @@ export default function GenerateHPP() {
   // Handle year selection change
   const handleYearChange = (event) => {
     const newYear = parseInt(event.target.value);
+    if (newYear === selectedYear) return;
     setSelectedYear(newYear);
+    // A validation (or calculation) result belongs to the year it ran for; start over for the new year
+    resetProcess();
   };
 
   const steps = [

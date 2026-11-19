@@ -203,7 +203,12 @@ class ProductController {
 
   static async getActiveFormulaDetails(req, res) {
     try {
-      const activeFormulaDetails = await getActiveFormulaDetails();
+      // Optional ?periode=YYYY: active formulas and prices of that year (else the view's own year)
+      const { periode } = req.query;
+      if (periode && !/^\d{4}$/.test(String(periode))) {
+        return res.status(400).json({ success: false, message: 'periode must be YYYY' });
+      }
+      const activeFormulaDetails = await getActiveFormulaDetails(periode || null);
       res.status(200).json(activeFormulaDetails);
     } catch (error) {
       res.status(500).json({

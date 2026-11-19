@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CheckCircle, X, AlertTriangle, Loader, Info } from 'lucide-react';
 import api from '../services/api';
 import '../styles/ValidationModal.css';
+
+const EMPTY_DATA = { chosenFormulas: [], availableFormulas: [], productList: [] };
 
 const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }) => {
   const [currentStep, setCurrentStep] = useState(0);
@@ -33,7 +35,7 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
     {
       id: 4,
       title: 'Validating cost parameters',
-      description: 'Checking labor costs (PN1/PN2), factory overhead (PN1/PN2), depreciation (PN1/PN2), and other parameters',
+      description: 'Checking Pembebanan rates and General Costs per Sediaan for the selected year',
       status: 'pending',
       details: null,
       errors: []
@@ -51,19 +53,21 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
   const [isRunning, setIsRunning] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [hasWarning, setHasWarning] = useState(false);
-  const [validationData, setValidationData] = useState({
-    chosenFormulas: [],
-    availableFormulas: [],
-    productList: []
-  });
+  const [validationData, setValidationData] = useState(EMPTY_DATA);
+  // Year whose data is in validationData. The modal stays mounted between opens, so without this
+  // a run started while a new year was still loading validated the previous year's data
+  // (opened for 2027 after 2026, it reported 2026's lock counts under a "2027" badge).
+  const [loadedYear, setLoadedYear] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const loadSeq = useRef(0);
+  const year = selectedYear?.toString();
 
-  // Load initial data when modal opens
+  // Reload whenever the modal opens or the year changes
   useEffect(() => {
     if (isOpen) {
       resetValidation();
-      loadInitialData();
     }
-  }, [isOpen]);
+  }, [isOpen, year]);
 
   const resetValidation = async () => {
     setCurrentStep(0);
@@ -77,37 +81,48 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
       errors: []
     })));
     
-    // Refetch data when retrying validation to get latest changes
-    console.log('[Validation] Refetching data after retry...');
+    // Refetch data (also on retry, to pick up fixes made in the meantime)
     await loadInitialData();
   };
 
   const loadInitialData = async () => {
+    const seq = ++loadSeq.current;
+    const loadingYear = year;
+    setValidationData(EMPTY_DATA);
+    setLoadedYear(null);
+    setLoadError(null);
     try {
       const [chosenRes, formulaRes, productRes] = await Promise.all([
-        api.products.getChosenFormula(selectedYear?.toString()),
+        api.products.getChosenFormula(loadingYear),
         api.products.getFormula(),
         api.master.getProductName()
       ]);
-      
-      // Verify all chosen formulas are for the selected year
-      const wrongPeriodeFormulas = chosenRes?.filter(cf => cf.Periode !== selectedYear?.toString()) || [];
-      if (wrongPeriodeFormulas.length > 0) {
-        console.error('[ValidationModal] ERROR: Found formulas with wrong Periode:', wrongPeriodeFormulas);
+      // A newer load (reopen, year change, retry) has started; drop this result
+      if (seq !== loadSeq.current) return;
+
+      // Keep only the selected year's assignments
+      const chosenForYear = (chosenRes || []).filter(cf => String(cf.Periode) === loadingYear);
+      if (chosenForYear.length !== (chosenRes || []).length) {
+        console.error('[ValidationModal] Dropped formula assignments of another Periode than', loadingYear);
       }
 
       setValidationData({
-        chosenFormulas: chosenRes || [],
+        chosenFormulas: chosenForYear,
         availableFormulas: formulaRes || [],
         productList: productRes?.data || []
       });
+      setLoadedYear(loadingYear);
     } catch (error) {
+      if (seq !== loadSeq.current) return;
       console.error('Error loading validation data:', error);
-      // Still proceed with validation - errors will be caught in individual steps
+      setLoadError(error.message || 'Unknown error');
+      setHasError(true);
     }
   };
 
   const startValidation = async () => {
+    // Only validate data that was loaded for the year shown in the header
+    if (loadedYear !== year) return;
     setIsRunning(true);
     setHasError(false);
     setHasWarning(false);
@@ -168,6 +183,16 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
 
     const { chosenFormulas, availableFormulas } = validationData;
     const errors = [];
+
+    // A year with no assignments must not "pass" with 0 products checked
+    if (chosenFormulas.length === 0) {
+      updateStepStatus(1, 'failed', {
+        summary: `No formula assignments found for ${year}`,
+        errors: [`Formula Assignment has no products for ${year}. Assign formulas for ${year} first.`]
+      });
+      setHasError(true);
+      return 'failed';
+    }
     
     // Filter out locked products - they should not be validated
     const unlockedFormulas = chosenFormulas.filter(cf => !cf.isLock || cf.isLock === 0);
@@ -258,8 +283,8 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
         `${p.productId} (${p.productName}): ${p.issues.join(', ')}`
       ));
       const summaryMessage = lockedCount > 0 
-        ? `${productsWithIssues.length} of ${checkedProducts} unlocked products have issues (${lockedCount} locked products skipped)`
-        : `${productsWithIssues.length} of ${checkedProducts} products have formula assignment issues`;
+        ? `${year}: ${productsWithIssues.length} of ${checkedProducts} unlocked products have issues (${lockedCount} locked products skipped)`
+        : `${year}: ${productsWithIssues.length} of ${checkedProducts} products have formula assignment issues`;
       
       updateStepStatus(1, 'failed', {
         summary: summaryMessage,
@@ -274,8 +299,8 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
       : `Checked ${checkedProducts} products, all formula assignments are valid`;
     
     const summaryMessage = lockedCount > 0
-      ? `All ${checkedProducts} unlocked products have correct formula assignments (${lockedCount} locked)`
-      : `All ${checkedProducts} products have correct formula assignments and batch sizes`;
+      ? `${year}: all ${checkedProducts} unlocked products have correct formula assignments (${lockedCount} locked)`
+      : `${year}: all ${checkedProducts} products have correct formula assignments and batch sizes`;
 
     updateStepStatus(1, 'completed', {
       summary: summaryMessage,
@@ -364,8 +389,9 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
     await new Promise(resolve => setTimeout(resolve, 1500));
     
     try {
-      // Get active formula details containing all materials used in active formulas
-      const activeFormulaDetails = await api.products.getActiveFormulaDetails();
+      // Materials of the formulas assigned for this year, priced at this year's material prices
+      // (without a year the view uses its own: the latest one with unlocked assignments)
+      const activeFormulaDetails = await api.products.getActiveFormulaDetails(year);
       
       // Only check materials for unlocked products
       const { chosenFormulas } = validationData;
@@ -411,7 +437,7 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
             productName: formula.Product_Name,
             productId: formula.Product_ID,
             formulaType: formula.TypeCode,
-            issue: 'Material not found in Harga Bahan database'
+            issue: `Material has no ${year} price in Harga Bahan`
           });
         } else if (!isFreeInHargaBahan && !hasValidPrice) {
           // Material exists but has invalid pricing setup
@@ -441,8 +467,8 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
       
       updateStepStatus(3, 'completed', {
         summary: lockedCount > 0
-          ? `All ${checkedMaterials.size} formula materials have valid pricing (${lockedCount} locked skipped)`
-          : `All ${checkedMaterials.size} formula materials have valid pricing`,
+          ? `All ${checkedMaterials.size} formula materials have valid ${year} pricing (${lockedCount} locked skipped)`
+          : `All ${checkedMaterials.size} formula materials have valid ${year} pricing`,
         details: lockedCount > 0
           ? `Checked materials from ${relevantFormulaDetails.length} active formula entries (${lockedCount} locked products skipped)`
           : `Checked materials from ${relevantFormulaDetails.length} active formula entries`
@@ -466,60 +492,27 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
     await new Promise(resolve => setTimeout(resolve, 1200));
     
     try {
-      // Get pembebanan and parameter data
-      const [pembebanannData, parameterData] = await Promise.all([
+      // sp_COGS_GenerateHPP reads Pembebanan and General Costs per Sediaan for the year.
+      // (M_COGS_STD_PARAMETER is no longer read by the generator, and only has 2025 data,
+      // so checking it said nothing about the year being generated.)
+      const [pembebananAll, readinessRes] = await Promise.all([
         api.master.getPembebanan(),
-        api.master.getParameter()
+        api.products.getYearReadiness(year)
       ]);
-      
+      const pembebanannData = (pembebananAll || []).filter(p => String(p.Group_Periode) === year);
+
       const errors = [];
       let defaultCosts = [];
       let customCosts = [];
-      
-      // Validate Parameter data (should have all non-null values except Periode)
-      if (!parameterData || parameterData.length === 0) {
-        errors.push('Parameter data not found - required for cost calculations');
-      } else {
-        const currentYearParam = parameterData.find(p => p.Periode === '2025');
-        if (!currentYearParam) {
-          errors.push('Parameter data for current year (2025) not found');
-        } else {
-          const requiredParams = [
-            'Direct_Labor_PN1', 'Direct_Labor_PN2', 
-            'Factory_Over_Head_PN1', 'Factory_Over_Head_PN2', 
-            'Depresiasi_PN1', 'Depresiasi_PN2', 
-            'MH_Timbang_BB', 'MH_Timbang_BK', 'MH_Analisa', 'Biaya_Analisa', 
-            'Jam_KWH_Mesin_Utama', 'Rate_KWH_Mesin'
-          ];
-          
-          requiredParams.forEach(param => {
-            const value = currentYearParam[param];
-            if (value === null || value === undefined || typeof value !== 'number') {
-              // Provide more user-friendly parameter names
-              let friendlyName = param;
-              switch(param) {
-                case 'Direct_Labor_PN1': friendlyName = 'Direct Labor PN1'; break;
-                case 'Direct_Labor_PN2': friendlyName = 'Direct Labor PN2'; break;
-                case 'Factory_Over_Head_PN1': friendlyName = 'Factory Overhead PN1'; break;
-                case 'Factory_Over_Head_PN2': friendlyName = 'Factory Overhead PN2'; break;
-                case 'Depresiasi_PN1': friendlyName = 'Depreciation PN1'; break;
-                case 'Depresiasi_PN2': friendlyName = 'Depreciation PN2'; break;
-                case 'Rate_KWH_Mesin': friendlyName = 'Machine Rate per KWH'; break;
-                case 'MH_Timbang_BB': friendlyName = 'Man Hour Weighing Raw Materials'; break;
-                case 'MH_Timbang_BK': friendlyName = 'Man Hour Weighing Finished Goods'; break;
-                case 'MH_Analisa': friendlyName = 'Man Hour Analysis'; break;
-                case 'Biaya_Analisa': friendlyName = 'Analysis Cost'; break;
-                case 'Jam_KWH_Mesin_Utama': friendlyName = 'Main Machine KWH Hours'; break;
-              }
-              errors.push(`Parameter "${friendlyName}" is not properly set (current value: ${value})`);
-            }
-          });
-        }
+
+      const generalCostRows = readinessRes?.data?.counts?.generalCosts ?? 0;
+      if (generalCostRows === 0) {
+        errors.push(`General Costs per Sediaan not set for ${year} - labor, overhead and depreciation would be zero`);
       }
-      
+
       // Validate Pembebanan data
-      if (!pembebanannData || pembebanannData.length === 0) {
-        errors.push('Pembebanan data not found - required for machine cost calculations');
+      if (pembebanannData.length === 0) {
+        errors.push(`Pembebanan data not found for ${year} - required for machine cost calculations`);
       } else {
         // Separate default costs (Group_ProductID = null) from custom costs
         defaultCosts = pembebanannData.filter(cost => cost.Group_ProductID === null);
@@ -564,8 +557,8 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
       }
       
       updateStepStatus(4, 'completed', {
-        summary: 'All cost parameters are properly configured',
-        details: `Validated ${defaultCosts.length} default cost categories and ${customCosts.length} custom product costs`
+        summary: `All ${year} cost parameters are properly configured`,
+        details: `Validated ${defaultCosts.length} default cost categories, ${customCosts.length} custom product costs and ${generalCostRows} General Costs per Sediaan rows`
       });
       
       return true;
@@ -600,13 +593,13 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
       }
       
       const errors = [];
-      const currentYear = '2025';
+      const currentYear = year;
       
       // Get all currencies for current year
       const currentYearCurrencies = currencyData.filter(c => c.Periode === currentYear);
       
       if (currentYearCurrencies.length === 0) {
-        errors.push(`No currency rates found for current year (${currentYear})`);
+        errors.push(`No currency rates found for ${currentYear}`);
       } else {
         // Check if IDR exists for current year (required base currency)
         const idrCurrency = currentYearCurrencies.find(c => c.Curr_Code === 'IDR');
@@ -687,7 +680,9 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
     }
   };
 
-  const canStart = validationData.chosenFormulas.length > 0 || validationData.availableFormulas.length > 0;
+  // Start only once this year's data is loaded (see loadedYear)
+  const isLoadingData = isOpen && loadedYear !== year && !loadError;
+  const canStart = loadedYear === year && !isRunning;
   const allCompleted = validationSteps.every(step => step.status === 'completed');
 
   if (!isOpen) return null;
@@ -708,7 +703,13 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
         <div className="validation-modal-content">
           <div className="validation-info">
             <Info size={16} />
-            <p>Validating system data integrity for year {selectedYear} before HPP calculation. Please wait...</p>
+            <p>
+              {loadError
+                ? `Could not load validation data for ${selectedYear}: ${loadError}`
+                : isLoadingData
+                  ? `Loading data for year ${selectedYear}...`
+                  : `Validating system data integrity for year ${selectedYear} before HPP calculation.`}
+            </p>
           </div>
 
           <div className="validation-steps">
@@ -770,7 +771,7 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
               onClick={startValidation}
               disabled={!canStart}
             >
-              Start Validation
+              {isLoadingData ? 'Loading...' : 'Start Validation'}
             </button>
           )}
           
