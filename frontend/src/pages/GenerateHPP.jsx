@@ -40,7 +40,12 @@ const apiCall = async (endpoint, method = 'GET', data = null, timeout = 15000) =
     const result = await response.json();
 
     if (!response.ok) {
-      throw new Error(result.message || `HTTP error! status: ${response.status}`);
+      // Include the backend's hint and the underlying (SQL) error, not just the generic message
+      throw new Error([
+        result.message || `HTTP error! status: ${response.status}`,
+        result.hint,
+        result.error && `Details: ${result.error}`
+      ].filter(Boolean).join('\n\n'));
     }
 
     return result;

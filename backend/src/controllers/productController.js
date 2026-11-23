@@ -423,6 +423,21 @@ class ProductController {
     }
   }
 
+  // Rendemen / Manhour & Yield presence of the year's unlocked products (Generate HPP validation)
+  static async getYieldCheck(req, res) {
+    try {
+      const { periode } = req.query;
+      if (!periode || !/^\d{4}$/.test(String(periode))) {
+        return res.status(400).json({ success: false, message: 'periode (YYYY) is required' });
+      }
+      const data = await productModel.getYieldCheck(periode);
+      res.status(200).json({ success: true, data });
+    } catch (error) {
+      console.error('Error getting yield check:', error);
+      res.status(500).json({ success: false, message: 'Error getting yield check', error: error.message });
+    }
+  }
+
   // Row counts of every year-scoped dataset for a periode, so pages can explain empty results
   static async getYearReadiness(req, res) {
     try {

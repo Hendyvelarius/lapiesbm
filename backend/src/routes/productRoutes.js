@@ -34,6 +34,8 @@ router.get('/default-year', ProductController.getDefaultYear);
 router.get('/locked-products', ProductController.getLockedProducts);
 // GET /api/products/intermediates?periode=2027 - intermediates (granulat/pelarut/WFI) used that year
 router.get('/intermediates', ProductController.getIntermediates);
+// GET /api/products/yield-check?periode=2027 - rendemen of the year's unlocked products (Generate HPP validation)
+router.get('/yield-check', ProductController.getYieldCheck);
 // GET /api/products/year-readiness?periode=2027 - Row counts of each year-scoped dataset
 router.get('/year-readiness', ProductController.getYearReadiness);
 router.post('/chosenformula', ProductController.addChosenFormula);

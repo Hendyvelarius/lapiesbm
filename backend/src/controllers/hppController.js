@@ -45,10 +45,21 @@ class HPPController {
         }
       });
     } catch (error) {
+      // When the SP raises several errors, mssql rejects with the LAST one and keeps the earlier ones
+      // in precedingErrors. The first is usually the cause; later ones are follow-ups like
+      // "Invalid object name '#tmp_utk_granul'", so send all of them, in order.
+      const sqlErrors = [...(error.precedingErrors || []), error];
+      const messages = [...new Set(sqlErrors.map(e => e.message).filter(Boolean))];
+      let hint;
+      if (sqlErrors.some(e => e.number === 8134)) {
+        hint = `A product's Batch Size x Rendemen is 0 for ${req.body?.periode || 'this year'}. Usually an intermediate (granulat/pelarut/WFI) has a blank or 0 rendemen in Manhour & Yield. Run the validation again to see which one.`;
+      }
+      console.error('HPP generate failed:', messages.join(' | '));
       res.status(500).json({
         success: false,
         message: 'Error generating HPP calculation',
-        error: error.message
+        error: messages.join(' | '),
+        hint
       });
     }
   }

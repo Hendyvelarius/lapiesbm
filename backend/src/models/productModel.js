@@ -786,6 +786,42 @@ async function ensureIntermediatePriceRows(periode) {
     return created;
 }
 
+// Manhour & Yield check for the products a generate recosts (the year's UNLOCKED Formula Assignment).
+// sp_COGS_GenerateHPP computes each intermediate's HPP as cost / (Batch_Size * Group_Rendemen / 100)
+// with no zero guard, so ONE intermediate with rendemen 0 (or blank, the view turns NULL into 0) makes
+// the whole generate fail with "Divide by zero". Other products don't crash it but get HPP 0 in
+// sp_COGS_HPP_List, and products with no Manhour & Yield row for the year are left out entirely
+// (the SP inner-joins vw_COGS_Product_Group).
+async function getYieldCheck(periode) {
+    try {
+        const pool = await connect();
+        const result = await pool.request()
+            .input('periode', sql.VarChar(4), String(periode))
+            .query(`
+                SELECT f.Product_ID, p.Product_Name, f.Std_Output AS Batch_Size,
+                       CASE WHEN ${INTERMEDIATE_RULE} THEN 1 ELSE 0 END AS Is_Intermediate,
+                       CASE WHEN g.Group_ProductID IS NULL THEN 0 ELSE 1 END AS In_Yield,
+                       g.Group_Rendemen
+                FROM M_COGS_PRODUCT_FORMULA_FIX f
+                JOIN m_product p ON p.Product_ID = f.Product_ID
+                OUTER APPLY (SELECT TOP 1 v.Group_ProductID, v.Group_Rendemen FROM vw_COGS_Product_Group v
+                             WHERE v.Group_ProductID = f.Product_ID AND v.Periode = @periode) g
+                WHERE f.Periode = @periode AND ISNULL(f.isLock, 0) = 0
+            `);
+        return result.recordset.map(r => ({
+            productId: r.Product_ID,
+            productName: r.Product_Name,
+            batchSize: r.Batch_Size === null ? null : Number(r.Batch_Size),
+            isIntermediate: r.Is_Intermediate === 1,
+            inYield: r.In_Yield === 1,
+            rendemen: r.Group_Rendemen === null ? null : Number(r.Group_Rendemen)
+        }));
+    } catch (error) {
+        console.error('Error getting yield check:', error);
+        throw error;
+    }
+}
+
 // Year readiness: row counts of every year-scoped dataset for one periode.
 // Pages use this to explain WHY something is empty for a year (e.g. 2027 margins are saved
 // but the Margin view only lists years that exist in Manhour & Yield).
@@ -819,6 +855,7 @@ module.exports = {
     getYearReadiness,
     getIntermediatesInUse,
     ensureIntermediatePriceRows,
+    getYieldCheck,
     getFormula,
     getChosenFormula,
     getAvailableYears,

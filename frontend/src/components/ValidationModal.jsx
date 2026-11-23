@@ -47,6 +47,14 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
       status: 'pending',
       details: null,
       errors: []
+    },
+    {
+      id: 6,
+      title: 'Checking Manhour & Yield (rendemen)',
+      description: 'Verifying products have a Manhour & Yield row with a rendemen for the selected year',
+      status: 'pending',
+      details: null,
+      errors: []
     }
   ]);
   
@@ -157,6 +165,14 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
     const currencyValidationSuccess = await validateCurrencyRates();
     if (!currencyValidationSuccess) {
       validationFailed = true;
+    }
+
+    // Step 6: Manhour & Yield (rendemen)
+    const yieldResult = await validateYield();
+    if (yieldResult === 'failed') {
+      validationFailed = true;
+    } else if (yieldResult === 'warning') {
+      hasWarnings = true;
     }
 
     setIsRunning(false);
@@ -688,6 +704,76 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
     }
   };
 
+  // sp_COGS_GenerateHPP divides each intermediate's (granulat/pelarut/WFI) cost by
+  // Batch_Size * rendemen / 100 with no zero guard: one intermediate with rendemen 0 or blank makes
+  // the whole generate fail ("Divide by zero"). Other products don't crash it but get HPP 0, and
+  // products with no Manhour & Yield row for the year are skipped (no HPP at all).
+  const validateYield = async () => {
+    setCurrentStep(6);
+    updateStepStatus(6, 'running');
+    await new Promise(resolve => setTimeout(resolve, 800));
+
+    try {
+      const res = await api.products.getYieldCheck(year);
+      const rows = res?.data || [];
+      const label = r => `${r.productId} (${r.productName})`;
+      const noRendemen = r => r.inYield && !(r.rendemen > 0);
+
+      const errors = [
+        ...rows
+          .filter(r => r.isIntermediate && r.inYield && (noRendemen(r) || !(r.batchSize > 0)))
+          .map(r => `${label(r)}: intermediate with ${!(r.rendemen > 0) ? `rendemen ${r.rendemen ?? 'blank'}` : `batch size ${r.batchSize ?? 'blank'}`} for ${year}. Its HPP is used as a material price, so generation fails. Set it in Manhour & Yield.`),
+        // Not in the SP's header set, so its HPP is never computed and products using it keep a 0/stale price
+        ...rows
+          .filter(r => r.isIntermediate && !r.inYield)
+          .map(r => `${label(r)}: intermediate not in ${year} Manhour & Yield, so its HPP is not calculated and products using it are costed with a 0 or old price. Add it to Manhour & Yield.`)
+      ];
+
+      const warnings = [
+        ...rows
+          .filter(r => !r.isIntermediate && noRendemen(r))
+          .map(r => `${label(r)}: rendemen ${r.rendemen ?? 'blank'} for ${year}, so its HPP will be 0`),
+        ...rows
+          .filter(r => !r.isIntermediate && !r.inYield)
+          .map(r => `${label(r)}: not in ${year} Manhour & Yield, so it is skipped (no HPP generated)`)
+      ];
+
+      if (errors.length > 0) {
+        updateStepStatus(6, 'failed', {
+          summary: `${errors.length} intermediate(s) have no usable ${year} Manhour & Yield`
+            + (warnings.length > 0 ? ` (plus ${warnings.length} warning(s))` : ''),
+          errors: [...errors, ...warnings],
+          helpMessage: `Fill in rendemen for these products in the ${year} Manhour & Yield page, then retry.`
+        });
+        setHasError(true);
+        return 'failed';
+      }
+
+      if (warnings.length > 0) {
+        updateStepStatus(6, 'warning', {
+          summary: `${warnings.length} product(s) will have HPP 0 or no HPP for ${year}`,
+          errors: warnings,
+          helpMessage: `If these products should have an HPP, fill in their rendemen in the ${year} Manhour & Yield page. Otherwise you can proceed.`
+        });
+        return 'warning';
+      }
+
+      updateStepStatus(6, 'completed', {
+        summary: `All ${rows.length} products have a ${year} rendemen`,
+        details: `Checked Manhour & Yield for ${rows.length} unlocked products`
+      });
+      return 'success';
+    } catch (error) {
+      console.error('Error validating Manhour & Yield:', error);
+      updateStepStatus(6, 'failed', {
+        summary: 'Failed to validate Manhour & Yield',
+        errors: [`Error loading Manhour & Yield data: ${error.message}`]
+      });
+      setHasError(true);
+      return 'failed';
+    }
+  };
+
   const updateStepStatus = (stepId, status, details = null) => {
     setValidationSteps(prev => prev.map(step => 
       step.id === stepId 
@@ -719,7 +805,8 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
   // Start only once this year's data is loaded (see loadedYear)
   const isLoadingData = isOpen && loadedYear !== year && !loadError;
   const canStart = loadedYear === year && !isRunning;
-  const allCompleted = validationSteps.every(step => step.status === 'completed');
+  // A step that ended with warnings is finished too (otherwise "Proceed Anyway" never shows)
+  const allCompleted = validationSteps.every(step => step.status === 'completed' || step.status === 'warning');
 
   if (!isOpen) return null;
 
@@ -785,11 +872,15 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
                         </ul>
                         <div className="error-help">
                           <p><strong>To fix these issues:</strong></p>
-                          <ul>
-                            <li>Go to <strong>Formula Assignment</strong> page to assign missing formulas</li>
-                            <li>Use <strong>Product Formula</strong> page to create missing formulas or fix batch sizes</li>
-                            <li>Ensure all required formula types (PI, PS, KP, KS) are properly configured</li>
-                          </ul>
+                          {step.details.helpMessage ? (
+                            <p>{step.details.helpMessage}</p>
+                          ) : (
+                            <ul>
+                              <li>Go to <strong>Formula Assignment</strong> page to assign missing formulas</li>
+                              <li>Use <strong>Product Formula</strong> page to create missing formulas or fix batch sizes</li>
+                              <li>Ensure all required formula types (PI, PS, KP, KS) are properly configured</li>
+                            </ul>
+                          )}
                         </div>
                       </div>
                     )}

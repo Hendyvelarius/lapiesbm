@@ -88,6 +88,8 @@ export const productsAPI = {
 
   // Intermediates (granulat/pelarut/WFI) used by a year's unlocked formulas
   getIntermediates: (periode) => apiRequest(`/products/intermediates?periode=${encodeURIComponent(periode)}`),
+  // Rendemen / Manhour & Yield presence of a year's unlocked products
+  getYieldCheck: (periode) => apiRequest(`/products/yield-check?periode=${encodeURIComponent(periode)}`),
 
   // Row counts of each year-scoped dataset (Manhour & Yield, material prices, rates, ...) for a year
   getYearReadiness: (periode) => apiRequest(`/products/year-readiness?periode=${encodeURIComponent(periode)}`),
