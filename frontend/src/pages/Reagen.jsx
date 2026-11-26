@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Search, Filter, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, Edit, Trash2, X, Check, Download, Upload, Lock } from 'lucide-react';
 import AWN from 'awesome-notifications';
 import 'awesome-notifications/dist/style.css';
@@ -17,8 +17,12 @@ const notifier = new AWN({
 
 const Reagen = ({ user }) => {
   // State management
-  const [reagenData, setReagenData] = useState([]);
+  // Raw reagen rows for the selected year; product names are joined in `reagenData` below
+  const [rawReagenData, setRawReagenData] = useState([]);
+  // Product group for the selected year (vw_COGS_Product_Group is per Periode)
   const [productNames, setProductNames] = useState([]);
+  // Year the loaded product group belongs to, so import can't validate against a stale year
+  const [productNamesPeriode, setProductNamesPeriode] = useState('');
   const [filteredData, setFilteredData] = useState([]);
   const [paginatedData, setPaginatedData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +32,9 @@ const Reagen = ({ user }) => {
   // Period state
   const [selectedPeriode, setSelectedPeriode] = useState('');
   const [periodeLoaded, setPeriodeLoaded] = useState(false);
+  // Latest selected year, so responses for a year the user already left are dropped
+  const latestPeriodeRef = useRef('');
+  latestPeriodeRef.current = selectedPeriode;
   
   // Lock state - products that are locked in Formula Assignment
   const [lockedProductIds, setLockedProductIds] = useState([]);
@@ -150,22 +157,22 @@ const Reagen = ({ user }) => {
 
   // Load reagen data from API
   const loadReagenData = async () => {
+    const periode = selectedPeriode;
     try {
       setLoading(true);
       const result = await reagenAPI.getAll();
-      
+      if (latestPeriodeRef.current !== periode) return; // user switched year meanwhile
+
       if (result && result.success && Array.isArray(result.data)) {
-        // Filter by selected periode and map the data to include product names
-        const filteredByPeriode = result.data.filter(item => 
-          item.Periode === selectedPeriode
+        // Filter by selected periode; product names are joined in `reagenData`
+        const filteredByPeriode = result.data.filter(item =>
+          item.Periode === periode
         );
-        
+
         const mappedData = filteredByPeriode.map(item => {
-          const productInfo = productNames.find(p => p.Product_ID === item.ProductID);
           return {
             pk_id: item.pk_id,
             productId: item.ProductID,
-            productName: productInfo ? productInfo.Product_Name : `Product ${item.ProductID}`,
             reagenRate: item.Reagen_Rate,
             periode: item.Periode,
             userId: item.user_id,
@@ -176,7 +183,7 @@ const Reagen = ({ user }) => {
           };
         });
         
-        setReagenData(mappedData);
+        setRawReagenData(mappedData);
         setError('');
         console.log('Loaded reagen data:', mappedData.length, 'items');
       } else {
@@ -187,17 +194,20 @@ const Reagen = ({ user }) => {
       console.error('Error details:', err.message);
       setError('Failed to load reagen data: ' + err.message);
       notifier.alert('Failed to load reagen data. Please check the console for details.');
-      setReagenData([]);
+      setRawReagenData([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Load product data from group API
-  const loadProductNames = async () => {
+  // Load the product group for the given year. Products are per-year rows in
+  // vw_COGS_Product_Group, so a new product (e.g. one that only exists in next year's
+  // group) must be looked up in the year being edited, not the calendar year.
+  const loadProductNames = async (periode) => {
     try {
-      const result = await masterAPI.getGroup();
-      
+      const result = await masterAPI.getGroup(periode);
+      if (latestPeriodeRef.current !== periode) return; // user switched year meanwhile
+
       if (result && result.success && Array.isArray(result.data)) {
         // Transform group data to match expected format
         const transformedData = result.data.map(item => ({
@@ -210,7 +220,8 @@ const Reagen = ({ user }) => {
         }));
         
         setProductNames(transformedData);
-        console.log('Loaded product data from group API:', transformedData.length, 'items');
+        setProductNamesPeriode(periode);
+        console.log(`Loaded product group for ${periode}:`, transformedData.length, 'items');
       } else if (result && Array.isArray(result)) {
         // Handle case where API returns array directly (without success wrapper)
         const transformedData = result.map(item => ({
@@ -223,23 +234,40 @@ const Reagen = ({ user }) => {
         }));
         
         setProductNames(transformedData);
-        console.log('Loaded product data (direct array):', transformedData.length, 'items');
+        setProductNamesPeriode(periode);
+        console.log(`Loaded product group for ${periode} (direct array):`, transformedData.length, 'items');
       } else {
         throw new Error(result?.message || 'Invalid response format');
       }
     } catch (err) {
+      if (latestPeriodeRef.current !== periode) return;
       console.error('Error loading product data:', err);
       console.error('Error details:', err.message);
       notifier.warning('Failed to load product data. You can still add reagen entries manually.');
       setProductNames([]);
+      setProductNamesPeriode('');
     }
   };
+
+  // Reagen rows joined with the selected year's product names. Derived rather than stored,
+  // so it is right whichever of the two requests finishes first.
+  const reagenData = useMemo(() => {
+    const nameById = new Map(productNames.map(p => [p.Product_ID, p.Product_Name]));
+    return rawReagenData.map(item => ({
+      ...item,
+      productName: nameById.get(item.productId) || `Product ${item.productId}`
+    }));
+  }, [rawReagenData, productNames]);
 
   // Load available products for Add New (Group_PNCategory = 8 and excluding existing reagen entries and locked products)
   const loadAvailableProducts = async () => {
     try {
-      if (productNames.length === 0) return;
-      
+      // Only offer products from the selected year's group, not a previous year still in state
+      if (productNames.length === 0 || productNamesPeriode !== selectedPeriode) {
+        setAvailableProducts([]);
+        return;
+      }
+
       // Get existing product IDs that already have reagen rates
       const existingProductIds = reagenData.map(item => item.productId);
       
@@ -260,49 +288,23 @@ const Reagen = ({ user }) => {
     }
   };
 
-  // Initial data load - wait for periode to be loaded first
+  // Load everything for the selected year: on first load (once the default year is known)
+  // and again whenever the year changes. The product group is per year too.
   useEffect(() => {
     if (!periodeLoaded) return; // Don't load data until periode is set
-    
-    const loadInitialData = async () => {
-      // Load product names first, but don't wait for it to complete
-      loadProductNames();
-      // Load reagen data immediately as well
-      await loadReagenData();
-      // Fetch locked products for the default year
-      fetchLockedProducts(selectedPeriode);
-    };
-    loadInitialData();
-  }, [periodeLoaded]);
-
-  // Reload data when periode changes (after initial load)
-  useEffect(() => {
-    if (!periodeLoaded) return; // Skip if periode hasn't been loaded yet
-    if (productNames.length > 0) {
-      loadReagenData();
-      fetchLockedProducts(selectedPeriode); // Fetch locked products when period changes
-      setCurrentPage(1); // Reset to first page when changing year
-    }
-  }, [selectedPeriode, fetchLockedProducts]);
-
-  // Re-map reagen data when product names are loaded
-  useEffect(() => {
-    if (productNames.length > 0 && reagenData.length > 0) {
-      const remappedData = reagenData.map(item => {
-        const productInfo = productNames.find(p => p.Product_ID === item.productId);
-        return {
-          ...item,
-          productName: productInfo ? productInfo.Product_Name : item.productName
-        };
-      });
-      setReagenData(remappedData);
-    }
-  }, [productNames]);
+    loadProductNames(selectedPeriode);
+    loadReagenData();
+    fetchLockedProducts(selectedPeriode);
+    setCurrentPage(1); // Reset to first page when changing year
+  }, [periodeLoaded, selectedPeriode, fetchLockedProducts]);
 
   // Update available products when reagen data, product names, or locked products change
   useEffect(() => {
     loadAvailableProducts();
-  }, [reagenData, productNames, lockedProductIds]);
+  }, [reagenData, productNames, productNamesPeriode, selectedPeriode, lockedProductIds]);
+
+  // Product group for the selected year is loaded (import validates against it)
+  const productGroupReady = productNames.length > 0 && productNamesPeriode === selectedPeriode;
 
   // Filter and search functionality
   useEffect(() => {
@@ -833,8 +835,8 @@ const Reagen = ({ user }) => {
             <button 
               onClick={handleImportExcel}
               className="btn-secondary import-btn"
-              disabled={loading || productNames.length === 0}
-              title={productNames.length === 0 ? "Please wait for product data to load" : "Import reagen data from Excel (replaces all existing data)"}
+              disabled={loading || !productGroupReady}
+              title={!productGroupReady ? "Please wait for product data to load" : "Import reagen data from Excel (replaces all existing data)"}
             >
               <Upload size={16} />
               Import Excel
@@ -1217,11 +1219,13 @@ const Reagen = ({ user }) => {
               >
                 Cancel
               </button>
-              <button 
+              <button
                 className="btn-primary"
                 onClick={handleImportConfirm}
+                disabled={!productGroupReady}
+                title={!productGroupReady ? `Loading products for ${selectedPeriode}...` : undefined}
               >
-                Select Excel File
+                {productGroupReady ? 'Select Excel File' : 'Loading products...'}
               </button>
             </div>
           </div>
