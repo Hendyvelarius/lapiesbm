@@ -123,7 +123,10 @@ class ReagenModel {
   static async createReagen(reagenData) {
     try {
       const pool = await connect();
+      // OUTPUT must go INTO a table variable: the table has audit triggers (-> _hist), and
+      // SQL Server rejects a bare OUTPUT clause on a table with enabled triggers (error 334).
       const query = `
+        DECLARE @inserted TABLE (pk_id INT);
         INSERT INTO M_COGS_PEMBEBANAN_REAGEN (
           Periode,
           ProductID,
@@ -134,7 +137,7 @@ class ReagenModel {
           flag_update,
           from_update
         )
-        OUTPUT INSERTED.pk_id
+        OUTPUT INSERTED.pk_id INTO @inserted
         VALUES (
           @periode,
           @productId,
@@ -144,7 +147,8 @@ class ReagenModel {
           @processDate,
           @flagUpdate,
           @fromUpdate
-        )
+        );
+        SELECT pk_id FROM @inserted;
       `;
       
       const result = await pool.request()
