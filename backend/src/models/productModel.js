@@ -464,10 +464,42 @@ async function bulkImportFormulas(importData) {
             
             await Promise.all(insertPromises);
         }
-        
+
+        // Step 3: products without a recipe (imports like Lasalcom/Enoxrin, some toll-in) are kept as
+        // all-blank rows entered by hand, and the delete above preserves them. A NEW year has none, and the
+        // file only lists products with active recipes, so they went missing (2027): no row means
+        // sp_COGS_GenerateHPP skips the product, so no HPP. When the year has no blank rows yet, copy
+        // the latest earlier year's blank rows (with their batch size) for products the file didn't
+        // assign. If the year already has blank rows, they were kept or edited by hand, so leave them.
+        const carried = await pool.request()
+            .input('periode', sql.VarChar, targetPeriode)
+            .input('processDate', sql.DateTime, getWIBDateTime())
+            .query(`
+                IF NOT EXISTS (SELECT 1 FROM M_COGS_PRODUCT_FORMULA_FIX WHERE Periode = @periode
+                               AND PI IS NULL AND PS IS NULL AND KP IS NULL AND KS IS NULL)
+                BEGIN
+                    DECLARE @src varchar(4) = (SELECT MAX(Periode) FROM M_COGS_PRODUCT_FORMULA_FIX
+                        WHERE Periode < @periode AND PI IS NULL AND PS IS NULL AND KP IS NULL AND KS IS NULL);
+                    INSERT INTO M_COGS_PRODUCT_FORMULA_FIX
+                        (Periode, Product_ID, PI, PS, KP, KS, Std_Output, isManual, user_id, delegated_to, process_date)
+                    SELECT @periode, s.Product_ID, NULL, NULL, NULL, NULL, s.Std_Output, 1, 'CARRY_FORWARD', 'CARRY_FORWARD', @processDate
+                    FROM M_COGS_PRODUCT_FORMULA_FIX s
+                    JOIN m_product p ON p.Product_ID = s.Product_ID AND p.isActive = 1
+                    WHERE s.Periode = @src
+                      AND s.PI IS NULL AND s.PS IS NULL AND s.KP IS NULL AND s.KS IS NULL
+                      AND NOT EXISTS (SELECT 1 FROM M_COGS_PRODUCT_FORMULA_FIX t
+                                      WHERE t.Periode = @periode AND t.Product_ID = s.Product_ID);
+                    SELECT @@ROWCOUNT AS n;
+                END
+                ELSE SELECT 0 AS n;
+            `);
+        const carriedForward = carried.recordset?.[0]?.n || 0;
+
         return {
             processed: importData.length,
+            carriedForward,
             message: `Successfully imported ${importData.length} formula assignments`
+                + (carriedForward > 0 ? ` (plus ${carriedForward} no-recipe product(s) carried over from the previous year)` : '')
         };
     } catch (error) {
         console.error('Error in bulkImportFormulas:', error);
@@ -808,14 +840,40 @@ async function getYieldCheck(periode) {
                              WHERE v.Group_ProductID = f.Product_ID AND v.Periode = @periode) g
                 WHERE f.Periode = @periode AND ISNULL(f.isLock, 0) = 0
             `);
-        return result.recordset.map(r => ({
-            productId: r.Product_ID,
-            productName: r.Product_Name,
-            batchSize: r.Batch_Size === null ? null : Number(r.Batch_Size),
-            isIntermediate: r.Is_Intermediate === 1,
-            inYield: r.In_Yield === 1,
-            rendemen: r.Group_Rendemen === null ? null : Number(r.Group_Rendemen)
-        }));
+        // The other way round: active products in the year's Manhour & Yield with NO Formula Assignment
+        // row. The SP inner-joins M_COGS_PRODUCT_FORMULA_FIX, so they get no HPP at all. Import products
+        // (Lasalcom, Enoxrin...) have no recipe and need an all-blank row with batch size 1, entered by
+        // hand; a new year's Excel import only brings products that have recipes.
+        const unassigned = await pool.request()
+            .input('periode', sql.VarChar(4), String(periode))
+            .query(`
+                SELECT g.Group_ProductID AS Product_ID, p.Product_Name, g.Group_Rendemen
+                FROM (SELECT Group_ProductID, MAX(Group_Rendemen) AS Group_Rendemen FROM vw_COGS_Product_Group
+                      WHERE Periode = @periode GROUP BY Group_ProductID) g
+                JOIN m_product p ON p.Product_ID = g.Group_ProductID AND p.isActive = 1
+                WHERE NOT EXISTS (SELECT 1 FROM M_COGS_PRODUCT_FORMULA_FIX f
+                                  WHERE f.Product_ID = g.Group_ProductID AND f.Periode = @periode)
+            `);
+        return [
+            ...result.recordset.map(r => ({
+                productId: r.Product_ID,
+                productName: r.Product_Name,
+                batchSize: r.Batch_Size === null ? null : Number(r.Batch_Size),
+                isIntermediate: r.Is_Intermediate === 1,
+                inYield: r.In_Yield === 1,
+                inAssignment: true,
+                rendemen: r.Group_Rendemen === null ? null : Number(r.Group_Rendemen)
+            })),
+            ...unassigned.recordset.map(r => ({
+                productId: r.Product_ID,
+                productName: r.Product_Name,
+                batchSize: null,
+                isIntermediate: false,
+                inYield: true,
+                inAssignment: false,
+                rendemen: r.Group_Rendemen === null ? null : Number(r.Group_Rendemen)
+            }))
+        ];
     } catch (error) {
         console.error('Error getting yield check:', error);
         throw error;
