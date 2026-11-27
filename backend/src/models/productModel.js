@@ -86,10 +86,10 @@ async function addChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId, is
         const result = await pool.request()
             .input('periode', sql.VarChar, targetYear)
             .input('productId', sql.VarChar, productId)
-            .input('pi', sql.VarChar, pi === null ? null : (pi || ''))
-            .input('ps', sql.VarChar, ps === null ? null : (ps || ''))
-            .input('kp', sql.VarChar, kp === null ? null : (kp || ''))
-            .input('ks', sql.VarChar, ks === null ? null : (ks || ''))
+            .input('pi', sql.VarChar, pi === null || pi === undefined ? null : pi) // no formula = NULL; '' only when that '' version was picked
+            .input('ps', sql.VarChar, ps === null || ps === undefined ? null : ps) // no formula = NULL; '' only when that '' version was picked
+            .input('kp', sql.VarChar, kp === null || kp === undefined ? null : kp) // no formula = NULL; '' only when that '' version was picked
+            .input('ks', sql.VarChar, ks === null || ks === undefined ? null : ks) // no formula = NULL; '' only when that '' version was picked
             .input('stdOutput', sql.Decimal(18,2), stdOutput || 0)
             .input('userId', sql.VarChar, finalUserId)
             .input('delegatedTo', sql.VarChar, finalDelegatedTo)
@@ -130,10 +130,10 @@ async function updateChosenFormula(productId, pi, ps, kp, ks, stdOutput, userId,
         const result = await pool.request()
             .input('productId', sql.VarChar, productId)
             .input('periode', sql.VarChar, targetYear)
-            .input('pi', sql.VarChar, pi === null ? null : (pi || ''))
-            .input('ps', sql.VarChar, ps === null ? null : (ps || ''))
-            .input('kp', sql.VarChar, kp === null ? null : (kp || ''))
-            .input('ks', sql.VarChar, ks === null ? null : (ks || ''))
+            .input('pi', sql.VarChar, pi === null || pi === undefined ? null : pi) // no formula = NULL; '' only when that '' version was picked
+            .input('ps', sql.VarChar, ps === null || ps === undefined ? null : ps) // no formula = NULL; '' only when that '' version was picked
+            .input('kp', sql.VarChar, kp === null || kp === undefined ? null : kp) // no formula = NULL; '' only when that '' version was picked
+            .input('ks', sql.VarChar, ks === null || ks === undefined ? null : ks) // no formula = NULL; '' only when that '' version was picked
             .input('stdOutput', sql.Decimal(18,2), stdOutput || 0)
             .input('userId', sql.VarChar, finalUserId)
             .input('delegatedTo', sql.VarChar, finalDelegatedTo)
