@@ -854,6 +854,22 @@ async function getYieldCheck(periode) {
                 WHERE NOT EXISTS (SELECT 1 FROM M_COGS_PRODUCT_FORMULA_FIX f
                                   WHERE f.Product_ID = g.Group_ProductID AND f.Periode = @periode)
             `);
+        // Products with a margin / toll fee for the year (Margin page) but in NEITHER Manhour & Yield nor
+        // Formula Assignment, e.g. Budeson (GQ/GR) for 2027. Both lists above start from one of those two
+        // tables, so these were invisible to the validator while still getting no HPP.
+        const marginOnly = await pool.request()
+            .input('periode', sql.VarChar(4), String(periode))
+            .query(`
+                SELECT tf.ProductID AS Product_ID, p.Product_Name, MAX(tf.Toll_Fee) AS Toll_Fee
+                FROM M_COGS_PEMBEBANAN_TollFee tf
+                JOIN m_product p ON p.Product_ID = tf.ProductID AND p.isActive = 1
+                WHERE tf.Periode = @periode AND ISNULL(LTRIM(RTRIM(tf.Toll_Fee)), '') <> ''
+                  AND NOT EXISTS (SELECT 1 FROM M_COGS_PRODUCT_GROUP_MANUAL m
+                                  WHERE m.Group_ProductID = tf.ProductID AND m.Periode = @periode)
+                  AND NOT EXISTS (SELECT 1 FROM M_COGS_PRODUCT_FORMULA_FIX f
+                                  WHERE f.Product_ID = tf.ProductID AND f.Periode = @periode)
+                GROUP BY tf.ProductID, p.Product_Name
+            `);
         return [
             ...result.recordset.map(r => ({
                 productId: r.Product_ID,
@@ -872,6 +888,16 @@ async function getYieldCheck(periode) {
                 inYield: true,
                 inAssignment: false,
                 rendemen: r.Group_Rendemen === null ? null : Number(r.Group_Rendemen)
+            })),
+            ...marginOnly.recordset.map(r => ({
+                productId: r.Product_ID,
+                productName: r.Product_Name,
+                batchSize: null,
+                isIntermediate: false,
+                inYield: false,
+                inAssignment: false,
+                margin: r.Toll_Fee,
+                rendemen: null
             }))
         ];
     } catch (error) {

@@ -741,7 +741,12 @@ const ValidationModal = ({ isOpen, onClose, onValidationComplete, selectedYear }
           .map(r => `${label(r)}: not in ${year} Manhour & Yield, so it is skipped (no HPP generated)`),
         // e.g. import products (no recipe): they need a blank Formula Assignment row with batch size 1
         ...unassigned
-          .map(r => `${label(r)}: in ${year} Manhour & Yield but not in ${year} Formula Assignment, so it is skipped (no HPP generated). Products without a recipe (imports) need a blank assignment with batch size 1.`)
+          .filter(r => r.inYield)
+          .map(r => `${label(r)}: in ${year} Manhour & Yield but not in ${year} Formula Assignment, so it is skipped (no HPP generated). Products without a recipe (imports) need a blank assignment with batch size 1.`),
+        // Only on the Margin page: no Manhour & Yield (no rendemen) and no Formula Assignment row
+        ...unassigned
+          .filter(r => !r.inYield)
+          .map(r => `${label(r)}: has a ${year} margin (${r.margin}) but is in neither ${year} Manhour & Yield nor Formula Assignment, so it is skipped (no HPP generated). Add it to Manhour & Yield (rendemen) and Formula Assignment (imports: blank assignment, batch size 1).`)
       ];
 
       if (errors.length > 0) {
